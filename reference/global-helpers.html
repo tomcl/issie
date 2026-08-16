@@ -493,7 +493,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Helpers.PrintSimple\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L362-362" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L379-379" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -520,7 +520,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Helpers.ReduceKeys\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L395-395" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L412-412" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -547,7 +547,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Helpers.RegenerateIds\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L562-562" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L579-579" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -578,7 +578,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Helpers.ResultList\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L263-263" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L280-280" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -678,6 +678,75 @@
             <div>
               <code onmouseout="hideTip(event, '1137', 1137)" onmouseover="showTip(event, '1137', 1137)">
                 <p>
+                  <a id="clearIdentityMemos">
+                    <a href="#clearIdentityMemos">
+                      <code><span>clearIdentityMemos&#32;<span>()</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1137">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>clearIdentityMemos&#32;<span>()</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ()
+                      </b>
+                      :
+                      <code>unit</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Helpers.clearIdentityMemos`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.clearIdentityMemos\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L212-212" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Empty every memoizeByIdentity memo, releasing whatever their keys and values hold on to.
+
+ Call where something large is discarded rather than replaced - a simulation being ended. Doing
+ so is always safe: a memo is only ever an answer that can be worked out again, so the cost of
+ emptying one that was still wanted is that it is filled again on the next call.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ()
+                  </span>
+                  :
+                  <code>unit</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1138', 1138)" onmouseover="showTip(event, '1138', 1138)">
+                <p>
                   <a id="cropToLength">
                     <a href="#cropToLength">
                       <code><span>cropToLength&#32;<span>len&#32;fromStart&#32;str</span></span></code>
@@ -685,7 +754,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1137">
+              <div class="fsdocs-tip" id="1138">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>cropToLength&#32;<span>len&#32;fromStart&#32;str</span></span></code>
@@ -738,7 +807,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.cropToLength\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L309-309" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L326-326" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -789,7 +858,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1138', 1138)" onmouseover="showTip(event, '1138', 1138)">
+              <code onmouseout="hideTip(event, '1139', 1139)" onmouseover="showTip(event, '1139', 1139)">
                 <p>
                   <a id="getCustomComponentType">
                     <a href="#getCustomComponentType">
@@ -798,7 +867,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1138">
+              <div class="fsdocs-tip" id="1139">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getCustomComponentType&#32;<span>_arg1</span></span></code>
@@ -850,7 +919,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1139', 1139)" onmouseover="showTip(event, '1139', 1139)">
+              <code onmouseout="hideTip(event, '1140', 1140)" onmouseover="showTip(event, '1140', 1140)">
                 <p>
                   <a id="getCustomName">
                     <a href="#getCustomName">
@@ -859,7 +928,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1139">
+              <div class="fsdocs-tip" id="1140">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getCustomName&#32;<span>_arg1</span></span></code>
@@ -911,7 +980,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1140', 1140)" onmouseover="showTip(event, '1140', 1140)">
+              <code onmouseout="hideTip(event, '1141', 1141)" onmouseover="showTip(event, '1141', 1141)">
                 <p>
                   <a id="getMemData">
                     <a href="#getMemData">
@@ -920,7 +989,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1140">
+              <div class="fsdocs-tip" id="1141">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getMemData&#32;<span>address&#32;memData</span></span></code>
@@ -988,7 +1057,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1141', 1141)" onmouseover="showTip(event, '1141', 1141)">
+              <code onmouseout="hideTip(event, '1142', 1142)" onmouseover="showTip(event, '1142', 1142)">
                 <p>
                   <a id="isCustom">
                     <a href="#isCustom">
@@ -997,7 +1066,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1141">
+              <div class="fsdocs-tip" id="1142">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>isCustom&#32;<span>_arg1</span></span></code>
@@ -1049,7 +1118,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1142', 1142)" onmouseover="showTip(event, '1142', 1142)">
+              <code onmouseout="hideTip(event, '1143', 1143)" onmouseover="showTip(event, '1143', 1143)">
                 <p>
                   <a id="isIOLabel">
                     <a href="#isIOLabel">
@@ -1058,7 +1127,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1142">
+              <div class="fsdocs-tip" id="1143">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>isIOLabel&#32;<span>_arg1</span></span></code>
@@ -1110,7 +1179,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1143', 1143)" onmouseover="showTip(event, '1143', 1143)">
+              <code onmouseout="hideTip(event, '1144', 1144)" onmouseover="showTip(event, '1144', 1144)">
                 <p>
                   <a id="isInput">
                     <a href="#isInput">
@@ -1119,7 +1188,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1143">
+              <div class="fsdocs-tip" id="1144">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>isInput&#32;<span>_arg1</span></span></code>
@@ -1171,7 +1240,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1144', 1144)" onmouseover="showTip(event, '1144', 1144)">
+              <code onmouseout="hideTip(event, '1145', 1145)" onmouseover="showTip(event, '1145', 1145)">
                 <p>
                   <a id="isOutput">
                     <a href="#isOutput">
@@ -1180,7 +1249,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1144">
+              <div class="fsdocs-tip" id="1145">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>isOutput&#32;<span>_arg1</span></span></code>
@@ -1232,7 +1301,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1145', 1145)" onmouseover="showTip(event, '1145', 1145)">
+              <code onmouseout="hideTip(event, '1146', 1146)" onmouseover="showTip(event, '1146', 1146)">
                 <p>
                   <a id="isViewer">
                     <a href="#isViewer">
@@ -1241,7 +1310,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1145">
+              <div class="fsdocs-tip" id="1146">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>isViewer&#32;<span>_arg1</span></span></code>
@@ -1293,7 +1362,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1146', 1146)" onmouseover="showTip(event, '1146', 1146)">
+              <code onmouseout="hideTip(event, '1147', 1147)" onmouseover="showTip(event, '1147', 1147)">
                 <p>
                   <a id="listSet">
                     <a href="#listSet">
@@ -1302,7 +1371,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1146">
+              <div class="fsdocs-tip" id="1147">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>listSet&#32;<span>lst&#32;item&#32;idx</span></span></code>
@@ -1355,7 +1424,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.listSet``1\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L295-295" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L312-312" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1405,7 +1474,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1147', 1147)" onmouseover="showTip(event, '1147', 1147)">
+              <code onmouseout="hideTip(event, '1148', 1148)" onmouseover="showTip(event, '1148', 1148)">
                 <p>
                   <a id="mapFindWithDef">
                     <a href="#mapFindWithDef">
@@ -1414,7 +1483,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1147">
+              <div class="fsdocs-tip" id="1148">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>mapFindWithDef&#32;<span>defVal&#32;key&#32;map</span></span></code>
@@ -1472,7 +1541,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.mapFindWithDef``2\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L221-221" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L238-238" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1521,7 +1590,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1148', 1148)" onmouseover="showTip(event, '1148', 1148)">
+              <code onmouseout="hideTip(event, '1149', 1149)" onmouseover="showTip(event, '1149', 1149)">
                 <p>
                   <a id="mapInverse">
                     <a href="#mapInverse">
@@ -1530,7 +1599,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1148">
+              <div class="fsdocs-tip" id="1149">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>mapInverse&#32;<span>m</span></span></code>
@@ -1572,7 +1641,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.mapInverse``2\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L236-236" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L253-253" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1605,7 +1674,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1149', 1149)" onmouseover="showTip(event, '1149', 1149)">
+              <code onmouseout="hideTip(event, '1150', 1150)" onmouseover="showTip(event, '1150', 1150)">
                 <p>
                   <a id="mapKeys">
                     <a href="#mapKeys">
@@ -1614,7 +1683,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1149">
+              <div class="fsdocs-tip" id="1150">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>mapKeys&#32;<span>map</span></span></code>
@@ -1656,7 +1725,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.mapKeys``2\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L210-210" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L227-227" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1689,7 +1758,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1150', 1150)" onmouseover="showTip(event, '1150', 1150)">
+              <code onmouseout="hideTip(event, '1151', 1151)" onmouseover="showTip(event, '1151', 1151)">
                 <p>
                   <a id="mapPair">
                     <a href="#mapPair">
@@ -1698,7 +1767,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1150">
+              <div class="fsdocs-tip" id="1151">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>mapPair&#32;<span>f&#32;<span>(<span>arg2,&#32;arg3</span>)</span></span></span></code>
@@ -1756,7 +1825,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.mapPair``2\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L217-217" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L234-234" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1806,7 +1875,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1151', 1151)" onmouseover="showTip(event, '1151', 1151)">
+              <code onmouseout="hideTip(event, '1152', 1152)" onmouseover="showTip(event, '1152', 1152)">
                 <p>
                   <a id="mapUnion">
                     <a href="#mapUnion">
@@ -1815,7 +1884,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1151">
+              <div class="fsdocs-tip" id="1152">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>mapUnion&#32;<span>m1&#32;m2</span></span></code>
@@ -1865,7 +1934,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.mapUnion``2\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L231-231" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L248-248" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1906,7 +1975,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1152', 1152)" onmouseover="showTip(event, '1152', 1152)">
+              <code onmouseout="hideTip(event, '1153', 1153)" onmouseover="showTip(event, '1153', 1153)">
                 <p>
                   <a id="mapUpdateWithDef">
                     <a href="#mapUpdateWithDef">
@@ -1915,7 +1984,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1152">
+              <div class="fsdocs-tip" id="1153">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>mapUpdateWithDef&#32;<span>defVal&#32;update&#32;key&#32;map</span></span></code>
@@ -1981,7 +2050,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.mapUpdateWithDef``2\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L226-226" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L243-243" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2039,7 +2108,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1153', 1153)" onmouseover="showTip(event, '1153', 1153)">
+              <code onmouseout="hideTip(event, '1154', 1154)" onmouseover="showTip(event, '1154', 1154)">
                 <p>
                   <a id="mapValues">
                     <a href="#mapValues">
@@ -2048,7 +2117,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1153">
+              <div class="fsdocs-tip" id="1154">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>mapValues&#32;<span>map</span></span></code>
@@ -2090,7 +2159,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.mapValues``2\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L213-213" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L230-230" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2123,7 +2192,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1154', 1154)" onmouseover="showTip(event, '1154', 1154)">
+              <code onmouseout="hideTip(event, '1155', 1155)" onmouseover="showTip(event, '1155', 1155)">
                 <p>
                   <a id="memoizeBy">
                     <a href="#memoizeBy">
@@ -2132,7 +2201,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1154">
+              <div class="fsdocs-tip" id="1155">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>memoizeBy&#32;<span>keyFunc&#32;funcToMemoize</span></span></code>
@@ -2222,7 +2291,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1155', 1155)" onmouseover="showTip(event, '1155', 1155)">
+              <code onmouseout="hideTip(event, '1156', 1156)" onmouseover="showTip(event, '1156', 1156)">
                 <p>
                   <a id="memoizeByIdentity">
                     <a href="#memoizeByIdentity">
@@ -2231,7 +2300,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1155">
+              <div class="fsdocs-tip" id="1156">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>memoizeByIdentity&#32;<span>funcToMemoize</span></span></code>
@@ -2259,61 +2328,31 @@
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('```cref:M:Helpers.memoizeByIdentity``2```')">
-                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
-                  </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.memoizeByIdentity``2\'/>')">
-                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
-                  </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L187-187" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     Return a memoized version of funcToMemoize whose stored result is reused for as long as it is
- called with the SAME OBJECT, by reference, rather than an equal one.
-
- memoizeBy compares keys with =, which is what you want for a small key and quite wrong for a
- large one: on a Map, a FastSimulation or anything else with a deep structure the comparison
- costs more than the function being memoised, and on a value holding a closure it does not
- terminate sensibly at all. Identity is the right question for anything that is REBUILT rather
- than mutated - a simulation, or a map replaced wholesale when its contents change - because
- then a new object is exactly the signal that the answer is stale. It also means nothing has to
- remember to invalidate the memo.
-
- One slot, like memoizeBy: these are used where the argument changes rarely and is asked about
- often, so alternating between two arguments would defeat it.
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-params">
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    funcToMemoize
-                  </span>
-                  :
-                  <code><span>'a&#32;->&#32;'b</span></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-              </dl>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Returns: 
-                  </span>
-                  <code><span>'a&#32;->&#32;'b</span></code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  funcToMemoize
+                </span>
+                :
+                <code><span>'a&#32;->&#32;'b</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><span>'a&#32;->&#32;'b</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
           </td>
         </tr>
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1156', 1156)" onmouseover="showTip(event, '1156', 1156)">
+              <code onmouseout="hideTip(event, '1157', 1157)" onmouseover="showTip(event, '1157', 1157)">
                 <p>
                   <a id="nocr">
                     <a href="#nocr">
@@ -2322,7 +2361,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1156">
+              <div class="fsdocs-tip" id="1157">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>nocr&#32;<span>s</span></span></code>
@@ -2359,7 +2398,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.nocr\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L198-198" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L215-215" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2392,7 +2431,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1157', 1157)" onmouseover="showTip(event, '1157', 1157)">
+              <code onmouseout="hideTip(event, '1158', 1158)" onmouseover="showTip(event, '1158', 1158)">
                 <p>
                   <a id="pow2">
                     <a href="#pow2">
@@ -2401,7 +2440,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1157">
+              <div class="fsdocs-tip" id="1158">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>pow2&#32;<span>exponent</span></span></code>
@@ -2438,7 +2477,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.pow2\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L290-290" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L307-307" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2471,7 +2510,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1158', 1158)" onmouseover="showTip(event, '1158', 1158)">
+              <code onmouseout="hideTip(event, '1159', 1159)" onmouseover="showTip(event, '1159', 1159)">
                 <p>
                   <a id="shortPComp">
                     <a href="#shortPComp">
@@ -2480,7 +2519,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1158">
+              <div class="fsdocs-tip" id="1159">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>shortPComp&#32;<span>comp</span></span></code>
@@ -2532,7 +2571,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1159', 1159)" onmouseover="showTip(event, '1159', 1159)">
+              <code onmouseout="hideTip(event, '1160', 1160)" onmouseover="showTip(event, '1160', 1160)">
                 <p>
                   <a id="sprintInitial">
                     <a href="#sprintInitial">
@@ -2541,7 +2580,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1159">
+              <div class="fsdocs-tip" id="1160">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sprintInitial&#32;<span>n&#32;s</span></span></code>
@@ -2586,7 +2625,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.sprintInitial\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L248-248" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L265-265" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2627,7 +2666,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1160', 1160)" onmouseover="showTip(event, '1160', 1160)">
+              <code onmouseout="hideTip(event, '1161', 1161)" onmouseover="showTip(event, '1161', 1161)">
                 <p>
                   <a id="swapArrayEls">
                     <a href="#swapArrayEls">
@@ -2636,7 +2675,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1160">
+              <div class="fsdocs-tip" id="1161">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>swapArrayEls&#32;<span>i1&#32;i2&#32;arr</span></span></code>
@@ -2689,7 +2728,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.swapArrayEls``1\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L325-325" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L342-342" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2738,7 +2777,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1161', 1161)" onmouseover="showTip(event, '1161', 1161)">
+              <code onmouseout="hideTip(event, '1162', 1162)" onmouseover="showTip(event, '1162', 1162)">
                 <p>
                   <a id="testMatch">
                     <a href="#testMatch">
@@ -2747,7 +2786,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1161">
+              <div class="fsdocs-tip" id="1162">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>testMatch&#32;<span>diffX&#32;diffY&#32;normRot</span></span></code>

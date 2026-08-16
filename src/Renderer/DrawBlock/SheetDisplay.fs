@@ -235,6 +235,18 @@ let view
                     // the arrowheads are sharp corners meeting curves: rounding the ends stops
                     // them reading as chipped at the sizes these are drawn at
                     StrokeLinecap = "round" }]
+        /// Shrink `elements` about `centre`, leaving that point where it is.
+        ///
+        /// The rotate curl is drawn from its own geometry, which comes out reaching 16.8 units
+        /// from the centre of a disc of 15 - so it crossed the edge, and sat a little off centre
+        /// besides. Scaling brings the whole of it inside with the margin the scale arrow has
+        /// (11.2 inside 13), and takes the off-centring down with it, without touching the shape
+        /// or the machinery that turns it for each of the two rotate buttons.
+        let scaledAbout (centre: XYPos) (factor: float) elements =
+            [ g [ Style [ Transform
+                            $"translate({centre.X}px, {centre.Y}px) scale({factor}) \
+                              translate({-centre.X}px, {-centre.Y}px)" ] ]
+                  elements ]
         /// The disc an icon sits on. The centre is passed in because the two annotations are drawn
         /// from different origins: the scale button's shape is built around symbol.Pos, and the
         /// rotate button's from it as a top-left corner.
@@ -300,9 +312,11 @@ let view
                 let touchUp = ((makeLineAttr (curvyShape[7].X) curvyShape[7].Y)) + ((makeLineAttr (curvyShape[8].X) curvyShape[8].Y)) + ((makeLineAttr (curvyShape[9].X) curvyShape[9].Y)) 
                 let arcAttr2  = makePartArcAttr (7.*W/18.)(curvyShape[10].Y) (curvyShape[10].X) (curvyShape[11].Y) (curvyShape[11].X)
 
-                iconDisc (symbol.Pos + { X = W / 2.; Y = H / 2. }) 15.
-                @ (createAnyPath (symbol.Pos + curvyShape[0]) (arrowHead+arcAttr1+touchUp+arcAttr2)
-                       iconColour strokeWidth outlineColour)
+                let centre = symbol.Pos + { X = W / 2.; Y = H / 2. }
+                iconDisc centre 15.
+                @ scaledAbout centre 0.78
+                      (createAnyPath (symbol.Pos + curvyShape[0]) (arrowHead+arcAttr1+touchUp+arcAttr2)
+                           iconColour strokeWidth outlineColour)
 
 
     let scalingBox = 

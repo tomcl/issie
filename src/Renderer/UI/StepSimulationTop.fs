@@ -10,6 +10,7 @@ open DiagramStyle
 open Notifications
 open PopupHelpers
 open ModelType
+open Sheet.SheetInterface
 open CommonTypes
 open SimGraphTypes
 open SimTypes
@@ -23,7 +24,13 @@ open SimulationView
 
 let viewSimulation canvasState model dispatch =
     /// This is the top-level function that creates a new fast simulation for the step simulator.
-    let startSimulation model _ =
+    ///
+    /// The canvas is read here rather than taken from the render that asked for this. Every caller
+    /// goes through startSimulationWithSpinner, so the build happens a couple of frames after the
+    /// click, and one of them - saving the current input values as the defaults - rewrites the
+    /// symbols on the canvas first and needs the simulation built from what that left behind.
+    let startSimulation (model: Model) =
+        let canvasState = model.Sheet.GetCanvasState()
         // make sure simulation runs with uptodate memory contents based on linked files.
         // memory in model is not updated because the model update will be lost. This does
         // matter because if memory contents are ever viewed the viewer will update them then.
@@ -75,6 +82,29 @@ let viewSimulation canvasState model dispatch =
     /// and reports any error then, so an optimistic colour costs nothing but a wasted click.
     let buildsOk = match verdict with Some(Error _) -> false | _ -> true
 
+    /// Whether a button is showing a spinner rather than its label, which it is between being
+    /// pressed and the simulation it asked for existing. Both the Start button and the Refresh
+    /// button ask for one, and only one of them is ever on screen.
+    let isLoading =
+        match model.RunAfterRenderWithSpinner with
+        | Some { ButtonSpinnerOn = true } -> true
+        | _ -> false
+
+    /// Build a simulation once the button that asked for it has been drawn asking.
+    ///
+    /// Not from the click handler: the build flattens the whole design and blocks for as long as
+    /// that takes, which on a large one is seconds with nothing on screen to say why. This puts the
+    /// spinner on the button, waits for the frame carrying it to be PAINTED, and only then builds -
+    /// see Update.runWhenPainted, and the waveform simulator's Start button, which does the same.
+    ///
+    /// `afterwards` runs on the model the build has just been made against, which is the current
+    /// one rather than the one this view was drawn from.
+    let startSimulationWithSpinner (afterwards: Model -> unit) =
+        dispatch <| RunAfterRender(true, fun _ model ->
+            startSimulation model
+            afterwards model
+            model)
+
     match model.CurrentStepSimulationStep with
     | None ->
         let isSync = verdict = Some(Ok true)
@@ -86,9 +116,10 @@ let viewSimulation canvasState model dispatch =
             str (if isSync then "You can also use the Wave Simulation tab to view waveforms" else "")
             br []; br []
             Button.button
-                [ 
-                    Button.Color buttonColor; 
-                    Button.OnClick (fun _ -> dispatch <| ExecFuncInMessage(startSimulation, dispatch)) ; 
+                [
+                    Button.Color buttonColor
+                    Button.IsLoading isLoading
+                    Button.OnClick (fun _ -> startSimulationWithSpinner ignore)
                 ]
                 [ str buttonText ]
         ]
@@ -99,12 +130,7 @@ let viewSimulation canvasState model dispatch =
                         // The error report scrolls as one - it has no controls of its own to keep.
                         div [Style [Flex "1 1 auto"; MinHeight "0px"; OverflowY OverflowOptions.Auto]]
                             [viewSimulationError canvasState simError model StepSim dispatch]
-                    | Ok simData -> 
-                        if simCache.RestartSim then
-                            let clock = simData.ClockTickNumber
-                            startSimulation model ()
-                            simCache <- {simCache with RestartSim = false}
-                            simCache <- {simCache with ClockTickRefresh = clock}
+                    | Ok simData ->
                         if (simData.ClockTickNumber = 0 && not (simCache.ClockTickRefresh = 0)) then
                             IncrementSimulationClockTick simCache.ClockTickRefresh |> dispatch
                             FastRun.runFastSimulation None simCache.ClockTickRefresh simData.FastSim |> ignore
@@ -133,9 +159,15 @@ let viewSimulation canvasState model dispatch =
                     Button.button [
                         Button.Color IsSuccess
                         Button.OnClick (fun _ ->
-                            setInputDefaultsFromInputs simData.FastSim dispatch simData.ClockTickNumber
-                            simCache <- {simCache with RestartSim = true}
+                            // The defaults are dispatched onto the canvas and the build reads it
+                            // back, so they have to be asked for first and the build has to be the
+                            // deferred one. This used to raise a flag that the VIEW acted on, which
+                            // meant a whole simulation built during a render.
+                            let clock = simData.ClockTickNumber
+                            setInputDefaultsFromInputs simData.FastSim dispatch clock
                             ClosePopup |> dispatch
+                            startSimulationWithSpinner (fun _ ->
+                                simCache <- {simCache with ClockTickRefresh = clock})
                         )
                         Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Right; MarginTop "10px";]]
                     ] [ str "Ok" ]]
@@ -145,10 +177,13 @@ let viewSimulation canvasState model dispatch =
                     Button.button [
                         Button.Color IsInfo
                         Button.OnClick (fun _ ->
+                            // The popup goes now and the build happens after the render that
+                            // removes it, so the spinner the caller asked for is on the Refresh
+                            // button underneath rather than on a button that is disappearing.
                             let clock = simData.ClockTickNumber
-                            startSimulation model dispatch
-                            simCache <- {simCache with ClockTickRefresh = clock}
                             ClosePopup |> dispatch
+                            startSimulationWithSpinner (fun _ ->
+                                simCache <- {simCache with ClockTickRefresh = clock})
                         )
                         Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Right ]]
                     ] [ str "Reset" ]]
@@ -160,13 +195,15 @@ let viewSimulation canvasState model dispatch =
         let createRefreshButton buttonColor buttonIcon onClick =
             Button.button [
                 Button.Color buttonColor;
+                Button.IsLoading isLoading
                 Button.OnClick onClick
                 Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px"]]
             ] [buttonIcon]
 
+        /// Rebuild the simulation and put it back at the clock cycle it was showing.
         let startSimulationUpdateCache clock =
-            startSimulation model ()
-            simCache <- { simCache with ClockTickRefresh = clock }
+            startSimulationWithSpinner (fun _ ->
+                simCache <- { simCache with ClockTickRefresh = clock })
 
         let createRefreshButtonForSimData sim model dispatch =
             match sim with

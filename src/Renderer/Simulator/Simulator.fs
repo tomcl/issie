@@ -1,4 +1,4 @@
-(*
+﻿(*
     Simulator.fs
 
     This module collects all the APIs required for a simulation. 
@@ -297,7 +297,6 @@ let startCircuitSimulationFData
 type SimCache = {
     Name: string
     ClockTickRefresh: int
-    RestartSim: bool
     StoredState: LoadedComponent list
     StoredResult: Result<SimulationData, SimulationError>
     /// quick access link to Fast Simulation, or placeholder if one does not exist
@@ -313,7 +312,6 @@ let simCacheInit () = {
     Name = ""; 
     ClockTickRefresh = 0
     FastSim = FastCreate.simulationPlaceholder
-    RestartSim = false
     StoredState = []
     StoredResult = Ok {
         FastSim = 

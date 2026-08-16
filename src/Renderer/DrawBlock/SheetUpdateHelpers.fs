@@ -20,8 +20,8 @@ let fitCircuitToScreenUpdate (model: Model) =
     let model', parasOpt = fitCircuitToWindowParas model
     match parasOpt with
     | Some paras ->
-        model', 
-        Cmd.batch 
+        model',
+        Cmd.batch
             [
                 sheetCmd (SheetT.Msg.UpdateScrollPos paras.Scroll)
                 sheetCmd SheetT.Msg.UpdateBoundingBoxes

@@ -503,26 +503,37 @@ let pinningSheetMenuWouldRefit (model: Model) =
         fitInsetFor (openSheetMenuWidth ()) (edge.Right - edge.Left) (edge.Bottom - edge.Top) > 0.)
     |> Option.defaultValue false
 
-/// get scroll and zoom paras to fit box all on screen centred and occupying as much of screen as possible
-let getWindowParasToFitBox model (box: BoundingBox)  =
+/// What a fit of `box` has to work with: the part of the window it may use, how far in from the
+/// left that starts, and the magnification that puts the box in it. Separate from the scroll,
+/// because the canvas has to be sized for the scroll before the scroll can be asked for - see
+/// fitCircuitToWindowParas.
+let private screenFitFor model (box: BoundingBox) =
     getScreenEdgeCoords model
     |> Option.map (fun edge ->
-        let lh,rh,top,bottom = edge.Left,edge.Right,edge.Top,edge.Bottom
-        let height = bottom - top
-        // A pinned Sheet menu is meant to be worked beside, so the circuit is fitted to the canvas
-        // it leaves clear rather than to the whole canvas.
+        let height = edge.Bottom - edge.Top
+        // A pinned Sheet menu is meant to be worked beside, so the circuit is fitted to the window
+        // it leaves clear rather than to the whole window.
         let inset =
-            if sheetMenuIsPinned () then fitInsetFor (openSheetMenuWidth ()) (rh - lh) height else 0.
-        let width = rh - lh - inset
-        let wantedMag = min (width/box.W) (height/box.H)
-        let magToUse = min wantedMag Constants.maxMagnification
-        let xMiddle = (box.TopLeft.X + box.W/2.)*magToUse
-        // lh is itself the scroll position, so what is subtracted is where in the window the
-        // circuit's centre is wanted: past the menu, and then half way across what is left
-        let xScroll = xMiddle - (inset + width/2.)
-        let yMiddle = (box.TopLeft.Y + (box.H)/2.)*magToUse
-        let yScroll = yMiddle - height/2.
-        {|Scroll={X=xScroll; Y=yScroll}; MagToUse=magToUse|})
+            if sheetMenuIsPinned () then
+                fitInsetFor (openSheetMenuWidth ()) (edge.Right - edge.Left) height
+            else 0.
+        let width = edge.Right - edge.Left - inset
+        {| Inset = inset
+           Width = width
+           Height = height
+           Mag = min (min (width/box.W) (height/box.H)) Constants.maxMagnification |})
+
+/// get scroll and zoom paras to fit box all on screen centred and occupying as much of screen as possible
+let getWindowParasToFitBox model (box: BoundingBox)  =
+    screenFitFor model box
+    |> Option.map (fun fit ->
+        let xMiddle = (box.TopLeft.X + box.W/2.)*fit.Mag
+        // the screen edge coords start at the scroll position, so what is subtracted is where in
+        // the window the circuit's centre is wanted: past the menu, then half way across the rest
+        let xScroll = xMiddle - (fit.Inset + fit.Width/2.)
+        let yMiddle = (box.TopLeft.Y + (box.H)/2.)*fit.Mag
+        let yScroll = yMiddle - fit.Height/2.
+        {|Scroll={X=xScroll; Y=yScroll}; MagToUse=fit.Mag|})
 
 let addBoxMargin (fractionalMargin:float) (absoluteMargin:float) (box: BoundingBox) =
     let boxMargin = 
@@ -596,10 +607,23 @@ let private centredCircuitBox (model: Model) =
     let sBox =
         symbolWireBBUnion model
         |> addBoxMargin boxParas.BoxMarginFraction boxParas.BoxMin
+    /// The canvas must also be long enough to scroll to where the fit wants the circuit, because
+    /// scrolling stops at the canvas edge. Centred on the canvas, the circuit has
+    /// `CanvasSize/2 * mag` of window to its left, and a fit asks for `inset + width/2` of it -
+    /// which a canvas sized only around the circuit does not have once a pinned Sheet menu makes
+    /// the inset large. The browser then clamps the scroll to 0 and the circuit is left short of
+    /// where it should be, sliding back under the menu it was dodging. In draw block units, hence
+    /// the division by the magnification.
+    let neededToScroll =
+        screenFitFor model sBox
+        |> Option.map (fun fit ->
+            max ((2. * fit.Inset + fit.Width) / fit.Mag) (fit.Height / fit.Mag))
+        |> Option.defaultValue 0.
     let newCanvasSize =
         max sBox.W sBox.H
         |> ((*) (1. + 2. * boxParas.CanvasBorder))
         |> max Constants.defaultCanvasSize
+        |> max neededToScroll
     let offsetToCentreCircuit =
         {X=newCanvasSize / 2.; Y = newCanvasSize/2.} - sBox.Centre()
     {| CanvasSize = newCanvasSize

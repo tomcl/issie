@@ -29,6 +29,34 @@ Examples:
 EOF
 }
 
+# Retry a command a few times, pausing longer after each failure.
+#
+# electron-builder fetches the Electron runtime for the target architecture while packaging, and a
+# cross-architecture build always needs one that `npm install` did not cache. On the v6.0.16 Linux
+# release that download dropped mid-stream - "socket hang up" from got, thirteen seconds into
+# packaging linux arm64 - and nothing in electron-builder retries it. Under `set -e` the script
+# died there, so that release lost its x64 zip as well: the loop had not reached it yet.
+#
+# Retrying is cheap. A second `npm run dist` recompiles nothing - Fable skips a project whose
+# output is already up to date and webpack takes seconds - so an extra attempt costs about as
+# much as the packaging step it is repeating.
+max_attempts=3
+retry() {
+  local attempt=1
+  while true; do
+    if "$@"; then
+      return 0
+    fi
+    if [ "${attempt}" -ge "${max_attempts}" ]; then
+      echo "Failed after ${attempt} attempts: $*" >&2
+      return 1
+    fi
+    echo "Attempt ${attempt} of ${max_attempts} failed, retrying in $((attempt * 15))s: $*" >&2
+    sleep $((attempt * 15))
+    attempt=$((attempt + 1))
+  done
+}
+
 # Create temp directory for files to publish
 rm -rf dist_tmp
 mkdir dist_tmp
@@ -72,7 +100,7 @@ for target in $build_targets; do
   
   # TODO: This is a hack, this relies on `electron-builder` being the last
   # command in the package.json `dist` script
-  npm run dist -- --$os --$arch -p never
+  retry npm run dist -- --$os --$arch -p never
 
   dist_path=$(find ./dist/ -name "*.${filetype}")
   temp_path=$(echo -n "${dist_path}" | sed -e 's/dist/dist_tmp/g' \

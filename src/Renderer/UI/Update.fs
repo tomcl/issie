@@ -461,13 +461,19 @@ let updateUnpinned (msg : Msg) oldModel =
         // simulating a large design, with nothing on screen to say why. EndWaveSim below has
         // always done this for its own cache.
         Simulator.simCache <- Simulator.simCacheInit()
+        // The indexes built over a simulation are memoised on the simulation itself, so an
+        // unemptied memo holds the whole of it - step arrays and all - after this has let go.
+        Helpers.clearIdentityMemos()
         model
         |> set currentStepSimulationStep_ None
         |> withNoMsg
 
-    | EndWaveSim -> 
+    | EndWaveSim ->
         let model =
             Simulator.simCacheWS <- Simulator.simCacheInit()
+            // As EndSimulation: the wave selector's and the RAM list's indexes are memoised on the
+            // simulation, so they have to be emptied or they retain it for the rest of the session.
+            Helpers.clearIdentityMemos()
             let model = removeAllSimulationsFromModel model
             match model.WaveSimSheet with
             | None | Some "" -> 

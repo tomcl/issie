@@ -471,6 +471,49 @@ let tests =
 
               Simulator.simCacheWS <- Simulator.simCacheInit ()
 
+          testCase "Show Only Selected reaches a wave chosen in an instance no node is showing"
+          <| fun () ->
+              // The one mode the collapsed hierarchy cannot narrow: a wave already chosen inside an
+              // instance no combo box is currently showing has to stay reachable, or it could never
+              // be deselected. So it is bounded by the SELECTION instead, which is what keeps it off
+              // the expansion - reading every wave in AllWaves and every key of SimSheetStructure
+              // made one click on the checkbox cost the whole of a design that multiplies out.
+              let fs, allWaves = deepSimulation.Force()
+              Simulator.simCacheWS <- { Simulator.simCacheInit () with FastSim = fs }
+              let ws = { ModelHelpers.initWSModel with AllWaves = allWaves }
+              let hierarchy = WaveSimHierarchy.getSelectorHierarchy fs deepProject ws
+              let shown = hierarchy.HierOrder |> List.choose (fun node -> node.NodeInstance) |> Set.ofList
+              Expect.isFalse
+                  (Set.contains "MID2.LEAF2" shown)
+                  "the node for `leaf` shows an instance under MID1, so this one is not on show"
+
+              let hidden =
+                  allWaves
+                  |> Map.toList
+                  |> List.map snd
+                  |> List.filter (fun wave -> wave.SheetId = "MID2.LEAF2")
+              Expect.isNonEmpty hidden "the design has waves in that instance"
+              let chosen =
+                  { ws with
+                      SelectedWaves = hidden |> List.map (fun wave -> wave.WaveId)
+                      ShowOnlySelected = true }
+
+              Expect.isEmpty
+                  (WaveSimSelectHelpers.filterWaves (Some shown) chosen).OfSheet
+                  "no node is showing that instance, so its waves are not among the rows drawn from them"
+
+              let filtered = WaveSimSelectHelpers.filterWaves None chosen
+              Expect.equal
+                  (filtered.OfSheet |> List.map (fun wave -> wave.WaveId) |> List.sort)
+                  (hidden |> List.map (fun wave -> wave.WaveId) |> List.sort)
+                  "Show Only Selected gives back exactly the waves that were chosen"
+              Expect.equal
+                  (Set.toList filtered.Sheets)
+                  [ "MID2.LEAF2" ]
+                  "and only the instances they are in, not every sheet instance in the design"
+
+              Simulator.simCacheWS <- Simulator.simCacheInit ()
+
           testCase "a sheet instance is identified by the labels down to it, and nothing invented"
           <| fun () ->
               // `deep` holds MID1 and MID2, each holding LEAF1 and LEAF2 - so four instances of

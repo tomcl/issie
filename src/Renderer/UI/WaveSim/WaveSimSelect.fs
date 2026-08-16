@@ -456,6 +456,46 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
 // guesswork - the symbol clicked on is not any one of them - so the menu is offered only when there
 // is exactly one, and the wave selector is what serves the rest.
 
+/// The copies of each canvas component the simulation holds, by the id that component has on the
+/// canvas it was drawn on.
+///
+/// A component drawn once has one copy per instantiation of the sheet it is on, so this is keyed on
+/// the DESIGN's components and its values run over the EXPANSION. Everything asking about a
+/// component picked on the schematic wants exactly this and had no way to ask for it: it read the
+/// whole of WaveComps and threw all but a handful of entries away. main6 of largeTest holds about
+/// 480,000 components, and the probe below asks on every render while the mouse rests on a wire.
+///
+/// Keyed on the simulation, which is rebuilt rather than mutated, so a new one is the signal that
+/// this is stale. Emptied when a simulation ends - see Helpers.clearIdentityMemos.
+let private waveCompIdsOfCanvasComp: FastSimulation -> Map<ComponentId, FComponentId list> =
+    Helpers.memoizeByIdentity (fun fs ->
+        fs.WaveComps
+        |> Map.toList
+        |> List.map fst
+        |> List.groupBy (fun (compId, _accessPath) -> compId)
+        |> Map.ofList)
+
+/// The waves of each component of the simulation, by that component's simulation id.
+///
+/// Not every wave component has waves: an Input or Output inside a subsheet is simulated by the
+/// port of the instance holding it and gets no step array of its own, which is the case
+/// waveOfInstancePort exists for. So this cannot stand in for waveCompIdsOfCanvasComp when the
+/// question is how many copies there are.
+let private waveIndicesOfComp: FastSimulation -> Map<FComponentId, WaveIndexT list> =
+    Helpers.memoizeByIdentity (fun fs ->
+        fs.WaveIndex
+        |> Array.toList
+        |> List.groupBy (fun wi -> wi.Id)
+        |> Map.ofList)
+
+/// The copies of one canvas component that the simulation holds, in no particular order.
+let private copiesOfCanvasComp (fs: FastSimulation) (compId: ComponentId) : FComponentId list =
+    Map.tryFind compId (waveCompIdsOfCanvasComp fs) |> Option.defaultValue []
+
+/// The waves of one component of the simulation, as indices, in the order WaveIndex holds them.
+let private waveIndicesOf (fs: FastSimulation) (fId: FComponentId) : WaveIndexT list =
+    Map.tryFind fId (waveIndicesOfComp fs) |> Option.defaultValue []
+
 /// The custom component instance a component sits directly inside, if any.
 /// An access path is ordered from the root of the simulation, so its last element is the instance
 /// the component is immediately within.
@@ -486,12 +526,10 @@ let private waveOfInstancePort
                 | _ -> PortType.Output, portOfLabel cc.OutputLabels
             portNum
             |> Option.bind (fun pNum ->
-                allWaves
-                |> Map.tryPick (fun wi wave ->
-                    if wi.Id = instanceId && wi.PortType = portType && wi.PortNumber = pNum then
-                        Some wave
-                    else
-                        None))
+                waveIndicesOf fs instanceId
+                |> List.tryFind (fun wi -> wi.PortType = portType && wi.PortNumber = pNum)
+                // waves inside a library component are not offered, so are not in AllWaves
+                |> Option.bind (fun wi -> Map.tryFind wi allWaves))
             |> Option.toList
         | _ -> []
     | _ -> []
@@ -504,25 +542,21 @@ let wavesOfComponent
         (allWaves: Map<WaveIndexT, Wave>)
         (compId: ComponentId)
             : Wave list * int =
-    let instances =
-        fs.WaveComps
-        |> Map.toList
-        |> List.filter (fun (fId, _) -> fst fId = compId)
-    match instances with
-    | [ fId, fc ] ->
+    match copiesOfCanvasComp fs compId with
+    | [ fId ] ->
         let waves =
-            allWaves
-            |> Map.toList
-            |> List.filter (fun (wi, _) -> wi.Id = fId)
-            |> List.map snd
-        (if waves = [] then waveOfInstancePort fs allWaves fc else waves), 1
-    | instances ->
-        [], instances.Length
+            waveIndicesOf fs fId
+            // waves inside a library component are not offered, so are not in AllWaves
+            |> List.choose (fun wi -> Map.tryFind wi allWaves)
+        (if waves = [] then waveOfInstancePort fs allWaves fs.WaveComps[fId] else waves), 1
+    | copies ->
+        [], copies.Length
 
 /// The label the simulation gives one component on the canvas, when it holds exactly one of it.
 let private simLabelOfComponent (fs: FastSimulation) (compId: ComponentId) : string option =
-    fs.WaveComps
-    |> Map.tryPick (fun fId fc -> if fst fId = compId then Some fc.FLabel else None)
+    copiesOfCanvasComp fs compId
+    |> List.tryHead
+    |> Option.map (fun fId -> fs.WaveComps[fId].FLabel)
 
 /// The waves to offer on the schematic's right-click menu for the component clicked on: none
 /// unless a wave simulation is running and holds exactly one copy of that component.
@@ -565,15 +599,11 @@ let waveIndexOfWire
             match port.PortNumber with
             | None -> None
             | Some portNum ->
-                let copies =
-                    fs.WaveComps
-                    |> Map.toList
-                    |> List.filter (fun (fId, _) -> fst fId = ComponentId port.HostId)
-                match copies with
-                | [ fId, _ ] ->
-                    fs.WaveIndex
-                    |> Array.tryFind (fun wi ->
-                        wi.Id = fId && wi.PortType = PortType.Output && wi.PortNumber = portNum)
+                match copiesOfCanvasComp fs (ComponentId port.HostId) with
+                | [ fId ] ->
+                    waveIndicesOf fs fId
+                    |> List.tryFind (fun wi ->
+                        wi.PortType = PortType.Output && wi.PortNumber = portNum)
                 | _ -> None
 
 /// The value of one wave at one cycle, written as the waveform viewer's value column writes it.

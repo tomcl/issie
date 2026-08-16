@@ -184,8 +184,18 @@ let memoizeBy (keyFunc: 'a -> 'k) (funcToMemoize: 'a -> 'c) : 'a -> 'c =
 ///
 /// One slot, like memoizeBy: these are used where the argument changes rarely and is asked about
 /// often, so alternating between two arguments would defeat it.
+///
+/// A filled slot retains its KEY as well as its value, and every one of these is keyed on a whole
+/// simulation or on a map of every waveform in one. That is fine while simulations replace one
+/// another - a new key drops the old - but not when one is ENDED and nothing replaces it, which is
+/// the retention removeAllSimulationsFromModel exists to prevent. So each memo registers a way to
+/// empty itself: see clearIdentityMemos. Registration happens where memoizeByIdentity is APPLIED,
+/// so apply it once, in a top-level binding, and not inside a function that is called repeatedly.
+let private identityMemos: ResizeArray<unit -> unit> = ResizeArray()
+
 let memoizeByIdentity (funcToMemoize: 'a -> 'b) : 'a -> 'b =
     let mutable last: ('a * 'b) option = None
+    identityMemos.Add(fun () -> last <- None)
     fun (a: 'a) ->
         match last with
         | Some(key, value) when System.Object.ReferenceEquals(key, a) -> value
@@ -193,6 +203,13 @@ let memoizeByIdentity (funcToMemoize: 'a -> 'b) : 'a -> 'b =
             let value = funcToMemoize a
             last <- Some(a, value)
             value
+
+/// Empty every memoizeByIdentity memo, releasing whatever their keys and values hold on to.
+///
+/// Call where something large is discarded rather than replaced - a simulation being ended. Doing
+/// so is always safe: a memo is only ever an answer that can be worked out again, so the cost of
+/// emptying one that was still wanted is that it is filled again on the next call.
+let clearIdentityMemos () = identityMemos |> Seq.iter (fun clear -> clear ())
 
 /// replace new lines in a string by ';' for easier debug printing of records using %A
 let nocr (s:string) = 

@@ -118,13 +118,18 @@ let ensureWaveConsistency (ws: WaveSimModel) (candidates: Wave list) =
         Log.dbg Log.Wave $"wave consistency: {okSelectedWaves.Length} valid selected waves of {ws.SelectedWaves.Length}"
     okWaves, okSelectedWaves
 
-let isSubSheetOf (subSheetId: string) (sheets: string list) =
+/// Whether a sheet instance is one of `sheets`, or lies inside one. Walks up the chain of parent
+/// instances, which is as deep as the design nests rather than as wide as it expands - so the set
+/// it is asked about has to be a Set, or the walk is paid for once per member.
+let isSubSheetOf (subSheetId: string) (sheets: Set<string>) =
     let fs = Simulator.getFastSim()
     let rec isSubSheetOf' subSheetId =
-        List.contains subSheetId sheets ||
-        match fs.SimSheetStructure[subSheetId] with
-        | None -> false
-        | Some parent -> isSubSheetOf' parent.SimSheetName
+        Set.contains subSheetId sheets ||
+        // An instance the simulation does not hold is inside nothing. That is reachable: the
+        // instance named may be one remembered from a simulation of an earlier design.
+        match Map.tryFind subSheetId fs.SimSheetStructure with
+        | None | Some None -> false
+        | Some (Some parent) -> isSubSheetOf' parent.SimSheetName
     isSubSheetOf' subSheetId
 
 let updateSheetString (newSheetName: string) (ws: WaveSimModel) =
@@ -145,9 +150,10 @@ let updateSheetString (newSheetName: string) (ws: WaveSimModel) =
 /// largeTest is seven sheets and tens of thousands of instances, carrying 208,896 waves between
 /// them, and the dialog draws seven rows.
 ///
-/// None means no restriction, which is what Show Only Selected needs: a wave already chosen inside
-/// an instance no combo box is currently showing must stay reachable, or it could never be
-/// deselected.
+/// None means Show Only Selected, which is not restricted to the instances the hierarchy resolved
+/// to: a wave already chosen inside an instance no combo box is currently showing must stay
+/// reachable, or it could never be deselected. It is restricted to the waves that were CHOSEN,
+/// which is a shorter list than any of them.
 ///
 /// Every membership test here is against a Set. They were lists as long as the expansion, tested
 /// once per wave, which is a product of two numbers that both grow with the design - the reason
@@ -166,7 +172,13 @@ let filterWaves (shown: Set<string> option) (wsModel: WaveSimModel) =
             |> List.collect (fun instance -> Map.tryFind instance index |> Option.defaultValue [])
             // waves inside a library component are not offered, so are not in AllWaves
             |> List.choose (fun wi -> Map.tryFind wi wsModel.AllWaves)
-        | None -> Map.valuesL wsModel.AllWaves
+        | None ->
+            // Show Only Selected draws the waves already chosen and nothing else, so those are the
+            // only candidates there are, and there are at most maxAllowedViewerWaves of them.
+            // Reading every wave in AllWaves instead - 208,896 records on main6 of largeTest, one
+            // per port of every INSTANCE of every sheet - made the one mode the collapsed hierarchy
+            // cannot narrow the one mode that scanned the whole expansion.
+            wsModel.SelectedWaves |> List.choose (fun wi -> Map.tryFind wi wsModel.AllWaves)
     let waves, okSelectedWaves = ensureWaveConsistency wsModel candidates
     let selectedIds = Set.ofList okSelectedWaves
     let matchWithBox (searchString: string) (matcher:string) =
@@ -188,7 +200,14 @@ let filterWaves (shown: Set<string> option) (wsModel: WaveSimModel) =
     let allSheets =
         match shown with
         | Some instances -> Set.toList instances
-        | None -> fs.SimSheetStructure.Keys |> Seq.toList
+        | None ->
+            // Under Show Only Selected the rows are one per instance a wave was chosen in -
+            // makeInstanceRows groups by exactly this - so those are the instances to match. It
+            // used to be every key of SimSheetStructure, which is one per sheet INSTANCE and so
+            // tens of thousands on a design that expands; each was then tested against a list of
+            // the same length below, making a single click on the checkbox quadratic in the
+            // expansion. largeTest is seven sheets and 49,152 instances of the innermost one.
+            candidates |> List.map (fun wave -> wave.SheetId) |> List.distinct
 
     // Matched against the SHEET's name, not the instance's identity. The identity is the path of
     // labels down to the instance, which is what makes it unique and what makes it unreadable: the
@@ -198,14 +217,17 @@ let filterWaves (shown: Set<string> option) (wsModel: WaveSimModel) =
     let nameOfSheet (instance: string) = (fs.getSheetNameOfInstance instance).ToUpperInvariant()
 
     let filteredSheets =
-        match allSheets |> List.filter (fun instance -> nameOfSheet instance = sheet) with
-        | [] -> allSheets |> List.filter (fun instance -> (nameOfSheet instance).Contains sheet)
-        | exact -> exact
+        (match allSheets |> List.filter (fun instance -> nameOfSheet instance = sheet) with
+         | [] -> allSheets |> List.filter (fun instance -> (nameOfSheet instance).Contains sheet)
+         | exact -> exact)
+        |> Set.ofList
 
+    // The instance, not the search string: naming the lambda's argument `sheet` shadowed the box's
+    // contents, which is what the two tests inside it look as though they are about.
     let searchSheets =
         allSheets
-        |> List.filter (fun sheet -> List.contains sheet filteredSheets ||
-                                     (allSubSheets && isSubSheetOf sheet filteredSheets))
+        |> List.filter (fun instance -> Set.contains instance filteredSheets ||
+                                        (allSubSheets && isSubSheetOf instance filteredSheets))
         |> Set.ofList
 
     let sheetFilteredWaves =

@@ -1,4 +1,4 @@
-module FastCreate
+﻿module FastCreate
 open EEExtensions
 open CommonTypes
 open TimeHelpers
@@ -40,7 +40,6 @@ let emptyFastSimulation diagramName =
       ComponentsById = Map.empty
       SimulatedCanvasState = []
       SimulatedTopSheet = diagramName
-      SimSheetNameMap = Map.empty
       SimSheetStructure = Map.empty}
 
 let simulationPlaceholder = emptyFastSimulation ""
@@ -846,12 +845,6 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
                 customComps[fId].SimSheetName)
             |> (fun sp -> {fc with SimSheetNamePath = f.SimulatedTopSheet :: sp}))
 
-    let simSheetNames =
-        (Map.toList customComps @ Map.toList comps)
-        |> List.map (fun (fid,fc) -> snd fid, fc.SimSheetName)
-        |> List.distinct
-        |> Map.ofList
-
     let simSheetStructure : Map<string,FastComponent option> =
         (customComps |> Map.toList)
         |> List.append (comps |> Map.toList)
@@ -865,7 +858,6 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
     { f with
         FComps = addSimSheetPaths comps 
         FCustomComps = addSimSheetPaths customComps
-        SimSheetNameMap = simSheetNames
         SimSheetStructure = simSheetStructure
         MaxArraySize = simulationArraySize
         FCustomOutputCompLookup = customOutLookup

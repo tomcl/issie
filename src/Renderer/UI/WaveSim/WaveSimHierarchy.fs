@@ -106,8 +106,14 @@ let instanceLabels: FastSimulation -> Map<string, string> =
         |> Map.ofList)
 
 /// The SimSheetName of the design's top sheet, which every other instance is reached from.
+///
+/// The one instance not identified by a path of labels down to it, so it is named by its sheet -
+/// which is what FastCreate sets on every component with an empty access path. None when there is
+/// no simulation to have a top sheet.
 let private topInstance (fs: FastSimulation) =
-    Map.tryFind [] fs.SimSheetNameMap
+    match fs.SimulatedTopSheet with
+    | "" -> None
+    | sheet -> Some (sheet.ToUpperInvariant())
 
 /// What is inside each sheet of the SIMULATED design, and which of those sheets more than one route
 /// from the top reaches.

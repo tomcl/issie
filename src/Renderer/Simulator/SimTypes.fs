@@ -368,8 +368,6 @@ type FastSimulation =
         /// Fast components: this map is longer than FComps because it contains
         /// Custom components not used by Fast simulation but needed in Waveform simulation
         WaveComps: Map<FComponentId, FastComponent>
-        /// Map from a component's Access Path to the run-time unique SimSheetName of the sheet
-        SimSheetNameMap: Map<ComponentId list,string>
         /// look up from output port of custom component to the relevant Output component
         FCustomOutputCompLookup: Map<(ComponentId * ComponentId list) * OutputPortNumber, FComponentId>
         /// Total number of step arrays (= drivers)
@@ -397,9 +395,6 @@ type FastSimulation =
         /// simulator's configuration can say what a given number of cycles would come to.
         StepCost: StepCost
     } with
-
-    member this.getSimSheetName(fId:FComponentId) =
-        this.FCustomComps[fId].SimSheetName
 
     /// The design-time name of the sheet an instance is of: what the user called it, and what they
     /// see in the Sheets menu.

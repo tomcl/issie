@@ -51,21 +51,24 @@ How these two passes are meant to work is in [wireRouting.md](wireRouting.md).
   highest index, so the test that follows it is not the "did the downward search fail to reach the
   starting segment" check it appears to be. It errs towards the branch that splits off a second
   cluster, which is the safe one.
-- **Branching off the same net costs bends, crossings and settling.** `sameNetRoutes` takes the
-  first legal branch nearest the destination, which is what maximises sharing but weighs nothing
-  against it. Measured over the corpus: wire drawn falls 3% on `fanout` and 8% on `staggeredFanout`,
-  and rises 2% on `tangle` and 1% on `longFanout`; bends rise by roughly 1.5 per branch (98 to 133
-  on `fanout`); crossings on `staggeredFanout` go 3 to 9 and on `tangle` 64 to 72; and `fanout` and
-  `tangle` stop settling in one separation pass.
-
-  Scoring the candidates instead - by the wire the net would be drawn as, taking the best of the
-  nearest few and the ordinary route - was measured and is not a straight improvement. It removes
-  the losses (`tangle` back to 11040, `longFanout` to 9635) and also removes the gain on `fanout`,
-  which goes back to 9778. The reason is that the score is myopic: a branch is judged against the
-  wires of its net routed *so far*, but what it is worth depends on the later wires that use the
-  trunk it creates. Greedily minimising the net's drawn wire at each step does not minimise it at
-  the end. Either the score has to look ahead, or the nets have to be routed as trees rather than
-  one wire at a time.
+- **Separation commons a net up better than routing does, on some sheets.** Branching reduces the
+  wire a net is drawn with by 10-29% at routing time (`fanout` 4033 to 3621, `staggeredFanout` 2364
+  to 1684, `longFanout` 4620 to 3960). Separation then commons up the *unbranched* routes too, and
+  on `longFanout` it gets further than branching did — 3870 against 3960 — so after both passes the
+  two are level there. Worth understanding before more effort goes into the routing side: what
+  separation manages by linking and moving may be most of what is available.
+- **Branching costs bends, crossings and settling.** Roughly 1.5 extra visible corners per branch
+  (`fanout` 98 to 133), crossings on `staggeredFanout` 3 to 9 and on `tangle` 64 to 72, and
+  `fanout` and `tangle` stop settling in one separation pass. Least wire drawn and fewest bends are
+  not the same layout — a branch trades a corner for a shared run — so a single score for "looks
+  good" needs an exchange rate between them, which nothing here assumes.
+- **Scoring branch candidates is myopic.** Judging each candidate by the wire its net would be
+  drawn as, and taking the best of the nearest few plus the ordinary route, was measured: it
+  removes the losses on `tangle` and `longFanout` and removes the gain on `fanout` with them. A
+  branch is judged against the wires of its net routed *so far*, but what it is worth depends on
+  the later wires that use the trunk it creates, so greedily minimising a net's drawn wire at each
+  step does not minimise it at the end. Either the score looks ahead, or nets are routed as trees
+  rather than one wire at a time.
 - **Dead code kept alive.** `snapToNet` (and `copySegments`, `generateEndSegments`, which serve only
   it) was the first attempt at what `sameNetRoutes` now does, and is still there and still
   unreachable — it only ever handled 5 or 7 segment unrotated wires and copied from whichever wire

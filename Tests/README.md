@@ -113,13 +113,13 @@ did before the change.
 `WireQuality.fs` prints a table on every run and asserts that nothing in it got worse:
 
 ```
-  sheet          wires                ink      bends    crossings      ms   settles
-  crossedArrays     10     2541 ->    2601   40 ->  44     0 ->   28     1.0   at once
-  wrappedArrays     10     8104 ->   10966   49 ->  58     8 ->   36     2.2   at once
-  fanout            36     9366 ->    9470  122 -> 133     0 ->    0    14.7   after 2
-  staggeredFanout    8     3662 ->    4078   33 ->  38     8 ->    9     0.8   at once
-  longFanout         8     9320 ->    9740   34 ->  38     6 ->    8     0.8   at once
-  tangle            24    11040 ->   11240   96 ->  94    28 ->   72     3.3   after 1
+  sheet          wires                ink      bends    crossings fanned net     ms  settles
+  crossedArrays     10     2541 ->    2601   40 ->  44     0 ->   28          0    1.0  at once
+  wrappedArrays     10     8104 ->   10966   49 ->  58     8 ->   36          0    2.1  at once
+  fanout            36     9366 ->    9470  122 -> 133     0 ->    0       3725   14.4  after 2
+  staggeredFanout    8     3662 ->    4078   33 ->  38     8 ->    9       1715    0.9  at once
+  longFanout         8     9320 ->    9740   34 ->  38     6 ->    8       3960    0.9  at once
+  tangle            24    11040 ->   11240   96 ->  94    28 ->   72       8240    3.5  after 1
 ```
 
 It also sweeps a single wire past obstacles over a grid of positions and counts the routes left
@@ -144,7 +144,10 @@ the obstacle, which no route can avoid.
 **ink** is the length of wire *drawn*: same-net segments lying on top of each other are one line
 and are counted once, so it rewards short wires and same-net sharing in a single number. **bends**
 counts visible corners the same way - a wire which follows another of its net has the shared
-corners drawn on top of the ones already there, and a reader sees one. **ms** is
+corners drawn on top of the ones already there, and a reader sees one. **fanned net** is the wire
+drawn for the nets that have more than one wire, and nothing else: whole-sheet ink is the wrong
+instrument for asking how well a net is commoned up, because a fan-out is a small part of a sheet
+and every other wire moving in response drowns it. **ms** is
 one separation pass under .NET, which is indicative only - the app runs this compiled to JS.
 **settles** is how many further passes it takes before nothing moves, and `NEVER` is a limit cycle.
 

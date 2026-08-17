@@ -103,7 +103,12 @@ type Metrics =
       CrossNetOverlap: float
       /// Segments drawn across the body of a symbol they do not connect to. Routing exists to make
       /// this zero, and when it cannot it says nothing and draws the wire anyway.
-      SymbolCrossings: int }
+      SymbolCrossings: int
+      /// Wire drawn for the nets that have more than one wire, and nothing else. Whole-sheet ink
+      /// is the wrong instrument for judging how well a net is commoned up: a fan-out is a small
+      /// part of a sheet, and every other wire moving in response drowns it. This is the part of
+      /// the drawing the question is about.
+      FannedNetInk: float }
 
 /// Segments crossing the body of a symbol. The symbols at each end of a wire are exempt: a
 /// multiplexer's SEL port sits inside its own bounding box, so that nub has to enter it. Boxes are
@@ -174,7 +179,17 @@ let metricsOf (model: Model) : Metrics =
                 a.Net <> b.Net && abs (a.P - b.P) < sameLine && min a.Hi b.Hi - max a.Lo b.Lo > 0.01)
             |> List.sumBy (fun (a, b) -> min a.Hi b.Hi - max a.Lo b.Lo)
             |> fun total -> total / 2.)
-      SymbolCrossings = symbolCrossingsOf model }
+      SymbolCrossings = symbolCrossingsOf model
+      FannedNetInk =
+        let fanned =
+            model.Wires
+            |> Map.toList
+            |> List.groupBy (fun (_, w) -> w.OutputPort)
+            |> List.filter (fun (_, ws) -> ws.Length > 1)
+            |> List.map fst
+            |> Set.ofList
+        byDrawnLine (lines |> List.filter (fun l -> fanned.Contains l.Net))
+        |> List.sumBy (fun (_, ls) -> unionLength (ls |> List.map (fun l -> l.Lo, l.Hi))) }
 
 //-------------------------------------------------------------------------------------------//
 //-------------------------------------------CORPUS------------------------------------------//
@@ -463,6 +478,8 @@ type private Recorded =
       Ink: float
       Bends: int
       Crossings: int
+      /// Wire drawn for the multi-wire nets, which is what commoning a net up is judged by.
+      FannedNetInk: float
       /// Further separation passes needed before nothing moves. 0 is right: separation is a fine
       /// adjustment applied after routing, and it should settle. `None` is a limit cycle - the
       /// pass moves the same wires back and forth for ever, so what the user is left with depends
@@ -470,12 +487,12 @@ type private Recorded =
       Settle: int option }
 
 let private recorded =
-    [ { Sheet = "crossedArrays"; Ink = 2601.; Bends = 44; Crossings = 28; Settle = Some 0 }
-      { Sheet = "wrappedArrays"; Ink = 10966.; Bends = 58; Crossings = 36; Settle = Some 0 }
-      { Sheet = "fanout"; Ink = 9470.; Bends = 133; Crossings = 0; Settle = Some 2 }
-      { Sheet = "staggeredFanout"; Ink = 4078.; Bends = 38; Crossings = 9; Settle = Some 0 }
-      { Sheet = "longFanout"; Ink = 9740.; Bends = 38; Crossings = 8; Settle = Some 0 }
-      { Sheet = "tangle"; Ink = 11240.; Bends = 94; Crossings = 72; Settle = Some 1 } ]
+    [ { Sheet = "crossedArrays"; Ink = 2601.; Bends = 44; Crossings = 28; FannedNetInk = 0.; Settle = Some 0 }
+      { Sheet = "wrappedArrays"; Ink = 10966.; Bends = 58; Crossings = 36; FannedNetInk = 0.; Settle = Some 0 }
+      { Sheet = "fanout"; Ink = 9470.; Bends = 133; Crossings = 0; FannedNetInk = 3725.; Settle = Some 2 }
+      { Sheet = "staggeredFanout"; Ink = 4078.; Bends = 38; Crossings = 9; FannedNetInk = 1715.; Settle = Some 0 }
+      { Sheet = "longFanout"; Ink = 9740.; Bends = 38; Crossings = 8; FannedNetInk = 3960.; Settle = Some 0 }
+      { Sheet = "tangle"; Ink = 11240.; Bends = 94; Crossings = 72; FannedNetInk = 8240.; Settle = Some 1 } ]
 
 /// A settling result is no worse than what was recorded if it needs no more passes than before.
 /// Not settling at all is the worst outcome, and only matches itself.
@@ -509,13 +526,13 @@ let tests =
                     name, metricsOf routed, metricsOf once, once, ms, passesToSettle once)
 
             printfn "  wire quality (routed -> separated):"
-            printfn "  %-14s %5s %18s %10s %12s %7s %9s"
-                "sheet" "wires" "ink" "bends" "crossings" "ms" "settles"
+            printfn "  %-14s %5s %18s %10s %12s %10s %6s %8s"
+                "sheet" "wires" "ink" "bends" "crossings" "fanned net" "ms" "settles"
             rows
             |> List.iter (fun (name, before, after, model, ms, settle) ->
-                printfn "  %-14s %5d %8.0f ->%8.0f %4d ->%4d %5d ->%5d %7.1f %9s"
+                printfn "  %-14s %5d %8.0f ->%8.0f %4d ->%4d %5d ->%5d %10.0f %6.1f %8s"
                     name (Map.count model.Wires) before.Ink after.Ink
-                    before.Bends after.Bends before.Crossings after.Crossings ms
+                    before.Bends after.Bends before.Crossings after.Crossings after.FannedNetInk ms
                     (match settle with
                      | Some 0 -> "at once"
                      | Some n -> $"after {n}"
@@ -541,6 +558,8 @@ let tests =
                     $"{name}: more bends than recorded ({r.Bends} -> {m.Bends}). {update}"
                 Expect.isLessThanOrEqual m.Crossings r.Crossings
                     $"{name}: more crossings than recorded ({r.Crossings} -> {m.Crossings}). {update}"
+                Expect.isLessThan m.FannedNetInk (r.FannedNetInk * 1.01 + 1.)
+                    $"{name}: the nets with more than one wire are drawn with more wire than                        recorded (%.0f{r.FannedNetInk} -> %.0f{m.FannedNetInk}). {update}"
                 Expect.isTrue (settlesNoWorseThan r.Settle (passesToSettle once))
                     $"{name}: separation settles less well than recorded (%A{r.Settle} further passes, \
                        now %A{passesToSettle once}). {update}")

@@ -126,11 +126,17 @@ wire it started with:
 
 ```
   wires left crossing a symbol:
-  one obstacle             0 of  99 placements
-  into a bottom port       3 of  93 placements  (240,0)x2  (280,0)x2  (320,0)x2
-  target behind source     0 of  99 placements
-  a wall of two            0 of  93 placements
+  one obstacle             0 of 845 placements
+  into a bottom port       0 of 805 placements
+  target behind source     0 of 845 placements
+  a wall of two            0 of 775 placements
 ```
+
+The grid is deliberately fine. A coarser one (40 units rather than 15) reported zero for a routing
+bug that a denser sweep found in eighteen placements: these failures occupy narrow bands of
+obstacle position, so a sweep that steps over them proves nothing. Placements leaving no room for
+a port's nub are skipped - an obstacle closer to a symbol than a nub is long puts the nub inside
+the obstacle, which no route can avoid.
 
 **ink** is the length of wire *drawn*: same-net segments lying on top of each other are one line
 and are counted once, so it rewards short wires and same-net sharing in a single number. **ms** is

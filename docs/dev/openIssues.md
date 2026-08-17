@@ -35,11 +35,6 @@ How these two passes are meant to work is in [wireRouting.md](wireRouting.md).
   every drag, paste and rotate, what a user is left with on such a sheet depends on how many times
   it happened to run. Both sheets are an array of ports facing an array of ports, which is what
   most of the clustering complexity exists for.
-- **A route needing both shifts at once cannot be found.** `smartAutoroute` tries the vertical
-  shift, then the horizontal one, and never composes them. Where a wire has to drop to a clear row
-  *and* come back at a column past the obstacle, no single shift expresses it and the wire is drawn
-  over the component. `WireQuality.fs` records it: 3 of 93 obstacle placements in the bottom-edge
-  port sweep, all with the obstacle exactly on the line between the two ports.
 - **A shift aims 0.0001 clear of a symbol; the check that accepts it demands 7.** The four shift
   sites use `smallOffset` while `findWireSymbolIntersections` expands every unconnected symbol's
   box by `minWireSeparation`, so a shift along the box it is avoiding can never satisfy the test.

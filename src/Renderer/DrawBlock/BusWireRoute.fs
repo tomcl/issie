@@ -390,39 +390,87 @@ let rec tryShiftHorizontalSeg
                 else seg)
             |> (fun segments -> { wire with Segments = segments })
 
+        let orientation = wire.InitialOrientation
+
+        /// the coordinate a segment of the same orientation as segment 0 runs along
+        let getXOrY =
+            fun (pos: XYPos) ->
+                match orientation with
+                | Horizontal -> pos.X
+                | Vertical -> pos.Y
+
+        /// and the one perpendicular to it, which is what a shift changes
+        let getOppositeXOrY =
+            fun (pos: XYPos) ->
+                match orientation with
+                | Horizontal -> pos.Y
+                | Vertical -> pos.X
+
+        let getWOrH =
+            fun (box: BoundingBox) ->
+                match orientation with
+                | Horizontal -> box.W
+                | Vertical -> box.H
+
+        let getOppositeWOrH =
+            fun (box: BoundingBox) ->
+                match orientation with
+                | Horizontal -> box.H
+                | Vertical -> box.W
+
         /// The segments actually obstructed by a symbol. Moving one of those is what might help;
         /// moving any other one cannot.
         let blockedSegments =
             findWireSymbolIntersectionsBySegment model wire |> List.map fst
 
+        /// Move the horizontal segment at segIndex onto `bound` AND put the turn which follows it
+        /// at `turn` along the wire, collapsing everything else. The wire then leaves its port,
+        /// crosses at `bound`, turns at `turn` and runs in to the other port.
+        ///
+        /// This is the move neither shift can make on its own. Shifting a segment sideways cannot
+        /// change where the wire turns, and shifting the turn cannot change which row the wire
+        /// crosses on - so an obstacle which blocks both the row the wire leaves on and the row it
+        /// arrives on needs the two done together. Reaching a port on a top or bottom edge from
+        /// beyond an obstacle is the common case: the crossing has to happen past the obstacle,
+        /// near the destination rather than near the source.
+        let moveHorizontalRunTo segIndex bound turn =
+            let segs = wire.Segments
+            let last = segs.Length - 1
+            let alongStart, alongEnd = getXOrY currentStartPos, getXOrY currentEndPos
+            let perpStart, perpEnd = getOppositeXOrY currentStartPos, getOppositeXOrY currentEndPos
+            /// the one segment after the turn which takes whatever distance is left - never the
+            /// end nub, which has to keep its length
+            let remainderIndex =
+                [ segIndex + 2 .. 2 .. last - 1 ] |> List.tryHead
+            remainderIndex
+            |> Option.map (fun remainder ->
+                segs
+                |> List.mapi (fun i seg ->
+                    let length =
+                        match i with
+                        | 0 -> seg.Length // leaves the port
+                        | i when i = last -> seg.Length // and enters the other one
+                        | i when i = segIndex - 1 -> bound - perpStart
+                        | i when i = segIndex + 1 -> perpEnd - bound
+                        | i when i = segIndex -> turn - alongStart - segs[0].Length
+                        | i when i = remainder -> alongEnd - turn
+                        | _ -> 0.
+                    { seg with Length = length })
+                |> fun segments -> { wire with Segments = segments })
+
+        /// Places along the wire where turning could get it past the obstacles: hard against
+        /// either side of them, and at the destination itself - which is what puts the crossing
+        /// next to the port rather than next to the source.
+        let turnPositions =
+            let nearSide = intersectedBoxes |> List.map (fun b -> getXOrY b.TopLeft) |> List.min
+            let farSide =
+                intersectedBoxes |> List.map (fun b -> getXOrY b.TopLeft + getWOrH b) |> List.max
+            [ getXOrY currentEndPos
+              nearSide - minWireSeparation - smallOffset
+              farSide + minWireSeparation + smallOffset ]
+
         // directionToMove must be UP_ or DOWN_
         let shiftedWire (direction: DirectionToMove) =
-            let orientation = wire.InitialOrientation
-
-            let getXOrY =
-                fun (pos: XYPos) ->
-                    match orientation with
-                    | Horizontal -> pos.X
-                    | Vertical -> pos.Y
-
-            let getOppositeXOrY =
-                fun (pos: XYPos) ->
-                    match orientation with
-                    | Horizontal -> pos.Y
-                    | Vertical -> pos.X
-
-            let getWOrH =
-                fun (box: BoundingBox) ->
-                    match orientation with
-                    | Horizontal -> box.W
-                    | Vertical -> box.H
-
-            let getOppositeWOrH =
-                fun (box: BoundingBox) ->
-                    match orientation with
-                    | Horizontal -> box.H
-                    | Vertical -> box.W
-
             let offsetOfBox, otherDir =
                 match direction with
                 | Up_ -> (fun _ -> 0.), Left_
@@ -455,11 +503,17 @@ let rec tryShiftHorizontalSeg
             // shape the segment-count table picks leads, so a wire that routes today routes
             // identically; the rest are tried only when that one leaves the wire over a symbol.
             // Among those, a segment which is actually obstructed comes before one which is not.
-            shiftWireHorizontally firstVerticalSegLength secondVerticalSegLength
-            :: ([ 2 .. 2 .. wire.Segments.Length - 3 ]
+            let movableHorizontals =
+                [ 2 .. 2 .. wire.Segments.Length - 3 ]
                 |> List.sortBy (fun i -> if List.contains i blockedSegments then 0 else 1)
+            shiftWireHorizontally firstVerticalSegLength secondVerticalSegLength
+            :: (movableHorizontals
                 |> List.map (fun i ->
                     moveOneHorizontalSegment i firstVerticalSegLength secondVerticalSegLength))
+            // last, and only reached when everything above still crosses something: move the
+            // crossing and the turn together
+            @ (List.allPairs movableHorizontals turnPositions
+               |> List.choose (fun (i, turn) -> moveHorizontalRunTo i bound turn))
 
         let goodWire dir =
             let candidates = shiftedWire dir

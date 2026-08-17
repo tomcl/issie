@@ -294,14 +294,45 @@ let private obstacleSweep (sheet: SheetDescription) (place: int -> int -> (strin
         |> List.map snd
         |> List.find (fun s -> s.Component.Label = label)
         |> Symbol.getSymbolBoundingBox
-    [ for dx in 120 .. 40 .. 560 do
-        for dy in -160 .. 40 .. 160 do
+    /// A route which does not join the two ports it names, or which is not made of right angles,
+    /// is worse than one which crosses a symbol - and getting past an obstacle means rebuilding
+    /// segment lengths wholesale, so this is checked at every placement rather than assumed.
+    let checkWellFormed dx dy (m: Model) =
+        m.Wires
+        |> Map.iter (fun (ConnectionId id) w ->
+            let expectedEnd, expectedStart =
+                Symbol.getTwoPortLocations m.Symbol w.InputPort w.OutputPort
+            let segs = getAbsSegments w
+            let closeTo (a: XYPos) (b: XYPos) = abs (a.X - b.X) < 0.001 && abs (a.Y - b.Y) < 0.001
+            Expect.isTrue (closeTo (List.head segs).Start expectedStart)
+                $"at ({dx},{dy}) wire {id} does not start at its output port"
+            Expect.isTrue (closeTo (List.last segs).End expectedEnd)
+                $"at ({dx},{dy}) wire {id} does not end at its input port"
+            segs
+            |> List.iter (fun seg ->
+                Expect.isTrue
+                    (abs (seg.Start.Y - seg.End.Y) < 0.001 || abs (seg.Start.X - seg.End.X) < 0.001)
+                    $"at ({dx},{dy}) wire {id} segment {seg.Segment.Index} is diagonal"))
+    [ for dx in 100 .. 15 .. 620 do
+        for dy in -200 .. 15 .. 200 do
             let m = routedModel (canvas |> movedTo (place dx dy))
+            // A placement is only worth counting if a route could exist. An obstacle closer to a
+            // symbol than a nub is long leaves the nub itself inside the obstacle, and no route
+            // avoids that: the nub's length and direction are fixed by the port.
+            let room = BusWire.Constants.nubLength + BusWireRoutingHelpers.Constants.minWireSeparation
             let legal =
                 obstacles
                 |> List.forall (fun o ->
-                    [ "A"; "B" ] |> List.forall (fun s -> not (overlap2DBox (boxOf m o) (boxOf m s))))
-            if legal then yield (dx, dy), symbolCrossingsOf m ]
+                    let b = boxOf m o
+                    let withRoom =
+                        { b with
+                            TopLeft = { X = b.TopLeft.X - room; Y = b.TopLeft.Y - room }
+                            W = b.W + 2. * room
+                            H = b.H + 2. * room }
+                    [ "A"; "B" ] |> List.forall (fun s -> not (overlap2DBox withRoom (boxOf m s))))
+            if legal then
+                checkWellFormed dx dy m
+                yield (dx, dy), symbolCrossingsOf m ]
 
 let private obstacle = comp "OBS" (NbitsAdderNoCinCout 8)
 
@@ -385,7 +416,7 @@ let private settlesNoWorseThan (recorded: int option) (actual: int option) =
 /// is the goal; these are recorded so that a routing change has to say which way they moved.
 let private recordedCrossings =
     [ "one obstacle", 0
-      "into a bottom port", 3
+      "into a bottom port", 0
       "target behind source", 0
       "a wall of two", 0 ]
 

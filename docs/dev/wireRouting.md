@@ -144,10 +144,19 @@ the rest. Choosing the segment to move by the wire's segment count — which is 
 guess in a place where the obstacle geometry is the answer, and it is why wires into a top or
 bottom edge port used to be left drawn across a component.
 
-**What it still cannot do is move a horizontal and a vertical segment together.** `smartAutoroute`
-tries the vertical shift, then the horizontal one, and never composes them, so a route needing both
-- go down to a clear row *and* come back at a column beyond the obstacle - cannot be expressed even
-though the segments to do it exist. `WireQuality.fs` measures how often that costs a route.
+When every one of those still crosses something, a last family is tried which moves **the crossing
+and the turn together**: the horizontal run goes onto the chosen row *and* the turn which follows it
+goes to a chosen column - hard against either side of the obstacles, or at the destination itself.
+Neither shift can do this alone, because moving a segment sideways cannot change where the wire
+turns and moving the turn cannot change which row the wire crosses on. An obstacle blocking both
+the row a wire leaves on and the row it arrives on needs both at once, and that is the ordinary
+case for reaching a port on a top or bottom edge from beyond an obstacle: the crossing has to
+happen past the obstacle, next to the destination rather than next to the source.
+
+Putting the crossing next to the destination is what makes these work, and it is worth knowing why
+it is not the natural thing for this code to do: the shape comes from a table indexed on where the
+two ports are, and its intermediate coordinate is a midpoint. Everything the shift code does is a
+correction to that midpoint.
 
 `ensureBothNubs` runs first because both shift functions address segments by absolute index, and a
 short wire may not have an interior segment there yet; it splits the end segment into

@@ -91,7 +91,10 @@ type Metrics =
       Ink: float
       /// Total of |segment length| over every wire, sharing not discounted.
       RawLength: float
-      /// Visible corners.
+      /// Visible corners: two wires of a net which run together have the corners of the shared
+      /// part drawn on top of each other, and a reader sees one corner, so they count once. Ink
+      /// counts the union for the same reason - counting per wire instead would report a wire
+      /// which follows its net as having every corner of the wire it follows.
       Bends: int
       /// Segments of different nets crossing at right angles, strictly inside both.
       Crossings: int
@@ -147,8 +150,15 @@ let metricsOf (model: Model) : Metrics =
       Bends =
         model.Wires
         |> Map.toList
-        |> List.sumBy (fun (_, w) ->
-            (w.Segments |> List.filter (fun s -> not s.IsZero) |> List.length) - 1)
+        |> List.collect (fun (_, w) ->
+            // a corner is where two consecutive drawn segments of a wire meet
+            getAbsSegments w
+            |> List.filter (fun seg -> not seg.IsZero)
+            |> List.pairwise
+            |> List.map (fun (before, _) ->
+                w.OutputPort, System.Math.Round(before.End.X, 1), System.Math.Round(before.End.Y, 1)))
+        |> List.distinct
+        |> List.length
       Crossings =
         List.allPairs hs vs
         |> List.filter (fun (h, v) ->
@@ -462,10 +472,10 @@ type private Recorded =
 let private recorded =
     [ { Sheet = "crossedArrays"; Ink = 2601.; Bends = 44; Crossings = 28; Settle = Some 0 }
       { Sheet = "wrappedArrays"; Ink = 10966.; Bends = 58; Crossings = 36; Settle = Some 0 }
-      { Sheet = "fanout"; Ink = 9470.; Bends = 293; Crossings = 0; Settle = Some 2 }
-      { Sheet = "staggeredFanout"; Ink = 4078.; Bends = 44; Crossings = 9; Settle = Some 0 }
-      { Sheet = "longFanout"; Ink = 9740.; Bends = 44; Crossings = 8; Settle = Some 0 }
-      { Sheet = "tangle"; Ink = 11240.; Bends = 106; Crossings = 72; Settle = Some 1 } ]
+      { Sheet = "fanout"; Ink = 9470.; Bends = 133; Crossings = 0; Settle = Some 2 }
+      { Sheet = "staggeredFanout"; Ink = 4078.; Bends = 38; Crossings = 9; Settle = Some 0 }
+      { Sheet = "longFanout"; Ink = 9740.; Bends = 38; Crossings = 8; Settle = Some 0 }
+      { Sheet = "tangle"; Ink = 11240.; Bends = 94; Crossings = 72; Settle = Some 1 } ]
 
 /// A settling result is no worse than what was recorded if it needs no more passes than before.
 /// Not settling at all is the worst outcome, and only matches itself.

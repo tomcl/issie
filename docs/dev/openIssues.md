@@ -54,10 +54,18 @@ How these two passes are meant to work is in [wireRouting.md](wireRouting.md).
 - **Branching off the same net costs bends, crossings and settling.** `sameNetRoutes` takes the
   first legal branch nearest the destination, which is what maximises sharing but weighs nothing
   against it. Measured over the corpus: wire drawn falls 3% on `fanout` and 8% on `staggeredFanout`,
-  and rises 2% on `tangle`; bends on `fanout` go 144 to 293, crossings on `staggeredFanout` 3 to 9
-  and on `tangle` 64 to 72; and `fanout` and `tangle` stop settling in one separation pass. Scoring
-  candidates by the wire a net is drawn as, rather than taking the nearest legal one, would let the
-  ordinary route win where a branch is not worth it - at the cost of evaluating every candidate.
+  and rises 2% on `tangle` and 1% on `longFanout`; bends rise by roughly 1.5 per branch (98 to 133
+  on `fanout`); crossings on `staggeredFanout` go 3 to 9 and on `tangle` 64 to 72; and `fanout` and
+  `tangle` stop settling in one separation pass.
+
+  Scoring the candidates instead - by the wire the net would be drawn as, taking the best of the
+  nearest few and the ordinary route - was measured and is not a straight improvement. It removes
+  the losses (`tangle` back to 11040, `longFanout` to 9635) and also removes the gain on `fanout`,
+  which goes back to 9778. The reason is that the score is myopic: a branch is judged against the
+  wires of its net routed *so far*, but what it is worth depends on the later wires that use the
+  trunk it creates. Greedily minimising the net's drawn wire at each step does not minimise it at
+  the end. Either the score has to look ahead, or the nets have to be routed as trees rather than
+  one wire at a time.
 - **Dead code kept alive.** `snapToNet` (and `copySegments`, `generateEndSegments`, which serve only
   it) was the first attempt at what `sameNetRoutes` now does, and is still there and still
   unreachable — it only ever handled 5 or 7 segment unrotated wires and copied from whichever wire

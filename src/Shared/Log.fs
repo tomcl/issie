@@ -150,6 +150,14 @@ let warnOnce (key: string) (text: string) =
         warnedKeys <- warnedKeys.Add key
         warn text
 
+/// The ring buffer's contents, oldest first. This is what publish hands to a script, and what
+/// lets a test assert that a run did - or did not - complain about something. A log line is
+/// sometimes the only externally visible symptom of a bug, and one nothing can read is one no
+/// test can hold on to.
+let recentLines () =
+    Array.init ringSize (fun i -> ring[(ringNext + i) % ringSize])
+    |> Array.filter (fun line -> line <> "")
+
 /// A categorised debug line, discarded unless that category is on.
 ///
 /// The message is an ordinary string, built by the caller: a thunk would read better but would
@@ -241,12 +249,8 @@ let countMessage (ms: float) (name: unit -> string) =
 /// second reason: a debug-only hook is no use on the machine where the problem happens.
 let publish () =
 #if FABLE_COMPILER
-    let lines () =
-        // oldest first, and only the slots that have been written
-        Array.init ringSize (fun i -> ring[(ringNext + i) % ringSize])
-        |> Array.filter (fun line -> line <> "")
     Browser.Dom.window?issieLog <-
-        {| lines = lines
+        {| lines = recentLines
            on = fun (spec: string) -> setCategories (maskOfNames spec); $"logging: {spec}"
            off = fun () -> setCategories 0; "logging off" |}
 #endif

@@ -463,7 +463,16 @@ let makeClusters (lines: Line array) : Cluster list =
 
                             { loc1 with
                                 Segments = loc1LostSegs
-                                UpperFix = lowerFix }
+                                UpperFix = lowerFix
+                                // NB the bound must be recomputed. loc1.Bound is the union over
+                                // loc1, and the segments loc2 has taken are no longer here - but a
+                                // union is as wide as its widest member, so keeping it lets a
+                                // barrier which only ever obstructed a segment now in loc2 stop
+                                // the search for this cluster, at which point every segment below
+                                // that barrier is dropped. That is where "nextIndex has got lost"
+                                // came from: a symbol edge spanning x=70..90 halting a cluster
+                                // whose every segment starts beyond x=186.
+                                Bound = loc1LostSegs |> List.map (fun i -> lines[i].B) |> List.reduce boundUnion }
                             |> (fun loc -> expandCluster (List.max loc.Segments) (Downwards loc) lines)
                             |> handleLostNextIndex "What? nextIndex has got lost from loc1 after expansion!"
                             |> List.append [loc2]) // return the expanded loc1LostSegs as  a cluster with loc2

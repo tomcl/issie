@@ -26,7 +26,7 @@ Group runtimes (Release, warm build; add ~2s of startup per invocation):
 | `Properties` | 23 | 1.2s |
 | `VerilogOutput` | 45 | 1.1s |
 | `SheetDescription` | 18 | 1.0s |
-| everything else (`Algebra`, `DrawBlock`, `InstanceSignatures`, `KeyBindings`, `Library`, `Markdown`, `NumberHelpers`, `ParameterScenarios`, `ParameterUI`, `Persistence`, `ReadOnlySheet`, `RomComments`, `SourceHygiene`, `TruthTableSim`, `WaveSelection`, `WireQuality`) | 249 | < 1s each |
+| everything else (`Algebra`, `DrawBlock`, `InstanceSignatures`, `KeyBindings`, `Library`, `Markdown`, `NumberHelpers`, `ParameterScenarios`, `ParameterUI`, `Persistence`, `ReadOnlySheet`, `RomComments`, `SourceHygiene`, `TruthTableSim`, `WaveSelection`, `WireQuality`) | 250 | < 1s each |
 
 `VerilogCompiler` dominates: it spawns **node** for every parse (the real nearley parser, the
 same one the editor runs), so it needs node on PATH and costs over a third of the suite. Because
@@ -64,7 +64,7 @@ simulation, parameter resolution, persistence, the draw block and UI-module help
 | `PersistenceTests.fs` | 10 | Project names and directories, the recent list, a canvas through the `.dgm` save path and back in through the load path, and every demo project loaded by `FilesIO`. |
 | `KeyBindingTests.fs` | 10 | The shortcut table: every `ShortcutId` bound, nothing shadowed, nothing that can never fire, and one chord per action across platforms — all invisible at runtime otherwise. |
 | `DrawBlockTests.fs` | 11 | Symbols built and wires routed with nothing running, plus the .NET text-width reconstruction checked against widths recorded from a real browser. |
-| `WireQuality.fs` | 4 | What "the wiring looks good" means as numbers - wire drawn, bends, crossings, cross-net overlap - over a corpus of the sheets that are hard to route, with the current scores recorded so a change to routing or separation has to argue for itself. |
+| `WireQuality.fs` | 5 | What "the wiring looks good" means as numbers - wire drawn, bends, crossings, cross-net overlap - over a corpus of the sheets that are hard to route, with the current scores recorded so a change to routing or separation has to argue for itself. |
 | `ReadOnlySheetTests.fs` | 7 | The invariant behind viewing a library sheet: whatever the draw block becomes, what the sheet would be *saved* as is unchanged, while display-only fields are left alone. |
 | `GoldenModel.fs` | 6 | Whole fixture projects simulated for many cycles, every output and clocked value compared against a stored golden file — including reference-versus-compiled-reducer agreement. |
 | `RomComments.fs` | 5 | Comments written against locations in a `.ram` file, and their appearance on the waveform of a ROM reading those locations. |

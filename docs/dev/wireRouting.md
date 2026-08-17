@@ -212,6 +212,15 @@ gathered on the way up, which can pick up lines the upward pass could not see. O
 `B` overlaps the running cluster bound join. Every movable line ends in exactly one cluster —
 `makeClusters` asserts this and logs (once) if a line is ever orphaned.
 
+A cluster's `Bound` is the union of its members' spans, and a union is as wide as its widest
+member — so it says almost nothing about where any particular segment is. Two things follow, and
+between them they are the whole subtlety of this code. The downward search deliberately reuses the
+wider bound from the upward one, because that is how it finds segments the first search could not
+see. But a bound carried over to a cluster with *different membership* silently changes which
+barriers apply: a symbol edge that only ever obstructed a segment now in another cluster will stop
+this one's search, and every segment beyond it is dropped. Recompute the bound whenever the
+membership changes.
+
 **3. Order and place.** For each cluster, `orderPairwiseToMinimiseCrossings` sorts its segments into
 the order that produces the fewest crossings. The criterion is local: `numCrossingsSign` looks at
 which way each wire turns at the two ends of a segment and decides, for a pair, which of the two

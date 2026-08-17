@@ -216,6 +216,16 @@ let private separate (model: Model) =
     BusWireSeparate.updateWireSegmentJumpsAndSeparations
         (model.Wires |> Map.toList |> List.map fst) model
 
+/// A drag, as the app does it on mouse-up: move a symbol, re-route the wires that end on it, and
+/// re-separate the sheet. Here it goes there and back again, which should leave the wiring as it
+/// was found.
+let private dragRoundTrip (model: Model) =
+    let moved = model.Symbol.Symbols |> Map.toList |> List.map fst |> List.item 1
+    let shift (d: XYPos) (m: Model) =
+        { m with Symbol = SymbolUpdate.moveSymbols m.Symbol [ moved ] d }
+        |> fun m -> BusWireSeparate.routeAndSeparateSymbolWires m moved
+    model |> shift { X = 90.; Y = 45. } |> shift { X = -90.; Y = -45. }
+
 /// Which wires changed, by segment lengths.
 let private wiresDiffering (a: Model) (b: Model) =
     let lengths (m: Model) =
@@ -345,6 +355,29 @@ let tests =
                     $"{name}: separation needed %A{settle} further passes to settle, recorded %A{allowed}")
         }
 
+        test "no segment is lost from a cluster during separation" {
+            // makeClusters builds the cluster around a segment by searching up from it and then
+            // back down from the top of what it found. Where the downward search is stopped by a
+            // barrier, the segments below it become a second cluster - and that cluster was built
+            // with the bound of the first, which still described segments the first had taken. A
+            // symbol edge nowhere near the second cluster could then stop its search too, dropping
+            // every segment below it including the one the cluster was being built for. The code
+            // noticed - "nextIndex has got lost" - and repaired it by leaving that segment in a
+            // cluster of its own with no bounds, which means never moving it.
+            //
+            // The symptom is a log line, so that is what this holds on to. It takes a drag to
+            // provoke: separating a freshly routed sheet does not, but re-separating after one
+            // symbol has moved does - on crossedArrays, where a symbol edge spanning x=70..90
+            // stopped a cluster whose every segment starts beyond x=186.
+            corpus
+            |> List.iter (fun (_, canvas) -> separate (routedModel canvas) |> dragRoundTrip |> ignore)
+            let complaints =
+                Log.recentLines ()
+                |> Array.filter (fun line -> line.Contains "lost" && line.Contains "cluster")
+            Expect.isEmpty complaints
+                $"separation complained about its own clustering: %A{complaints}"
+        }
+
         test "moving a symbol and moving it back does not make the wiring worse" {
             // Routing is deliberately not idempotent: a drag re-routes from where the symbol now
             // is, so the user sees a fast route to judge the placement by, and separation then
@@ -357,11 +390,7 @@ let tests =
             corpus
             |> List.iter (fun (name, canvas) ->
                 let start = separate (routedModel canvas)
-                let moved = start.Symbol.Symbols |> Map.toList |> List.map fst |> List.item 1
-                let shift (d: XYPos) (m: Model) =
-                    { m with Symbol = SymbolUpdate.moveSymbols m.Symbol [ moved ] d }
-                    |> fun m -> BusWireSeparate.routeAndSeparateSymbolWires m moved
-                let back = start |> shift { X = 90.; Y = 45. } |> shift { X = -90.; Y = -45. }
+                let back = dragRoundTrip start
                 let b, s = metricsOf back, metricsOf start
                 Expect.isLessThan b.CrossNetOverlap 1.0 $"{name}: the round trip left nets overlapping"
                 Expect.isLessThan b.Ink (s.Ink * 1.02) $"{name}: the round trip added wire"

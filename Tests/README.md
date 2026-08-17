@@ -116,10 +116,10 @@ did before the change.
   sheet          wires                ink      bends    crossings fanned net     ms  settles
   crossedArrays     10     2541 ->    2601   40 ->  44     0 ->   28          0    1.0  at once
   wrappedArrays     10     8104 ->   10966   49 ->  58     8 ->   36          0    2.1  at once
-  fanout            36     9366 ->    9470  122 -> 133     0 ->    0       3725   14.4  after 2
-  staggeredFanout    8     3662 ->    4078   33 ->  38     8 ->    9       1715    0.9  at once
-  longFanout         8     9320 ->    9740   34 ->  38     6 ->    8       3960    0.9  at once
-  tangle            24    11040 ->   11240   96 ->  94    28 ->   72       8240    3.5  after 1
+  fanout            36     9366 ->    9002   99 ->  98     0 ->    0       3257    6.3  at once
+  staggeredFanout    8     3662 ->    3878   31 ->  34     8 ->    9       1515    0.7  at once
+  longFanout         8     9320 ->    9740   31 ->  35     6 ->    8       3960    0.7  at once
+  tangle            24    11040 ->   11040   88 ->  80    28 ->   60       8040    2.9  at once
 ```
 
 It also sweeps a single wire past obstacles over a grid of positions and counts the routes left

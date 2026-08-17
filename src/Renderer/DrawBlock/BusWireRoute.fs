@@ -692,15 +692,25 @@ let private branchFrom (wire: Wire) (refWire: Wire) (branchAt: int) (branchPos: 
                        (destPos: XYPos) (destEdge: Edge) : Wire =
     let onwards = routeBetween wire.WId branchPos edge destPos destEdge
     let shared = refWire.Segments[0 .. branchAt]
-    // the first segment routed onwards runs along refWire's last shared segment, so the two are
-    // one segment and not two: the alternation of direction has to hold across the join
-    let joined =
-        { shared[branchAt] with Length = shared[branchAt].Length + onwards.Head.Length }
+    // The first segment routed onwards runs ALONG refWire's last shared segment, so the two are one
+    // segment and not two. And a route begins nub, zero-length, rest - the zero is what makes the
+    // first visible segment draggable - so where that zero is present the segment after it is
+    // collinear as well, and all three are one.
+    //
+    // Leaving the zero where it fell would put a vertex that is not a vertex in the middle of the
+    // wire: two coincident vertices with a zero segment between them. Those belong beside a nub and
+    // nowhere else. A later separation move which crosses one draws the wire back over itself,
+    // which is where the spikes on a redrawn sheet came from.
+    let joinedLength, rest =
+        if onwards.Length > 2 && onwards[1].IsZero then
+            shared[branchAt].Length + onwards[0].Length + onwards[2].Length, onwards[3..]
+        else
+            shared[branchAt].Length + onwards[0].Length, onwards[1..]
     { wire with
         StartPos = refWire.StartPos
         InitialOrientation = refWire.InitialOrientation
         Segments =
-            shared[.. branchAt - 1] @ [ joined ] @ onwards.Tail
+            shared[.. branchAt - 1] @ [ { shared[branchAt] with Length = joinedLength } ] @ rest
             |> List.mapi (fun i seg -> { seg with Index = i; WireId = wire.WId; Mode = Auto }) }
 
 /// Every way of routing `wire` as a branch off a wire of its own net which is already routed, each

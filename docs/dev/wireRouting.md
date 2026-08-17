@@ -179,7 +179,11 @@ net, and `smartAutoroute` takes the first that crosses no symbol.
 The construction is the point. The two wires start at the same port, so the leading segments are
 simply **copied**, and routing carries on from the branch point as though it were a port facing the
 way that wire was going — so the first segment it generates runs *along* the wire it left before
-turning off. That overlap costs nothing: it is the same net, so `linkSameNetLines` merges the two
+turning off. That first segment, and the one after the zero-length segment which follows it, are
+**merged into the shared segment**: a route begins nub, zero, rest, and leaving that zero where it
+falls would put two coincident vertices in the middle of the wire. A zero-length segment belongs
+beside a nub and nowhere else — a separation move which crosses one draws the wire back over
+itself, which is what a spike is. That overlap costs nothing: it is the same net, so `linkSameNetLines` merges the two
 and they are drawn as one line. It is also why offering only the *ends* of segments as branch
 points loses nothing — a branch that ought to leave from the middle of a segment leaves at the end
 of the one before and runs back along it.

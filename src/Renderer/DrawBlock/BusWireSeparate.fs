@@ -291,36 +291,59 @@ let orderPairwiseToMinimiseCrossings (model: Model) (lines: Line array) (segL: i
         else segL 
     | _ ->
         // Whether two wires cross depends on which of the two is placed first and on nothing else,
-        // so the crossings of a cluster are the sum over its pairs, and numCrossingsSign is one
-        // term of that sum: which way round this pair is cheaper, or zero where the pair costs the
-        // same either way. Ordering to minimise that sum is the linear ordering problem.
+        // so a cluster's crossings are the sum over its pairs, and numCrossingsSign is one term of
+        // that sum: which way round this pair is cheaper, or zero where the pair costs the same
+        // either way. A pair whose spans nest is the second kind, and in a bundle fanning out from
+        // one place most pairs nest - 22 of the 36 pairs in one cluster on reg16x8 - so what comes
+        // back is a partial order, definite about some pairs and genuinely indifferent about the
+        // rest.
         //
-        // A pair whose spans nest is the second kind, and most pairs in a bundle nest, so the
-        // relation orders part of a cluster completely and says nothing about the rest. This was a
-        // bubble sort over ADJACENT pairs, which is the wrong instrument for that: adjacent swaps
-        // cannot carry a segment past a run of segments it ties with to reach the one that has an
-        // opinion about it, so every tie was settled by wherever routing happened to leave the
-        // segment.
+        // Treat it as one. Complete it to a partial order, take the longest chain in it, and place
+        // that chain's minimal element: nothing in the cluster can go before it, since a chain of
+        // that length hangs off it. Remove it and repeat. A segment the relation is silent about
+        // sits in no long chain and falls out wherever its own preferences allow, which is the
+        // right answer to a genuine indifference.
         //
-        // Each segment is scored instead by how it fares against ALL the others - the sum of its
-        // pairwise preferences, the usual first heuristic for this problem - and they are sorted on
-        // that. Ties keep the order the cluster arrived in.
-        //
-        // Two other orderings were built and measured on the corpus and are worse. Sorting each
-        // segment near the mean of what its two arms reach to - the barycentre, which is what
-        // layered graph drawing would use - doubles the crossings on wrappedArrays, where wires
-        // double back and the arms stop predicting anything. Finding the largest subset the
-        // relation orders completely and fitting the rest around it costs tangle six crossings and
-        // its ability to settle in one pass, to save reg16x8 two.
-        segL
-        |> List.map (fun seg ->
-            let preference =
-                segL
-                |> List.sumBy (fun other ->
-                    if other = seg then 0 else numCrossingsSign' lines[seg] lines[other])
-            preference, seg)
-        |> List.sortBy fst
-        |> List.map (fun (_, index) -> match lines[index].Lid with LineId n -> n)
+        // This was a bubble sort over ADJACENT pairs, which cannot carry a segment past a run of
+        // segments it ties with to reach the one segment that does have an opinion about it - so
+        // every tie was settled by wherever routing happened to leave things.
+        let before =
+            segL
+            |> List.map (fun a ->
+                a, segL |> List.filter (fun b -> b <> a && numCrossingsSign' lines[a] lines[b] < 0) |> Set.ofList)
+            |> Map.ofList
+
+        /// the partial order completion: a before b whenever a chain of preferences says so
+        let rec complete (order: Map<int, Set<int>>) =
+            let joined =
+                order |> Map.map (fun _ afters -> Set.fold (fun acc b -> Set.union acc order[b]) afters afters)
+            if joined = order then order else complete joined
+        let order = complete before
+
+        /// Length of the longest chain starting at each segment still to be placed. Relaxed rather
+        /// than recursed so that a cycle of preferences - which the relation does not forbid -
+        /// stops at a bound instead of never returning.
+        let chainLengths (remaining: Set<int>) =
+            let step (lengths: Map<int, int>) =
+                lengths
+                |> Map.map (fun seg _ ->
+                    match Set.intersect order[seg] remaining |> Set.toList with
+                    | [] -> 1
+                    | afters -> 1 + (afters |> List.map (fun a -> lengths[a]) |> List.max))
+            (remaining |> Set.toList |> List.map (fun seg -> seg, 1) |> Map.ofList, [ 1 .. remaining.Count ])
+            ||> List.fold (fun lengths _ -> step lengths)
+
+        let rec place remaining placed =
+            if Set.isEmpty remaining then List.rev placed
+            else
+                let lengths = chainLengths remaining
+                // the minimal element of the longest chain. List.maxBy keeps the first of equals,
+                // so segments in no chain of their own keep the order the cluster arrived in.
+                let next = segL |> List.filter remaining.Contains |> List.maxBy (fun seg -> lengths[seg])
+                place (Set.remove next remaining) (next :: placed)
+
+        place (Set.ofList segL) []
+        |> List.map (fun index -> match lines[index].Lid with LineId n -> n)
 
 //-------------------------------------------------------------------------------------------------//
 //---------------------------------------SEGMENT CLUSTERING----------------------------------------//

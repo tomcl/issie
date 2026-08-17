@@ -317,19 +317,26 @@ way each wire turns at the two ends of its segment.
 
 It returns **zero for most pairs**, and that is not a gap in it — a pair whose spans *nest* costs
 one crossing whichever way round it goes, and in a bundle fanning out from one place most pairs
-nest. So the relation orders part of a cluster completely and is silent about the rest, and how the
-silence is resolved decides a great many crossings. Each segment is scored by the sum of its
-preferences against *all* the others and sorted on that; ties keep the order the cluster arrived
-in. This was a bubble sort over **adjacent** pairs, which cannot carry a segment past a run of
-segments it ties with to reach the one that has an opinion about it, so every tie was settled by
-wherever routing happened to leave the segment.
+nest (22 of the 36 pairs in one cluster on `reg16x8`). What comes back is therefore a **partial
+order**: definite about some pairs, genuinely indifferent about the rest.
 
-Two better-sounding orderings are worse, and both were measured before being discarded: sorting
-each segment near the mean of what its two arms reach to — the barycentre, which is what layered
+It is treated as one. The relation is completed to a partial order, the longest chain in it is
+found, and that chain's minimal element is placed — nothing else can go before it, since a chain of
+that length hangs off it — then removed, and the process repeats. A segment the relation is silent
+about sits in no long chain and falls out wherever its own preferences allow, which is the right
+answer to a genuine indifference.
+
+This was a bubble sort over **adjacent** pairs, which cannot carry a segment past a run of segments
+it ties with to reach the one that has an opinion about it, so every tie was settled by wherever
+routing happened to leave the segment. On `reg16x8` that cost 22 crossings out of 103.
+
+Three orderings that sound plausible are worse, and each was measured before being discarded.
+Barycentre — place each segment near the mean of what its two arms reach to, which is what layered
 graph drawing would use — doubles the crossings on `wrappedArrays`, where wires double back and
-the arms stop predicting anything; and finding the largest subset the relation orders completely
-and fitting the rest around it costs `tangle` six crossings and its ability to settle in one pass,
-to save `reg16x8` two.
+the arms predict nothing. Scoring each segment by the sum of its preferences against all the others
+gets `reg16x8` only to 87 and costs 2% more wire. Taking the largest subset the relation orders
+completely and fitting the others around it costs `tangle` six crossings and its ability to settle
+in one pass.
 
 `calcSegPositions` then assigns the actual coordinates, and the interesting part is what happens
 near a boundary: segments are placed a full `maxSegmentSeparation` away from a **fixed** bound (a

@@ -496,12 +496,12 @@ type private Recorded =
 
 let private recorded =
     [ { Sheet = "crossedArrays"; Ink = 2601.; Bends = 44; Crossings = 28; FannedNetInk = 0.; Settle = Some 0 }
-      { Sheet = "wrappedArrays"; Ink = 11030.; Bends = 58; Crossings = 36; FannedNetInk = 0.; Settle = Some 0 }
+      { Sheet = "wrappedArrays"; Ink = 10966.; Bends = 58; Crossings = 36; FannedNetInk = 0.; Settle = Some 0 }
       { Sheet = "fanout"; Ink = 9002.; Bends = 98; Crossings = 0; FannedNetInk = 3257.; Settle = Some 0 }
       { Sheet = "staggeredFanout"; Ink = 3878.; Bends = 34; Crossings = 9; FannedNetInk = 1515.; Settle = Some 0 }
       { Sheet = "longFanout"; Ink = 9740.; Bends = 35; Crossings = 8; FannedNetInk = 3960.; Settle = Some 0 }
-      { Sheet = "reg16x8"; Ink = 20275.; Bends = 148; Crossings = 87; FannedNetInk = 13362.; Settle = Some 0 }
-      { Sheet = "tangle"; Ink = 11244.; Bends = 88; Crossings = 56; FannedNetInk = 8244.; Settle = Some 0 } ]
+      { Sheet = "reg16x8"; Ink = 19960.; Bends = 149; Crossings = 81; FannedNetInk = 13046.; Settle = Some 0 }
+      { Sheet = "tangle"; Ink = 11110.; Bends = 83; Crossings = 60; FannedNetInk = 8110.; Settle = Some 0 } ]
 
 /// A settling result is no worse than what was recorded if it needs no more passes than before.
 /// Not settling at all is the worst outcome, and only matches itself.

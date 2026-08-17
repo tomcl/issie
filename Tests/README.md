@@ -117,6 +117,7 @@ did before the change.
   crossedArrays     10     2541 ->    2601   40 ->  44     0 ->   28     2.3   after 5
   wrappedArrays     10     8104 ->   11094   49 ->  58     8 ->   36     1.4     NEVER
   fanout            36     9778 ->    9778  144 -> 144     0 ->    0     3.3   at once
+  staggeredFanout    8     4342 ->    4428   36 ->  39     2 ->    3     1.2   at once
   tangle            24    11040 ->   11040   96 ->  96     0 ->   74     2.4   at once
 ```
 

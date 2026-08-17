@@ -235,6 +235,30 @@ merges lines that are close in `P` and overlapping in `B`: one line keeps the un
 and a list of the others in `SameNetLink`, and the others become `LINKEDSEG` so clustering ignores
 them. This is what keeps a fan-out drawn as a single trunk instead of *n* parallel lines 30 apart.
 
+**This is the only thing in either pass that knows a net exists**, so how far it reaches decides how
+well a net is drawn. Its capture distance is `sameNetTrunkCapture` (10), and it was
+`modernCirclePositionTolerance` (2) — which answers a different question. That constant is how close
+two coordinates must be to count as the *same point*, when `updateCirclesOnNet` works out where a
+net crosses itself: a circle is drawn at a cross-roads to say that the four wires meeting there are
+one net and not two crossing. Two units is the right answer to "is this the same place"; it is the
+wrong answer to "are these close enough to be one line".
+
+And two units is nothing: a sink port a couple of units off its neighbours' gives that wire a trunk
+segment 2 away from theirs, which is then not linked, is `NORMSEG` where theirs are `FIXEDSEG`, and
+so is the only one of them that can move. Separation duly pushed it a full `maxSegmentSeparation`
+clear of a trunk it was 2 units from. `staggeredFanout` in `WireQuality.fs` is that sheet, and it is
+what a fan-out looks like whenever the components are not in a column.
+
+Note what linking can and cannot do. It **merges lines that are already nearly coincident** — it is
+an attraction of last resort, not a construction. It cannot bring together two wires of a net whose
+routes bend in different places, because their trunk segments are nowhere near each other to start
+with. That would need routing to know about the net, and it does not: `snapToNet` was written to
+make a new wire follow an existing one in its net and is unreachable (see
+[openIssues](openIssues.md#wire-routing-and-separation)). Measured against the half-perimeter of a
+net's terminals - a lower bound on any rectilinear Steiner tree joining them - what the two passes
+produce today is about 1.3x the bound at eight sinks, against 2.1x for wires routed with no sharing
+at all. So most of the available gain is already taken, by this one function.
+
 **2. Cluster.** `makeClusters` walks the `P`-sorted array and repeatedly grows a cluster around the
 lowest not-yet-clustered movable line: `expandCluster` searches upward until it hits a gap larger
 than the cluster could possibly need, or a barrier (symbol edge or fixed segment) which is recorded

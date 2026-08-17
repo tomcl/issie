@@ -191,6 +191,23 @@ let private wrappedPositions n =
       "MERGE", { X = 300.; Y = 100. + 40. * float n }
       "OUT", { X = 100.; Y = 100. + 40. * float n } ]
 
+/// One driver, many sinks whose ports are at slightly different heights and different distances -
+/// which is what a fan-out looks like once components are anywhere but in a column. A sink port a
+/// couple of units off its neighbours' gives that wire a trunk segment just off theirs, and if
+/// same-net linking does not catch it, separation pushes it a full maxSegmentSeparation clear and
+/// the net is drawn as two nearly-parallel lines instead of one trunk.
+let private staggeredFanout n =
+    describeSheet "staggeredFanout"
+        (comp "SRC" (Input1(16, None))
+         :: [ for i in 1 .. n -> comp $"R{i}" (Register 16) ]
+         @ [ for i in 1 .. n -> comp $"O{i}" (Output 16) ])
+        ([ for i in 1 .. n -> "SRC" ==> $"R{i}/D" ]
+         @ [ for i in 1 .. n -> $"R{i}" ==> $"O{i}" ])
+
+let private staggeredPositions n =
+    ("SRC", { X = 100.; Y = 400. })
+    :: [ for i in 1 .. n -> $"R{i}", { X = float (500 + 90 * i); Y = float (100 + 150 * i) } ]
+
 /// One driver, many sinks: a clock or reset net. The case where same-net sharing is worth most,
 /// and where the cost of linking same-net lines is worst.
 let private fanout n =
@@ -389,6 +406,7 @@ let private corpus =
     [ "crossedArrays", canvasOf (crossedArrays 8)
       "wrappedArrays", canvasOf (crossedArrays 8) |> movedTo (wrappedPositions 8)
       "fanout", canvasOf (fanout 12)
+      "staggeredFanout", canvasOf (staggeredFanout 4) |> movedTo (staggeredPositions 4)
       "tangle", canvasOf (tangle 8) ]
 
 //-------------------------------------------------------------------------------------------//
@@ -416,6 +434,7 @@ let private recorded =
     [ { Sheet = "crossedArrays"; Ink = 2601.; Bends = 44; Crossings = 28; Settle = Some 5 }
       { Sheet = "wrappedArrays"; Ink = 11094.; Bends = 58; Crossings = 36; Settle = None }
       { Sheet = "fanout"; Ink = 9778.; Bends = 144; Crossings = 0; Settle = Some 0 }
+      { Sheet = "staggeredFanout"; Ink = 4428.; Bends = 39; Crossings = 3; Settle = Some 0 }
       { Sheet = "tangle"; Ink = 11040.; Bends = 96; Crossings = 74; Settle = Some 0 } ]
 
 /// A settling result is no worse than what was recorded if it needs no more passes than before.

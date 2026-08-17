@@ -58,6 +58,15 @@ How these two passes are meant to work is in [wireRouting.md](wireRouting.md).
   highest index, so the test that follows it is not the "did the downward search fail to reach the
   starting segment" check it appears to be. It errs towards the branch that splits off a second
   cluster, which is the safe one.
+- **Routing takes no account of the net a wire belongs to.** Every wire is routed as if it were the
+  only one, and the sharing of a trunk by a fan-out is entirely the work of `linkSameNetLines`
+  during separation - which can only merge segments that are already nearly coincident, never
+  align two wires whose routes bend in different places. `snapToNet` was written for exactly this
+  and is unreachable: nothing dispatches `ToggleSnapToNet` from the UI, `smartAutoroute` ignores
+  `model.SnapToNet`, and the branch that would call it is commented out. It is also written only for
+  the simple case (5 or 7 segments, unrotated, horizontal, target right of source) and copies from
+  whichever wire of the net happens to be first. Either revive it deliberately - taking the nearest
+  or longest wire of the net as reference rather than the first - or construct the net as a tree.
 - **Dead code kept alive.** `snapToNet` (and `copySegments`, `generateEndSegments`, which serve only
   it) is unreachable behind `match model.SnapToNet with | _ -> initialWire`. `expandCluster`
   computes `lowestDownwardsIndex` for a guard that is commented out. `adjustSegmentsInModel` binds

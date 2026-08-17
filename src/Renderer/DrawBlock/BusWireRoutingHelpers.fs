@@ -117,6 +117,24 @@ module Constants =
     /// corners with max length edge larger than this are not removed
     let separateCaptureOverlap = 35. // Larger than as overlapTolerance
     let minWireLengthToSeparate = 10. // prevents short wires being squiggly
+    /// Same-net segments this close together are one line of the drawing and are linked, so that
+    /// separation moves them as one and never pulls them apart.
+    ///
+    /// This used to be modernCirclePositionTolerance (2), which answers a different question: how
+    /// close two coordinates must be to count as the same point when working out where a net
+    /// crosses itself, so that a circle can be drawn there. A circle is what tells a reader that
+    /// four wires meeting at a cross-roads are one net rather than two crossing - so that tolerance
+    /// is about whether two things are at the same place, and two units is the right answer to it.
+    /// It is the wrong answer to "are these close enough that they should be one line", which is
+    /// what this is: a sink port a couple of units off its neighbours' gives that wire a trunk
+    /// segment 2 away from theirs, which was then not linked, is movable where theirs are fixed,
+    /// and so was pushed a full maxSegmentSeparation clear of a trunk it was almost on.
+    ///
+    /// Measured over the WireQuality corpus: 8, 10 and 12 all merge the stray wire back onto the
+    /// trunk and change nothing else; 15 and above cost crossings after a drag without merging
+    /// anything more. 10 is the middle of that, and is nubLength - a segment closer to another
+    /// than a nub is long is not a separate line of the drawing.
+    let sameNetTrunkCapture = 10.
     let maxCornerSize = 100.
     /// How close are segment extensions caused by corner removal allowed to
     /// get to other elements? Maybe needs to be smaller than some otehr things for

@@ -178,7 +178,7 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
                 segmentToLine lType ori wire aSeg)
             |> (fun wireLines -> wireLines @ lines))
         |> List.mapi (fun i line -> line.Lid <- LineId i; line) // add temp Lid so that linkSameNetLines works
-        |> linkSameNetLines Constants.modernCirclePositionTolerance
+        |> linkSameNetLines sameNetTrunkCapture
 
     /// Lines coming from the bounding boxes of symbols
     let symLines =

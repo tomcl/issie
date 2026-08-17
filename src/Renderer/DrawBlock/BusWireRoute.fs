@@ -160,8 +160,12 @@ let findWireSymbolIntersectionsBySegment (model: Model) (wire: Wire) : (int * Bo
                         minWireSeparation
                 comp, expandBox boundingBox borderSize)
         |> List.filter (fun (comp, boundingBox) ->
-            // don't check if the final segments of a wire that connects to a MUX SEL port intersect with the MUX bounding box
-            match comp.Type, lastSeg with
+            // A mux SEL port sits inside its own symbol's bounding box, so the final segments of a
+            // wire reaching one have to be allowed into that box. Only THAT box: this used to
+            // exempt every mux and demux on the sheet, so a wire climbing to a SEL port past
+            // another mux could not see it and was drawn straight through it - and since the check
+            // found nothing, no shift was attempted either.
+            match comp.Type, lastSeg && comp.Id = inputCompId with
             | Mux2, true | Mux4, true | Mux8, true | Demux2, true | Demux4, true | Demux8, true -> false
             | _, _ ->
                  match segmentIntersectsBoundingBox boundingBox startPos endPos with // do not consider the symbols that the wire is connected to

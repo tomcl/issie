@@ -121,8 +121,17 @@ autoroute
 `findWireSymbolIntersections` expands every symbol's bounding box by `minWireSeparation` (7) and
 asks which boxes any **interior** segment crosses — the nubs are excluded from the scan, and the
 box of the symbol a nub belongs to is not expanded, because a wire must be allowed to touch the
-symbol it connects to. A wire into a multiplexer's SEL port skips the check on its last segments
-entirely; that special case exists to stop the SEL wire fighting the MUX body.
+symbol it connects to.
+
+One exemption is worth knowing about because it is the sharpest edge here. A multiplexer's SEL port
+sits *inside* its own bounding box — the body is a trapezoid, so the port is drawn in from the
+edge — and the last segments of a wire reaching one therefore have to be allowed into that box.
+Allowed into **that** box: the exemption used to apply to every mux and demux on the sheet, so a
+wire climbing to a SEL port past a *different* mux could not see it. Nothing was reported as
+intersecting, so no shift was attempted either, and the wire was drawn straight through. On a
+register file — a column of muxes with address wires arriving from below — that is not an edge
+case, it is most of them. **Anything which suppresses the intersection check suppresses the
+avoidance as well**, which makes an over-broad exemption much more expensive than it looks.
 
 `tryShiftVerticalSeg` slides the wire's one crossing (post-rotation: vertical) segment to just
 outside the leftmost, then the rightmost, edge of the obstacles, by adding to segment 2 and

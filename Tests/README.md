@@ -130,6 +130,7 @@ wire it started with:
   into a bottom port       0 of 805 placements
   target behind source     0 of 845 placements
   a wall of two            0 of 775 placements
+  climb past a mux         0 of 945 placements
 ```
 
 The grid is deliberately fine. A coarser one (40 units rather than 15) reported zero for a routing

@@ -369,7 +369,21 @@ let private sweeps =
           [ "A", { X = 100.; Y = 300. }; "B", { X = 700.; Y = 300. }
             "OBS", { X = float (100 + dx); Y = float (300 + dy) }
             "OBS2", { X = float (100 + dx); Y = float (300 + dy) + 100. } ]),
-      [ "OBS"; "OBS2" ] ]
+      [ "OBS"; "OBS2" ]
+
+      // The source is below a tall multiplexer and the destination is a SEL port on the bottom
+      // edge of a symbol above it, so the wire has to climb past the tall one. Here dx and dy move
+      // the SOURCE rather than the obstacle. The obstacle being a mux is the point: the final
+      // segments of a wire reaching a SEL port used to be checked against no mux on the sheet at
+      // all, so this crossing was invisible and no shift was even attempted.
+      "climb past a mux",
+      describeSheet "sweep5" [ comp "A" (Input1(3, None)); comp "B" Mux2; comp "TALL" Mux8 ]
+          [ "A" ==> "B/SEL" ],
+      (fun dx dy ->
+          [ "A", { X = float dx; Y = 900. + float dy }
+            "B", { X = 1500.; Y = 100. }
+            "TALL", { X = 1490.; Y = 340. } ]),
+      [ "TALL" ] ]
 
 let private corpus =
     [ "crossedArrays", canvasOf (crossedArrays 8)
@@ -418,7 +432,8 @@ let private recordedCrossings =
     [ "one obstacle", 0
       "into a bottom port", 0
       "target behind source", 0
-      "a wall of two", 0 ]
+      "a wall of two", 0
+      "climb past a mux", 0 ]
 
 let tests =
     testList "WireQuality" [

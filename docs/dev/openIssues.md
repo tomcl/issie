@@ -41,9 +41,6 @@ How these two passes are meant to work is in [wireRouting.md](wireRouting.md).
   `wireSeparationFromSymbol` (7) — the constant named for this, and the one the comments say is
   used — appears only in comments. Changing the shifts to clear by 7 made no difference to any
   sweep, so this is latent rather than active.
-- **The mux SEL exemption covers every mux on the sheet.** `findWireSymbolIntersections` skips
-  checking a SEL wire's last segments against *all* muxes and demuxes, not just the one it
-  connects to, so such a wire can cross a different mux undetected.
 - **`string` on an `[<Erase>]` id means two different things.** `InputPortId`, `OutputPortId` and
   friends are erased by Fable, so `string portId` is the bare id in the app and
   `InputPortId "…"` under .NET. `BusWireRoute` used it for five `model.Symbol.Ports` lookups, which

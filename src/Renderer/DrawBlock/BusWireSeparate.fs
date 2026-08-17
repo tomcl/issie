@@ -1180,27 +1180,13 @@ let routeAndSeparateSymbolWires (model: Model) (compId: ComponentId) =
     let wires = filterWiresByCompMoved model [compId]
     Log.dbg Log.Wire $"routing and separating symbol wires: {wires.Inputs.Length} inputs, \
                        {wires.Outputs.Length} outputs, {wires.Both.Length} both"
-    let newWires =
-        model.Wires
-        |> Map.toList
-        |> List.map (fun (cId, wire) ->
-            if List.contains cId wires.Both then // Update wires that are connected on both sides
-                cId, (
-                    updateWire model wire true 
-                    |> fun wire -> updateWire model wire false)
-            elif List.contains cId wires.Inputs then 
-                cId, updateWire model wire true
-            elif List.contains cId wires.Outputs then
-                cId, updateWire model wire false
-            else cId, wire)
-        |> Map.ofList
-    { model with Wires = newWires }
-    |> updateWireSegmentJumpsAndSeparations (Map.keysL newWires)
-
-/// A wire the user has routed by hand: at least one of its segments has been dragged, which is
-/// what Manual means. Nothing else sets it - separation moves segments without marking them.
-let isManuallyRouted (wire: Wire) =
-    wire.Segments |> List.exists (fun seg -> seg.Mode = Manual)
+    // A wire with both ends on the moved symbol is re-routed from each end in turn rather than
+    // translated: the symbol may have been resized or rotated, not just moved.
+    model
+    |> rerouteMovedWires
+        (fun model wire -> updateWire model wire true |> fun wire -> updateWire model wire false)
+        [ compId ]
+    |> fun model -> updateWireSegmentJumpsAndSeparations (Map.keysL model.Wires) model
 
 /// Take the routing off the wires `toRedraw` selects, route them all again from nothing, and then
 /// separate the whole sheet as usual. Neither pass is changed: this is the ordinary pair of them,
@@ -1243,7 +1229,8 @@ let redrawWires (toRedraw: Wire -> bool) (model: Model) : Model =
     |> (fun model -> updateWireSegmentJumpsAndSeparations (Map.keysL model.Wires) model)
 
 /// Redraw every wire the user has not routed by hand, leaving those alone.
-let redrawFloatingWires (model: Model) = redrawWires (isManuallyRouted >> not) model
+let redrawFloatingWires (model: Model) =
+    redrawWires (BusWireUpdateHelpers.isManuallyRouted >> not) model
 
 /// Redraw every wire, hand routing included.
 let redrawAllWires (model: Model) = redrawWires (fun _ -> true) model

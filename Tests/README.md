@@ -1,7 +1,7 @@
 # Issie tests
 
 ```bash
-npm run test        # the whole suite: 396 tests, ~100s (385 tests, ~26s with VerilogCompiler excluded)
+npm run test        # the whole suite: 641 tests, ~90s (628 tests, ~20s with VerilogCompiler excluded)
 ```
 
 That runs `dotnet run --project Tests/Issie.Tests -c Release`. It is `dotnet run`, not
@@ -20,13 +20,13 @@ Group runtimes (Release, warm build; add ~2s of startup per invocation):
 
 | Group (`--filter Issie.<name>`) | Tests | Time |
 |---|---:|---:|
-| `VerilogCompiler` | 11 | **38s** |
-| `ComponentSemantics` | 51 | 10s |
+| `VerilogCompiler` | 13 | **38s** |
+| `ComponentSemantics` | 63 | 10s |
 | `GoldenModel` | 6 | 7.6s |
-| `Properties` | 23 | 1.2s |
+| `Properties` | 44 | 1.2s |
 | `VerilogOutput` | 45 | 1.1s |
 | `SheetDescription` | 18 | 1.0s |
-| everything else (`Algebra`, `DrawBlock`, `InstanceSignatures`, `KeyBindings`, `Library`, `Markdown`, `NumberHelpers`, `ParameterScenarios`, `ParameterUI`, `Persistence`, `ReadOnlySheet`, `RomComments`, `SourceHygiene`, `TruthTableSim`, `WaveSelection`, `WireQuality`) | 251 | < 1s each |
+| everything else (`Algebra`, `CustomOutputExtraction`, `DrawBlock`, `InstanceSignatures`, `Issie`, `KeyBindings`, `Library`, `ListPairs`, `Markdown`, `MemoryParameters`, `NumberHelpers`, `ParameterScenarios`, `ParameterUI`, `PathHelpers`, `Persistence`, `RamBenchmark`, `RamStore`, `ReadOnlySheet`, `RomComments`, `SheetHierarchy`, `SimulationBudget`, `SourceHygiene`, `StaleSheetName`, `TruthTableSim`, `WaveSelection`, `WidthInference`, `WireQuality`) | 452 | ~24s in total |
 
 `VerilogCompiler` dominates: it spawns **node** for every parse (the real nearley parser, the
 same one the editor runs), so it needs node on PATH and costs over a third of the suite. Because
@@ -34,7 +34,7 @@ of that it is **skipped whenever the `CI` environment variable is set** (GitHub 
 `CI=true`) — see `Main.fs`. To skip it locally the same way:
 
 ```bash
-CI=true npm run test          # 385 tests, ~26s
+CI=true npm run test          # 628 tests, ~20s
 ```
 
 Run `Issie.VerilogCompiler` explicitly when touching anything under
@@ -64,7 +64,7 @@ simulation, parameter resolution, persistence, the draw block and UI-module help
 | `PersistenceTests.fs` | 10 | Project names and directories, the recent list, a canvas through the `.dgm` save path and back in through the load path, and every demo project loaded by `FilesIO`. |
 | `KeyBindingTests.fs` | 10 | The shortcut table: every `ShortcutId` bound, nothing shadowed, nothing that can never fire, and one chord per action across platforms — all invisible at runtime otherwise. |
 | `DrawBlockTests.fs` | 11 | Symbols built and wires routed with nothing running, plus the .NET text-width reconstruction checked against widths recorded from a real browser. |
-| `WireQuality.fs` | 6 | What "the wiring looks good" means as numbers - wire drawn, bends, crossings, cross-net overlap - over a corpus of the sheets that are hard to route, with the current scores recorded so a change to routing or separation has to argue for itself. |
+| `WireQuality.fs` | 9 | What "the wiring looks good" means as numbers - wire drawn, bends, crossings, cross-net overlap - over a corpus of the sheets that are hard to route, with the current scores recorded so a change to routing or separation has to argue for itself. |
 | `ReadOnlySheetTests.fs` | 7 | The invariant behind viewing a library sheet: whatever the draw block becomes, what the sheet would be *saved* as is unchanged, while display-only fields are left alone. |
 | `GoldenModel.fs` | 6 | Whole fixture projects simulated for many cycles, every output and clocked value compared against a stored golden file — including reference-versus-compiled-reducer agreement. |
 | `RomComments.fs` | 5 | Comments written against locations in a `.ram` file, and their appearance on the waveform of a ROM reading those locations. |
@@ -121,6 +121,17 @@ did before the change.
   longFanout         8     9320 ->    9740   31 ->  35     6 ->    8       3960    1.0  at once
   reg16x8           46    20494 ->   19960  144 -> 149    72 ->   81      13046    8.8  at once
   tangle            24    11040 ->   11110   88 ->  83    28 ->   60       8110    4.8  at once
+```
+
+And it drags the symbol driving the most wires on each sheet, then compares what that leaves
+against redrawing the whole sheet from nothing at the same positions - which is what a user does
+when a drag disappoints them, so it is the right thing to be no worse than:
+
+```
+  sheet         after a drag: fanned net / redrawn      ink / redrawn   crossings / redrawn
+  fanout                              2938 /    2938    8683 /    8683      0 /   0
+  longFanout                          3850 /    3850    9630 /    9630      8 /   8
+  reg16x8                            12554 /   12597   19510 /   19519     85 /  73
 ```
 
 It also sweeps a single wire past obstacles over a grid of positions and counts the routes left

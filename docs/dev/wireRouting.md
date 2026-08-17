@@ -217,9 +217,40 @@ vertex before it as a fixed point, and translates only the segments between the 
 point. It refuses (returns `None`, forcing a full re-route) if the port has ended up on a different
 side of the fixed point than it started, or if the wire would now leave its port on the wrong edge.
 
-`updateWires` classifies wires by which end moved: both ends moved means translate the wire
-rigidly, one end moved means re-route from that end (`reverseWire` lets the same code run from
-either end), neither means leave it alone.
+`rerouteMovedWires` — which `updateWires` and `routeAndSeparateSymbolWires` both are — classifies
+wires by which end moved: both ends moved means keep the shape and move it with them, one end moved
+means re-route from that end (`reverseWire` lets the same code run from either end), neither means
+leave it alone.
+
+**It takes the routing off every wire it is going to autoroute before it routes any of them**, as
+`redrawWires` does. Without that, a wire routed as a branch off a wire of its own net could follow
+one that had not been re-routed yet — and a branch takes over the reference wire's start position,
+so the new route was drawn from where the driver port used to be, joined to nothing. Dragging a mux
+in `3cpu`'s `addsub` left both of its output wires behind exactly so. It is not a rare corner: a
+drag of the driver of a 24-wire net detached all 24, and "the wiring is fine until you drag
+something, and *redraw all wires* fixes it" is what it looks like from the outside.
+
+Stripping first is also what makes the drag as good as a redraw rather than merely correct. Each
+wire can then see the wires of its net that have already been re-routed, so the net is commoned up
+during the drag instead of being left to separation. Measured on the corpus, after dragging the
+busiest driver:
+
+| sheet | wire drawn for the fanned nets | if the whole sheet were redrawn |
+|---|---|---|
+| `fanout` | 2938 | 2938 |
+| `longFanout` | 3850 | 3850 |
+| `reg16x8` | 12554 | 12597 |
+
+Two other orderings were tried and are worse. Routing every wire against the model as it was, with
+`sameNetRoutes` refusing to follow a wire that is not attached to the driver port, is correct but
+gives up commoning entirely during a drag: `fanout` 3283 against 2938, and 12 crossings against 4 on
+`staggeredFanout`. Feeding each result back in **without** stripping first lets a wire follow a
+route that is about to be thrown away: `reg16x8` 13839 against 12554, and 20 crossings against 8 on
+`longFanout`.
+
+Hand-routed wires are the exception and are not stripped: `partialAutoroute` holds the shape the
+user dragged into place by working from the segments that are already there. They are re-routed
+first so the rest of their net can follow them.
 
 ### Dead code to know about
 

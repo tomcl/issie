@@ -723,6 +723,12 @@ let private branchFrom (wire: Wire) (refWire: Wire) (branchAt: int) (branchPos: 
 /// Every way of routing `wire` as a branch off a wire of its own net which is already routed, each
 /// paired with how far its branch point is from the destination.
 ///
+/// A branch takes over the reference wire's start position, so every wire it may follow has to be
+/// one that is drawn from where the driver port is NOW. A wire with no segments is passed over,
+/// which is what makes taking the routing off a set of wires before routing any of them enough to
+/// guarantee it - see `rerouteMovedWires`. Follow a wire that has not been re-routed since its
+/// driver moved and this wire is drawn from where that port used to be, joined to nothing.
+///
 /// That distance is the whole of the choice: take the first of these that is legal and the branch
 /// point is the nearest one to the destination that works, which is the one the wire can follow
 /// for longest. The ordinary route belongs in the same ordering - it is the branch at the driver
@@ -808,29 +814,57 @@ let updateWire (model : Model) (wire : Wire) (reverse : bool) =
     |> Option.defaultWith (fun () ->
         smartAutoroute model wire)
 
+/// Re-route the wires which touch a symbol that has moved. A wire with both ends on moved symbols
+/// keeps its shape and is handed to `translate` - it moves with them.
+///
+/// The routing comes off the wires that are going to be autorouted BEFORE any of them is routed, as
+/// `redrawWires` does and for the same reason: a wire may be routed as a branch off another wire of
+/// its own net, and a route which is about to be thrown away is not one to follow. `sameNetRoutes`
+/// passes over a wire with no segments, so what each wire can see is exactly the wires that are
+/// where they now belong - the ones already re-routed, and the ones that never moved.
+///
+/// A wire the user has routed by hand keeps its segments: `partialAutoroute` holds the shape they
+/// dragged it into by working from the segments already there, and there is nothing to recover
+/// that from once they are gone. Those are re-routed before the autorouted ones, so that the rest
+/// of their net can follow them.
+///
+/// Autorouted wires go shortest first, again as `redrawWires` does: a short wire has the least
+/// freedom in where it can go, so it is the one that should already be there when a longer wire of
+/// its net is looking for something to join.
+let rerouteMovedWires (translate: Model -> Wire -> Wire) (compIdList: ComponentId list) (model: Model) =
+    let wires = filterWiresByCompMoved model compIdList
+    let bothEndsMoved = Set.ofList wires.Both
+    let inputEndMoved = Set.ofList wires.Inputs
+    let portDistance (wire: Wire) =
+        let destPos, startPos = Symbol.getTwoPortLocations model.Symbol wire.InputPort wire.OutputPort
+        euclideanDistance startPos destPos
+    let handRouted, autoRouted =
+        wires.Inputs @ wires.Outputs
+        |> List.distinct
+        |> List.filter (bothEndsMoved.Contains >> not)
+        |> List.sortBy (fun wid -> portDistance model.Wires[wid])
+        |> List.partition (fun wid -> isManuallyRouted model.Wires[wid])
+    /// An input end that moved is routed from that end, which is what `reverse` means.
+    let route model wid =
+        Optic.set (wireOf_ wid) (updateWire model model.Wires[wid] (inputEndMoved.Contains wid)) model
+    (model, wires.Both)
+    ||> List.fold (fun model wid -> Optic.set (wireOf_ wid) (translate model model.Wires[wid]) model)
+    // The stripping comes before the hand-routed wires are done as well as before the autorouted
+    // ones: partialAutoroute can fail, and a hand-routed wire that falls back to a full route is
+    // looking at the same net as everything else.
+    |> fun model ->
+        (model, autoRouted)
+        ||> List.fold (fun model wid -> Optic.set (wireOf_ wid >-> segments_) [] model)
+    |> fun model -> (model, handRouted) ||> List.fold route
+    |> fun model -> (model, autoRouted) ||> List.fold route
+
 /// Re-routes the wires in the model based on a list of components that have been altered.
-/// If the wire input and output ports are both in the list of moved components, 
+/// If the wire input and output ports are both in the list of moved components,
 /// it does not re-route wire but instead translates it.
 /// Keeps manual wires manual (up to a point).
 /// Otherwise it will auto-route wires connected to components that have moved
 let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
-
-    let wires = filterWiresByCompMoved model compIdList
-
-    let newWires =
-        model.Wires
-        |> Map.toList
-        |> List.map (fun (cId, wire) -> 
-            if List.contains cId wires.Both //Translate wires that are connected to moving components on both sides
-            then (cId, moveWire wire diff)
-            elif List.contains cId wires.Inputs //Only route wires connected to ports that moved for efficiency
-            then (cId, updateWire model wire true)
-            elif List.contains cId wires.Outputs
-            then (cId, updateWire model wire false)
-            else (cId, wire))
-        |> Map.ofList
-
-    { model with Wires = newWires }
+    rerouteMovedWires (fun _ wire -> moveWire wire diff) compIdList model
 
 
 

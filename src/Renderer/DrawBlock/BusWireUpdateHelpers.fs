@@ -104,6 +104,11 @@ let getFilteredIdList condition wireLst =
     |> List.filter condition
     |> List.map (fun wire -> wire.WId)
 
+/// A wire the user has routed by hand: at least one of its segments has been dragged, which is
+/// what Manual means. Nothing else sets it - separation moves segments without marking them.
+let isManuallyRouted (wire: Wire) =
+    wire.Segments |> List.exists (fun seg -> seg.Mode = Manual)
+
 /// Given a model and a list of component Ids, returns an anonymous record
 /// containing the id of wires connected to input ports, output ports or both
 let filterWiresByCompMoved (model: Model) (compIds: list<ComponentId>) =

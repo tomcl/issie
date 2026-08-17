@@ -317,6 +317,47 @@ let private routedModel (canvas: CanvasState) =
     ||> List.fold (fun model wid ->
             { model with Wires = Map.add wid (BusWireRoute.smartAutoroute model model.Wires[wid]) model.Wires })
 
+/// Symbols loaded and every wire given back the route it was saved with, manual segments and all.
+/// This is what the app has after opening a sheet, and it is not what `routedModel` produces: a
+/// saved sheet has been separated, and may have been routed by hand, so re-routing it from nothing
+/// throws away the state a user's drag actually starts from. `BusWireUpdate`'s `LoadConnections`
+/// does this inside the Elmish update, where a test cannot reach it.
+let private loadedModel ((comps, conns): CanvasState) =
+    let wireModel, _ = BusWireUpdate.init ()
+    let symbols = SymbolUpdate.loadComponents [] wireModel.Symbol comps
+    let empty = { wireModel with Symbol = symbols }
+    /// A saved end that is not where the port now is has to be re-routed, exactly as
+    /// LoadConnections does: the vertices were saved before whatever moved the symbol.
+    let matchesPort (pos: XYPos) (vertex: (float * float * bool) option) =
+        match vertex with
+        | None -> false
+        | Some(x, y, _) ->
+            abs (pos.X - x) < BusWire.Constants.vertexLoadMatchTolerance
+            && abs (pos.Y - y) < BusWire.Constants.vertexLoadMatchTolerance
+    let wireOf (conn: Connection) : Wire =
+        let outputId, inputId = OutputPortId conn.Source.Id, InputPortId conn.Target.Id
+        let matchEnd inOut wire =
+            let matches =
+                match inOut with
+                | true ->
+                    matchesPort (Symbol.getInputPortLocation None symbols inputId) (List.tryLast conn.Vertices)
+                | false ->
+                    matchesPort (Symbol.getOutputPortLocation None symbols outputId) (List.tryHead conn.Vertices)
+            if matches then wire else BusWireRoute.updateWire empty wire inOut
+        { WId = ConnectionId conn.Id
+          InputPort = inputId
+          OutputPort = outputId
+          Color = HighLightColor.DarkSlateGrey
+          Width = 1
+          Segments = BusWire.issieVerticesToSegments (ConnectionId conn.Id) conn.Vertices
+          StartPos = Symbol.getOutputPortLocation None symbols outputId
+          InitialOrientation =
+            getOutputPortOrientation symbols outputId |> BusWireUpdateHelpers.getOrientationOfEdge }
+        |> matchEnd false
+        |> matchEnd true
+        |> fun wire -> { wire with Segments = BusWireUpdateHelpers.makeEndsDraggable wire.Segments }
+    { empty with Wires = conns |> List.map (fun c -> ConnectionId c.Id, wireOf c) |> Map.ofList }
+
 let private separate (model: Model) =
     BusWireSeparate.updateWireSegmentJumpsAndSeparations
         (model.Wires |> Map.toList |> List.map fst) model
@@ -330,6 +371,33 @@ let private dragRoundTrip (model: Model) =
         { m with Symbol = SymbolUpdate.moveSymbols m.Symbol [ moved ] d }
         |> fun m -> BusWireSeparate.routeAndSeparateSymbolWires m moved
     model |> shift { X = 90.; Y = 45. } |> shift { X = -90.; Y = -45. }
+
+/// Wires which are not drawn between the two ports they connect. A wire that begins somewhere
+/// other than its driver port is not attached to anything: it is the route it had before the
+/// symbol moved, left lying where it was.
+///
+/// Half a unit of slack, not none: a sheet loaded from a file is drawn from vertices that were
+/// rounded on the way out, which leaves ends a few thousandths adrift - the app's own load check
+/// allows 0.01 for the same reason. A detachment is tens of units.
+let private detachedWires (model: Model) =
+    model.Wires
+    |> Map.toList
+    |> List.filter (fun (_, w) ->
+        let startPos = Symbol.getOutputPortLocation None model.Symbol w.OutputPort
+        let endPos = Symbol.getInputPortLocation None model.Symbol w.InputPort
+        euclideanDistance w.StartPos startPos > 0.5
+        || euclideanDistance (getAbsSegments w |> List.last).End endPos > 0.5)
+    |> List.map (fun (ConnectionId id, _) -> id)
+
+/// The symbol driving the most wires, which is where a re-route has the most chance of going
+/// wrong: a wire of a multi-wire net can be routed as a branch off another wire of the same net.
+let private busiestDriver (model: Model) =
+    model.Wires
+    |> Map.toList
+    |> List.countBy (fun (_, w) -> w.OutputPort)
+    |> List.maxBy snd
+    |> fst
+    |> fun (OutputPortId p) -> ComponentId model.Symbol.Ports[p].HostId
 
 /// Which wires changed, by segment lengths.
 let private wiresDiffering (a: Model) (b: Model) =
@@ -639,6 +707,98 @@ let tests =
                 |> Array.filter (fun line -> line.Contains "lost" && line.Contains "cluster")
             Expect.isEmpty complaints
                 $"separation complained about its own clustering: %A{complaints}"
+        }
+
+        test "dragging a symbol leaves every wire on it attached to its ports" {
+            // The one thing a re-route may never do. Routing a wire as a branch off another wire
+            // of its own net copies that wire's start position, so a reference wire which has not
+            // itself been re-routed yet hands over the position the driver port used to be at -
+            // and the new route is drawn from there, detached from the symbol that just moved.
+            corpus
+            |> List.iter (fun (name, canvas) ->
+                let start = separate (routedModel canvas)
+                let driver = busiestDriver start
+                let dragged =
+                    { start with Symbol = SymbolUpdate.moveSymbols start.Symbol [ driver ] { X = 60.; Y = 30. } }
+                    |> fun m -> BusWireSeparate.routeAndSeparateSymbolWires m driver
+                Expect.isEmpty (detachedWires dragged)
+                    $"{name}: dragging the symbol driving the most wires left \
+                       {(detachedWires dragged).Length} wire(s) not joined to their ports"
+                // And the net has to come out of the drag still drawn as one trunk. Refusing to
+                // follow a wire that has not moved yet means none of the net's wires may follow
+                // any other during the drag - they are all re-routed against the model as it was -
+                // so what commons the net back up here is separation, not routing.
+                //
+                // Judged against redrawing the sheet from nothing at the same symbol positions,
+                // since the drag has moved a symbol and the net genuinely needs different wire
+                // afterwards. That is also what the user does when a drag disappoints them.
+                let d, r = metricsOf dragged, metricsOf (BusWireSeparate.redrawAllWires dragged)
+                let drag, redrawn = d.FannedNetInk, r.FannedNetInk
+                printfn "  %-14s after a drag: fanned net %8.0f/%8.0f ink %8.0f/%8.0f crossings %4d/%4d"
+                    name drag redrawn d.Ink r.Ink d.Crossings r.Crossings
+                Expect.isLessThan drag (redrawn * 1.2 + 1.)
+                    $"{name}: dragging the busiest driver broke the net up - %.0f{drag} of wire \
+                       drawn for the multi-wire nets, against %.0f{redrawn} redrawing from nothing")
+        }
+
+        test "dragging the mux in addsub does not leave its output wires behind" {
+            // The case as reported: dragging MUX1 on 3cpu's addsub left its two output wires
+            // exactly where they were, joined to nothing, and only "redraw all wires" put them
+            // back. The second wire of that net was routed as a branch off the first while the
+            // first was still drawn from where the output port used to be, and a branch takes over
+            // its reference wire's start position.
+            let addsub =
+                (TestFixtures.loadProject "3cpu" |> List.find (fun c -> c.Name = "addsub")).CanvasState
+            // Loaded with the routing the sheet was saved with, which is where a user's drag
+            // starts from - not re-routed from nothing, which is a different sheet.
+            let start = loadedModel addsub
+            let mux1 =
+                start.Symbol.Symbols
+                |> Map.toList
+                |> List.find (fun (_, s) -> s.Component.Label = "MUX1")
+                |> fst
+            // Up and to the right, which is where it happens: MUX1's second output wire then finds
+            // a branch off the first one nearer to its destination than the port is, and takes it.
+            // Moving it anywhere else in an 80-unit sweep does not provoke it, which is what makes
+            // this the kind of bug that survives being looked for by hand.
+            let dragged =
+                { start with Symbol = SymbolUpdate.moveSymbols start.Symbol [ mux1 ] { X = 40.; Y = -80. } }
+                |> fun m -> BusWireSeparate.routeAndSeparateSymbolWires m mux1
+            Expect.isEmpty (detachedWires start) "the sheet was already broken when it was loaded"
+            Expect.isEmpty (detachedWires dragged)
+                "dragging MUX1 left wires drawn from where its port used to be"
+        }
+
+        test "a hand-routed wire keeps its hand routing when a symbol on it moves" {
+            // The wires a drag re-routes have their routing taken off before any of them is
+            // routed. A wire the user routed by hand must not be stripped with them: what holds
+            // the shape they dragged into place is partialAutoroute working from the segments that
+            // are already there, and there is nothing to recover them from once they are gone.
+            let start = separate (routedModel (canvasOf (fanout 12)))
+            let driver = busiestDriver start
+            let netPort =
+                start.Wires |> Map.toList |> List.countBy (fun (_, w) -> w.OutputPort)
+                |> List.maxBy snd |> fst
+            let wid, wire = start.Wires |> Map.toList |> List.find (fun (_, w) -> w.OutputPort = netPort)
+            // as the user does it: drag a middle segment, which is what marks it Manual
+            let movable =
+                wire.Segments
+                |> List.filter (fun s -> s.Index > 0 && s.Index < wire.Segments.Length - 1 && not s.IsZero)
+            let seg = movable[movable.Length / 2]
+            let byHand =
+                { start with Wires = Map.add wid (BusWireUpdateHelpers.moveSegment start seg 20.) start.Wires }
+            Expect.isTrue (BusWireUpdateHelpers.isManuallyRouted byHand.Wires[wid])
+                "the test moved a segment and the wire did not become hand-routed"
+            // A small move. partialAutoroute keeps a wire manual only up to a point - it declines
+            // once the port has moved past the first hand-routed corner - and that is what a drag
+            // beyond this distance runs into, here as before.
+            let dragged =
+                { byHand with Symbol = SymbolUpdate.moveSymbols byHand.Symbol [ driver ] { X = 15.; Y = 10. } }
+                |> fun m -> BusWireSeparate.routeAndSeparateSymbolWires m driver
+            Expect.isTrue (BusWireUpdateHelpers.isManuallyRouted dragged.Wires[wid])
+                "dragging the driver threw away a wire's hand routing"
+            Expect.isEmpty (detachedWires dragged)
+                "dragging the driver of a net with a hand-routed wire in it detached a wire"
         }
 
         test "moving a symbol and moving it back does not make the wiring worse" {

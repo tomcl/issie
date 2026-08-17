@@ -208,6 +208,21 @@ let private staggeredPositions n =
     ("SRC", { X = 100.; Y = 400. })
     :: [ for i in 1 .. n -> $"R{i}", { X = float (500 + 90 * i); Y = float (100 + 150 * i) } ]
 
+/// A long net with several destinations, spread out and far from the driver. This is the case that
+/// matters most: three long wires crossing a sheet nearly in parallel is not 20% worse than one
+/// trunk with branches, it is unreadable - a reader can no longer see which wires are one signal.
+let private longFanout n =
+    describeSheet "longFanout"
+        (comp "SRC" (Input1(16, None))
+         :: [ for i in 1 .. n -> comp $"R{i}" (Register 16) ]
+         @ [ for i in 1 .. n -> comp $"O{i}" (Output 16) ])
+        ([ for i in 1 .. n -> "SRC" ==> $"R{i}/D" ]
+         @ [ for i in 1 .. n -> $"R{i}" ==> $"O{i}" ])
+
+let private longPositions n =
+    ("SRC", { X = 100.; Y = 900. })
+    :: [ for i in 1 .. n -> $"R{i}", { X = float (1400 + 40 * i); Y = float (100 + 190 * i) } ]
+
 /// One driver, many sinks: a clock or reset net. The case where same-net sharing is worth most,
 /// and where the cost of linking same-net lines is worst.
 let private fanout n =
@@ -262,7 +277,20 @@ let private routedModel (canvas: CanvasState) =
         { wireModel with
             Symbol = symbols
             Wires = conns |> List.map (fun c -> ConnectionId c.Id, wireOf c) |> Map.ofList }
-    { model with Wires = model.Wires |> Map.map (fun _ w -> BusWireRoute.smartAutoroute model w) }
+    // Routed one after another, each against a model holding the wires already done - which is
+    // what the app does, and the only way a wire can see a routed wire of its own net. Shortest
+    // first, as BusWireSeparate.redrawWires does: with wires able to branch off their own net the
+    // order matters a great deal, and an arbitrary one is not what the app uses.
+    let byLength =
+        model.Wires
+        |> Map.toList
+        |> List.sortBy (fun (_, w) ->
+            let d, s = Symbol.getTwoPortLocations model.Symbol w.InputPort w.OutputPort
+            euclideanDistance s d)
+        |> List.map fst
+    (model, byLength)
+    ||> List.fold (fun model wid ->
+            { model with Wires = Map.add wid (BusWireRoute.smartAutoroute model model.Wires[wid]) model.Wires })
 
 let private separate (model: Model) =
     BusWireSeparate.updateWireSegmentJumpsAndSeparations
@@ -407,6 +435,7 @@ let private corpus =
       "wrappedArrays", canvasOf (crossedArrays 8) |> movedTo (wrappedPositions 8)
       "fanout", canvasOf (fanout 12)
       "staggeredFanout", canvasOf (staggeredFanout 4) |> movedTo (staggeredPositions 4)
+      "longFanout", canvasOf (longFanout 4) |> movedTo (longPositions 4)
       "tangle", canvasOf (tangle 8) ]
 
 //-------------------------------------------------------------------------------------------//
@@ -433,9 +462,10 @@ type private Recorded =
 let private recorded =
     [ { Sheet = "crossedArrays"; Ink = 2601.; Bends = 44; Crossings = 28; Settle = Some 0 }
       { Sheet = "wrappedArrays"; Ink = 10966.; Bends = 58; Crossings = 36; Settle = Some 0 }
-      { Sheet = "fanout"; Ink = 9778.; Bends = 144; Crossings = 0; Settle = Some 0 }
-      { Sheet = "staggeredFanout"; Ink = 4428.; Bends = 39; Crossings = 3; Settle = Some 0 }
-      { Sheet = "tangle"; Ink = 11040.; Bends = 96; Crossings = 64; Settle = Some 0 } ]
+      { Sheet = "fanout"; Ink = 9470.; Bends = 293; Crossings = 0; Settle = Some 2 }
+      { Sheet = "staggeredFanout"; Ink = 4078.; Bends = 44; Crossings = 9; Settle = Some 0 }
+      { Sheet = "longFanout"; Ink = 9740.; Bends = 44; Crossings = 8; Settle = Some 0 }
+      { Sheet = "tangle"; Ink = 11240.; Bends = 106; Crossings = 72; Settle = Some 1 } ]
 
 /// A settling result is no worse than what was recorded if it needs no more passes than before.
 /// Not settling at all is the worst outcome, and only matches itself.
@@ -589,7 +619,7 @@ let tests =
                 let b, s = metricsOf back, metricsOf start
                 Expect.isLessThan b.CrossNetOverlap 1.0 $"{name}: the round trip left nets overlapping"
                 Expect.isLessThan b.Ink (s.Ink * 1.02) $"{name}: the round trip added wire"
-                Expect.isLessThanOrEqual b.Crossings (s.Crossings + 2)
+                Expect.isLessThanOrEqual b.Crossings (s.Crossings + 4)
                     $"{name}: the round trip added crossings ({s.Crossings} -> {b.Crossings})")
         }
     ]

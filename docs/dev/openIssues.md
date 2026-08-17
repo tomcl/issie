@@ -51,17 +51,17 @@ How these two passes are meant to work is in [wireRouting.md](wireRouting.md).
   highest index, so the test that follows it is not the "did the downward search fail to reach the
   starting segment" check it appears to be. It errs towards the branch that splits off a second
   cluster, which is the safe one.
-- **Routing takes no account of the net a wire belongs to.** Every wire is routed as if it were the
-  only one, and the sharing of a trunk by a fan-out is entirely the work of `linkSameNetLines`
-  during separation - which can only merge segments that are already nearly coincident, never
-  align two wires whose routes bend in different places. `snapToNet` was written for exactly this
-  and is unreachable: nothing dispatches `ToggleSnapToNet` from the UI, `smartAutoroute` ignores
-  `model.SnapToNet`, and the branch that would call it is commented out. It is also written only for
-  the simple case (5 or 7 segments, unrotated, horizontal, target right of source) and copies from
-  whichever wire of the net happens to be first. Either revive it deliberately - taking the nearest
-  or longest wire of the net as reference rather than the first - or construct the net as a tree.
+- **Branching off the same net costs bends, crossings and settling.** `sameNetRoutes` takes the
+  first legal branch nearest the destination, which is what maximises sharing but weighs nothing
+  against it. Measured over the corpus: wire drawn falls 3% on `fanout` and 8% on `staggeredFanout`,
+  and rises 2% on `tangle`; bends on `fanout` go 144 to 293, crossings on `staggeredFanout` 3 to 9
+  and on `tangle` 64 to 72; and `fanout` and `tangle` stop settling in one separation pass. Scoring
+  candidates by the wire a net is drawn as, rather than taking the nearest legal one, would let the
+  ordinary route win where a branch is not worth it - at the cost of evaluating every candidate.
 - **Dead code kept alive.** `snapToNet` (and `copySegments`, `generateEndSegments`, which serve only
-  it) is unreachable behind `match model.SnapToNet with | _ -> initialWire`. `expandCluster`
+  it) was the first attempt at what `sameNetRoutes` now does, and is still there and still
+  unreachable — it only ever handled 5 or 7 segment unrotated wires and copied from whichever wire
+  of the net came first out of a `Map`. It should go. `expandCluster`
   computes `lowestDownwardsIndex` for a guard that is commented out. `adjustSegmentsInModel` binds
   `Option.get line.Seg1` and never uses it. The doc comment on `Constants.separateCaptureOverlap`
   describes `maxCornerSize`.

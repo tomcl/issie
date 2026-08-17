@@ -170,6 +170,41 @@ correction to that midpoint.
 short wire may not have an interior segment there yet; it splits the end segment into
 nub / zero / remainder so the indices mean what the shift code assumes.
 
+### Branching off the same net
+
+A wire is routed as a branch off a wire of its own net wherever that is legal:
+`BusWireRoute.sameNetRoutes` offers one candidate per vertex of every already-routed wire of the
+net, and `smartAutoroute` takes the first that crosses no symbol.
+
+The construction is the point. The two wires start at the same port, so the leading segments are
+simply **copied**, and routing carries on from the branch point as though it were a port facing the
+way that wire was going — so the first segment it generates runs *along* the wire it left before
+turning off. That overlap costs nothing: it is the same net, so `linkSameNetLines` merges the two
+and they are drawn as one line. It is also why offering only the *ends* of segments as branch
+points loses nothing — a branch that ought to leave from the middle of a segment leaves at the end
+of the one before and runs back along it.
+
+Candidates are ordered by how far the branch point is from the destination, nearest first, and the
+ordinary route is one of them: it is the branch at the driver port, where nothing is shared. So the
+wire follows its net for as long as it legally can.
+
+Two things make this stable rather than a gamble. A shared run **cannot afterwards be separated** —
+separation links same-net segments and moves them as one — so the saving stays saved. And branching
+at a vertex and running parallel produces T-junctions and overlaps, never a **cross-roads**: the net
+does not cross itself, so this does not manufacture the ambiguity that circles exist to resolve.
+
+**Order matters now, and it did not before.** A wire can only branch off a wire that is already
+routed, so what a wire can see depends on what was routed first. `redrawWires` routes shortest
+first, by straight-line port distance: a short wire has the least freedom in where it can go, so it
+should be in place when a longer wire of the same net comes looking for something to join. Measured
+on the `fanout` sheet, the same wires routed in an arbitrary order are drawn with **10971** units of
+wire against **9470** shortest-first — a bigger difference than the feature itself makes.
+
+What this is for is **not** the average sheet. It is the occasional long wire with several
+destinations, where the failure is not that the drawing is 20% longer but that three long wires
+running nearly in parallel across a sheet cannot be read as one signal. `longFanout` in
+`WireQuality.fs` is that case.
+
 ### Not re-routing: partial autoroute
 
 When a symbol moves, `updateWire` tries `partialAutoroute` before falling back to
@@ -251,12 +286,7 @@ what a fan-out looks like whenever the components are not in a column.
 Note what linking can and cannot do. It **merges lines that are already nearly coincident** — it is
 an attraction of last resort, not a construction. It cannot bring together two wires of a net whose
 routes bend in different places, because their trunk segments are nowhere near each other to start
-with. That would need routing to know about the net, and it does not: `snapToNet` was written to
-make a new wire follow an existing one in its net and is unreachable (see
-[openIssues](openIssues.md#wire-routing-and-separation)). Measured against the half-perimeter of a
-net's terminals - a lower bound on any rectilinear Steiner tree joining them - what the two passes
-produce today is about 1.3x the bound at eight sinks, against 2.1x for wires routed with no sharing
-at all. So most of the available gain is already taken, by this one function.
+with. That needs routing to know about the net, which is what `sameNetRoutes` is for — below.
 
 **2. Cluster.** `makeClusters` walks the `P`-sorted array and repeatedly grows a cluster around the
 lowest not-yet-clustered movable line: `expandCluster` searches upward until it hits a gap larger

@@ -654,16 +654,107 @@ let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
         { wireToRoute with Segments = newSegments }
 
 
+//------------------------------------------------------------------------//
+//----------------------Branching off the same net------------------------//
+//------------------------------------------------------------------------//
+
+/// The symbol edge a segment travelling in this direction would leave from: a segment running
+/// right continues out of a Right edge, and so on. Used to carry on routing from a point part way
+/// along a wire as though that point were a port facing the way the wire was going.
+let private edgeOfTravel (seg: ASegment) =
+    match seg.Orientation, seg.Segment.Length > 0. with
+    | Horizontal, true -> CommonTypes.Right
+    | Horizontal, false -> CommonTypes.Left
+    | Vertical, true -> CommonTypes.Bottom
+    | Vertical, false -> CommonTypes.Top
+
+/// The ordinary routing of a pair of points, given the edge each leaves by. This is the body of
+/// autoroute with the port lookups taken out, so that it can also route from a point part way
+/// along an existing wire.
+let private routeBetween wid (startPos: XYPos) (startEdge: Edge) (destPos: XYPos) (destEdge: Edge) =
+    let normStart, normEnd =
+        rotateStartDest CommonTypes.Right (genPortInfo startEdge startPos, genPortInfo destEdge destPos)
+    {| edge = CommonTypes.Right
+       segments = makeInitialSegmentsList wid normStart.Position normEnd.Position normEnd.Edge |}
+    |> rotateSegments startEdge
+    |> (fun w -> w.segments)
+
+/// Route `wire` by following `refWire` - another wire of the same net - as far as the end of its
+/// segment `branchAt`, and going on from there.
+///
+/// The two wires start at the same port, so the leading segments can simply be copied. Routing
+/// continues from the branch point as though it were a port facing the way refWire was going, so
+/// the first segment it generates runs ON along refWire before turning off. That overlap is free:
+/// it is the same net, so separation links the two and they are drawn as one line. It is also why
+/// branching only at the ends of segments loses nothing - a branch that ought to leave from the
+/// middle of a segment leaves at the end of the one before and runs back along it.
+let private branchFrom (wire: Wire) (refWire: Wire) (branchAt: int) (branchPos: XYPos) (edge: Edge)
+                       (destPos: XYPos) (destEdge: Edge) : Wire =
+    let onwards = routeBetween wire.WId branchPos edge destPos destEdge
+    let shared = refWire.Segments[0 .. branchAt]
+    // the first segment routed onwards runs along refWire's last shared segment, so the two are
+    // one segment and not two: the alternation of direction has to hold across the join
+    let joined =
+        { shared[branchAt] with Length = shared[branchAt].Length + onwards.Head.Length }
+    { wire with
+        StartPos = refWire.StartPos
+        InitialOrientation = refWire.InitialOrientation
+        Segments =
+            shared[.. branchAt - 1] @ [ joined ] @ onwards.Tail
+            |> List.mapi (fun i seg -> { seg with Index = i; WireId = wire.WId; Mode = Auto }) }
+
+/// Every way of routing `wire` as a branch off a wire of its own net which is already routed, each
+/// paired with how far its branch point is from the destination.
+///
+/// That distance is the whole of the choice: take the first of these that is legal and the branch
+/// point is the nearest one to the destination that works, which is the one the wire can follow
+/// for longest. The ordinary route belongs in the same ordering - it is the branch at the driver
+/// port, where nothing is shared - so a branch is taken only when it starts nearer the destination
+/// than starting again from the port would.
+let sameNetRoutes (model: Model) (wire: Wire) : (float * Wire) list =
+    let destPos = Symbol.getInputPortLocation None model.Symbol wire.InputPort
+    let destEdge = getInputPortOrientation model.Symbol wire.InputPort
+    model.Wires
+    |> Map.valuesL
+    |> List.filter (fun w ->
+        w.OutputPort = wire.OutputPort && w.WId <> wire.WId && not w.Segments.IsEmpty)
+    |> List.collect (fun refWire ->
+        getAbsSegments refWire
+        |> List.indexed
+        // never the last segment: its end is the other wire's own port, and a branch from there
+        // would start inside that symbol
+        |> List.filter (fun (i, seg) -> i < refWire.Segments.Length - 1 && not seg.IsZero)
+        |> List.map (fun (i, seg) -> refWire, i, seg.End, edgeOfTravel seg))
+    |> List.map (fun (refWire, i, branchPos, edge) ->
+        euclideanDistance branchPos destPos,
+        branchFrom wire refWire i branchPos edge destPos destEdge)
+
 /// top-level function which replaces autoupdate and implements a smarter version of same
 /// it is called every time a new wire is created, so is easily tested.
 let smartAutoroute (model: Model) (wire: Wire) : Wire =
     let initialWire = (autoroute model wire)
-    
-    // Snapping to Net only if model.SnapToNet toggled to be true
+
+    /// A wire of a net which is drawn on its own, when it could have shared a trunk with the rest
+    /// of the net, is the failure that shows most: not because it is longer, but because a reader
+    /// can no longer see at a glance which wires are one signal. So a route which branches off a
+    /// wire of the same net is preferred to the ordinary one whenever it is legal, and the branch
+    /// points nearest the destination - the ones which share the most - are tried first.
+    ///
+    /// This matters most for the long wires, which often have several destinations: three long
+    /// wires crossing a sheet nearly in parallel is what this is here to prevent.
     let snappedToNetWire =
         match model.SnapToNet with
-        | _ -> initialWire // do not snap
-        //| true -> snapToNet model initialWire
+        | false -> initialWire
+        | true ->
+            // nearest branch point to the destination first, and the first that is legal wins. The
+            // ordinary route is in the running as the branch at the driver port, so a branch has to
+            // start nearer the destination than the port does before it is taken at all.
+            let destPos = Symbol.getInputPortLocation None model.Symbol wire.InputPort
+            (euclideanDistance initialWire.StartPos destPos, initialWire) :: sameNetRoutes model wire
+            |> List.sortBy fst
+            |> List.tryFind (fun (_, w) -> List.isEmpty (findWireSymbolIntersections model w))
+            |> Option.map snd
+            |> Option.defaultValue initialWire
 
     let intersectedBoxes = findWireSymbolIntersections model snappedToNetWire 
 

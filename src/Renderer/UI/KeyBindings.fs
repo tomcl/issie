@@ -217,9 +217,8 @@ let actionOf (id: ShortcutId) (dispatch: Msg -> unit) : unit =
     let setTheme theme =
         dispatch <| SetThemeUserData theme
         symbolDispatch (SymbolT.Msg.SetTheme theme)
-    let wireOf f =
-        dispatch
-        <| UpdateModel(fun m -> m |> Optic.map (sheet_ >-> SheetT.wire_) (f m.Sheet.SelectedComponents))
+    let wholeSheet (f: BusWireT.Model -> BusWireT.Model) =
+        dispatch <| UpdateModel(fun m -> m |> Optic.map (sheet_ >-> SheetT.wire_) f)
     let stepAppZoom delta =
         Bridge.setZoomLevel (max -9.0 (min 9.0 (Bridge.getZoomLevel () + delta)))
     /// An editing shortcut does nothing on a library component's sheet, which can only be looked
@@ -255,8 +254,8 @@ let actionOf (id: ShortcutId) (dispatch: Msg -> unit) : unit =
             | _ -> m)
     | ScUndo -> ifEditable (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlZ)
     | ScRedo -> ifEditable (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlY)
-    | ScSeparateWires -> ifEditable (fun () -> wireOf BusWireSeparate.reSeparateWiresFrom)
-    | ScRerouteWires -> ifEditable (fun () -> wireOf BusWireSeparate.reRouteWiresFrom)
+    | ScRedrawFloatingWires -> ifEditable (fun () -> wholeSheet BusWireSeparate.redrawFloatingWires)
+    | ScRedrawAllWires -> ifEditable (fun () -> wholeSheet BusWireSeparate.redrawAllWires)
     | ScMovePortsHelp ->
         dispatch
         <| ShowStaticInfoPopup(

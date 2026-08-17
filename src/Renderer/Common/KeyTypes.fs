@@ -116,8 +116,8 @@ type ShortcutId =
     | ScRenameComponent
     | ScUndo
     | ScRedo
-    | ScSeparateWires
-    | ScRerouteWires
+    | ScRedrawFloatingWires
+    | ScRedrawAllWires
     | ScMovePortsHelp
     // ---- escape, one identity per context ----
     | ScCancelGesture
@@ -296,8 +296,8 @@ let shortcuts: ShortcutSpec list =
           [ SheetIdle ] "Redo diagram action" CatEdit
 
       // menu-only: reachable from the Edit dropdown, no chord
-      spec ScSeparateWires (both []) [ SheetIdle ] "Separate wires from selected components" CatEdit
-      spec ScRerouteWires (both []) [ SheetIdle ] "Reroute wires from selected components" CatEdit
+      spec ScRedrawFloatingWires (both []) [ SheetIdle ] "Redraw every wire not routed by hand" CatEdit
+      spec ScRedrawAllWires (both []) [ SheetIdle ] "Redraw every wire, hand routing included" CatEdit
       spec ScMovePortsHelp (both []) [ SheetIdle ] "" CatEdit
 
       // ------------------------------------------------------------------ escape, by context

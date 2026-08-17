@@ -324,6 +324,25 @@ zero-length segment between.
 | Ctrl-Shift-W / menu "separate wires" | `reSeparateWiresFrom` — makes segments `Auto` again, keeps positions, re-separates |
 | Ctrl-Shift-R / menu "reroute wires" | `reRouteWiresFrom` — full `smartAutoroute` then separate |
 | a sheet is opened | the load path routes each wire, then one global separation |
+| Edit > Redraw floating wires | `redrawFloatingWires` — every wire without a hand-routed segment is thrown away and routed again, then the sheet is separated |
+| Edit > Redraw all wires | `redrawAllWires` — the same, hand routing included |
+
+The two redraw items exist so that a change to routing can be seen over a whole sheet at once:
+everything else re-routes only the wires a drag happens to touch, so a sheet laid out before a
+change keeps most of its old routing and says almost nothing about whether the change helped.
+Neither changes routing or separation — they are the ordinary pair of passes over many wires at
+once. Two details of *how* they do it are there for what comes next rather than for now:
+
+- the routing comes off **all** the chosen wires before any of them is routed, so that no wire is
+  routed against a route which is about to be discarded;
+- they are routed **shortest first**, by the straight-line distance between the two ports.
+
+Both are immaterial while routing considers only symbols. They stop being immaterial the moment a
+wire is routed with any regard for the wires already there — and shortest-first is the order to
+have then, because a short wire has the least freedom in where it can go, so it should be the one
+already in place when a longer wire of the same net is routed and looking for something to join.
+For the record, the re-route these replace went in `Map` order, which is by `ConnectionId` — a
+GUID, so no order at all, and not the same one twice.
 
 `separateAndOrderModelSegments` takes a list of wires to route, but generates lines for **all**
 wires and then discards only those clusters containing none of them. A wire not in the list can

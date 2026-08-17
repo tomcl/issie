@@ -165,18 +165,6 @@ let makeMenu (topLevel: bool) (name : string) (table : MenuItemConstructorOption
 
 open JSHelpers
 
-let reSeparateWires dispatch =
-    dispatch <| UpdateModel (fun model ->
-        model
-        |> Optic.map (sheet_ >->  SheetT.wire_) (BusWireSeparate.reSeparateWiresFrom model.Sheet.SelectedComponents)
-    )
-
-let reRouteWires dispatch =
-    dispatch <| UpdateModel (fun model ->
-        model
-        |> Optic.map (sheet_ >->  SheetT.wire_) (BusWireSeparate.reRouteWiresFrom model.Sheet.SelectedComponents)
-    )
-
 //-----------------------------------------------------------------------------------------------------------//
 //-------------------------------------------DEVELOPMENT MENU------------------------------------------------//
 //-----------------------------------------------------------------------------------------------------------//

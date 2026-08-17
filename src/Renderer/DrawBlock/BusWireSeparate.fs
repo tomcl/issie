@@ -1047,30 +1047,53 @@ let routeAndSeparateSymbolWires (model: Model) (compId: ComponentId) =
     { model with Wires = newWires }
     |> updateWireSegmentJumpsAndSeparations (Map.keysL newWires)
 
-/// all wires from comps have all segments made auto.
-/// then the separation logic is rerun on these wires
-let reSeparateWiresFrom (comps: ComponentId list) (model: Model) =
-    let wires' =
-        getConnectedWires model comps
-        |> List.collect (fun w -> Option.toList (resetWireToAutoKeepingPositionOpt w))
-        |> (fun wires -> model.Wires, wires)
-        ||> List.fold (fun wMap wire -> Map.add wire.WId wire wMap)
-    wires'
-    |> Map.toList
-    |> List.map (fun (wId, wire) -> wId)
-    |> fun wires -> updateWireSegmentJumpsAndSeparations wires {model with Wires = wires'}
+/// A wire the user has routed by hand: at least one of its segments has been dragged, which is
+/// what Manual means. Nothing else sets it - separation moves segments without marking them.
+let isManuallyRouted (wire: Wire) =
+    wire.Segments |> List.exists (fun seg -> seg.Mode = Manual)
 
-/// all wires from comps are autorouted from scratch
-/// then the separation logic is rerun on these wires
-let reRouteWiresFrom  (comps: ComponentId list) (model: Model) =
-    let wires' =
-        getConnectedWires model comps
-        |> List.collect (fun w -> Option.toList (resetWireToAutoKeepingPositionOpt w))
-        |> (fun wires -> model.Wires, wires)
-        ||> List.fold (fun wMap wire -> Map.add wire.WId wire wMap)
-    let model = {model with Wires = wires'}
-    (model, wires')
-    ||> Map.fold (fun model wid wire -> Optic.map (wireOf_ wid) (smartAutoroute model) model)
-    |> fun model -> updateWireSegmentJumpsAndSeparations (wires' |> Map.keysL) model
+/// Take the routing off the wires `toRedraw` selects, route them all again from nothing, and then
+/// separate the whole sheet as usual. Neither pass is changed: this is the ordinary pair of them,
+/// applied to many wires at once instead of to the few a drag reaches. That is what makes it worth
+/// having - a sheet laid out before a routing change keeps most of its old routing, and so says
+/// almost nothing about whether the change helped.
+///
+/// The routing comes off every one of them BEFORE any of them is routed. Routing looks only at
+/// symbols today, so that makes no difference yet; it will as soon as a wire is routed with any
+/// regard for the wires already there, since a route which is about to be thrown away is not
+/// something the next wire should be following.
+///
+/// Wires are reset rather than deleted and recreated: a wire is identified by the two ports it
+/// joins, so deleting one would only lose its ConnectionId, which the saved file, undo and the
+/// current selection all refer to.
+///
+/// They are routed shortest first, by the straight-line distance between the two ports. Order is
+/// immaterial while routing considers only symbols, and this is the order to have when it stops
+/// being: a short wire has the least freedom in where it can go, so it is the one that should
+/// already be there when a longer wire of the same net is routed and looking for something to
+/// join. The re-route this replaces went in Map order - by ConnectionId, which is a GUID, so in no
+/// order at all and not the same one twice.
+let redrawWires (toRedraw: Wire -> bool) (model: Model) : Model =
+    let portDistance (wire: Wire) =
+        let destPos, startPos =
+            Symbol.getTwoPortLocations model.Symbol wire.InputPort wire.OutputPort
+        euclideanDistance startPos destPos
+    let toRoute =
+        model.Wires
+        |> Map.valuesL
+        |> List.filter toRedraw
+        |> List.sortBy portDistance
+        |> List.map (fun wire -> wire.WId)
+    let unrouted =
+        (model, toRoute)
+        ||> List.fold (fun model wid -> Optic.set (wireOf_ wid >-> segments_) [] model)
+    (unrouted, toRoute)
+    ||> List.fold (fun model wid ->
+            Optic.set (wireOf_ wid) (smartAutoroute model model.Wires[wid]) model)
+    |> (fun model -> updateWireSegmentJumpsAndSeparations (Map.keysL model.Wires) model)
 
+/// Redraw every wire the user has not routed by hand, leaving those alone.
+let redrawFloatingWires (model: Model) = redrawWires (isManuallyRouted >> not) model
 
+/// Redraw every wire, hand routing included.
+let redrawAllWires (model: Model) = redrawWires (fun _ -> true) model

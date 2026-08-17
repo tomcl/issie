@@ -455,12 +455,20 @@ let private sweeps =
             "TALL", { X = 1490.; Y = 340. } ]),
       [ "TALL" ] ]
 
+/// A real sheet: the register file from the 3cpu fixture. A demultiplexer fans out to eight
+/// registers and two multiplexers read back from them, so it holds a bundle of vertical segments
+/// whose order decides a great many crossings - the case a hand-built sheet is least likely to
+/// reproduce, and the one where the ordering was seen to be leaving crossings on the table.
+let private reg16x8 =
+    (TestFixtures.loadProject "3cpu" |> List.find (fun c -> c.Name = "reg16x8")).CanvasState
+
 let private corpus =
     [ "crossedArrays", canvasOf (crossedArrays 8)
       "wrappedArrays", canvasOf (crossedArrays 8) |> movedTo (wrappedPositions 8)
       "fanout", canvasOf (fanout 12)
       "staggeredFanout", canvasOf (staggeredFanout 4) |> movedTo (staggeredPositions 4)
       "longFanout", canvasOf (longFanout 4) |> movedTo (longPositions 4)
+      "reg16x8", reg16x8
       "tangle", canvasOf (tangle 8) ]
 
 //-------------------------------------------------------------------------------------------//
@@ -488,11 +496,12 @@ type private Recorded =
 
 let private recorded =
     [ { Sheet = "crossedArrays"; Ink = 2601.; Bends = 44; Crossings = 28; FannedNetInk = 0.; Settle = Some 0 }
-      { Sheet = "wrappedArrays"; Ink = 10966.; Bends = 58; Crossings = 36; FannedNetInk = 0.; Settle = Some 0 }
-      { Sheet = "fanout"; Ink = 9470.; Bends = 133; Crossings = 0; FannedNetInk = 3725.; Settle = Some 2 }
-      { Sheet = "staggeredFanout"; Ink = 4078.; Bends = 38; Crossings = 9; FannedNetInk = 1715.; Settle = Some 0 }
-      { Sheet = "longFanout"; Ink = 9740.; Bends = 38; Crossings = 8; FannedNetInk = 3960.; Settle = Some 0 }
-      { Sheet = "tangle"; Ink = 11144.; Bends = 90; Crossings = 64; FannedNetInk = 8144.; Settle = Some 0 } ]
+      { Sheet = "wrappedArrays"; Ink = 11030.; Bends = 58; Crossings = 36; FannedNetInk = 0.; Settle = Some 0 }
+      { Sheet = "fanout"; Ink = 9002.; Bends = 98; Crossings = 0; FannedNetInk = 3257.; Settle = Some 0 }
+      { Sheet = "staggeredFanout"; Ink = 3878.; Bends = 34; Crossings = 9; FannedNetInk = 1515.; Settle = Some 0 }
+      { Sheet = "longFanout"; Ink = 9740.; Bends = 35; Crossings = 8; FannedNetInk = 3960.; Settle = Some 0 }
+      { Sheet = "reg16x8"; Ink = 20275.; Bends = 148; Crossings = 87; FannedNetInk = 13362.; Settle = Some 0 }
+      { Sheet = "tangle"; Ink = 11244.; Bends = 88; Crossings = 56; FannedNetInk = 8244.; Settle = Some 0 } ]
 
 /// A settling result is no worse than what was recorded if it needs no more passes than before.
 /// Not settling at all is the worst outcome, and only matches itself.

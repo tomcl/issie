@@ -289,36 +289,39 @@ let orderPairwiseToMinimiseCrossings (model: Model) (lines: Line array) (segL: i
         if numCrossingsSign' l0 l1 > 0 then
             [segL[1]; segL[0]]
         else segL 
-    | numSegments -> 
-        let wires = model.Wires
-        let segA = segL |> Array.ofList
-        /// inverse of segA[index]: NB indexes [0..numSegments-1] are NOT Segment index.
-        /// These indexes are used inside this function only to allow contiguous arrays
-        /// to calculate the sort order
-        let indexOf seg = Array.findIndex ((=) seg) segA
-        let swapSegs a b =
-            let tmp = segA[b]
-            segA[b] <- segA[a]
-            segA[a] <- tmp
-        /// correctly order segments segA[n] and segA[n+1] by mutating segA indices.
-        /// mutation is local to this function and used for efficiency since this is time critical
-        let orderPair n =
-            if numCrossingsSign' lines[segA[n]] lines[segA[n+1]] > 0 then
-                swapSegs n (n+1)
-            else ()
-            
-        // Map each index [0..numSegments-1] to a number that will determine its (optimal) ordering
-        // Use bubblesort based on adjacent pairs of lines: this will make order correct where possible
-        // this will not cope with more complex mis-orderings - but it is fast.
-        // should we check (and reorder) groups of 3 segments?
-        for i =  0 to numSegments do
-            for j = 0 to numSegments-2 do
-                orderPair j
+    | _ ->
+        // Whether two wires cross depends on which of the two is placed first and on nothing else,
+        // so the crossings of a cluster are the sum over its pairs, and numCrossingsSign is one
+        // term of that sum: which way round this pair is cheaper, or zero where the pair costs the
+        // same either way. Ordering to minimise that sum is the linear ordering problem.
+        //
+        // A pair whose spans nest is the second kind, and most pairs in a bundle nest, so the
+        // relation orders part of a cluster completely and says nothing about the rest. This was a
+        // bubble sort over ADJACENT pairs, which is the wrong instrument for that: adjacent swaps
+        // cannot carry a segment past a run of segments it ties with to reach the one that has an
+        // opinion about it, so every tie was settled by wherever routing happened to leave the
+        // segment.
+        //
+        // Each segment is scored instead by how it fares against ALL the others - the sum of its
+        // pairwise preferences, the usual first heuristic for this problem - and they are sorted on
+        // that. Ties keep the order the cluster arrived in.
+        //
+        // Two other orderings were built and measured on the corpus and are worse. Sorting each
+        // segment near the mean of what its two arms reach to - the barycentre, which is what
+        // layered graph drawing would use - doubles the crossings on wrappedArrays, where wires
+        // double back and the arms stop predicting anything. Finding the largest subset the
+        // relation orders completely and fitting the rest around it costs tangle six crossings and
+        // its ability to settle in one pass, to save reg16x8 two.
+        segL
+        |> List.map (fun seg ->
+            let preference =
+                segL
+                |> List.sumBy (fun other ->
+                    if other = seg then 0 else numCrossingsSign' lines[seg] lines[other])
+            preference, seg)
+        |> List.sortBy fst
+        |> List.map (fun (_, index) -> match lines[index].Lid with LineId n -> n)
 
-        segA
-        |> Array.toList
-        |> List.map (fun index -> match lines[index].Lid with LineId n -> n)
-      
 //-------------------------------------------------------------------------------------------------//
 //---------------------------------------SEGMENT CLUSTERING----------------------------------------//
 //-------------------------------------------------------------------------------------------------//

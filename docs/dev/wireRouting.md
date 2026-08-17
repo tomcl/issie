@@ -310,11 +310,26 @@ this one's search, and every segment beyond it is dropped. Recompute the bound w
 membership changes.
 
 **3. Order and place.** For each cluster, `orderPairwiseToMinimiseCrossings` sorts its segments into
-the order that produces the fewest crossings. The criterion is local: `numCrossingsSign` looks at
-which way each wire turns at the two ends of a segment and decides, for a pair, which of the two
-should have the larger `P`. That is fed to a bubble sort over adjacent pairs — deliberately not a
-full optimisation, since it has to be fast, and adjacent-pair ordering is right whenever a correct
-order exists at all.
+the order that produces the fewest crossings. Whether two wires cross depends on which of the two
+is placed first and on nothing else, so a cluster's crossings are the **sum over its pairs**, and
+`numCrossingsSign` is one term of that sum: which way round a pair is cheaper, by looking at which
+way each wire turns at the two ends of its segment.
+
+It returns **zero for most pairs**, and that is not a gap in it — a pair whose spans *nest* costs
+one crossing whichever way round it goes, and in a bundle fanning out from one place most pairs
+nest. So the relation orders part of a cluster completely and is silent about the rest, and how the
+silence is resolved decides a great many crossings. Each segment is scored by the sum of its
+preferences against *all* the others and sorted on that; ties keep the order the cluster arrived
+in. This was a bubble sort over **adjacent** pairs, which cannot carry a segment past a run of
+segments it ties with to reach the one that has an opinion about it, so every tie was settled by
+wherever routing happened to leave the segment.
+
+Two better-sounding orderings are worse, and both were measured before being discarded: sorting
+each segment near the mean of what its two arms reach to — the barycentre, which is what layered
+graph drawing would use — doubles the crossings on `wrappedArrays`, where wires double back and
+the arms stop predicting anything; and finding the largest subset the relation orders completely
+and fitting the rest around it costs `tangle` six crossings and its ability to settle in one pass,
+to save `reg16x8` two.
 
 `calcSegPositions` then assigns the actual coordinates, and the interesting part is what happens
 near a boundary: segments are placed a full `maxSegmentSeparation` away from a **fixed** bound (a

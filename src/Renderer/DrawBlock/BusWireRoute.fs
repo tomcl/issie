@@ -711,7 +711,14 @@ let private branchFrom (wire: Wire) (refWire: Wire) (branchAt: int) (branchPos: 
         InitialOrientation = refWire.InitialOrientation
         Segments =
             shared[.. branchAt - 1] @ [ { shared[branchAt] with Length = joinedLength } ] @ rest
-            |> List.mapi (fun i seg -> { seg with Index = i; WireId = wire.WId; Mode = Auto }) }
+            |> List.map (fun seg -> { seg with WireId = wire.WId; Mode = Auto })
+            // Branching at the end of segment 0 merges the shared run INTO the nub, which stops it
+            // being a nub: it is then a long segment at index 0, and everything which treats index
+            // 0 as the short stick out of a port - findWireSymbolIntersections included - looks
+            // straight past it. A trunk hidden there is a trunk nothing checks for obstacles, and
+            // it is how SFTIN came to be drawn across three bus selects. makeEndsDraggable splits
+            // it back into nub, zero, remainder, which is what every other wire looks like.
+            |> makeEndsDraggable }
 
 /// Every way of routing `wire` as a branch off a wire of its own net which is already routed, each
 /// paired with how far its branch point is from the destination.

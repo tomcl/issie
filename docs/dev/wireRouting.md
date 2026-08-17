@@ -130,11 +130,24 @@ subtracting the same amount from segment 4. It accepts the first shift that clea
 intersections, re-running the full check rather than trusting the geometry.
 
 `tryShiftHorizontalSeg` is the fallback and is recursive, bounded by
-`maxCallsToShiftHorizontalSeg` (5). It builds both the up-shifted and down-shifted wire; if either
-is clear it takes the shorter, and if neither is, it recurses on whichever side has the smaller
-remaining vertical distance to escape. The bound exists because there are configurations with no
-clean route at all — a symbol dragged on top of another, for instance — and without it a drag would
-hang.
+`maxCallsToShiftHorizontalSeg` (5). For each direction it builds a short list of candidate wires —
+one per movable horizontal segment, each moved to just clear the extreme obstacle — and takes the
+first that is clear. If either direction yields one it takes the shorter, and if neither does it
+recurses on whichever side has the smaller remaining vertical distance to escape. The bound exists
+because there are configurations with no clean route at all — a symbol dragged on top of another,
+for instance — and without it a drag would hang.
+
+The candidate list is ordered, and the order is the whole point. The shape the segment-count table
+picks comes first, so a wire that routes today routes identically and this is only ever a fallback;
+then the segments which `findWireSymbolIntersectionsBySegment` says are *actually obstructed*; then
+the rest. Choosing the segment to move by the wire's segment count — which is what this did — is a
+guess in a place where the obstacle geometry is the answer, and it is why wires into a top or
+bottom edge port used to be left drawn across a component.
+
+**What it still cannot do is move a horizontal and a vertical segment together.** `smartAutoroute`
+tries the vertical shift, then the horizontal one, and never composes them, so a route needing both
+- go down to a clear row *and* come back at a column beyond the obstacle - cannot be expressed even
+though the segments to do it exist. `WireQuality.fs` measures how often that costs a route.
 
 `ensureBothNubs` runs first because both shift functions address segments by absolute index, and a
 short wire may not have an interior segment there yet; it splits the end segment into

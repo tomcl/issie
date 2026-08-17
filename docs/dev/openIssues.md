@@ -35,6 +35,20 @@ How these two passes are meant to work is in [wireRouting.md](wireRouting.md).
   every drag, paste and rotate, what a user is left with on such a sheet depends on how many times
   it happened to run. Both sheets are an array of ports facing an array of ports, which is what
   most of the clustering complexity exists for.
+- **A route needing both shifts at once cannot be found.** `smartAutoroute` tries the vertical
+  shift, then the horizontal one, and never composes them. Where a wire has to drop to a clear row
+  *and* come back at a column past the obstacle, no single shift expresses it and the wire is drawn
+  over the component. `WireQuality.fs` records it: 3 of 93 obstacle placements in the bottom-edge
+  port sweep, all with the obstacle exactly on the line between the two ports.
+- **A shift aims 0.0001 clear of a symbol; the check that accepts it demands 7.** The four shift
+  sites use `smallOffset` while `findWireSymbolIntersections` expands every unconnected symbol's
+  box by `minWireSeparation`, so a shift along the box it is avoiding can never satisfy the test.
+  `wireSeparationFromSymbol` (7) — the constant named for this, and the one the comments say is
+  used — appears only in comments. Changing the shifts to clear by 7 made no difference to any
+  sweep, so this is latent rather than active.
+- **The mux SEL exemption covers every mux on the sheet.** `findWireSymbolIntersections` skips
+  checking a SEL wire's last segments against *all* muxes and demuxes, not just the one it
+  connects to, so such a wire can cross a different mux undetected.
 - **`string` on an `[<Erase>]` id means two different things.** `InputPortId`, `OutputPortId` and
   friends are erased by Fable, so `string portId` is the bare id in the app and
   `InputPortId "…"` under .NET. `BusWireRoute` used it for five `model.Symbol.Ports` lookups, which

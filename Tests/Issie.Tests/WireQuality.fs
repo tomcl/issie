@@ -97,7 +97,41 @@ type Metrics =
       Crossings: int
       /// Length over which two different nets are drawn on top of each other. Separation exists
       /// to make this zero.
-      CrossNetOverlap: float }
+      CrossNetOverlap: float
+      /// Segments drawn across the body of a symbol they do not connect to. Routing exists to make
+      /// this zero, and when it cannot it says nothing and draws the wire anyway.
+      SymbolCrossings: int }
+
+/// Segments crossing the body of a symbol. The symbols at each end of a wire are exempt: a
+/// multiplexer's SEL port sits inside its own bounding box, so that nub has to enter it. Boxes are
+/// shrunk by a pixel so that running along an edge does not count.
+let symbolCrossingsOf (model: Model) =
+    let boxes =
+        model.Symbol.Symbols
+        |> Map.toList
+        |> List.map (fun (id, sym) ->
+            let b = Symbol.getSymbolBoundingBox sym
+            id,
+            { b with
+                TopLeft = { X = b.TopLeft.X + 1.; Y = b.TopLeft.Y + 1. }
+                W = b.W - 2.
+                H = b.H - 2. })
+    model.Wires
+    |> Map.toList
+    |> List.sumBy (fun (_, w) ->
+        let ends =
+            [ w.InputPort |> inputPortStr; w.OutputPort |> outputPortStr ]
+            |> List.map (fun p -> ComponentId model.Symbol.Ports[p].HostId)
+        let segs = getAbsSegments w
+        segs
+        |> List.indexed
+        |> List.filter (fun (i, s) ->
+            i > 0 && i < segs.Length - 1 && not s.IsZero
+            && boxes
+               |> List.exists (fun (id, b) ->
+                   not (List.contains id ends)
+                   && (segmentIntersectsBoundingBox b s.Start s.End).IsSome))
+        |> List.length)
 
 let metricsOf (model: Model) : Metrics =
     let lines = linesOf model
@@ -129,7 +163,8 @@ let metricsOf (model: Model) : Metrics =
             |> List.filter (fun (a, b) ->
                 a.Net <> b.Net && abs (a.P - b.P) < sameLine && min a.Hi b.Hi - max a.Lo b.Lo > 0.01)
             |> List.sumBy (fun (a, b) -> min a.Hi b.Hi - max a.Lo b.Lo)
-            |> fun total -> total / 2.) }
+            |> fun total -> total / 2.)
+      SymbolCrossings = symbolCrossingsOf model }
 
 //-------------------------------------------------------------------------------------------//
 //-------------------------------------------CORPUS------------------------------------------//
@@ -245,6 +280,66 @@ let private passesToSettle (model: Model) =
             if wiresDiffering m next = 0 then Some n else go (n + 1) next
     go 0 model
 
+/// One wire that has to get past unconnected symbols, over a grid of obstacle positions. This is
+/// the case the routing heuristics are for, and the only one where "it looks fine on my sheet" is
+/// no evidence at all: the failures are a few positions out of a hundred, and they move as the
+/// heuristics change.
+///
+/// Placements where an obstacle overlaps a symbol are skipped - Issie refuses to create those.
+let private obstacleSweep (sheet: SheetDescription) (place: int -> int -> (string * XYPos) list) (obstacles: string list) =
+    let canvas = canvasOf sheet
+    let boxOf (m: Model) label =
+        m.Symbol.Symbols
+        |> Map.toList
+        |> List.map snd
+        |> List.find (fun s -> s.Component.Label = label)
+        |> Symbol.getSymbolBoundingBox
+    [ for dx in 120 .. 40 .. 560 do
+        for dy in -160 .. 40 .. 160 do
+            let m = routedModel (canvas |> movedTo (place dx dy))
+            let legal =
+                obstacles
+                |> List.forall (fun o ->
+                    [ "A"; "B" ] |> List.forall (fun s -> not (overlap2DBox (boxOf m o) (boxOf m s))))
+            if legal then yield (dx, dy), symbolCrossingsOf m ]
+
+let private obstacle = comp "OBS" (NbitsAdderNoCinCout 8)
+
+/// name, sheet, placement, obstacle labels
+let private sweeps =
+    [ "one obstacle",
+      describeSheet "sweep1" [ comp "A" (Input1(1, None)); comp "B" (Output 1); obstacle ] [ "A" ==> "B" ],
+      (fun dx dy ->
+          [ "A", { X = 100.; Y = 300. }; "B", { X = 700.; Y = 300. }
+            "OBS", { X = float (100 + dx); Y = float (300 + dy) } ]),
+      [ "OBS" ]
+
+      // a port on the bottom edge - the shape the routing table gives 8 segments
+      "into a bottom port",
+      describeSheet "sweep2" [ comp "A" (Input1(1, None)); comp "B" Mux2; obstacle ] [ "A" ==> "B/SEL" ],
+      (fun dx dy ->
+          [ "A", { X = 100.; Y = 300. }; "B", { X = 700.; Y = 300. }
+            "OBS", { X = float (100 + dx); Y = float (300 + dy) } ]),
+      [ "OBS" ]
+
+      // the wire has to double back on itself
+      "target behind source",
+      describeSheet "sweep3" [ comp "A" (Input1(1, None)); comp "B" (Output 1); obstacle ] [ "A" ==> "B" ],
+      (fun dx dy ->
+          [ "A", { X = 700.; Y = 300. }; "B", { X = 100.; Y = 300. }
+            "OBS", { X = float (100 + dx); Y = float (300 + dy) } ]),
+      [ "OBS" ]
+
+      "a wall of two",
+      describeSheet "sweep4"
+          [ comp "A" (Input1(1, None)); comp "B" (Output 1); obstacle
+            comp "OBS2" (NbitsAdderNoCinCout 8) ] [ "A" ==> "B" ],
+      (fun dx dy ->
+          [ "A", { X = 100.; Y = 300. }; "B", { X = 700.; Y = 300. }
+            "OBS", { X = float (100 + dx); Y = float (300 + dy) }
+            "OBS2", { X = float (100 + dx); Y = float (300 + dy) + 100. } ]),
+      [ "OBS"; "OBS2" ] ]
+
 let private corpus =
     [ "crossedArrays", canvasOf (crossedArrays 8)
       "wrappedArrays", canvasOf (crossedArrays 8) |> movedTo (wrappedPositions 8)
@@ -285,6 +380,14 @@ let private settlesNoWorseThan (recorded: int option) (actual: int option) =
     | None, _ -> true // it did not settle before; anything at all is an improvement or the same
     | Some r, Some a -> a <= r
     | Some _, None -> false
+
+/// Placements in each sweep which still leave a wire drawn over a symbol. Lower is better and 0
+/// is the goal; these are recorded so that a routing change has to say which way they moved.
+let private recordedCrossings =
+    [ "one obstacle", 0
+      "into a bottom port", 3
+      "target behind source", 0
+      "a wall of two", 0 ]
 
 let tests =
     testList "WireQuality" [
@@ -353,6 +456,33 @@ let tests =
                 let allowed = (recorded |> List.find (fun r -> r.Sheet = name)).Settle
                 Expect.isTrue (settlesNoWorseThan allowed settle)
                     $"{name}: separation needed %A{settle} further passes to settle, recorded %A{allowed}")
+        }
+
+        test "a wire routes around a symbol it does not connect to" {
+            // smartAutoroute tries a small set of shifts and, if none of them clears the
+            // obstacles, returns the wire it started with - drawn straight over the component.
+            // Nothing else records that, so this does: a count per sweep, recorded, to be driven
+            // down rather than argued about.
+            let results =
+                sweeps
+                |> List.map (fun (name, sheet, place, obstacles) ->
+                    let sweep = obstacleSweep sheet place obstacles
+                    name, sweep |> List.filter (fun (_, c) -> c > 0), sweep.Length)
+            printfn "  wires left crossing a symbol:"
+            results
+            |> List.iter (fun (name, bad, total) ->
+                printfn "  %-22s %3d of %3d placements%s" name bad.Length total
+                    (if bad.IsEmpty then ""
+                     else
+                        bad
+                        |> List.truncate 8
+                        |> List.map (fun ((dx, dy), c) -> $"  ({dx},{dy})x{c}")
+                        |> String.concat ""))
+            results
+            |> List.iter (fun (name, bad, _) ->
+                let allowed = recordedCrossings |> List.pick (fun (n, a) -> if n = name then Some a else None)
+                Expect.isLessThanOrEqual bad.Length allowed
+                    $"{name}: {bad.Length} placements leave a wire over a symbol, was {allowed}")
         }
 
         test "no segment is lost from a cluster during separation" {

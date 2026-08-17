@@ -80,9 +80,13 @@ let ensureStartingNub (wire: Wire) =
 let ensureBothNubs = ensureStartingNub >> reverseWire >> ensureStartingNub >> reverseWire
 
 
-/// Checks if a wire intersects any symbol within +/- minWireSeparation
-/// Returns list of bounding boxes of symbols intersected by wire.
-let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
+/// Checks if a wire intersects any symbol within +/- minWireSeparation.
+/// Returns, for each segment which intersects something, its index and the boxes it intersects.
+///
+/// Which segment is in the way is what decides which segment is worth moving, so it is kept rather
+/// than flattened away: the shift code below used to choose a segment by the wire's segment count,
+/// which is a guess where this is the answer.
+let findWireSymbolIntersectionsBySegment (model: Model) (wire: Wire) : (int * BoundingBox list) list =
 
     let allBoundingBoxes =
         model.Symbol.Symbols
@@ -169,7 +173,14 @@ let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
 
 
     segVertices
-    |> List.collect (fun (i, (startPos, endPos)) -> boxesIntersectedBySegment (i > List.length segVertices - 2 && inputIsSelect) startPos endPos)
+    |> List.map (fun (i, (startPos, endPos)) ->
+        i, boxesIntersectedBySegment (i > List.length segVertices - 2 && inputIsSelect) startPos endPos)
+    |> List.filter (fun (_, boxes) -> not boxes.IsEmpty)
+
+/// Bounding boxes of symbols intersected by wire, however many of its segments hit them.
+let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
+    findWireSymbolIntersectionsBySegment model wire
+    |> List.collect snd
     |> List.distinct
 
 
@@ -361,6 +372,29 @@ let rec tryShiftHorizontalSeg
 
             { wire with Segments = newSegments }
 
+        /// Move the horizontal segment at segIndex to the chosen coordinate: set the two vertical
+        /// segments flanking it and flatten every other vertical one, so the wire runs straight
+        /// out of its port, across at the new coordinate, and straight in again. The last segment
+        /// keeps its length when it is a nub perpendicular to the moved segment - that nub is what
+        /// joins the wire to its port.
+        ///
+        /// segIndex must be even and at most Length-3: the segments either side of it have to be
+        /// perpendicular, and neither may be an end nub.
+        let moveOneHorizontalSegment segIndex firstVerticalSegLength secondVerticalSegLength =
+            let lastIndex = wire.Segments.Length - 1
+            wire.Segments
+            |> List.mapi (fun i seg ->
+                if i = segIndex - 1 then { seg with Length = firstVerticalSegLength }
+                elif i = segIndex + 1 then { seg with Length = secondVerticalSegLength }
+                elif i % 2 = 1 && i <> lastIndex then { seg with Length = 0. }
+                else seg)
+            |> (fun segments -> { wire with Segments = segments })
+
+        /// The segments actually obstructed by a symbol. Moving one of those is what might help;
+        /// moving any other one cannot.
+        let blockedSegments =
+            findWireSymbolIntersectionsBySegment model wire |> List.map fst
+
         // directionToMove must be UP_ or DOWN_
         let shiftedWire (direction: DirectionToMove) =
             let orientation = wire.InitialOrientation
@@ -417,14 +451,24 @@ let rec tryShiftHorizontalSeg
                 bound - getOppositeXOrY currentStartPos, getOppositeXOrY currentEndPos - bound
 
 
+            // Every way of putting one horizontal segment at `bound`, most promising first. The
+            // shape the segment-count table picks leads, so a wire that routes today routes
+            // identically; the rest are tried only when that one leaves the wire over a symbol.
+            // Among those, a segment which is actually obstructed comes before one which is not.
             shiftWireHorizontally firstVerticalSegLength secondVerticalSegLength
+            :: ([ 2 .. 2 .. wire.Segments.Length - 3 ]
+                |> List.sortBy (fun i -> if List.contains i blockedSegments then 0 else 1)
+                |> List.map (fun i ->
+                    moveOneHorizontalSegment i firstVerticalSegLength secondVerticalSegLength))
 
         let goodWire dir =
-            let shiftedWire = shiftedWire dir
-
-            match findWireSymbolIntersections model shiftedWire with
-            | [] -> Ok shiftedWire
-            | intersectedBoxes -> Error(intersectedBoxes, shiftedWire)
+            let candidates = shiftedWire dir
+            match candidates |> List.tryFind (fun w -> List.isEmpty (findWireSymbolIntersections model w)) with
+            | Some clear -> Ok clear
+            | None ->
+                // none of them is clear: recurse on the one the old code would have produced
+                let firstTry = List.head candidates
+                Error(findWireSymbolIntersections model firstTry, firstTry)
 
         // If newly generated wire has no intersections, return that
         // Otherwise, decide to shift up or down based on which is closer

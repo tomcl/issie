@@ -620,6 +620,14 @@ let tests =
             |> List.iter (fun (name, _, after, _, _, _) ->
                 Expect.isLessThan after.CrossNetOverlap 1.0
                     $"{name}: separation left %.0f{after.CrossNetOverlap} of overlap between different nets")
+
+            // And the one thing it must never do: take a wire INTO a symbol routing kept it out
+            // of. Every mover is behind the guard in adjustSegmentsInModel; this holds the whole
+            // pipeline to it.
+            rows
+            |> List.iter (fun (name, before, after, _, _, _) ->
+                Expect.isLessThanOrEqual after.SymbolCrossings before.SymbolCrossings
+                    $"{name}: separation added symbol crossings                        ({before.SymbolCrossings} -> {after.SymbolCrossings})")
         }
 
         test "recorded quality has not regressed" {

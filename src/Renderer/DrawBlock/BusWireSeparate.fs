@@ -664,16 +664,72 @@ let adjustSegmentsInModel
         (model: Model)
         (lines: Line list)
             : bool * Model =
-    lines
-    |> List.iter (fun line ->
-            (line.SameNetLink |> List.iter (fun line2 -> line2.P <- line.P)))
-    let lines = lines |> List.filter (fun line -> line.LType <> BARRIERPOS && line.LType <> BARRIERNEG)
     /// where the segment is now: Seg1 holds the position it had when the line was made, and
     /// clustering changes only Line.P
     let positionNow (line: Line) =
         match line.Seg1 with
         | None -> line.P
         | Some seg -> match ori with | Horizontal -> seg.Start.Y | Vertical -> seg.Start.X
+
+    // The one rule every mover answers to: no movement may take a segment INTO a symbol it is not
+    // already in. It is enforced here because every pass arrives here - clusters, linked-net
+    // propagation, fixed-segment shifts - and because the passes own bounds cannot be relied on
+    // for it: a cluster carries ONE bound, while which symbol edges apply is a fact about each
+    // SEGMENT span, so a segment sharing a cluster with others can be placed across an edge its
+    // own span overlaps while the cluster bound, taken from a different member, allows it. That
+    // is how a wire was once dragged through a multiplexer 23px past its cluster bound.
+    //
+    // The check is per segment against each symbol box, exempting the two symbols the wire
+    // connects to (a mux SEL wire legitimately enters its own box). Only NEWLY entering is
+    // refused: a wire already across a symbol - routing sometimes gives up - may still move,
+    // else it could never move out.
+    let boxes =
+        model.Symbol.Symbols
+        |> Map.toList
+        |> List.filter (fun (_, sym) -> sym.Annotation = None)
+        |> List.map (fun (cid, sym) -> cid, Symbol.getSymbolBoundingBox sym)
+    let endpointsOf (wid: ConnectionId) =
+        match Map.tryFind wid model.Wires with
+        | None -> []
+        | Some w ->
+            [ ComponentId model.Symbol.Ports[inputPortStr w.InputPort].HostId
+              ComponentId model.Symbol.Ports[outputPortStr w.OutputPort].HostId ]
+    /// the line own segment span - not line.B, which linking may have grown to a union
+    let segSpan (line: Line) =
+        match line.Seg1 with
+        | None -> line.B.MinB, line.B.MaxB
+        | Some seg ->
+            match ori with
+            | Horizontal -> min seg.Start.X seg.End.X, max seg.Start.X seg.End.X
+            | Vertical -> min seg.Start.Y seg.End.Y, max seg.Start.Y seg.End.Y
+    let insideABoxAt (line: Line) (p: float) =
+        let lo, hi = segSpan line
+        let exempt = endpointsOf line.Wid
+        boxes
+        |> List.exists (fun (cid, b) ->
+            not (List.contains cid exempt)
+            && (let pLo, pHi, bLo, bHi =
+                    match ori with
+                    | Horizontal -> b.TopLeft.Y, b.TopLeft.Y + b.H, b.TopLeft.X, b.TopLeft.X + b.W
+                    | Vertical -> b.TopLeft.X, b.TopLeft.X + b.W, b.TopLeft.Y, b.TopLeft.Y + b.H
+                pLo + 0.5 < p && p < pHi - 0.5 && lo < bHi - 0.5 && bLo + 0.5 < hi))
+    let newlyEntersABox (line: Line) (p: float) =
+        insideABoxAt line p && not (insideABoxAt line (positionNow line))
+    lines
+    |> List.iter (fun line ->
+        match line.LType with
+        | BARRIERPOS | BARRIERNEG | LINKEDSEG -> () // followers are judged with their head, below
+        | _ ->
+            if abs (line.P - positionNow line) > XYPos.epsilon
+               && (newlyEntersABox line line.P
+                   || line.SameNetLink |> List.exists (fun f -> newlyEntersABox f line.P)) then
+                // refused as a group: moving the head but not a linked follower would split a net
+                line.P <- positionNow line)
+
+    lines
+    |> List.iter (fun line ->
+            (line.SameNetLink |> List.iter (fun line2 -> line2.P <- line.P)))
+    let lines = lines |> List.filter (fun line -> line.LType <> BARRIERPOS && line.LType <> BARRIERNEG)
     let wires, moved =
         ((model.Wires, false), lines)
         ||> List.fold (fun (wires, moved) line ->
@@ -1273,6 +1329,27 @@ let alignSameNetDepartures (wiresToRoute: ConnectionId list) (model: Model) : Mo
                                 let yLo, yHi = min v.Start.Y v.End.Y, max v.Start.Y v.End.Y
                                 if xLo + 0.01 < x && x < xHi - 0.01 && yLo + 0.01 < y && y < yHi - 0.01 then 1 else 0)))
 
+    /// Symbol boxes the wire passes across, its own endpoint symbols exempt.
+    let wireBoxCrossings (wire: Wire) =
+        let exempt =
+            [ ComponentId model.Symbol.Ports[inputPortStr wire.InputPort].HostId
+              ComponentId model.Symbol.Ports[outputPortStr wire.OutputPort].HostId ]
+        let boxed =
+            model.Symbol.Symbols
+            |> Map.toList
+            |> List.filter (fun (cid, sym) -> sym.Annotation = None && not (List.contains cid exempt))
+            |> List.map (fun (_, sym) -> Symbol.getSymbolBoundingBox sym)
+        getAbsSegments wire
+        |> List.sumBy (fun sg ->
+            if sg.IsZero then 0
+            else
+                let xLo, xHi = min sg.Start.X sg.End.X, max sg.Start.X sg.End.X
+                let yLo, yHi = min sg.Start.Y sg.End.Y, max sg.Start.Y sg.End.Y
+                boxed
+                |> List.sumBy (fun b ->
+                    if overlap1D (xLo, xHi) (b.TopLeft.X + 0.5, b.TopLeft.X + b.W - 0.5)
+                       && overlap1D (yLo, yHi) (b.TopLeft.Y + 0.5, b.TopLeft.Y + b.H - 0.5) then 1 else 0))
+
     /// Try to move wire's riser i onto position targetP; None if any guard fails.
     let tryMove (netWires: Wire list) (wire: Wire) (i: int) (targetP: float) : (float * Wire) option =
         let aSegs = getAbsSegments wire
@@ -1323,6 +1400,11 @@ let alignSameNetDepartures (wiresToRoute: ConnectionId list) (model: Model) : Mo
                 None
             elif wireCrossings moved > wireCrossings wire then
                 None // shorter, but at the price of new crossings: not a simplification
+            elif wireBoxCrossings moved > wireBoxCrossings wire then
+                // the riser itself is cleared above, but the move also stretches the two
+                // NEIGHBOUR segments, and a grown neighbour can enter a symbol without crossing
+                // any wire - so the whole wire is held to no-more-symbols-than-before
+                None
             else
                 let others = netWires |> List.filter (fun w -> w.WId <> wire.WId)
                 Some(netDrawnLength (moved :: others), moved)

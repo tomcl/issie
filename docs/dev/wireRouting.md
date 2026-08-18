@@ -573,6 +573,37 @@ ordering pass is the thing to optimise;
 `makeLines`, `wiringCost`, the fixed-segment resolver and corner removal are all a few ms even
 there, and jump recomputation is negligible.
 
+### No movement may take a segment into a symbol
+
+Separation's movers - the cluster pass, linked-net propagation, the fixed-segment resolver - all
+turn their decisions into wire changes through `adjustSegmentsInModel`, and that is where the one
+rule they all answer to is enforced: **a move that would take a segment into a symbol box its span
+overlaps, which it is not already inside, is refused** (linked groups as a unit, so a refusal
+cannot split a net; the wire's own two endpoint symbols exempt, since a mux SEL wire legitimately
+enters its own box; already-inside wires may still move, else they could never move out).
+
+This is an invariant, not a patch, and it is needed because the passes' own bounds cannot express
+it: a cluster carries ONE bound, while which symbol edges apply is a fact about each SEGMENT's
+span - so a segment sharing a cluster with others can be placed across an edge its own span
+overlaps while the cluster's bound, taken from a different member, allows it. That is exactly how
+a wire was dragged through a multiplexer 23px past the bound its own cluster had computed (below).
+The corner-removal pass checks its extensions against the barrier lines itself, and the T-junction
+pass holds the whole moved wire to no-more-symbols-than-before; everything else goes through the
+choke point. The corpus test pins the pipeline-wide consequence: separation never increases
+`SymbolCrossings` over what routing delivered.
+
+### Sub-visible segments are joints, not structure
+
+A separate concern from the invariant above, though one bug involved both. Ports can be misaligned
+by a fraction of a pixel (custom-component port arithmetic), so a "straight" wire can carry a
+0.04px jog - far longer than `IsZero`'s 1e-7 epsilon, invisible on screen. Such a segment must not
+be structure: `minVisibleSegmentLength` (0.5px) governs what `makeLines` will make a line of (so a
+sub-visible jog cannot be moved, linked, or made the head of a same-net link), what `turnFrom`
+reads as a turn, and what the T-junction pass treats as a departure. On the eep1 `alu` sheet a
+0.04px jog became the head of a link whose union bounds were 359px long, and the cluster moved a
+real riser through a multiplexer by moving the invisible stub - the crossing is stopped
+independently by the invariant above, and the stub is kept out of the machinery by this rule.
+
 ### T junctions: same-net departures merged after separation
 
 The last thing separation does is merge same-net turns. Where two wires of a net run along a

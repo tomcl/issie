@@ -457,10 +457,22 @@ already in place when a longer wire of the same net is routed and looking for so
 For the record, the re-route these replace went in `Map` order, which is by `ConnectionId` — a
 GUID, so no order at all, and not the same one twice.
 
-`separateAndOrderModelSegments` takes a list of wires to route, but generates lines for **all**
-wires and then discards only those clusters containing none of them. A wire not in the list can
-therefore still be moved, if it shares a cluster with one that is. That is intentional: the
-alternative is unrouted segments pinning newly routed ones in place.
+`separateAndOrderModelSegments` takes a list of wires, but only to ask whether there is anything to
+do: an empty list means nothing has moved and the pass is skipped, and any non-empty one separates
+**the whole design**. Every cluster on the sheet is adjusted, not only those holding a wire that
+has just changed.
+
+That is a change. Restricting it to the clusters containing a changed wire was worth doing while a
+pass could not be relied on to return what it was given: re-separating a cluster nothing had
+touched could move it, so the drawing shifted about under wires the user had not gone near. The
+settling loop makes the pass idempotent — a round that cannot show it improved the sheet is
+discarded — so a cluster which is already settled costs a little time and changes nothing, while
+one that is not gets the adjustment it was owed. A drag that frees up space for wires elsewhere on
+the sheet now has that space taken up.
+
+It also makes the application do what the measurements do. Every test in `WireQuality.fs` passes
+all of the sheet's wires, so the whole-sheet behaviour is the one the recorded numbers describe;
+before this, a drag in the app ran a narrower pass than anything that had been measured.
 
 ## Measuring it
 

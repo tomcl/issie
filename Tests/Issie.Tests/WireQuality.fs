@@ -724,6 +724,11 @@ let tests =
                 Expect.isEmpty (detachedWires dragged)
                     $"{name}: dragging the symbol driving the most wires left \
                        {(detachedWires dragged).Length} wire(s) not joined to their ports"
+                // The drag must leave nothing for a redraw to improve: its ending IS the floating
+                // redraw, so applying the redraw again changes no wire at all. This is what makes
+                // the wiring after a drag a fact about the positions rather than the history.
+                Expect.equal (wiresDiffering dragged (BusWireSeparate.redrawFloatingWires dragged)) 0
+                    $"{name}: redraw floating wires still changed the sheet after a drag"
                 // And the net has to come out of the drag still drawn as one trunk. Refusing to
                 // follow a wire that has not moved yet means none of the net's wires may follow
                 // any other during the drag - they are all re-routed against the model as it was -
@@ -937,11 +942,11 @@ let tests =
                 let back = dragRoundTrip start
                 let b, s = metricsOf back, metricsOf start
                 Expect.isLessThan b.CrossNetOverlap 1.0 $"{name}: the round trip left nets overlapping"
-                Expect.isLessThan b.Ink (s.Ink * 1.02) $"{name}: the round trip added wire"
-                // 10 on tangle with same-net branching on: a re-routed wire branches off a
-                // different wire of its net than it did before, which is a real instability and is
-                // recorded rather than hidden - see openIssues
-                Expect.isLessThanOrEqual b.Crossings (s.Crossings + 14)
-                    $"{name}: the round trip added crossings ({s.Crossings} -> {b.Crossings})")
+                // Wire-for-wire equality, no tolerance: a drag now ends in the floating redraw,
+                // so the wiring is a function of the positions alone and a round trip restores it
+                // exactly. This held only approximately (tangle was 14 crossings adrift) while a
+                // drag re-routed just the moved symbol's wires.
+                Expect.equal (wiresDiffering back start) 0
+                    $"{name}: a drag round trip did not restore the wiring exactly                        (ink %.0f{s.Ink} -> %.0f{b.Ink}, crossings {s.Crossings} -> {b.Crossings})")
         }
     ]

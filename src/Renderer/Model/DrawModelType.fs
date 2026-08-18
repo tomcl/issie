@@ -403,6 +403,12 @@ module BusWireT =
         | ErrorWires of list<ConnectionId>
         | ResetJumps of list<ConnectionId>
         | MakeJumps of separate: bool * conns: list<ConnectionId>
+        /// The end of a symbol move: every wire not routed by hand is re-routed from scratch and
+        /// the whole sheet separated, so a drag leaves exactly the layout "redraw floating wires"
+        /// would - nothing for a redraw to improve. Wires shaped by the moved symbol's OLD position
+        /// (an obstacle detour, a branch point) are not connected to it, so re-routing only the
+        /// moved symbol's wires left those behind.
+        | RerouteAllFloatingWires
         | UpdateWireDisplayType of WireType
         | ToggleArrowDisplay
         | ResetModel // For Issie Integration

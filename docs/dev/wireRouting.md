@@ -52,11 +52,18 @@ route has to appear within a few tens of milliseconds of the symbol moving, and 
 same route they will end up with. Separation is then a **fine adjustment**: it moves segments
 sideways by tens of pixels, which reads as the drawing settling rather than as it changing.
 
-That is also why routing is deliberately *not* idempotent. A wire is re-routed from where the
-symbol now is, so dragging a symbol away and back does not always give the wiring you started
-with — see the round-trip test in `WireQuality.fs`. Making routing canonical (one wiring per set of
-positions, whatever the history) would cost the drag-time budget, and would take away the property
-that what you see mid-drag is what you get.
+Mid-drag routing is deliberately quick rather than canonical — a wire is re-routed from where the
+symbol now is, against whatever else is there. What makes the END of the drag canonical is that
+mouse-up runs the floating redraw: every wire not routed by hand is re-routed from scratch and the
+whole sheet separated, exactly the Edit-menu "redraw floating wires". The wiring after a drag is
+therefore a function of the positions alone, a drag leaves nothing for a redraw to improve, and a
+drag round trip restores the wiring wire-for-wire — the round-trip test in `WireQuality.fs`
+asserts exact equality, with no tolerance.
+
+This is also what catches the wires a drag cannot reach by re-routing its own symbol's wires: a
+wire ROUTED AROUND the moved symbol is not connected to it, and its detour belongs to routing,
+which no amount of separation can undo. Before mouse-up ran the redraw, such a wire kept its
+detour after the obstacle had gone.
 
 **Separation, on the other hand, settles, and that is enforced rather than hoped for.** It is
 applied to an already-separated sheet after every drag, paste and rotate, so if a second
@@ -474,10 +481,11 @@ from what changed:
   runs through. The rest of the sheet was settled a moment ago and owes nothing to this change.
   Manual segments stay fixed either way — `makeLines` marks them `FIXEDMANUALSEG`, and no pass
   moves those.
-- **Moving, dropping, rotating, scaling or editing a symbol** — the whole sheet. The symbol's
-  wires may leave clusters anywhere, the space they vacate is space other wires should take up,
-  and the symbol's own edges are barriers everyone must respect. A local scope here left the rest
-  of the sheet holding the shape it had adopted around wires that were no longer there.
+- **Moving, dropping, rotating, scaling or editing a symbol** — the floating redraw: every wire
+  not routed by hand re-routed from scratch, then the whole sheet separated. The symbol's wires
+  are not enough: a wire routed AROUND the symbol is not connected to it, and the space the moved
+  wires vacate is space other wires should take up. Hand-routed wires are re-attached first
+  (`rerouteMovedWires`, partial routing) and the redraw then leaves them alone.
 
 Whole-sheet separation is safe because the settling loop makes the pass idempotent — a round that
 cannot show it improved the sheet is discarded — so a cluster which is already settled costs a
@@ -550,15 +558,18 @@ from 7 crossings to its topological minimum of 3.
 
 Measured under .NET (Release, median of 5, warm; the app's JavaScript runs the same code roughly
 2-3x slower). Every sheet of the `3cpu` project separates in **1.4-7.5 ms** - `dpdecode`, the
-largest at 78 wires / 375 segments, is 7.5 ms - so a whole-sheet pass at the end of a drag is well
-inside anything a user can perceive. During the drag itself only routing runs, so this is paid
-once per drag, not per mouse move.
+largest at 78 wires / 375 segments, is 7.5 ms. The end of a drag pays for the floating redraw -
+routing every auto wire plus this separation - which is 32 ms on `dpdecode`, paid once per drag;
+during the drag itself only the moved symbol's wires are routed, per mouse move. If mouse-up ever
+needs to be cheaper on very large sheets, the targeted cut is to re-route only wires whose routes
+intersect the moved symbol's old or new footprint instead of all of them.
 
 The cost scales with the **largest cluster**, not the wire count. A synthetic 40-way fan-out (120
 wires, one 80-wire net) takes ~65 ms, of which one vertical pass is 17.5 ms against 3.2 ms for the
 horizontal: the net's segments form a single cluster, and `orderPairwiseToMinimiseCrossings` -
 pairwise signs, partial-order completion, longest-chain placement - is roughly cubic in cluster
-size. If a real design ever makes that pathological, the ordering pass is the thing to optimise;
+size (and its full mouse-up redraw is 165 ms). If a real design ever makes that pathological, the
+ordering pass is the thing to optimise;
 `makeLines`, `wiringCost`, the fixed-segment resolver and corner removal are all a few ms even
 there, and jump recomputation is negligible.
 

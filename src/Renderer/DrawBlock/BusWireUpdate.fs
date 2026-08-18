@@ -334,6 +334,10 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
                 updateWireSegmentJumps connIds model
         {issieModel with Sheet={ issieModel.Sheet with Wire=newModel}} |> withNoMsg
 
+    | RerouteAllFloatingWires ->
+        {issieModel with Sheet = { issieModel.Sheet with Wire = BusWireSeparate.redrawFloatingWires model }}
+        |> withNoMsg
+
     | ResetModel -> 
         // How we start with nothing loaded
         {issieModel with Sheet={ issieModel.Sheet with Wire={ model with Wires = Map.empty; ErrorWires = []; Notifications = None }}} |> withNoMsg

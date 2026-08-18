@@ -62,9 +62,6 @@ How these two passes are meant to work is in [wireRouting.md](wireRouting.md).
   drawn with from 4620 to 3960 at routing time, but separation gets the unbranched routes to 3870,
   so after both passes branching is 1% behind there. Worth understanding before more effort goes
   into the routing side.
-- **A redraw is not stable under a drag round trip.** On `tangle` a symbol moved and moved back
-  leaves 14 more crossings than it started with, because a re-routed wire branches off a different
-  wire of its net than it did before. The round-trip test records the number rather than hiding it.
 - **Dead code kept alive.** `snapToNet` (and `copySegments`, `generateEndSegments`, which serve only
   it) was the first attempt at what `sameNetRoutes` now does, and is still there and still
   unreachable — it only ever handled 5 or 7 segment unrotated wires and copied from whichever wire

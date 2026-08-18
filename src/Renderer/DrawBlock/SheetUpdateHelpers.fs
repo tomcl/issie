@@ -311,10 +311,10 @@ let mDownUpdate
                 SnapSegments = emptySnap
                 AutomaticScrolling = false
             }
-            // Dropping a component is a component move: the new symbol's edges are barriers the
-            // whole sheet has to respect, so everything is separated, as at the end of a drag.
-            |> Optic.map wire_ (fun wModel ->
-                BusWireSeparate.updateWireSegmentJumpsAndSeparations (wModel.Wires |> Map.toList |> List.map fst) wModel)
+            // Dropping a component is a component move: it ends as a drag does, with every
+            // floating wire re-routed - the new symbol is an obstacle they may have to go round -
+            // and the whole sheet separated.
+            |> Optic.map wire_ BusWireSeparate.redrawFloatingWires
             |> (fun model ->
                         model ,
                         Cmd.batch [ symbolCmd (SymbolT.SelectSymbols model.SelectedComponents)
@@ -741,11 +741,11 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
         // Reset Movement State in Model
         match model.ErrorComponents with
         | [] ->
-            // A symbol drag ends with the WHOLE sheet separated, not just the wires that moved: the
-            // moved wires may leave clusters anywhere, and the space they vacate is space other
-            // wires should take up. A local scope here left the rest of the sheet holding the shape
-            // it had adopted around wires that are no longer there.
-            let movingWires = model.Wire.Wires |> Map.toList |> List.map fst
+            // A symbol drag ends by re-routing every floating wire and separating the whole sheet
+            // - the same operation as the Edit-menu "redraw floating wires" - so a drag leaves
+            // nothing for a redraw to improve. Re-routing only the moved symbol's wires was not
+            // enough: a wire ROUTED AROUND that symbol is not connected to it, and its detour is
+            // routing's, which no amount of separation can undo.
             match model.SelectedComponents.Length with
                 | s when s < 2 -> 
                     {model with
@@ -755,7 +755,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
                         SnapSymbols = emptySnap
                         SnapSegments = emptySnap
                         AutomaticScrolling = false },
-                            wireCmd (BusWireT.MakeJumps (true,movingWires))
+                            wireCmd BusWireT.RerouteAllFloatingWires
                 | _ -> 
                     {model with
                         ErrorComponents = [];
@@ -768,12 +768,11 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
                     Cmd.batch [ //symbolCmd (SymbolT.MoveSymbols (model.SelectedComponents, (model.LastValidPos - mMsg.Pos)))
                                 symbolCmd (SymbolT.SelectSymbols (model.SelectedComponents))
                                 //wireCmd (BusWireT.UpdateWires (model.SelectedComponents, model.LastValidPos - mMsg.Pos))
-                                wireCmd (BusWireT.MakeJumps (true,movingWires))
+                                wireCmd BusWireT.RerouteAllFloatingWires
                                 sheetCmd DoNothing]
             
 
         | _ ->
-            let movingWires = model.Wire.Wires |> Map.toList |> List.map fst
             {model with
                 BoundingBoxes = model.LastValidBoundingBoxes;
                 Action = Idle;
@@ -784,7 +783,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
                         sheetCmd UpdateBoundingBoxes
                         symbolCmd (SymbolT.SelectSymbols (model.SelectedComponents))
                         wireCmd (BusWireT.UpdateWires (model.SelectedComponents, model.LastValidPos - mMsg.Pos))
-                        wireCmd (BusWireT.MakeJumps (true,movingWires)) ]
+                        wireCmd BusWireT.RerouteAllFloatingWires ]
 
     | ConnectingInput inputPortId ->
         let cmd, undoList ,redoList =

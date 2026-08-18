@@ -124,8 +124,9 @@ did before the change.
 ```
 
 And it drags the symbol driving the most wires on each sheet, then compares what that leaves
-against redrawing the whole sheet from nothing at the same positions - which is what a user does
-when a drag disappoints them, so it is the right thing to be no worse than:
+against redrawing the whole sheet from nothing at the same positions. A drag now ends in the
+floating redraw, so the two columns are equal by construction and the test also asserts that
+"redraw floating wires" after a drag changes nothing at all:
 
 ```
   sheet         after a drag: fanned net / redrawn      ink / redrawn   crossings / redrawn

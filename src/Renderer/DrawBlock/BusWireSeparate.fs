@@ -1239,20 +1239,6 @@ let updateWireSegmentJumpsAndSeparations wires model  =
     |> separateAndOrderModelSegments wires
     |> BusWireUpdateHelpers.updateWireSegmentJumps []
 
-/// Top-level function does routing and then separation of set of wires.
-/// Uses partial routing if possible.
-let routeAndSeparateSymbolWires (model: Model) (compId: ComponentId) =
-    let wires = filterWiresByCompMoved model [compId]
-    Log.dbg Log.Wire $"routing and separating symbol wires: {wires.Inputs.Length} inputs, \
-                       {wires.Outputs.Length} outputs, {wires.Both.Length} both"
-    // A wire with both ends on the moved symbol is re-routed from each end in turn rather than
-    // translated: the symbol may have been resized or rotated, not just moved.
-    model
-    |> rerouteMovedWires
-        (fun model wire -> updateWire model wire true |> fun wire -> updateWire model wire false)
-        [ compId ]
-    |> fun model -> updateWireSegmentJumpsAndSeparations (Map.keysL model.Wires) model
-
 /// Take the routing off the wires `toRedraw` selects, route them all again from nothing, and then
 /// separate the whole sheet as usual. Neither pass is changed: this is the ordinary pair of them,
 /// applied to many wires at once instead of to the few a drag reaches. That is what makes it worth
@@ -1299,3 +1285,24 @@ let redrawFloatingWires (model: Model) =
 
 /// Redraw every wire, hand routing included.
 let redrawAllWires (model: Model) = redrawWires (fun _ -> true) model
+
+/// Route and then separate after one symbol has changed - moved a step, rotated, scaled, flipped
+/// or had its type edited. Uses partial routing to keep the symbol's hand-routed wires attached -
+/// a changed port position must reach them, and the redraw below deliberately leaves manual wires
+/// alone. A wire with both ends on the symbol is re-routed from each end in turn rather than
+/// translated, since the symbol may have been resized or rotated, not just moved.
+///
+/// It ends as a drag does: every floating wire re-routed from scratch and the whole sheet
+/// separated. A wire that had been ROUTED AROUND this symbol is not connected to it, so no
+/// re-route of the symbol's own wires reaches it, and its detour is routing's - separation cannot
+/// undo it. The layout left behind is exactly what "redraw floating wires" would produce, so a
+/// symbol change leaves nothing for a redraw to improve.
+let routeAndSeparateSymbolWires (model: Model) (compId: ComponentId) =
+    let wires = filterWiresByCompMoved model [compId]
+    Log.dbg Log.Wire $"routing and separating symbol wires: {wires.Inputs.Length} inputs,                        {wires.Outputs.Length} outputs, {wires.Both.Length} both"
+    model
+    |> rerouteMovedWires
+        (fun model wire -> updateWire model wire true |> fun wire -> updateWire model wire false)
+        [ compId ]
+    |> redrawFloatingWires
+

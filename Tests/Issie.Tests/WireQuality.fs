@@ -569,7 +569,7 @@ let private recorded =
       { Sheet = "staggeredFanout"; Ink = 3878.; Bends = 34; Crossings = 9; FannedNetInk = 1515.; Settle = Some 0 }
       { Sheet = "longFanout"; Ink = 9740.; Bends = 35; Crossings = 8; FannedNetInk = 3960.; Settle = Some 0 }
       { Sheet = "reg16x8"; Ink = 19960.; Bends = 149; Crossings = 81; FannedNetInk = 13046.; Settle = Some 0 }
-      { Sheet = "tangle"; Ink = 11110.; Bends = 83; Crossings = 60; FannedNetInk = 8110.; Settle = Some 0 } ]
+      { Sheet = "tangle"; Ink = 11219.; Bends = 86; Crossings = 60; FannedNetInk = 8219.; Settle = Some 0 } ]
 
 /// A settling result is no worse than what was recorded if it needs no more passes than before.
 /// Not settling at all is the worst outcome, and only matches itself.

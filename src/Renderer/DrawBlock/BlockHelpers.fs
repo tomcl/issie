@@ -61,6 +61,7 @@ let moveSymbols  (offset: XYPos) (model:SymbolT.Model) =
 
 let inline inputPortStr (InputPortId s) = s
 let inline outputPortStr (OutputPortId s) = s
+let inline connectionIdStr (ConnectionId s) = s
 
 /// Returns true if two 1D line segments intersect
 /// HLP23: Derek Lai (ddl20)

@@ -746,6 +746,23 @@ let tests =
                        drawn for the multi-wire nets, against %.0f{redrawn} redrawing from nothing")
         }
 
+        test "a sub-pixel port misalignment does not put a wire through a symbol" {
+            // The eep1 alu sheet: RB's output and MUX1's input 0 are 0.04px apart in y, so the
+            // "straight" wire between them carries a 0.04px jog. That jog is far longer than
+            // IsZero's epsilon, so separation once treated it as a real segment: it became a
+            // movable line, was made the head of a same-net link whose union bounds were 359px
+            // long, and the cluster pass dragged the genuinely long riser of the net's other wire
+            // (RB to SHIFT.IN) through the multiplexer by moving the invisible stub it was linked
+            // to - straight past the cluster's own barrier. Sub-visible segments are joints, not
+            // segments; makeLines and the turn reading now treat them so.
+            let canvas =
+                (TestFixtures.loadLoadedComponent
+                    (System.IO.Path.Combine(TestFixtures.fixturesDir, "customPair", "alu.dgm"))).CanvasState
+            let m = BusWireSeparate.redrawAllWires (loadedModel canvas)
+            Expect.equal (symbolCrossingsOf m) 0
+                "redrawing the alu sheet left a wire drawn across a symbol"
+        }
+
         test "separating one wire is local; a drag separates everything" {
             // The scope rule: adding a wire (or dragging one of its segments) separates only the
             // clusters that wire runs through; moving a symbol separates the whole sheet. Two

@@ -109,6 +109,13 @@ module Constants =
     let wireSeparationFromSymbol = 7. // must be smaller than Buswire.nubLength
     let maxCallsToShiftHorizontalSeg = 5
     /// Must be smaller than Buswire.nubLength
+    /// Segments shorter than this are drawing artifacts - a port pair misaligned by a fraction of
+    /// a pixel puts a jog this size in an otherwise straight wire - and separation must not treat
+    /// one as a real segment: on the eep1 alu sheet a 0.04px jog became a movable line, was made
+    /// the head of a same-net link whose union bounds were 359px long, and the cluster pass then
+    /// dragged a genuinely long riser through a multiplexer by moving the invisible stub it was
+    /// linked to. IsZero (epsilon 1e-7) is far too fine to catch these.
+    let minVisibleSegmentLength = 0.5
     let minWireSeparation = 7.
     let smallOffset = 0.0001
     let maxSegmentSeparation = 30.

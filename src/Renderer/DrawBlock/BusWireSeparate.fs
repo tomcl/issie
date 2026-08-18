@@ -158,7 +158,9 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
     let selectSegments (wire: Wire) (orient: Orientation) (seg: Segment) =
         let numSegs = wire.Segments.Length
         let wireLength = euclideanDistance wire.StartPos wire.EndPos
-        ori = orient && seg.Index <> 0 && seg.Index <> numSegs - 1 && not seg.IsZero && wireLength > minWireLengthToSeparate
+        // minVisibleSegmentLength, not IsZero: a sub-pixel jog must not become a movable line
+        ori = orient && seg.Index <> 0 && seg.Index <> numSegs - 1
+        && abs seg.Length > minVisibleSegmentLength && wireLength > minWireLengthToSeparate
 
     /// Lines coming from wire segments
     /// Manually routed segments are considered fixed
@@ -232,7 +234,8 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
 let private turnFrom (wSegs: Segment list) (index: int) (step: int) : float =
     let rec walk i =
         if i < 0 || i >= wSegs.Length then 0.0
-        elif abs wSegs[i].Length > XYPos.epsilon then wSegs[i].Length
+        // minVisibleSegmentLength: a sub-pixel jog is a joint too, not a turn
+        elif abs wSegs[i].Length > minVisibleSegmentLength then wSegs[i].Length
         else walk (i + step)
     walk index
 
@@ -1231,7 +1234,8 @@ let alignSameNetDepartures (wiresToRoute: ConnectionId list) (model: Model) : Mo
         let aSegs = getAbsSegments wire
         let n = wire.Segments.Length
         [ for i in 2 .. n - 3 do
-            if not aSegs[i].IsZero && not aSegs[i - 1].IsZero && not aSegs[i + 1].IsZero then
+            let visible (j: int) = abs wire.Segments[j].Length > minVisibleSegmentLength
+            if visible i && visible (i - 1) && visible (i + 1) then
                 yield i, aSegs[i], aSegs[i - 1] ]
 
     /// wire with segment i slid by delta along the trunk, neighbours adjusted

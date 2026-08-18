@@ -573,6 +573,28 @@ ordering pass is the thing to optimise;
 `makeLines`, `wiringCost`, the fixed-segment resolver and corner removal are all a few ms even
 there, and jump recomputation is negligible.
 
+### T junctions: same-net departures merged after separation
+
+The last thing separation does is merge same-net turns. Where two wires of a net run along a
+shared trunk and turn off it at different points, one turn is slid along the trunk onto the other,
+so the net leaves the trunk once, as a T junction: the reader sees one branch instead of two
+near-parallel ones. `alignSameNetDepartures` does it by adjusting the moved riser's two neighbour
+segments, exactly as a segment drag would, and only ever when the net's visible drawn length
+strictly falls - which both chooses the better of the two directions and guarantees termination.
+
+Its guards are what make it safe to run last, with no separation after it: the riser's neighbours
+must keep their directions (a neighbour pushed past zero folds the wire back over itself); the
+riser at its new position must stay `minWireSeparation` clear of every same-orientation segment of
+any other net - the merged riser can be longer than the one it joins, and separation is not coming
+back to fix an overlap; and it must stay the same distance clear of every symbol, for the same
+reason. Hand-routed wires are left alone entirely.
+
+On `longFanout` this is worth 1100 units of drawn wire (9740 to 8615, and the fanned nets from
+3960 to 2835) - more than same-net branch routing itself saves there. On `reg16x8` the remaining
+unmerged departures are each rejected for cause: the merge would lengthen the drawing (a long mux
+run slid onto a short stub costs more run than the shared riser saves), or another net's riser
+already occupies the target line where the moved riser would land.
+
 ## Measuring it
 
 The user-facing requirement is that for *any* component positions the wiring looks good, which

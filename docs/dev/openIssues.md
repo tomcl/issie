@@ -58,10 +58,6 @@ How these two passes are meant to work is in [wireRouting.md](wireRouting.md).
   one such spike, with or without same-net branching, so ordinary routing and separation produce
   them too. `removeWireSpikes` was written to clean up after this and is called from nowhere;
   removing the cause is better than calling it.
-- **Separation on `longFanout` beats routing's commoning.** Branching reduces the wire that net is
-  drawn with from 4620 to 3960 at routing time, but separation gets the unbranched routes to 3870,
-  so after both passes branching is 1% behind there. Worth understanding before more effort goes
-  into the routing side.
 - **Dead code kept alive.** `snapToNet` (and `copySegments`, `generateEndSegments`, which serve only
   it) was the first attempt at what `sameNetRoutes` now does, and is still there and still
   unreachable — it only ever handled 5 or 7 segment unrotated wires and copied from whichever wire

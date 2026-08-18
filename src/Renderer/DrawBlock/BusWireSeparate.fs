@@ -1165,6 +1165,207 @@ let separateModelSegmentsOneOrientation (wiresToRoute: ConnectionId list) (ori: 
     |> Array.toList
     |> adjustSegmentsInModel ori model
 
+//-------------------------------------------------------------------------------------------------//
+//----------------------------------SAME-NET DEPARTURE ALIGNMENT-----------------------------------//
+//-------------------------------------------------------------------------------------------------//
+
+/// Where two wires of a net run along a shared trunk and turn off it at different points, move one
+/// turn onto the other so the net leaves the trunk once, as a T junction. The reader sees one
+/// branch instead of two near-parallel ones, and the drawing is strictly shorter - the move is
+/// only made when it is.
+///
+/// The candidate moved is a wire's interior perpendicular segment (the "riser"): its base slides
+/// along the trunk to the other riser's position, its two neighbours stretching and shrinking to
+/// pay for it, exactly as a segment drag would. Guards, in order:
+///  - neither wire is routed by hand, and the riser's neighbours are interior and keep their
+///    directions (a neighbour driven past zero would fold the wire back over itself);
+///  - the riser at its new position stays at least minWireSeparation clear of every
+///    same-orientation segment of any OTHER net it would run beside - the one thing separation
+///    cannot repair afterwards, since no later pass runs;
+///  - it also stays clear of every symbol: the merged riser can reach further along its axis than
+///    the riser it joins, into space nothing has checked.
+/// Of the two ways round (move A to B, move B to A) the one leaving less visible wire wins, and a
+/// move is only made when the net's drawn length strictly falls - which is also what guarantees
+/// the repeated scan terminates.
+let alignSameNetDepartures (wiresToRoute: ConnectionId list) (model: Model) : Model =
+
+    /// Visible drawn length of a set of wires: collinear segments within a tolerance are one line,
+    /// and overlapping spans count once. The same measure WireQuality calls ink, per net.
+    let netDrawnLength (wires: Wire list) =
+        wires
+        |> List.collect (fun w ->
+            getAbsSegments w
+            |> List.filter (fun s -> not s.IsZero)
+            |> List.map (fun s ->
+                match s.Orientation with
+                | Horizontal -> Horizontal, s.Start.Y, min s.Start.X s.End.X, max s.Start.X s.End.X
+                | Vertical -> Vertical, s.Start.X, min s.Start.Y s.End.Y, max s.Start.Y s.End.Y))
+        |> List.groupBy (fun (ori, _, _, _) -> ori)
+        |> List.sumBy (fun (_, group) ->
+            group
+            |> List.sortBy (fun (_, p, _, _) -> p)
+            |> List.fold
+                (fun (lines: (float * (float * float) list) list) (_, p, lo, hi) ->
+                    match lines with
+                    | (lastP, spans) :: rest when abs (p - lastP) < 1.0 -> (lastP, (lo, hi) :: spans) :: rest
+                    | _ -> (p, [ (lo, hi) ]) :: lines)
+                []
+            |> List.sumBy (fun (_, spans) ->
+                spans
+                |> List.sortBy fst
+                |> List.fold
+                    (fun (total, upTo) (lo, hi) -> total + max 0. (hi - max lo upTo), max upTo hi)
+                    (0., -infinity)
+                |> fst))
+
+    let symbolBoxes =
+        model.Symbol.Symbols
+        |> Map.valuesL
+        |> List.filter (fun s -> s.Annotation = None)
+        |> List.map Symbol.getSymbolBoundingBox
+
+    /// A wire's departure points: interior segment index i with abs geometry of it and its
+    /// trunk-side neighbour. The neighbours must be interior non-zero segments - they are what
+    /// stretches to pay for the move, and a nub or a port's zero-stack must not.
+    let departures (wire: Wire) =
+        let aSegs = getAbsSegments wire
+        let n = wire.Segments.Length
+        [ for i in 2 .. n - 3 do
+            if not aSegs[i].IsZero && not aSegs[i - 1].IsZero && not aSegs[i + 1].IsZero then
+                yield i, aSegs[i], aSegs[i - 1] ]
+
+    /// wire with segment i slid by delta along the trunk, neighbours adjusted
+    let slid (wire: Wire) (i: int) (delta: float) =
+        { wire with
+            Segments =
+                wire.Segments
+                |> List.mapi (fun j seg ->
+                    if j = i - 1 then { seg with Length = seg.Length + delta }
+                    elif j = i + 1 then { seg with Length = seg.Length - delta }
+                    else seg) }
+
+    /// Try to move wire's riser i onto position targetP; None if any guard fails.
+    let tryMove (netWires: Wire list) (wire: Wire) (i: int) (targetP: float) : (float * Wire) option =
+        let aSegs = getAbsSegments wire
+        let riser = aSegs[i]
+        let currentP =
+            match riser.Orientation with
+            | Vertical -> riser.Start.X
+            | Horizontal -> riser.Start.Y
+        let delta = targetP - currentP
+        let moved = slid wire i delta
+        let keptDirections =
+            [ i - 1; i + 1 ]
+            |> List.forall (fun j ->
+                let before, after = wire.Segments[j].Length, moved.Segments[j].Length
+                abs after > XYPos.epsilon && sign after = sign before)
+        if not keptDirections then
+            None
+        else
+            let lo, hi =
+                match riser.Orientation with
+                | Vertical -> min riser.Start.Y riser.End.Y, max riser.Start.Y riser.End.Y
+                | Horizontal -> min riser.Start.X riser.End.X, max riser.Start.X riser.End.X
+            let clearOfWires =
+                model.Wires
+                |> Map.forall (fun _ other ->
+                    other.OutputPort = wire.OutputPort // its own net is what it is joining
+                    || (getAbsSegments other
+                        |> List.forall (fun s ->
+                            s.IsZero
+                            || s.Orientation <> riser.Orientation
+                            || (let p, sLo, sHi =
+                                    match s.Orientation with
+                                    | Vertical -> s.Start.X, min s.Start.Y s.End.Y, max s.Start.Y s.End.Y
+                                    | Horizontal -> s.Start.Y, min s.Start.X s.End.X, max s.Start.X s.End.X
+                                abs (p - targetP) >= minWireSeparation || sLo >= hi || sHi <= lo))))
+            let clearOfSymbols =
+                symbolBoxes
+                |> List.forall (fun box ->
+                    let bLo, bHi, bpLo, bpHi =
+                        match riser.Orientation with
+                        | Vertical -> box.TopLeft.Y, box.TopLeft.Y + box.H, box.TopLeft.X, box.TopLeft.X + box.W
+                        | Horizontal -> box.TopLeft.X, box.TopLeft.X + box.W, box.TopLeft.Y, box.TopLeft.Y + box.H
+                    targetP <= bpLo - minWireSeparation
+                    || targetP >= bpHi + minWireSeparation
+                    || hi <= bLo - minWireSeparation
+                    || lo >= bHi + minWireSeparation)
+            if not (clearOfWires && clearOfSymbols) then
+                None
+            else
+                let others = netWires |> List.filter (fun w -> w.WId <> wire.WId)
+                Some(netDrawnLength (moved :: others), moved)
+
+    /// One scan over one net: the first strictly-improving merge, applied.
+    let improveNet (model: Model) (netWires: Wire list) : Model option =
+        let current = netDrawnLength netWires
+        List.allPairs netWires netWires
+        |> List.filter (fun (a, b) -> connectionIdStr a.WId < connectionIdStr b.WId)
+        |> List.tryPick (fun (a, b) ->
+            List.allPairs (departures a) (departures b)
+            |> List.tryPick (fun ((iA, rA, tA), (iB, rB, tB)) ->
+                let pOf (r: ASegment) =
+                    match r.Orientation with
+                    | Vertical -> r.Start.X
+                    | Horizontal -> r.Start.Y
+                let baseOf (r: ASegment) =
+                    match r.Orientation with
+                    | Vertical -> r.Start.Y
+                    | Horizontal -> r.Start.X
+                let dirOf (r: ASegment) =
+                    match r.Orientation with
+                    | Vertical -> sign (r.End.Y - r.Start.Y)
+                    | Horizontal -> sign (r.End.X - r.Start.X)
+                let spanOf (t: ASegment) =
+                    match t.Orientation with
+                    | Horizontal -> min t.Start.X t.End.X, max t.Start.X t.End.X
+                    | Vertical -> min t.Start.Y t.End.Y, max t.Start.Y t.End.Y
+                let trunksShared =
+                    let (aLo, aHi), (bLo, bHi) = spanOf tA, spanOf tB
+                    aLo <= bHi + 0.1 && bLo <= aHi + 0.1
+                if rA.Orientation <> rB.Orientation
+                   || dirOf rA <> dirOf rB
+                   || abs (baseOf rA - baseOf rB) > 1.0 // the two turns must leave the same trunk line
+                   || abs (pOf rA - pOf rB) < 1.0 // already together
+                   || not trunksShared then
+                    None
+                else
+                    [ tryMove netWires a iA (pOf rB); tryMove netWires b iB (pOf rA) ]
+                    |> List.choose id
+                    |> List.filter (fun (len, _) -> len < current - 0.5)
+                    |> function
+                       | [] -> None
+                       | candidates ->
+                           let _, best = candidates |> List.minBy fst
+                           Some(Optic.set (wireOf_ best.WId) best model)))
+
+    let netsInScope =
+        let routable = Set.ofList wiresToRoute
+        model.Wires
+        |> Map.valuesL
+        |> List.filter (fun w -> not (isManuallyRouted w))
+        |> List.groupBy (fun w -> w.OutputPort)
+        |> List.filter (fun (_, ws) -> ws.Length > 1 && ws |> List.exists (fun w -> routable.Contains w.WId))
+        |> List.map fst
+
+    // repeat until no net improves; drawn length strictly falls each round, so this terminates
+    let rec settleJunctions (model: Model) count =
+        if count > 50 then
+            model
+        else
+            let improved =
+                netsInScope
+                |> List.tryPick (fun port ->
+                    model.Wires
+                    |> Map.valuesL
+                    |> List.filter (fun w -> w.OutputPort = port && not (isManuallyRouted w))
+                    |> improveNet model)
+            match improved with
+            | Some m -> settleJunctions m (count + 1)
+            | None -> model
+
+    settleJunctions model 0
+
 /// Perform complete wire segment separation and ordering for all orientations.
 ///
 /// `wiresToRoute` is the SCOPE: only clusters holding one of these wires are touched, so a small
@@ -1228,6 +1429,10 @@ let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Mode
             // this code attempts to remove such corners if it can be done while keeping routing ok
 
             |> removeModelCorners wiresToRoute // code to clean up some non-optimal routing
+
+            // finally, same-net turns off a shared trunk are merged into T junctions where that
+            // shortens the drawing and nothing gets too close to anything
+            |> alignSameNetDepartures wiresToRoute
 
 
 /// Top-level function to replace updateWireSegmentJumps

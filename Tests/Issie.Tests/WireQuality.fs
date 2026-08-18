@@ -567,7 +567,7 @@ let private recorded =
       { Sheet = "wrappedArrays"; Ink = 10966.; Bends = 58; Crossings = 36; FannedNetInk = 0.; Settle = Some 0 }
       { Sheet = "fanout"; Ink = 9002.; Bends = 98; Crossings = 0; FannedNetInk = 3257.; Settle = Some 0 }
       { Sheet = "staggeredFanout"; Ink = 3878.; Bends = 34; Crossings = 9; FannedNetInk = 1515.; Settle = Some 0 }
-      { Sheet = "longFanout"; Ink = 9740.; Bends = 35; Crossings = 8; FannedNetInk = 3960.; Settle = Some 0 }
+      { Sheet = "longFanout"; Ink = 8615.; Bends = 34; Crossings = 8; FannedNetInk = 2835.; Settle = Some 0 }
       { Sheet = "reg16x8"; Ink = 19960.; Bends = 149; Crossings = 81; FannedNetInk = 13046.; Settle = Some 0 }
       { Sheet = "tangle"; Ink = 11219.; Bends = 86; Crossings = 60; FannedNetInk = 8219.; Settle = Some 0 } ]
 

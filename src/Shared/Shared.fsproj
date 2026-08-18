@@ -31,6 +31,9 @@
     <!-- ListPairs first, and first in the whole build: it is AutoOpen, so it shadows the pairwise
          List functions for every file compiled after it in either project. -->
     <Compile Include="ListPairs.fs" />
+    <!-- ArraySorts likewise: AutoOpen, shadowing the Array sorts with stable ones, so it must
+         come before every call site in either project. -->
+    <Compile Include="ArraySorts.fs" />
     <!-- ElectronAPI before ContextMenus: ContextMenus uses its types. Log needs neither. -->
     <Compile Include="ElectronAPI.fs" />
     <Compile Include="Log.fs" />

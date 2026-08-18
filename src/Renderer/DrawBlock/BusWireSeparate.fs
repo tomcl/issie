@@ -195,11 +195,14 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
     // walking neighbours, and the ordering that decides crossings breaks its ties by arrival. So
     // which of two coincident lines comes first is not a detail, it decides where wires end up.
     //
-    // Sorting by P alone left that to whatever order the lines happened to be generated in, and
-    // that order is NOT the same under .NET and under Fable. The same sheet then separated one way
-    // in the tests and another in the application: on the eep1 TEST1/TEST2 pair, .NET drew the
-    // two-wire net as one trunk while the app split it into a loop, from identical routing. A
-    // measurement that does not describe what ships is worse than no measurement.
+    // Sorting by P alone left the tie order to the sort, and F#'s Array sorts are stable under
+    // Fable (JavaScript's sort, stable since ES2019) but NOT under .NET (an introsort). The same
+    // sheet then separated one way in the tests and another in the application from byte-identical
+    // input: on the eep1 TEST1/TEST2 pair, .NET drew the two-wire net as one trunk while the app
+    // split it into a loop. A measurement that does not describe what ships is worse than no
+    // measurement. ArraySorts now makes every Array sort stable in both runtimes; the total key
+    // here is still wanted on top, because it ties the order to geometry rather than to the
+    // incidental order lines are generated in.
     symLines @ segLines
     |> List.toArray
     |> Array.sortBy (fun line -> line.P, line.B.MinB, line.B.MaxB, connectionIdStr line.Wid)

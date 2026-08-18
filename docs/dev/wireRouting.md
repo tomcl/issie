@@ -491,16 +491,21 @@ coincident lines comes first is not a presentational detail — it decides where
 
 Lines at the same `P` are the normal case rather than an edge case: two same-net segments leaving
 one port start life exactly on top of each other. Sorting by `P` alone left their relative order to
-be whatever order the lines were generated in — and **that order is not the same under .NET and
-under Fable**. The same sheet, with byte-identical routing going in, separated one way in the test
-suite and another way in the application: on the eep1 `TEST1`/`TEST2` pair the tests drew the
-two-wire net as a single trunk while the app split it into a long thin loop out of the port. Which
-is worse than either answer on its own, because it means the recorded numbers in `WireQuality.fs`
-described a layout no user ever saw.
+the sort — and **F#'s `Array` sorts are stable under Fable but not under .NET**. Fable compiles
+them to JavaScript's `Array.prototype.sort`, stable since ES2019; on .NET they run on
+`System.Array.Sort`, an introsort that reorders equal elements. The same sheet, with byte-identical
+routing going in — Map order, generation order and port geometry were all checked equal to the
+last bit — separated one way in the test suite and another way in the application: on the eep1
+`TEST1`/`TEST2` pair the tests drew the two-wire net as a single trunk while the app split it into
+a long thin loop out of the port. Which is worse than either answer on its own, because it means
+the recorded numbers in `WireQuality.fs` described a layout no user ever saw.
 
-The sort key is therefore `(P, B.MinB, B.MaxB, wire id)`, which no two lines can share: geometry
-first, and the wire only as a last resort. Any future ordering here needs the same treatment — a
-comparison that leaves ties is a comparison whose result depends on the runtime.
+Two fixes, one general and one local. `src/Shared/ArraySorts.fs` shadows the `Array` sorts with
+stable ones in both runtimes, the same treatment `ListPairs` gives the pairwise list functions, so
+no other tying key can reopen the gap. And this sort key is `(P, B.MinB, B.MaxB, wire id)`, which
+no two lines can share: geometry first, and the wire only as a last resort — better than relying
+on stability, because it ties the order to the drawing rather than to the incidental order the
+lines were generated in.
 
 ## Measuring it
 

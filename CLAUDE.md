@@ -121,6 +121,13 @@ must therefore be caught where it means something** — `List.checkedMap3` and i
 `WidthInferer`'s `SplitN` case is the worked example. Arrays never needed any of this:
 `Array.map2` and friends raise in both runtimes.
 
+**The `Array` sorts are shadowed too, by `src/Shared/ArraySorts.fs`, and they are stable.** F#'s
+`Array.sort` family is unstable on .NET and compiles to JavaScript's stable sort under Fable, so
+any array sorted on a key that can tie came out differently in the app than in the tests — found
+when wire separation laid out the same sheet two different ways from byte-identical input. The
+shim settles it in favour of stable, which is what ships. A sort whose tie order carries meaning
+should still use a total key rather than lean on stability.
+
 **`src/Shared` is the code both processes compile.** Types and pure logic only: nothing that reaches
 the operating system (the renderer may not) and nothing that knows the Elmish model (only the
 renderer has one). `ContextMenus.fs` is the shape of it — the menu names and items are shared, while

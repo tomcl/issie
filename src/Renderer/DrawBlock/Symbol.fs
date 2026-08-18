@@ -716,6 +716,16 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       VScale = None
     }
     |> autoScaleHAndW
+    // A Custom component reports its size as 0x0 (getComponentProperties) until autoScaleHAndW
+    // has measured its port labels, so the centring subtractions above moved it nowhere and left
+    // `pos` as its top-left. Re-anchoring on the final size makes `pos` the centre for every
+    // component type - which the catalogue drag ghost, drawn centred on the cursor, relies on.
+    // For everything else W and H are unchanged and this recomputes the same position.
+    |> (fun sym ->
+        let topLeft = { X = pos.X - sym.Component.W / 2.; Y = pos.Y - sym.Component.H / 2. }
+        { sym with
+            Pos = topLeft
+            Component = { sym.Component with X = topLeft.X; Y = topLeft.Y } })
     |> calcLabelBoundingBox
 
 // Function to add ports to port model     

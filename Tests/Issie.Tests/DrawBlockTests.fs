@@ -241,6 +241,30 @@ let tests =
             Expect.equal committed.SelectedComponents [ sym.Id ] "and is left selected"
         }
 
+        // A Custom component reports its size as 0x0 until autoScaleHAndW has measured its port
+        // labels, so createNewSymbol used to leave `pos` as its top-left while every built-in
+        // component was centred there. The catalogue drag ghost is drawn centred on the cursor,
+        // so a dragged custom component landed - and warned about overlap - half a symbol away
+        // from where it was shown.
+        test "a custom component is centred on the position it is given, like everything else" {
+            let custom =
+                Custom { Name = "WIDE_ENOUGH_TO_MATTER"
+                         InputLabels = [ "DATA_IN", 8; "ENABLE", 1 ]
+                         OutputLabels = [ "DATA_OUT", 8 ]
+                         Form = Some User; ParameterBindings = None; Description = None }
+            let pos = { X = 500.; Y = 400. }
+            let sym = Symbol.createNewSymbol [] pos custom "C1" SymbolT.ThemeType.Colourful
+            Expect.isGreaterThan sym.Component.W 0. "autoScaleHAndW has given it a real width"
+            Expect.floatClose Accuracy.high (sym.Pos.X + sym.Component.W / 2.) pos.X
+                "the symbol is centred horizontally on the position"
+            Expect.floatClose Accuracy.high (sym.Pos.Y + sym.Component.H / 2.) pos.Y
+                "and vertically"
+            Expect.floatClose Accuracy.high sym.Component.X sym.Pos.X
+                "the component record agrees with the symbol on X"
+            Expect.floatClose Accuracy.high sym.Component.Y sym.Pos.Y
+                "and on Y"
+        }
+
         // A bus select is drawn small - half a grid square high - because it sits in the middle of
         // wiring laid out around it. Nothing is written inside a body that thin, and rotated it is
         // thinner still: the bit range goes beside it. Were the range ever moved inside, a rotated

@@ -365,6 +365,18 @@ let private domListenerSub (eventName: string) (makeHandler: (Msg -> unit) -> (B
         { new System.IDisposable with
             member _.Dispose() = Browser.Dom.document.removeEventListener(eventName, handler) }
 
+/// As domListenerSub, but registered with `passive: false`. Chromium makes document-level
+/// `wheel` and touch listeners passive by default, and a passive listener cannot
+/// preventDefault - which is the point of handling the canvas wheel natively at all: a zoom
+/// gesture must suppress the scroll (or page zoom) that would otherwise accompany it.
+let private domNonPassiveListenerSub (eventName: string) (makeHandler: (Msg -> unit) -> (Browser.Types.Event -> unit)) =
+    fun (dispatch: Msg -> unit) ->
+        let handler = makeHandler dispatch
+        let options = jsOptions<Browser.Types.AddEventListenerOptions> (fun o -> o.passive <- false)
+        Browser.Dom.document.addEventListener(eventName, handler, options)
+        { new System.IDisposable with
+            member _.Dispose() = Browser.Dom.document.removeEventListener(eventName, handler) }
+
 /// As domListenerSub, but on the window: focus events do not reach document.
 let private windowListenerSub (eventName: string) (makeHandler: (Msg -> unit) -> (Browser.Types.Event -> unit)) =
     fun (dispatch: Msg -> unit) ->
@@ -384,6 +396,9 @@ let appSubscriptions (_model: ModelType.Model) : Sub<Msg> =
     /// block would think Ctrl was still down - which is what the old decaying list of held keys
     /// existed to paper over.
     let subBlur = windowListenerSub "blur" KeyBindings.onWindowBlur
+    /// Every wheel over the canvas arrives here, natively and non-passive: React's own wheel
+    /// listeners are passive, so only from here can a zoom gesture stop the accompanying scroll.
+    let subWheel = domNonPassiveListenerSub "wheel" SheetDisplay.onCanvasWheel
     /// unfinished code
     /// add hook in main function to display a context menu
     /// create menu as shown in main.fs
@@ -410,6 +425,7 @@ let appSubscriptions (_model: ModelType.Model) : Sub<Msg> =
         ["keydown"], subDown
         ["keyup"], subUp
         ["blur"], subBlur
+        ["wheel"], subWheel
         ["contextmenu"], subRightClick
         ["ipc"; "context-menu-command"], subContextMenuCommand
     ]

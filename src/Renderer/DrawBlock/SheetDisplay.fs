@@ -74,14 +74,28 @@ let getDrawBlockPos (ev: Types.MouseEvent) (headerHeight: float) (sheetModel:Mod
         Y = (ev.pageY - headerHeight + sheetModel.ScreenScrollPos.Y) / sheetModel.Zoom
     }
 
-let wheelUpdate (ev: Types.WheelEvent) _model dispatch =
-    let isZoomGesture = ev.ctrlKey || ev.metaKey
-    match Sheet.wheelZoom ev.deltaMode ev.deltaY isZoomGesture (isPhysicalModifierHeld ()) with
-    | None -> ()
-    | Some (PinchZoom zoomFactor)
-    | Some (PhysicalWheelZoom zoomFactor) ->
-        if abs (zoomFactor - 1.0) > 0.0001 then
-            dispatch <| PreciseZoom zoomFactor
+/// Every wheel event over the canvas is decided here, and this is a NATIVE listener - registered
+/// non-passive on the document by Renderer.appSubscriptions - not a React one, because React 18
+/// attaches its wheel listeners passively and a passive listener cannot preventDefault.
+///
+/// A wheel that classifies as a zoom gesture - real Ctrl/Cmd held, or the synthetic ctrlKey
+/// Chromium puts on a trackpad pinch - must zoom and only zoom, so its native default (scrolling
+/// the canvas, or the browser's own page zoom) is suppressed even when the factor is too small
+/// to be worth dispatching: Ctrl + a diagonal two-finger scroll must not creep sideways. An
+/// unmodified wheel is left entirely alone, so the canvas scrolls natively as it always has.
+let onCanvasWheel (dispatch: ModelType.Msg -> unit) (e: Browser.Types.Event) =
+    let ev = unbox<Browser.Types.WheelEvent> e
+    let overCanvas =
+        match document.getElementById "Canvas" with
+        | null -> false
+        | canvas -> canvas.contains (unbox ev.target)
+    if overCanvas then
+        match Sheet.wheelZoom ev.deltaMode ev.deltaY (ev.ctrlKey || ev.metaKey) (isPhysicalModifierHeld ()) with
+        | None -> ()
+        | Some (PinchZoom zoomFactor | PhysicalWheelZoom zoomFactor) ->
+            ev.preventDefault ()
+            if abs (zoomFactor - 1.0) > 0.0001 then
+                dispatch (ModelType.Sheet (PreciseZoom zoomFactor))
 
 /// Is the mouse button currently down?
 let mDown (ev:Types.MouseEvent) = ev.buttons <> 0.
@@ -149,7 +163,8 @@ let displaySvgWithZoom
               match not firstView, scrollOpt with
                 | true, Some scroll ->putScrollProps scroll |> ignore
                 | _ -> ()
-              OnWheel (fun ev -> wheelUpdate ev model dispatch)
+              // Wheel is deliberately not handled here: a React OnWheel is passive and cannot
+              // stop the scroll that accompanies a zoom gesture - see onCanvasWheel above.
         ]
     let zoomCommitRef : IProp list =
         match model.PendingZoomCenter with

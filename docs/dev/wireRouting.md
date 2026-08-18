@@ -507,6 +507,41 @@ no two lines can share: geometry first, and the wire only as a last resort — b
 on stability, because it ties the order to the drawing rather than to the incidental order the
 lines were generated in.
 
+### Turns are read through zero-length joints, and tied ends are broken by depth
+
+Three related defects in the ordering machinery were found through one sheet — two custom
+components with wires wrapping over and under them (`customPair` in `WireQuality.fs`) — and each
+had the same symptom: a pair of segments whose order the algorithm should have decided fell to
+arrival order instead.
+
+- **`turnDirs` read only the immediately adjacent segment**, and the segment beside a port's nub
+  stack is zero-length on nearly every wire. A zero segment is a joint, not a turn: the wire's
+  real departure is the first non-zero perpendicular segment beyond it. Reading a joint as
+  "sign 0" made the ordering blind at exactly the ends that decide how wires running into a
+  column of ports should nest.
+- **`numCrossingsSign` was undefined on tied bounds.** Its case analysis keys on strict bound
+  comparison to find the inner end; when two lines' ends coincide - which is what routing produces
+  for two wires wrapping the same symbols - both orders fell into the same arm, the function
+  answered the same sign for `(a, b)` and `(b, a)`, and the preference relation got a 2-cycle.
+  What decides a tied end is how *deep* each wire turns: the one turning further encloses the
+  other, so the shorter turn is the inner one (`turnLengths`).
+- **`separateFixedSegments`' space search counted the escaped net as a wall.** When it moves a
+  fixed segment out of an overlap, it looks each way for the nearest obstacle; a line lying on top
+  of the overlap - the other wire of the very net being escaped - read as an obstacle at distance
+  zero, so that side always looked full and the move went the other way regardless of what was
+  actually there. Lines within `overlapTolerance` of the current position are now ignored: they
+  are the overlap, not the wall.
+
+And one invariant restored: **two wires of a net that routing commoned into one trunk can no
+longer be split by a later pass.** The trunk's port-adjacent segments are FIXEDSEG, and
+`linkSameNetLines` refused a FIXEDSEG follower, so the twins were never tied together and the
+fixed-segment resolver could move each one alone - which is how a two-wire net came to be drawn as
+a long thin loop out of its port. Coincident same-net FIXEDSEGs now link, and a linked pair moves
+as one wherever it is moved from.
+
+None of the seven corpus sheets moved on any metric when these landed; the `customPair` sheet went
+from 7 crossings to its topological minimum of 3.
+
 ## Measuring it
 
 The user-facing requirement is that for *any* component positions the wiring looks good, which

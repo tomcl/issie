@@ -124,8 +124,16 @@ let linkSameNetLines (sameNetCapture: float) (lines: Line list) : Line list =
             overlaps la.B lb.B 
         let tryToLink (a:int) (b:int) =
             let la, lb = lines[a], lines[b]
+            // A FIXEDSEG may follow a FIXEDSEG head when the two lie exactly on top of each other:
+            // that is two wires of a net leaving one port as a routed common trunk, and if they are
+            // not tied together here, separateFixedSegments can move each on its own and split what
+            // routing deliberately commoned - which is how a two-wire net came to be drawn as a
+            // long thin loop out of its port. A linked pair moves as one, wherever it is moved from.
+            let linkableFollower =
+                lb.LType = NORMSEG
+                || (lb.LType = FIXEDSEG && la.LType = FIXEDSEG && closeBy 0.001 la.P lb.P)
             if (la.LType = NORMSEG || la.LType = FIXEDMANUALSEG || la.LType = FIXEDSEG ) &&
-                lb.LType <> FIXEDMANUALSEG && lb.LType <> FIXEDSEG && lb.LType <> LINKEDSEG && la.Wid <> lb.Wid &&
+                linkableFollower && lb.LType <> LINKEDSEG && la.Wid <> lb.Wid &&
                 closeBy sameNetCapture la.P lb.P && hasLinkedOverlap la lb  then
                 lines[b].LType <- LINKEDSEG                    
                 lines[a].B <- boundUnion la.B lb.B;
@@ -215,23 +223,48 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
 
 /// Returns integers +/- 1 indicating direction of wire leaving ends of line segment.
 /// Pair returned is MaxB, MinB end of line
+/// The wire's P-direction departure from one end of a line segment: the length of the first
+/// NON-ZERO perpendicular segment, walking outward from the line in steps of two so that only
+/// segments of the turning orientation are read. A zero-length segment is a joint, not a turn -
+/// and the segment beside a port's nub stack is zero on nearly every wire, so reading only the
+/// adjacent segment made turnDirs blind at exactly the ends that decide how wires into a column
+/// of ports should nest: sign 0, no opinion, and the pair fell to arrival order.
+let private turnFrom (wSegs: Segment list) (index: int) (step: int) : float =
+    let rec walk i =
+        if i < 0 || i >= wSegs.Length then 0.0
+        elif abs wSegs[i].Length > XYPos.epsilon then wSegs[i].Length
+        else walk (i + step)
+    walk index
+
 let turnDirs (line: Line) (wires: Map<ConnectionId, Wire>) =
     match line.Seg1 with
     | None -> failwithf "What? Expected Some segment - not None"
     | Some aSeg ->
         let seg = aSeg.Segment
         let wSegs = wires[seg.WireId].Segments
-        // segment length is + or - according to whether segment.P end is larger or samller than start.
-        let segLength segIndex = wSegs[segIndex].Length
         // len1, len2 is P coordinate (P = X or Y) change from the line segment at MaxB, MinB end of line.
         // the seg.Index-1 end has change inverted because its change is from, not to line.
         let len1, len2 =
             if seg.Length > 0 then
-                segLength (seg.Index + 1), - segLength(seg.Index - 1)
+                turnFrom wSegs (seg.Index + 1) 2, - turnFrom wSegs (seg.Index - 1) -2
             else
-                - segLength(seg.Index - 1), segLength (seg.Index + 1)
+                - turnFrom wSegs (seg.Index - 1) -2, turnFrom wSegs (seg.Index + 1) 2
 
         sign len1, sign len2
+
+/// How far the wire turns away at each end of a line segment, as absolute lengths.
+/// Pair returned is MaxB, MinB end of line, matching turnDirs. Where two lines' ends coincide,
+/// this is what says which wire encloses the other - the sign alone cannot.
+let turnLengths (line: Line) (wires: Map<ConnectionId, Wire>) =
+    match line.Seg1 with
+    | None -> failwithf "What? Expected Some segment - not None"
+    | Some aSeg ->
+        let seg = aSeg.Segment
+        let wSegs = wires[seg.WireId].Segments
+        if seg.Length > 0 then
+            abs (turnFrom wSegs (seg.Index + 1) 2), abs (turnFrom wSegs (seg.Index - 1) -2)
+        else
+            abs (turnFrom wSegs (seg.Index - 1) -2), abs (turnFrom wSegs (seg.Index + 1) 2)
 
 
 /// +1 if line1.P > line2.P for zero crossings.
@@ -244,6 +277,7 @@ let numCrossingsSign
         (wires: Map<ConnectionId, Wire>) 
             : int =
     let (max1, min1), (max2, min2) = turnDirs line1 wires, turnDirs line2 wires
+    let (maxLen1, minLen1), (maxLen2, minLen2) = turnLengths line1 wires, turnLengths line2 wires
     // if line1.P > line2.P then a +1 line1 turnDir or a -1 line2 turnDir from an inner endpoint
     // will NOT cause a crossing. -1 will cause a crossing.
     // The match sums the two inner turnDirs, inverting sign if they come from a line2
@@ -275,14 +309,31 @@ let numCrossingsSign
         | None, None -> 1, 1
 
     // Put it all together. The min & max values are chosen based on
-    // the relative positions of the min & max ends of the two lines.
-    // To check this, write out all 4 combinations on paper.
-    match line1.B.MinB > line2.B.MinB, line1.B.MaxB < line2.B.MaxB with
-    | true, true ->   min1 , max1
-    | true, false ->  min1 , -max2
-    | false, true ->  -min2 , max1
-    | false, false -> -min2 , - max2
-    |> (fun (minC, maxC) -> checkMinCross * minC + checkMaxCross * maxC)
+    // the relative positions of the min & max ends of the two lines: the INNER end - the one the
+    // other line reaches past - is whose turn decides whether that end crosses.
+    //
+    // When the ends COINCIDE, strict comparison of the bounds cannot say which is inner, and the
+    // old code fell into one arm for both calls - so numCrossingsSign(a, b) equalled
+    // numCrossingsSign(b, a), each order claimed itself cheaper, and the pair ordered arbitrarily.
+    // Coinciding ends are not rare: two wires wrapping the same symbols leave by the same corner,
+    // and routing gives their top runs identical spans. What decides a tied end is how DEEP each
+    // wire turns: the one turning further encloses the other, so the shorter turn is the inner
+    // one. Two wires wrapping a symbol from the same ports nest or cross on exactly this.
+    let atEnd tied line1Inner (turn1, len1) (turn2, len2) =
+        match tied with
+        | false -> if line1Inner then turn1 else -turn2
+        | true when turn1 <> turn2 -> 0 // leaving a shared end opposite ways: no crossing either order
+        | true when len1 < len2 -> turn1 // line1 turns less deep: it is the enclosed, inner one
+        | true when len2 < len1 -> -turn2
+        | true -> 0 // same turn to the same depth: same-net twins, settled by linking not ordering
+    let sameEnd a b = abs (a - b) < XYPos.epsilon
+    let minC =
+        atEnd (sameEnd line1.B.MinB line2.B.MinB) (line1.B.MinB > line2.B.MinB)
+            (min1, minLen1) (min2, minLen2)
+    let maxC =
+        atEnd (sameEnd line1.B.MaxB line2.B.MaxB) (line1.B.MaxB < line2.B.MaxB)
+            (max1, maxLen1) (max2, maxLen2)
+    checkMinCross * minC + checkMaxCross * maxC
 
 
 
@@ -640,7 +691,13 @@ let separateFixedSegments (wiresToRoute: ConnectionId list) (ori: Orientation) (
             tryFindIndexInArray 
                 (LineId(line.Lid.Index + dir)) 
                 dir 
-                (fun line2 -> hasOverlap line2.B line.B && line2.Lid <> excludeLine.Lid ) 
+                // Lines within overlapTolerance of where we already are ARE the overlap being
+                // escaped, not a wall in the way of escaping it. Counting one of them - say the
+                // other wire of the net the excluded line belongs to, lying on top of it - as an
+                // obstacle at distance zero made whichever side it was scanned on look full, so
+                // the move went the other way regardless of what was actually there.
+                (fun line2 -> hasOverlap line2.B line.B && line2.Lid <> excludeLine.Lid
+                              && abs (line2.P - p) > overlapTolerance) 
                 (fun l1 -> abs (l1.P - p) > 2. * offset) 
                 lines
         match find maxOffset 1, find maxOffset -1 with

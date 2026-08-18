@@ -741,6 +741,31 @@ let tests =
                        drawn for the multi-wire nets, against %.0f{redrawn} redrawing from nothing")
         }
 
+        test "wires wrapping the same symbols nest by turn depth" {
+            // Two wires wrap over the top of the TEST1/TEST2 pair. Routing gives their top runs
+            // identical spans at the same height, so which nests inside which is decided entirely
+            // by the ordering - and the answer is in how deep each wire's ends turn: the one
+            // turning further down encloses the other. Ordered the other way round they cross
+            // twice; nested properly they do not cross at all.
+            //
+            // This pins three defects at once, each of which left the pair to arrival order:
+            // turnDirs read a zero-length joint as "no turn" at every port-adjacent end;
+            // numCrossingsSign answered the same sign for both orders of a tied-bounds pair; and
+            // the fixed-segment overlap resolver read the escaped line's own net as a wall.
+            let canvas =
+                (TestFixtures.loadLoadedComponent
+                    (System.IO.Path.Combine(TestFixtures.fixturesDir, "customPair", "test1.dgm"))).CanvasState
+                |> movedTo [ "TEST1", { X = 1877.3322453125; Y = 1600.0025 }
+                             "TEST2", { X = 1629.255; Y = 1600.0025 } ]
+            let m = separate (routedModel canvas)
+            // Three crossings are forced by the port assignments alone: one wire must pass through
+            // a two-destination net whose targets bracket its own, and each over-wrap must cross
+            // each under-wrap it interleaves with. Everything above three is a wrong ordering -
+            // the mis-nested top pair alone added two.
+            Expect.isLessThanOrEqual (metricsOf m).Crossings 3
+                $"the customPair sheet has %d{(metricsOf m).Crossings} crossings; only 3 are forced"
+        }
+
         test "a net of two wires leaves its port as one line, wherever the symbols are put" {
             // TEST1/TEST2 from the user's eep1 copy: two custom components 60 apart, one output
             // driving two inputs on the far side. The corridor between them is barely wider than

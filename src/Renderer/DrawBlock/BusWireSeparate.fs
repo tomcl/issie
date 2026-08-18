@@ -1244,6 +1244,31 @@ let alignSameNetDepartures (wiresToRoute: ConnectionId list) (model: Model) : Mo
                     elif j = i + 1 then { seg with Length = seg.Length - delta }
                     else seg) }
 
+    /// Crossings between one wire and every wire of every other net: perpendicular segment pairs
+    /// meeting strictly inside both. Sliding a riser along its trunk sweeps it across other nets'
+    /// perpendicular segments - which neither the drawn length nor the parallel-clearance guard
+    /// can see - so a merge must show it does not cross more than it did.
+    let wireCrossings (wire: Wire) =
+        let mySegs = getAbsSegments wire |> List.filter (fun s -> not s.IsZero)
+        model.Wires
+        |> Map.toList
+        |> List.sumBy (fun (_, other) ->
+            if other.OutputPort = wire.OutputPort then 0
+            else
+                getAbsSegments other
+                |> List.sumBy (fun s ->
+                    if s.IsZero then 0
+                    else
+                        mySegs
+                        |> List.sumBy (fun m ->
+                            if m.Orientation = s.Orientation then 0
+                            else
+                                let h, v = (if m.Orientation = Horizontal then m, s else s, m)
+                                let y, x = h.Start.Y, v.Start.X
+                                let xLo, xHi = min h.Start.X h.End.X, max h.Start.X h.End.X
+                                let yLo, yHi = min v.Start.Y v.End.Y, max v.Start.Y v.End.Y
+                                if xLo + 0.01 < x && x < xHi - 0.01 && yLo + 0.01 < y && y < yHi - 0.01 then 1 else 0)))
+
     /// Try to move wire's riser i onto position targetP; None if any guard fails.
     let tryMove (netWires: Wire list) (wire: Wire) (i: int) (targetP: float) : (float * Wire) option =
         let aSegs = getAbsSegments wire
@@ -1292,6 +1317,8 @@ let alignSameNetDepartures (wiresToRoute: ConnectionId list) (model: Model) : Mo
                     || lo >= bHi + minWireSeparation)
             if not (clearOfWires && clearOfSymbols) then
                 None
+            elif wireCrossings moved > wireCrossings wire then
+                None // shorter, but at the price of new crossings: not a simplification
             else
                 let others = netWires |> List.filter (fun w -> w.WId <> wire.WId)
                 Some(netDrawnLength (moved :: others), moved)
@@ -1312,10 +1339,6 @@ let alignSameNetDepartures (wiresToRoute: ConnectionId list) (model: Model) : Mo
                     match r.Orientation with
                     | Vertical -> r.Start.Y
                     | Horizontal -> r.Start.X
-                let dirOf (r: ASegment) =
-                    match r.Orientation with
-                    | Vertical -> sign (r.End.Y - r.Start.Y)
-                    | Horizontal -> sign (r.End.X - r.Start.X)
                 let spanOf (t: ASegment) =
                     match t.Orientation with
                     | Horizontal -> min t.Start.X t.End.X, max t.Start.X t.End.X
@@ -1323,8 +1346,11 @@ let alignSameNetDepartures (wiresToRoute: ConnectionId list) (model: Model) : Mo
                 let trunksShared =
                     let (aLo, aHi), (bLo, bHi) = spanOf tA, spanOf tB
                     aLo <= bHi + 0.1 && bLo <= aHi + 0.1
+                // The two departures may head the same way (two risers to destinations on the
+                // same side, which merge into a T along their shared length) or opposite ways
+                // (one up, one down - the trunk then ends where the two leave together). Both are
+                // wanted; the ink test below is what decides whether a merge helps.
                 if rA.Orientation <> rB.Orientation
-                   || dirOf rA <> dirOf rB
                    || abs (baseOf rA - baseOf rB) > 1.0 // the two turns must leave the same trunk line
                    || abs (pOf rA - pOf rB) < 1.0 // already together
                    || not trunksShared then
@@ -1417,22 +1443,35 @@ let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Mode
                         else
                             best // the two directions are fighting: keep the best seen
 
-            settle maxSettlingRounds model (wiringCost model) model
+            let separateOnce (model: Model) =
+                settle maxSettlingRounds model (wiringCost model) model
 
-            // after normal separation there may be "fixed" segments which should be separated because they overlap
-            // one run for Vert and then Horiz segments is enough for this
-            // TODO - include a comprehensive check for any remaining overlapping wires after this - and fix them
-            |> separateFixedSegments wiresToRoute Horizontal
-            |> separateFixedSegments wiresToRoute Vertical
+                // after normal separation there may be "fixed" segments which should be separated
+                // because they overlap; one run for Vert and then Horiz segments is enough
+                |> separateFixedSegments wiresToRoute Horizontal
+                |> separateFixedSegments wiresToRoute Vertical
 
-            // after the previous two phases there may be artifacts where wires have an unnecessary number of corners.
-            // this code attempts to remove such corners if it can be done while keeping routing ok
+                // after the previous two phases there may be artifacts where wires have an
+                // unnecessary number of corners; remove them where routing stays ok
+                |> removeModelCorners wiresToRoute
 
-            |> removeModelCorners wiresToRoute // code to clean up some non-optimal routing
+            let wireShapes (m: Model) =
+                m.Wires |> Map.toList |> List.map (fun (id, w) -> id, w.Segments |> List.map (fun sg -> sg.Length))
 
-            // finally, same-net turns off a shared trunk are merged into T junctions where that
-            // shortens the drawing and nothing gets too close to anything
-            |> alignSameNetDepartures wiresToRoute
+            // Separate, then merge same-net departures into T junctions - and if the merge moved
+            // anything, separate again: a merge frees the space its riser vacated, and the next
+            // separation is entitled to take it up. Iterating to the joint fixed point is what
+            // keeps the whole pass idempotent, which the settling tests demand; it converges
+            // because a merge only ever happens when the drawn wire strictly shortens.
+            let rec toFixpoint n (model: Model) =
+                let separated = separateOnce model
+                let aligned = alignSameNetDepartures wiresToRoute separated
+                if n <= 0 || wireShapes aligned = wireShapes separated then
+                    aligned
+                else
+                    toFixpoint (n - 1) aligned
+
+            toFixpoint 3 model
 
 
 /// Top-level function to replace updateWireSegmentJumps

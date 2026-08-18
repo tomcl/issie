@@ -577,23 +577,32 @@ there, and jump recomputation is negligible.
 
 The last thing separation does is merge same-net turns. Where two wires of a net run along a
 shared trunk and turn off it at different points, one turn is slid along the trunk onto the other,
-so the net leaves the trunk once, as a T junction: the reader sees one branch instead of two
-near-parallel ones. `alignSameNetDepartures` does it by adjusting the moved riser's two neighbour
-segments, exactly as a segment drag would, and only ever when the net's visible drawn length
-strictly falls - which both chooses the better of the two directions and guarantees termination.
+so the net leaves the trunk once, as a T junction. The departures may head the same way - two
+risers to destinations on the same side, which merge along their shared length - or opposite ways,
+one up and one down, the register-file shape where a Q output feeds the same input of two muxes:
+the trunk then ends where the two leave together. `alignSameNetDepartures` does it by adjusting
+the moved riser's two neighbour segments, exactly as a segment drag would, and only ever when the
+net's visible drawn length strictly falls - which both chooses the better of the two directions
+and guarantees termination.
 
-Its guards are what make it safe to run last, with no separation after it: the riser's neighbours
-must keep their directions (a neighbour pushed past zero folds the wire back over itself); the
-riser at its new position must stay `minWireSeparation` clear of every same-orientation segment of
-any other net - the merged riser can be longer than the one it joins, and separation is not coming
-back to fix an overlap; and it must stay the same distance clear of every symbol, for the same
-reason. Hand-routed wires are left alone entirely.
+Four guards: the riser's neighbours must keep their directions (a neighbour pushed past zero folds
+the wire back over itself); the riser at its new position must stay `minWireSeparation` clear of
+every same-orientation segment of any other net - the merged riser can be longer than the one it
+joins; it must stay the same distance clear of every symbol; and the moved wire must not cross
+more than it did - sliding a long riser along its trunk sweeps it across other nets'
+perpendicular segments, which neither the drawn length nor the parallel clearance can see, and on
+`reg16x8` the unguarded version bought its ink with fifteen new crossings. Hand-routed wires are
+left alone entirely.
+
+Separation and the merge run to a joint fixed point: a merge frees the space its riser vacated,
+the next separation is entitled to take it up, and the loop repeats (bounded) until neither moves
+anything. That is what keeps the combined pass idempotent, which the settling tests demand.
 
 On `longFanout` this is worth 1100 units of drawn wire (9740 to 8615, and the fanned nets from
-3960 to 2835) - more than same-net branch routing itself saves there. On `reg16x8` the remaining
-unmerged departures are each rejected for cause: the merge would lengthen the drawing (a long mux
-run slid onto a short stub costs more run than the shared riser saves), or another net's riser
-already occupies the target line where the moved riser would land.
+3960 to 2835) - more than same-net branch routing itself saves there. On `reg16x8` it saves 284
+with crossings unchanged, and every one of the eight register-file nets leaves its trunk as a
+single T. A departure that cannot merge is rejected for cause: the merge would lengthen the
+drawing, cross more, or land on another net's line.
 
 ## Measuring it
 

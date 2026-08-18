@@ -530,16 +530,27 @@ let waveformColumnStyle = Style [
 ]
 
 /// Style for rows in waveforms column
-let waveRowsStyle width = Style [
+let waveRowsStyle (wsModel: WaveSimModel) = Style [
     Height "100%"
     OverflowX OverflowOptions.Hidden
     Display DisplayOptions.Grid
     //FontSize "13px"
     GridAutoRows Constants.rowHeight
     BorderTop Constants.borderProperties
-    Width width
+    Width wsModel.WaveformColumnWidth
     GridColumnStart 1
     GridRowStart 1
+    // Banding behind every other waveform row, so each trace reads against its own row rather
+    // than floating in shared white space. Painted here, on the container, so it sits under the
+    // wave SVGs (which have no background of their own) and under the cursor-column overlay.
+    // The first stripe of the pattern falls on the clock-number row and is left clear; the
+    // background is sized to exactly the rows drawn so the band cannot run on into any slack
+    // below the last waveform.
+    BackgroundImage
+        ($"repeating-linear-gradient(to bottom, transparent 0px, transparent {Constants.rowHeight}px, "
+         + $"{Constants.rowBandColor} {Constants.rowHeight}px, {Constants.rowBandColor} {2 * Constants.rowHeight}px)")
+    BackgroundSize $"100%% {(List.length (selectedWaves wsModel) + 1) * Constants.rowHeight}px"
+    BackgroundRepeat "no-repeat"
 ]
 
 /// Style for viewWaveSim

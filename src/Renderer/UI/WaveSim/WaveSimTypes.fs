@@ -77,6 +77,10 @@ module Constants =
     let labelPadding = 3
     /// Color for cursor and values column
     let namesValuesColumnColor = "Lavender"
+    /// Fill of every other waveform row, so a trace can be followed across the column to its
+    /// name and value. Lavender - namesValuesColumnColor, rgb(230,230,250) - at an opacity low
+    /// enough that a blue trace and the purple cursor column both stay clearly on top of it.
+    let rowBandColor = "rgba(230,230,250,0.45)"
     let cursorColumnColor = "purple"
     let cursorColumnOpacity = 0.3
 

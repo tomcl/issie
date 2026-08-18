@@ -771,6 +771,51 @@ let tests =
                 "redrawing the alu sheet left a wire drawn across a symbol"
         }
 
+        test "merging branches never makes a same-net cross-roads" {
+            // A driver fans to three destinations: straight ahead, up and down. Evening up the up
+            // and down branches would put FOUR arms at one point - trunk in, trunk on, branch up,
+            // branch down - which modern wires cannot draw legally (a four-way meet is exactly
+            // what the junction circles exist to disambiguate) and which reads badly in every
+            // style. The T-junction pass counts the arms a merge would leave and refuses at four:
+            // without that guard, this sheet merges into a cross-roads at (555, 315), since the
+            // merge genuinely shortens the drawing. Ink is not the only thing that matters.
+            let sheet =
+                describeSheet "xr"
+                    [ comp "S" (Input1(1, None)); comp "OS" (Output 1)
+                      comp "OU" (Output 1); comp "OD" (Output 1) ]
+                    [ "S" ==> "OS"; "S" ==> "OU"; "S" ==> "OD" ]
+            let canvas =
+                canvasOf sheet
+                |> movedTo [ "S", { X = 100.; Y = 300. }; "OS", { X = 800.; Y = 300. }
+                             "OU", { X = 660.; Y = 100. }; "OD", { X = 700.; Y = 500. } ]
+            let m = separate (routedModel canvas)
+            // four-arm junction detector over the one net
+            let segsAll =
+                m.Wires |> Map.toList |> List.map snd
+                |> List.collect getAbsSegments
+                |> List.filter (fun sg -> abs sg.Segment.Length > 0.5)
+            let horiz = segsAll |> List.filter (fun sg -> sg.Orientation = Horizontal)
+            let verts = segsAll |> List.filter (fun sg -> sg.Orientation = Vertical)
+            let crossroads =
+                verts
+                |> List.collect (fun v ->
+                    let x, vLo, vHi = v.Start.X, min v.Start.Y v.End.Y, max v.Start.Y v.End.Y
+                    horiz
+                    |> List.choose (fun h ->
+                        let y, hLo, hHi = h.Start.Y, min h.Start.X h.End.X, max h.Start.X h.End.X
+                        // junction where a vertical meets a horizontal with all four arms present
+                        if abs (vLo - y) < 1. || abs (vHi - y) < 1. || (vLo < y && y < vHi) then
+                            let up = verts |> List.exists (fun v2 -> abs (v2.Start.X - x) < 1. && min v2.Start.Y v2.End.Y < y - 1. && max v2.Start.Y v2.End.Y > y - 1. - 0.001)
+                            let down = verts |> List.exists (fun v2 -> abs (v2.Start.X - x) < 1. && max v2.Start.Y v2.End.Y > y + 1. && min v2.Start.Y v2.End.Y < y + 1.001)
+                            let left = horiz |> List.exists (fun h2 -> abs (h2.Start.Y - y) < 1. && min h2.Start.X h2.End.X < x - 1. && max h2.Start.X h2.End.X > x - 1.001)
+                            let right = horiz |> List.exists (fun h2 -> abs (h2.Start.Y - y) < 1. && max h2.Start.X h2.End.X > x + 1. && min h2.Start.X h2.End.X < x + 1.001)
+                            if up && down && left && right then Some(x, y) else None
+                        else None))
+                |> List.distinct
+            Expect.isEmpty crossroads
+                $"the net meets itself four ways at %A{crossroads}"
+        }
+
         test "port-anchored runs of different nets keep minimum separation" {
             // regfile8: REG1.Q's port and MUX1's input-2 port sit 4.6px apart in y, so the two
             // port-anchored runs between them - both FIXEDSEG, so no cluster pass may move them -

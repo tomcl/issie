@@ -639,14 +639,18 @@ the moved riser's two neighbour segments, exactly as a segment drag would, and o
 net's visible drawn length strictly falls - which both chooses the better of the two directions
 and guarantees termination.
 
-Four guards: the riser's neighbours must keep their directions (a neighbour pushed past zero folds
+Five guards: the riser's neighbours must keep their directions (a neighbour pushed past zero folds
 the wire back over itself); the riser at its new position must stay `minWireSeparation` clear of
 every same-orientation segment of any other net - the merged riser can be longer than the one it
 joins; it must stay the same distance clear of every symbol; and the moved wire must not cross
 more than it did - sliding a long riser along its trunk sweeps it across other nets'
 perpendicular segments, which neither the drawn length nor the parallel clearance can see, and on
-`reg16x8` the unguarded version bought its ink with fifteen new crossings. Hand-routed wires are
-left alone entirely.
+`reg16x8` the unguarded version bought its ink with fifteen new crossings. And the junction a
+merge would leave may have at most THREE arms: evening up two side branches where the trunk also
+continues straight ahead makes a same-net cross-roads - four ways meeting at a point - which
+modern wires cannot draw legally (a four-way meet is exactly what the junction circles exist to
+disambiguate) and which reads badly in every style, so such a merge is refused even when it
+shortens the drawing. Hand-routed wires are left alone entirely.
 
 Separation and the merge run to a joint fixed point: a merge frees the space its riser vacated,
 the next separation is entitled to take it up, and the loop repeats (bounded) until neither moves

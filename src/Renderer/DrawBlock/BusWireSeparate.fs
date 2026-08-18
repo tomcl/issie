@@ -1416,7 +1416,49 @@ let alignSameNetDepartures (wiresToRoute: ConnectionId list) (model: Model) : Mo
                 None
             else
                 let others = netWires |> List.filter (fun w -> w.WId <> wire.WId)
-                Some(netDrawnLength (moved :: others), moved)
+                // A junction may have at most THREE arms. Evening up two side branches where the
+                // trunk also continues straight ahead would make a same-net cross-roads - four
+                // ways meeting at a point - which modern wires cannot draw legally (a four-way
+                // meet is what the junction circles exist to disambiguate) and which reads badly
+                // in every style. Count the arms the junction would have: trunk coverage each
+                // side of the merge point, and a branch leaving each way.
+                let arms =
+                    let trunkP, junctionAt =
+                        match riser.Orientation with
+                        | Vertical -> riser.Start.Y, targetP
+                        | Horizontal -> riser.Start.X, targetP
+                    let segsAll =
+                        moved :: others
+                        |> List.collect getAbsSegments
+                        |> List.filter (fun sg -> abs sg.Segment.Length > minVisibleSegmentLength)
+                    let tol = 1.0
+                    let trunkCovers offset =
+                        segsAll
+                        |> List.exists (fun sg ->
+                            sg.Orientation <> riser.Orientation
+                            && (let p, lo, hi =
+                                    match sg.Orientation with
+                                    | Horizontal -> sg.Start.Y, min sg.Start.X sg.End.X, max sg.Start.X sg.End.X
+                                    | Vertical -> sg.Start.X, min sg.Start.Y sg.End.Y, max sg.Start.Y sg.End.Y
+                                abs (p - trunkP) < tol && lo < junctionAt + offset && junctionAt + offset < hi))
+                    let branchGoes side =
+                        segsAll
+                        |> List.exists (fun sg ->
+                            sg.Orientation = riser.Orientation
+                            && (let p, lo, hi =
+                                    match sg.Orientation with
+                                    | Vertical -> sg.Start.X, min sg.Start.Y sg.End.Y, max sg.Start.Y sg.End.Y
+                                    | Horizontal -> sg.Start.Y, min sg.Start.X sg.End.X, max sg.Start.X sg.End.X
+                                abs (p - junctionAt) < tol
+                                && lo - tol < trunkP && trunkP < hi + tol // touches the junction
+                                && (if side > 0 then hi > trunkP + tol else lo < trunkP - tol)))
+                    [ trunkCovers -1.5; trunkCovers 1.5; branchGoes 1; branchGoes -1 ]
+                    |> List.filter id
+                    |> List.length
+                if arms >= 4 then
+                    None
+                else
+                    Some(netDrawnLength (moved :: others), moved)
 
     /// One scan over one net: the first strictly-improving merge, applied.
     let improveNet (model: Model) (netWires: Wire list) : Model option =

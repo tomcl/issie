@@ -252,6 +252,14 @@ Hand-routed wires are the exception and are not stripped: `partialAutoroute` hol
 user dragged into place by working from the segments that are already there. They are re-routed
 first so the rest of their net can follow them.
 
+The other shape this bug takes is worth recognising, because it does not look like a detached wire
+at all. Where the stale wire being followed is one whose destination is on the *other* side of the
+port, the branch runs to that wire's old midline and turns back, and the net is drawn as a long
+thin loop out of the port with its two wires going opposite ways — visibly not following each
+other, but attached at both ends and so passing every check that looks at endpoints. `customPair`
+in `WireQuality.fs` is that case: two custom components 60 apart, one output driving two inputs on
+the far side, and dragging one of them down and left used to produce it.
+
 ### Dead code to know about
 
 `snapToNet` — 80 lines that make a new wire copy the shape of an existing wire in the same net — is

@@ -741,6 +741,64 @@ let tests =
                        drawn for the multi-wire nets, against %.0f{redrawn} redrawing from nothing")
         }
 
+        test "a net of two wires leaves its port as one line, wherever the symbols are put" {
+            // TEST1/TEST2 from the user's eep1 copy: two custom components 60 apart, one output
+            // driving two inputs on the far side. The corridor between them is barely wider than
+            // a nub, so the second wire of the net has to be shifted to get past the first - the
+            // case where following the net is hardest and matters most.
+            //
+            // The failure it pins: the two wires leaving the same port immediately going opposite
+            // ways, each running to the midline of the other's destination and back, drawn as a
+            // long thin loop out of the port. That is what a wire routed as a branch off a wire
+            // that has not been re-routed yet looks like, and dragging TEST2 down and left used to
+            // produce it.
+            let canvas =
+                (TestFixtures.loadLoadedComponent
+                    (System.IO.Path.Combine(TestFixtures.fixturesDir, "customPair", "test1.dgm"))).CanvasState
+            let start = separate (routedModel canvas)
+            let boxes (m: Model) =
+                m.Symbol.Symbols |> Map.toList |> List.map (snd >> Symbol.getSymbolBoundingBox)
+            /// The wires of every net that has more than one wire, which here is the one net.
+            let fannedWires (m: Model) =
+                m.Wires
+                |> Map.toList
+                |> List.map snd
+                |> List.groupBy (fun w -> w.OutputPort)
+                |> List.filter (fun (_, ws) -> ws.Length > 1)
+            let diverging (m: Model) =
+                fannedWires m
+                |> List.filter (fun (_, ws) -> ws |> List.exists (fun w -> not w.Segments[1].IsZero))
+            let placements =
+                List.allPairs [ -60.; -45.; -30.; -15.; 0.; 15.; 30.; 45.; 60. ]
+                              [ -60.; -45.; -30.; -15.; 0.; 15.; 30.; 45.; 60. ]
+            let bad =
+                start.Symbol.Symbols
+                |> Map.toList
+                |> List.collect (fun (id, sym) ->
+                    placements
+                    |> List.choose (fun (dx, dy) ->
+                        let d = { X = dx; Y = dy }
+                        let m =
+                            { start with Symbol = SymbolUpdate.moveSymbols start.Symbol [ id ] d }
+                            |> fun m -> BusWireRoute.updateWires m [ id ] d
+                            |> fun m -> BusWireSeparate.routeAndSeparateSymbolWires m id
+                        // A corridor narrower than the two nubs that have to face each other
+                        // across it has no room for a shared trunk, so wires leaving the port
+                        // sideways there is the right answer rather than the failure being looked
+                        // for. Issie would not let a user overlap the symbols at all.
+                        let roomBetween =
+                            match boxes m with
+                            | [ a; b ] ->
+                                max (b.TopLeft.X - (a.TopLeft.X + a.W)) (a.TopLeft.X - (b.TopLeft.X + b.W))
+                            | _ -> infinity
+                        if roomBetween < 2. * BusWire.Constants.nubLength || (diverging m).IsEmpty then
+                            None
+                        else
+                            Some $"{sym.Component.Label} moved ({dx},{dy})"))
+            Expect.isEmpty bad
+                $"the net's two wires left the port in different directions at %d{bad.Length} placements:                    %A{List.truncate 6 bad}"
+        }
+
         test "dragging the mux in addsub does not leave its output wires behind" {
             // The case as reported: dragging MUX1 on 3cpu's addsub left its two output wires
             // exactly where they were, joined to nothing, and only "redraw all wires" put them

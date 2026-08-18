@@ -546,6 +546,22 @@ as one wherever it is moved from.
 None of the seven corpus sheets moved on any metric when these landed; the `customPair` sheet went
 from 7 crossings to its topological minimum of 3.
 
+### What separation costs
+
+Measured under .NET (Release, median of 5, warm; the app's JavaScript runs the same code roughly
+2-3x slower). Every sheet of the `3cpu` project separates in **1.4-7.5 ms** - `dpdecode`, the
+largest at 78 wires / 375 segments, is 7.5 ms - so a whole-sheet pass at the end of a drag is well
+inside anything a user can perceive. During the drag itself only routing runs, so this is paid
+once per drag, not per mouse move.
+
+The cost scales with the **largest cluster**, not the wire count. A synthetic 40-way fan-out (120
+wires, one 80-wire net) takes ~65 ms, of which one vertical pass is 17.5 ms against 3.2 ms for the
+horizontal: the net's segments form a single cluster, and `orderPairwiseToMinimiseCrossings` -
+pairwise signs, partial-order completion, longest-chain placement - is roughly cubic in cluster
+size. If a real design ever makes that pathological, the ordering pass is the thing to optimise;
+`makeLines`, `wiringCost`, the fixed-segment resolver and corner removal are all a few ms even
+there, and jump recomputation is negligible.
+
 ## Measuring it
 
 The user-facing requirement is that for *any* component positions the wiring looks good, which

@@ -500,12 +500,6 @@ them too. <code>removeWireSpikes</code> was written to clean up after this and i
 removing the cause is better than calling it.
 </li>
 <li>
-<strong>Separation on <code>longFanout</code> beats routing's commoning.</strong> Branching reduces the wire that net is
-drawn with from 4620 to 3960 at routing time, but separation gets the unbranched routes to 3870,
-so after both passes branching is 1% behind there. Worth understanding before more effort goes
-into the routing side.
-</li>
-<li>
 <strong>Dead code kept alive.</strong> <code>snapToNet</code> (and <code>copySegments</code>, <code>generateEndSegments</code>, which serve only
 it) was the first attempt at what <code>sameNetRoutes</code> now does, and is still there and still
 unreachable — it only ever handled 5 or 7 segment unrotated wires and copied from whichever wire

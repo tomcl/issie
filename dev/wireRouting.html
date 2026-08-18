@@ -1020,6 +1020,24 @@ size (and its full mouse-up redraw is 165 ms). If a real design ever makes that 
 ordering pass is the thing to optimise;
 <code>makeLines</code>, <code>wiringCost</code>, the fixed-segment resolver and corner removal are all a few ms even
 there, and jump recomputation is negligible.</p>
+<h3><a name="T-junctions-same-net-departures-merged-after-separation" class="anchor" href="#T-junctions-same-net-departures-merged-after-separation">T junctions: same-net departures merged after separation</a></h3>
+<p>The last thing separation does is merge same-net turns. Where two wires of a net run along a
+shared trunk and turn off it at different points, one turn is slid along the trunk onto the other,
+so the net leaves the trunk once, as a T junction: the reader sees one branch instead of two
+near-parallel ones. <code>alignSameNetDepartures</code> does it by adjusting the moved riser's two neighbour
+segments, exactly as a segment drag would, and only ever when the net's visible drawn length
+strictly falls - which both chooses the better of the two directions and guarantees termination.</p>
+<p>Its guards are what make it safe to run last, with no separation after it: the riser's neighbours
+must keep their directions (a neighbour pushed past zero folds the wire back over itself); the
+riser at its new position must stay <code>minWireSeparation</code> clear of every same-orientation segment of
+any other net - the merged riser can be longer than the one it joins, and separation is not coming
+back to fix an overlap; and it must stay the same distance clear of every symbol, for the same
+reason. Hand-routed wires are left alone entirely.</p>
+<p>On <code>longFanout</code> this is worth 1100 units of drawn wire (9740 to 8615, and the fanned nets from
+3960 to 2835) - more than same-net branch routing itself saves there. On <code>reg16x8</code> the remaining
+unmerged departures are each rejected for cause: the merge would lengthen the drawing (a long mux
+run slid onto a short stub costs more run than the shared riser saves), or another net's riser
+already occupies the target line where the moved riser would land.</p>
 <h2><a name="Measuring-it" class="anchor" href="#Measuring-it">Measuring it</a></h2>
 <p>The user-facing requirement is that for <em>any</em> component positions the wiring looks good, which
 breaks down into objectives that conflict:</p>
@@ -1171,6 +1189,11 @@ checking where a wire ends. <code>getAbsSegments</code> is.
   <li class="level-3">
     <a href="#What-separation-costs">
       What separation costs
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#T-junctions-same-net-departures-merged-after-separation">
+      T junctions: same-net departures merged after separation
     </a>
   </li>
   <li class="level-2">

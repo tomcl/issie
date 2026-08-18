@@ -106,7 +106,14 @@ let fixBoundingBox (box: BoundingBox): BoundingBox =
 //-------------------------------------------------------------------------------------------------//
 
 module Constants =
-    let wireSeparationFromSymbol = 7. // must be smaller than Buswire.nubLength
+    /// How far a wire routed AROUND a symbol clears its edge, when there is room. 15 is the
+    /// pitch between two 2-input gate inputs: anything hugging tighter reads as touching, and
+    /// separation's channel machinery will still squeeze below this where space demands it.
+    /// The obstacle boxes routing shifts past are already expanded by minWireSeparation, so the
+    /// shift sites aim (this - minWireSeparation) beyond them. It was 7 for years - equal to the
+    /// box expansion, so the shifts aimed a hair past the expanded box and every wire passing a
+    /// symbol hugged it at exactly 7px while wires in channels sat 15-30 apart.
+    let wireSeparationFromSymbol = 15.
     let maxCallsToShiftHorizontalSeg = 5
     /// Must be smaller than Buswire.nubLength
     /// Segments shorter than this are drawing artifacts - a port pair misaligned by a fraction of

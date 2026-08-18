@@ -28,12 +28,6 @@ Delete an entry when it is fixed. A list that keeps its history stops being read
 
 How these two passes are meant to work is in [wireRouting.md](wireRouting.md).
 
-- **A shift aims 0.0001 clear of a symbol; the check that accepts it demands 7.** The four shift
-  sites use `smallOffset` while `findWireSymbolIntersections` expands every unconnected symbol's
-  box by `minWireSeparation`, so a shift along the box it is avoiding can never satisfy the test.
-  `wireSeparationFromSymbol` (7) — the constant named for this, and the one the comments say is
-  used — appears only in comments. Changing the shifts to clear by 7 made no difference to any
-  sweep, so this is latent rather than active.
 - **`string` on an `[<Erase>]` id means two different things.** `InputPortId`, `OutputPortId` and
   friends are erased by Fable, so `string portId` is the bare id in the app and
   `InputPortId "…"` under .NET. `BusWireRoute` used it for five `model.Symbol.Ports` lookups, which

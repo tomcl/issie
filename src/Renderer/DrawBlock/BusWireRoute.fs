@@ -230,22 +230,25 @@ let tryShiftVerticalSeg (model: Model) (intersectedBoxes: BoundingBox list) (wir
             |> List.head
 
         /// Return the edge that the wire should go around when shifting in direction dir.
-        /// Add wireSeparationFromSymbol to the edge to avoid the symbol.
+        /// boxToGoRound is already expanded by minWireSeparation, so clearing a further
+        /// (wireSeparationFromSymbol - minWireSeparation) puts the wire wireSeparationFromSymbol
+        /// from the symbol itself.
+        let clearBy = wireSeparationFromSymbol - minWireSeparation + smallOffset
         let edgeOfBoxToGoRound =
             match dir, wire.InitialOrientation with
             | Left_, Horizontal ->
-                let initialAttemptPos = updatePos Left_ smallOffset boxToGoRound.TopLeft
+                let initialAttemptPos = updatePos Left_ clearBy boxToGoRound.TopLeft
                 initialAttemptPos
             | Right_, Horizontal ->
                 let initialAttemptPos =
-                    updatePos Right_ (boxToGoRound.W + smallOffset) boxToGoRound.TopLeft
+                    updatePos Right_ (boxToGoRound.W + clearBy) boxToGoRound.TopLeft
                 initialAttemptPos
             | Left_, Vertical ->
-                let initialAttemptPos = updatePos Up_ smallOffset boxToGoRound.TopLeft
+                let initialAttemptPos = updatePos Up_ clearBy boxToGoRound.TopLeft
                 initialAttemptPos
             | Right_, Vertical ->
                 let initialAttemptPos =
-                    updatePos Down_ (boxToGoRound.H + smallOffset) boxToGoRound.TopLeft
+                    updatePos Down_ (boxToGoRound.H + clearBy) boxToGoRound.TopLeft
                 initialAttemptPos
             | _ -> failwith "Invalid direction to shift wire"
 
@@ -489,7 +492,9 @@ let rec tryShiftHorizontalSeg
                    | _ -> failwithf "What? Can't happen"
 
             let bound =
-                let offset = smallOffset + offsetOfBox boundBox
+                // boundBox is expanded by minWireSeparation; clear the rest of
+                // wireSeparationFromSymbol beyond it - see tryShiftVerticalSeg
+                let offset = wireSeparationFromSymbol - minWireSeparation + smallOffset + offsetOfBox boundBox
 
                 let otherOrientation =
                     match orientation with

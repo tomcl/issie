@@ -566,8 +566,8 @@ let private recorded =
     [ { Sheet = "crossedArrays"; Ink = 2601.; Bends = 44; Crossings = 28; FannedNetInk = 0.; Settle = Some 0 }
       { Sheet = "wrappedArrays"; Ink = 10966.; Bends = 58; Crossings = 36; FannedNetInk = 0.; Settle = Some 0 }
       { Sheet = "fanout"; Ink = 9002.; Bends = 98; Crossings = 0; FannedNetInk = 3257.; Settle = Some 0 }
-      { Sheet = "staggeredFanout"; Ink = 3878.; Bends = 34; Crossings = 9; FannedNetInk = 1515.; Settle = Some 0 }
-      { Sheet = "longFanout"; Ink = 8615.; Bends = 34; Crossings = 8; FannedNetInk = 2835.; Settle = Some 0 }
+      { Sheet = "staggeredFanout"; Ink = 4089.; Bends = 36; Crossings = 9; FannedNetInk = 1725.; Settle = Some 0 }
+      { Sheet = "longFanout"; Ink = 8965.; Bends = 34; Crossings = 10; FannedNetInk = 2835.; Settle = Some 0 }
       { Sheet = "reg16x8"; Ink = 19676.; Bends = 147; Crossings = 81; FannedNetInk = 12762.; Settle = Some 0 }
       { Sheet = "tangle"; Ink = 11004.; Bends = 82; Crossings = 60; FannedNetInk = 8004.; Settle = Some 0 } ]
 
@@ -769,6 +769,44 @@ let tests =
             let m = BusWireSeparate.redrawAllWires (loadedModel canvas)
             Expect.equal (symbolCrossingsOf m) 0
                 "redrawing the alu sheet left a wire drawn across a symbol"
+        }
+
+        test "a wire passing a symbol clears it by wireSeparationFromSymbol" {
+            // The mend for the 7px hug: wires in channels sit 15-30 apart, so a wire skimming a
+            // symbol at 7px read as touching it. Routing now clears the symbol by
+            // wireSeparationFromSymbol (15), and separation leaves a lone wire where routing put
+            // it. Channels may still squeeze below this where space demands.
+            let sheet =
+                describeSheet "hug"
+                    [ comp "I" (Input1(1, None)); comp "O" (Output 1); comp "OBS" (NbitsAdderNoCinCout 8) ]
+                    [ "I" ==> "O" ]
+            let canvas =
+                canvasOf sheet
+                |> movedTo [ "I", { X = 100.; Y = 200. }; "O", { X = 900.; Y = 200. }
+                             "OBS", { X = 450.; Y = 120. } ]
+            let m = separate (routedModel canvas)
+            let obs =
+                m.Symbol.Symbols
+                |> Map.toList
+                |> List.find (fun (_, sy) -> sy.Component.Label = "OBS")
+                |> snd
+            let box = Symbol.getSymbolBoundingBox obs
+            let clearance =
+                m.Wires
+                |> Map.toList
+                |> List.collect (fun (_, w) ->
+                    getAbsSegments w
+                    |> List.filter (fun sg ->
+                        not sg.IsZero
+                        && sg.Orientation = Horizontal
+                        // only the run that actually passes the symbol, not the distant nubs
+                        && min sg.Start.X sg.End.X < box.TopLeft.X + box.W
+                        && max sg.Start.X sg.End.X > box.TopLeft.X)
+                    |> List.map (fun sg -> sg.Start.Y - (box.TopLeft.Y + box.H)))
+                |> List.filter (fun d -> d > 0.)
+                |> List.min
+            Expect.isTrue (abs (clearance - BusWireRoutingHelpers.Constants.wireSeparationFromSymbol) < 1.0)
+                $"the wire passes %.2f{clearance} below the symbol; wireSeparationFromSymbol is                    %.0f{BusWireRoutingHelpers.Constants.wireSeparationFromSymbol}"
         }
 
         test "separating one wire is local; a drag separates everything" {

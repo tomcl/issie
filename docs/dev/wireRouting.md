@@ -573,6 +573,17 @@ ordering pass is the thing to optimise;
 `makeLines`, `wiringCost`, the fixed-segment resolver and corner removal are all a few ms even
 there, and jump recomputation is negligible.
 
+### How far a wire clears a symbol it passes
+
+A wire routed around a symbol clears it by `wireSeparationFromSymbol` (15px - the pitch between
+two 2-input gate inputs) when there is room. The obstacle boxes the shift sites aim past are
+already expanded by `minWireSeparation` (7), so the sites clear a further 8 beyond them; for years
+they aimed `smallOffset` past the expanded box instead, which put every symbol-passing wire at
+exactly 7px - visually touching - while wires in channels sat 15-30 apart. Separation leaves a
+lone wire where routing put it (the settling cost gate rejects pure moves away from a symbol, as
+they only add ink), so routing's clearance is what the user sees; channels may still squeeze
+wires below 15 where space demands, which is the channel machinery's job and unchanged.
+
 ### No movement may take a segment into a symbol
 
 Separation's movers - the cluster pass, linked-net propagation, the fixed-segment resolver - all

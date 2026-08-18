@@ -742,31 +742,23 @@ let adjustSegmentsInModel
 /// This function looks at these segments and moves them a little in the special case that they
 /// overlap. It is called after the main segment separation is complete.
 let separateFixedSegments (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model) =
-    /// direction from line which has maximum available P space, up to maxOffset,
-    /// Return value is space available - negative if more space is in negative direction.
-    let getSpacefromLine (lines: Line array) (line: Line) (excludeLine: Line) (maxOffset: float) =
+    /// Free room from `line` in direction `dir` (+1/-1): the gap to the nearest overlapping line
+    /// on that side, up to maxOffset. Lines within overlapTolerance of where we already are ARE
+    /// the crowd being escaped, not a wall in the way of escaping it: counting one of them - say
+    /// the other wire of the net the excluded line belongs to, lying on top of it - as an obstacle
+    /// at distance zero made whichever side it was scanned on look full.
+    let spaceOnSide (lines: Line array) (line: Line) (excludeLine: Line) (maxOffset: float) (dir: int) =
         let p = line.P
-        let find offset dir = 
-            tryFindIndexInArray 
-                (LineId(line.Lid.Index + dir)) 
-                dir 
-                // Lines within overlapTolerance of where we already are ARE the overlap being
-                // escaped, not a wall in the way of escaping it. Counting one of them - say the
-                // other wire of the net the excluded line belongs to, lying on top of it - as an
-                // obstacle at distance zero made whichever side it was scanned on look full, so
-                // the move went the other way regardless of what was actually there.
-                (fun line2 -> hasOverlap line2.B line.B && line2.Lid <> excludeLine.Lid
-                              && abs (line2.P - p) > overlapTolerance) 
-                (fun l1 -> abs (l1.P - p) > 2. * offset) 
-                lines
-        match find maxOffset 1, find maxOffset -1 with
-        | None, _ -> maxOffset
-        | _, None -> -maxOffset
-        | Some a, Some b -> 
-            if abs (lines[a.Index].P - p) > abs (lines[b.Index].P - p) then 
-                lines[a.Index].P - p
-            else 
-                lines[b.Index].P - p
+        tryFindIndexInArray
+            (LineId(line.Lid.Index + dir))
+            dir
+            (fun line2 -> hasOverlap line2.B line.B && line2.Lid <> excludeLine.Lid
+                          && abs (line2.P - p) > overlapTolerance)
+            (fun l1 -> abs (l1.P - p) > 2. * maxOffset)
+            lines
+        |> function
+           | None -> maxOffset
+           | Some a -> abs (lines[a.Index].P - p)
 
     let allLines = makeLines wiresToRoute ori model
     allLines
@@ -777,25 +769,42 @@ let separateFixedSegments (wiresToRoute: ConnectionId list) (ori: Orientation) (
         |> Seq.iter ( fun line1 ->
            checkedLines
            |> Array.toSeq
+           // Two port-anchored runs of different nets running alongside each other. The old
+           // trigger was overlapTolerance (2px), which caught only near-coincidence: a pair
+           // sitting 4.6px apart - two ports that happen to be nearly level - was too far apart
+           // to be an "overlap" and too close to look like anything but touching, and no other
+           // pass moves FIXEDSEGs at all. The trigger is now minWireSeparation, the sheet-wide
+           // meaning of "too close".
            |> Seq.filter (fun line2 ->
                 line1.Lid < line2.Lid &&
-                abs (line1.P - line2.P) < overlapTolerance &&
+                abs (line1.P - line2.P) < minWireSeparation &&
                 line1.PortId <> line2.PortId &&
                 hasOverlap line1.B line2.B)
            |> Seq.iter (fun line2 ->
                 // NB the offset must be bracketed: function application binds tighter than *, so
                 // an unbracketed `2*maxSegmentSeparation` here passed 2 and scaled the result by 30.
                 let maxOffset = 2. * maxSegmentSeparation
-                let space1 = getSpacefromLine allLines line1 line2 maxOffset
-                let space2 = getSpacefromLine allLines line2 line1 maxOffset
-                // space is signed: negative means the room is in the negative P direction, which
-                // is room. It is the magnitude that says whether there is anywhere to go.
-                if abs space1 < overlapTolerance && abs space2 < overlapTolerance then
-                    Log.warnOnce "no-space-for-overlap" "no space to shift a fixed segment out of an overlap"
-                if abs space1 > abs space2 then
-                    line1.P <- line1.P + space1 * 0.5
-                else
-                    line2.P <- line2.P + space2 * 0.5)))
+                let gap = abs (line1.P - line2.P)
+                let needed = minWireSeparation - gap
+                // Moving a FIXEDSEG puts a jog beside a port, so the move is the MINIMUM that
+                // restores minWireSeparation - not a leap to the roomiest spot - split between
+                // the two lines, each pushed AWAY from the other as far as its own side allows.
+                // When the pair is nearly coincident the outward directions are arbitrary but
+                // consistent, decided by which side has more room.
+                let dir1 =
+                    if gap > 0.001 then sign (line1.P - line2.P)
+                    elif spaceOnSide allLines line1 line2 maxOffset 1
+                         > spaceOnSide allLines line1 line2 maxOffset -1 then 1
+                    else -1
+                let avail1 = spaceOnSide allLines line1 line2 maxOffset dir1 - minWireSeparation |> max 0.
+                let avail2 = spaceOnSide allLines line2 line1 maxOffset (-dir1) - minWireSeparation |> max 0.
+                let move2 = min (needed - min (needed / 2.) avail1) avail2
+                let move1 = min (needed - move2) avail1 // either side takes up the other's shortfall
+                if move1 + move2 < needed - 0.5 then
+                    Log.warnOnce "no-space-for-overlap"
+                        "no space to shift fixed segments apart to minimum separation"
+                line1.P <- line1.P + float dir1 * move1
+                line2.P <- line2.P - float dir1 * move2)))
     allLines
     |> Array.toList
     |> adjustSegmentsInModel ori model

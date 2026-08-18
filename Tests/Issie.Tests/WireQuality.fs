@@ -563,7 +563,7 @@ type private Recorded =
       Settle: int option }
 
 let private recorded =
-    [ { Sheet = "crossedArrays"; Ink = 2601.; Bends = 44; Crossings = 28; FannedNetInk = 0.; Settle = Some 0 }
+    [ { Sheet = "crossedArrays"; Ink = 2569.; Bends = 48; Crossings = 28; FannedNetInk = 0.; Settle = Some 0 }
       { Sheet = "wrappedArrays"; Ink = 10966.; Bends = 58; Crossings = 36; FannedNetInk = 0.; Settle = Some 0 }
       { Sheet = "fanout"; Ink = 9002.; Bends = 98; Crossings = 0; FannedNetInk = 3257.; Settle = Some 0 }
       { Sheet = "staggeredFanout"; Ink = 4089.; Bends = 36; Crossings = 9; FannedNetInk = 1725.; Settle = Some 0 }
@@ -769,6 +769,39 @@ let tests =
             let m = BusWireSeparate.redrawAllWires (loadedModel canvas)
             Expect.equal (symbolCrossingsOf m) 0
                 "redrawing the alu sheet left a wire drawn across a symbol"
+        }
+
+        test "port-anchored runs of different nets keep minimum separation" {
+            // regfile8: REG1.Q's port and MUX1's input-2 port sit 4.6px apart in y, so the two
+            // port-anchored runs between them - both FIXEDSEG, so no cluster pass may move them -
+            // ran alongside each other 4.6px apart for 420px. The fixed-segment resolver's old
+            // trigger was overlapTolerance (2px): near-coincidence was mended, "too close to look
+            // right" was nobody's job. Its trigger is now minWireSeparation, and the move is the
+            // minimum outward nudge that restores it, split between the pair.
+            let canvas =
+                (TestFixtures.loadLoadedComponent
+                    (System.IO.Path.Combine(TestFixtures.fixturesDir, "customPair", "regfile8.dgm"))).CanvasState
+            let m = BusWireSeparate.redrawAllWires (loadedModel canvas)
+            let runs =
+                m.Wires
+                |> Map.toList
+                |> List.collect (fun (wid, w) ->
+                    getAbsSegments w
+                    |> List.filter (fun sg ->
+                        not sg.IsZero && sg.Orientation = Horizontal && abs sg.Segment.Length > 20.)
+                    |> List.map (fun sg ->
+                        w.OutputPort, sg.Start.Y, min sg.Start.X sg.End.X, max sg.Start.X sg.End.X, wid))
+            let tooClose =
+                [ for (netA, ya, loA, hiA, wa) in runs do
+                    for (netB, yb, loB, hiB, wb) in runs do
+                        // long overlap: brief passes at a corner are turns, not parallel runs
+                        if wa < wb && netA <> netB
+                           && abs (ya - yb) > 0.01
+                           && abs (ya - yb) < BusWireRoutingHelpers.Constants.minWireSeparation - 0.5
+                           && min hiA hiB - max loA loB > 30. then
+                            yield ya, yb ]
+            Expect.isEmpty tooClose
+                $"different nets run alongside each other closer than minimum separation: %A{tooClose}"
         }
 
         test "a wire passing a symbol clears it by wireSeparationFromSymbol" {

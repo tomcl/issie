@@ -573,6 +573,18 @@ ordering pass is the thing to optimise;
 `makeLines`, `wiringCost`, the fixed-segment resolver and corner removal are all a few ms even
 there, and jump recomputation is negligible.
 
+### Port-anchored runs keep minimum separation
+
+Two wires whose ports happen to sit nearly level run alongside each other at whatever distance the
+ports dictate - both runs are FIXEDSEG (port-adjacent), which no cluster pass may move. The
+fixed-segment resolver is the one pass that moves them, and its trigger used to be
+`overlapTolerance` (2px): near-coincidence was mended, while a pair 4.6px apart - visually
+touching for hundreds of pixels - was nobody's job. Its trigger is now `minWireSeparation`, and
+because moving a FIXEDSEG puts a jog beside a port, the move is the MINIMUM outward nudge that
+restores minimum separation, split between the two lines by the room each side has - not a leap to
+the roomiest spot. The cost is a small jog where the ports disagree; the regfile8 pair that showed
+this is pinned as a test.
+
 ### How far a wire clears a symbol it passes
 
 A wire routed around a symbol clears it by `wireSeparationFromSymbol` (15px - the pitch between

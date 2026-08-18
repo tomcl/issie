@@ -136,6 +136,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/wireRouting.html">
+    How a wire gets its shape
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
 
@@ -331,6 +337,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/wireRouting.html">
+    How a wire gets its shape
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
 
@@ -451,7 +463,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '434', 434)" onmouseover="showTip(event, '434', 434)">
+              <code onmouseout="hideTip(event, '442', 442)" onmouseover="showTip(event, '442', 442)">
                 <p>
                   <a id="adjustSegmentsInModel">
                     <a href="#adjustSegmentsInModel">
@@ -460,7 +472,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="434">
+              <div class="fsdocs-tip" id="442">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>adjustSegmentsInModel&#32;<span>ori&#32;model&#32;lines</span></span></code>
@@ -496,7 +508,7 @@
                   <br/>
                   <span>
                     Returns: 
-                    <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                    <code><span>bool&#32;*&#32;<a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></span></code>
                   </span>
                   <br/>
                 </div>
@@ -513,11 +525,13 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.adjustSegmentsInModel\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L557-557" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L659-659" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     Given a list of segment changes of given orientation apply them to the model
+                     Given a list of segment changes of given orientation apply them to the model.
+ Also returns whether any segment actually moved: a settling round which moved nothing needs no
+ further examination, and that is the common case after a drag.
                   </p>
                 </div>
               </summary>
@@ -552,7 +566,7 @@
                   <span class="fsdocs-return-name">
                     Returns: 
                   </span>
-                  <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                  <code><span>bool&#32;*&#32;<a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></span></code>
                 </dt>
                 <dd class="fsdocs-return-docs"></dd>
               </dl>
@@ -562,7 +576,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '435', 435)" onmouseover="showTip(event, '435', 435)">
+              <code onmouseout="hideTip(event, '443', 443)" onmouseover="showTip(event, '443', 443)">
                 <p>
                   <a id="bBoxToLines">
                     <a href="#bBoxToLines">
@@ -571,7 +585,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="435">
+              <div class="fsdocs-tip" id="443">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>bBoxToLines&#32;<span>ori&#32;box</span></span></code>
@@ -658,7 +672,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '436', 436)" onmouseover="showTip(event, '436', 436)">
+              <code onmouseout="hideTip(event, '444', 444)" onmouseover="showTip(event, '444', 444)">
                 <p>
                   <a id="calcSegPositions">
                     <a href="#calcSegPositions">
@@ -667,7 +681,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="436">
+              <div class="fsdocs-tip" id="444">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>calcSegPositions&#32;<span>model&#32;lines&#32;loc</span></span></code>
@@ -715,7 +729,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.calcSegPositions\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L519-519" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L619-619" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -759,7 +773,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '437', 437)" onmouseover="showTip(event, '437', 437)">
+              <code onmouseout="hideTip(event, '445', 445)" onmouseover="showTip(event, '445', 445)">
                 <p>
                   <a id="checkExtensionNoCrossings">
                     <a href="#checkExtensionNoCrossings">
@@ -768,7 +782,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="437">
+              <div class="fsdocs-tip" id="445">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>checkExtensionNoCrossings&#32;<span>overlap&#32;ext&#32;excludedWire&#32;info</span></span></code>
@@ -829,7 +843,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.checkExtensionNoCrossings\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L688-688" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L815-815" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -888,7 +902,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '438', 438)" onmouseover="showTip(event, '438', 438)">
+              <code onmouseout="hideTip(event, '446', 446)" onmouseover="showTip(event, '446', 446)">
                 <p>
                   <a id="checkExtensionNoOverlap">
                     <a href="#checkExtensionNoOverlap">
@@ -897,7 +911,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="438">
+              <div class="fsdocs-tip" id="446">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>checkExtensionNoOverlap&#32;<span>overlap&#32;ext&#32;excludedWire&#32;info</span></span></code>
@@ -958,7 +972,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.checkExtensionNoOverlap\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L663-663" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L790-790" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1016,7 +1030,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '439', 439)" onmouseover="showTip(event, '439', 439)">
+              <code onmouseout="hideTip(event, '447', 447)" onmouseover="showTip(event, '447', 447)">
                 <p>
                   <a id="expandCluster">
                     <a href="#expandCluster">
@@ -1025,7 +1039,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="439">
+              <div class="fsdocs-tip" id="447">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>expandCluster&#32;<span>index&#32;searchDir&#32;lines</span></span></code>
@@ -1078,7 +1092,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.expandCluster\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L329-329" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L420-420" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1129,7 +1143,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '440', 440)" onmouseover="showTip(event, '440', 440)">
+              <code onmouseout="hideTip(event, '448', 448)" onmouseover="showTip(event, '448', 448)">
                 <p>
                   <a id="findInterval">
                     <a href="#findInterval">
@@ -1138,7 +1152,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="440">
+              <div class="fsdocs-tip" id="448">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>findInterval&#32;<span>lines&#32;p</span></span></code>
@@ -1183,12 +1197,17 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.findInterval\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L650-650" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L774-774" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
                      Return the index of the Line with the smallest value of P > p
  Use binary earch for speed.
+
+ The search narrows towards `lines[below].P < p <= lines[above].P`, so the bottom end has to be
+ checked before it starts: with below = 0 taken on trust, an array whose first line is already
+ at or above p returns 1 and the caller never looks at line 0.
+ If every line is below p the last index is returned, which callers detect for themselves.
                   </p>
                 </div>
               </summary>
@@ -1225,7 +1244,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '441', 441)" onmouseover="showTip(event, '441', 441)">
+              <code onmouseout="hideTip(event, '449', 449)" onmouseover="showTip(event, '449', 449)">
                 <p>
                   <a id="findWireCorner">
                     <a href="#findWireCorner">
@@ -1234,7 +1253,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="441">
+              <div class="fsdocs-tip" id="449">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>findWireCorner&#32;<span>info&#32;cornerSizeLimit&#32;wire</span></span></code>
@@ -1287,7 +1306,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.findWireCorner\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L781-781" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L923-923" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1337,19 +1356,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '442', 442)" onmouseover="showTip(event, '442', 442)">
+              <code onmouseout="hideTip(event, '450', 450)" onmouseover="showTip(event, '450', 450)">
                 <p>
                   <a id="isSegmentExtensionOk">
                     <a href="#isSegmentExtensionOk">
-                      <code><span>isSegmentExtensionOk&#32;<span>info&#32;wire&#32;segNum&#32;ori&#32;newLength</span></span></code>
+                      <code><span>isSegmentExtensionOk&#32;<span>info&#32;wire&#32;segNum&#32;ori&#32;startShift&#32;newLength</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="442">
+              <div class="fsdocs-tip" id="450">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>isSegmentExtensionOk&#32;<span>info&#32;wire&#32;segNum&#32;ori&#32;newLength</span></span></code>
+                  <code><span>isSegmentExtensionOk&#32;<span>info&#32;wire&#32;segNum&#32;ori&#32;startShift&#32;newLength</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -1388,6 +1407,14 @@
                     <br/>
                     <span>
                       <b>
+                        startShift
+                      </b>
+                      :
+                      <code>float</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
                         newLength
                       </b>
                       :
@@ -1415,7 +1442,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.isSegmentExtensionOk\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L746-746" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L879-879" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1423,6 +1450,9 @@
  If the new segment creates a part line segment
  that did not previouly exist this is checked for overlap
  with symbols and other wires.
+ startShift is how far the start of the segment itself moves along its own axis: zero when the
+ segment keeps its start point, negative when it is extended backwards (as the second segment of
+ a removed corner is, since the segment before it has gone).
                   </p>
                 </div>
               </summary>
@@ -1461,6 +1491,14 @@
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
+                    startShift
+                  </span>
+                  :
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
                     newLength
                   </span>
                   :
@@ -1483,7 +1521,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '443', 443)" onmouseover="showTip(event, '443', 443)">
+              <code onmouseout="hideTip(event, '451', 451)" onmouseover="showTip(event, '451', 451)">
                 <p>
                   <a id="lineToWire">
                     <a href="#lineToWire">
@@ -1492,7 +1530,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="443">
+              <div class="fsdocs-tip" id="451">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>lineToWire&#32;<span>model&#32;line</span></span></code>
@@ -1578,7 +1616,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '444', 444)" onmouseover="showTip(event, '444', 444)">
+              <code onmouseout="hideTip(event, '452', 452)" onmouseover="showTip(event, '452', 452)">
                 <p>
                   <a id="linkAndRemoveSameNetSegments">
                     <a href="#linkAndRemoveSameNetSegments">
@@ -1587,7 +1625,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="444">
+              <div class="fsdocs-tip" id="452">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>linkAndRemoveSameNetSegments&#32;<span>lines&#32;cluster</span></span></code>
@@ -1632,7 +1670,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.linkAndRemoveSameNetSegments\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L382-382" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L473-473" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1675,7 +1713,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '445', 445)" onmouseover="showTip(event, '445', 445)">
+              <code onmouseout="hideTip(event, '453', 453)" onmouseover="showTip(event, '453', 453)">
                 <p>
                   <a id="linkSameNetLines">
                     <a href="#linkSameNetLines">
@@ -1684,7 +1722,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="445">
+              <div class="fsdocs-tip" id="453">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>linkSameNetLines&#32;<span>sameNetCapture&#32;lines</span></span></code>
@@ -1773,7 +1811,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '446', 446)" onmouseover="showTip(event, '446', 446)">
+              <code onmouseout="hideTip(event, '454', 454)" onmouseover="showTip(event, '454', 454)">
                 <p>
                   <a id="makeClusters">
                     <a href="#makeClusters">
@@ -1782,7 +1820,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="446">
+              <div class="fsdocs-tip" id="454">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>makeClusters&#32;<span>lines</span></span></code>
@@ -1819,7 +1857,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.makeClusters\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L405-405" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L496-496" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1858,7 +1896,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '447', 447)" onmouseover="showTip(event, '447', 447)">
+              <code onmouseout="hideTip(event, '455', 455)" onmouseover="showTip(event, '455', 455)">
                 <p>
                   <a id="makeLineInfo">
                     <a href="#makeLineInfo">
@@ -1867,7 +1905,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="447">
+              <div class="fsdocs-tip" id="455">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>makeLineInfo&#32;<span>wiresToRoute&#32;model</span></span></code>
@@ -1912,7 +1950,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.makeLineInfo\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L722-722" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L852-852" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1957,7 +1995,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '448', 448)" onmouseover="showTip(event, '448', 448)">
+              <code onmouseout="hideTip(event, '456', 456)" onmouseover="showTip(event, '456', 456)">
                 <p>
                   <a id="makeLines">
                     <a href="#makeLines">
@@ -1966,7 +2004,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="448">
+              <div class="fsdocs-tip" id="456">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>makeLines&#32;<span>wiresToRoute&#32;ori&#32;model</span></span></code>
@@ -2019,7 +2057,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.makeLines\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L147-147" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L155-155" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2069,7 +2107,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '449', 449)" onmouseover="showTip(event, '449', 449)">
+              <code onmouseout="hideTip(event, '457', 457)" onmouseover="showTip(event, '457', 457)">
                 <p>
                   <a id="numCrossingsSign">
                     <a href="#numCrossingsSign">
@@ -2078,7 +2116,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="449">
+              <div class="fsdocs-tip" id="457">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>numCrossingsSign&#32;<span>model&#32;line1&#32;line2&#32;wires</span></span></code>
@@ -2139,7 +2177,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.numCrossingsSign\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L226-226" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L273-273" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2198,7 +2236,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '450', 450)" onmouseover="showTip(event, '450', 450)">
+              <code onmouseout="hideTip(event, '458', 458)" onmouseover="showTip(event, '458', 458)">
                 <p>
                   <a id="orderPairwiseToMinimiseCrossings">
                     <a href="#orderPairwiseToMinimiseCrossings">
@@ -2207,7 +2245,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="450">
+              <div class="fsdocs-tip" id="458">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>orderPairwiseToMinimiseCrossings&#32;<span>model&#32;lines&#32;segL</span></span></code>
@@ -2260,7 +2298,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.orderPairwiseToMinimiseCrossings\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L280-280" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L345-345" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2312,29 +2350,187 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '451', 451)" onmouseover="showTip(event, '451', 451)">
+              <code onmouseout="hideTip(event, '459', 459)" onmouseover="showTip(event, '459', 459)">
                 <p>
-                  <a id="reRouteWiresFrom">
-                    <a href="#reRouteWiresFrom">
-                      <code><span>reRouteWiresFrom&#32;<span>comps&#32;model</span></span></code>
+                  <a id="redrawAllWires">
+                    <a href="#redrawAllWires">
+                      <code><span>redrawAllWires&#32;<span>model</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="451">
+              <div class="fsdocs-tip" id="459">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>reRouteWiresFrom&#32;<span>comps&#32;model</span></span></code>
+                  <code><span>redrawAllWires&#32;<span>model</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        comps
+                        model
                       </b>
                       :
-                      <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
+                      <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:BusWireSeparate.redrawAllWires`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.redrawAllWires\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L1287-1287" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Redraw every wire, hand routing included.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    model
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '460', 460)" onmouseover="showTip(event, '460', 460)">
+                <p>
+                  <a id="redrawFloatingWires">
+                    <a href="#redrawFloatingWires">
+                      <code><span>redrawFloatingWires&#32;<span>model</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="460">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>redrawFloatingWires&#32;<span>model</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        model
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:BusWireSeparate.redrawFloatingWires`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.redrawFloatingWires\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L1283-1283" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Redraw every wire the user has not routed by hand, leaving those alone.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    model
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '461', 461)" onmouseover="showTip(event, '461', 461)">
+                <p>
+                  <a id="redrawWires">
+                    <a href="#redrawWires">
+                      <code><span>redrawWires&#32;<span>toRedraw&#32;model</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="461">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>redrawWires&#32;<span>toRedraw&#32;model</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        toRedraw
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/drawmodeltype-buswiret-wire.html">Wire</a>&#32;->&#32;bool</span></code>
                     </span>
                     <br/>
                     <span>
@@ -2360,28 +2556,47 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:BusWireSeparate.reRouteWiresFrom`')">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:BusWireSeparate.redrawWires`')">
                     <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
                   </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.reRouteWiresFrom\'/>')">
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.redrawWires\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L1018-1018" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L1263-1263" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     all wires from comps are autorouted from scratch
- then the separation logic is rerun on these wires
+                     Take the routing off the wires `toRedraw` selects, route them all again from nothing, and then
+ separate the whole sheet as usual. Neither pass is changed: this is the ordinary pair of them,
+ applied to many wires at once instead of to the few a drag reaches. That is what makes it worth
+ having - a sheet laid out before a routing change keeps most of its old routing, and so says
+ almost nothing about whether the change helped.
+
+ The routing comes off every one of them BEFORE any of them is routed. Routing looks only at
+ symbols today, so that makes no difference yet; it will as soon as a wire is routed with any
+ regard for the wires already there, since a route which is about to be thrown away is not
+ something the next wire should be following.
+
+ Wires are reset rather than deleted and recreated: a wire is identified by the two ports it
+ joins, so deleting one would only lose its ConnectionId, which the saved file, undo and the
+ current selection all refer to.
+
+ They are routed shortest first, by the straight-line distance between the two ports. Order is
+ immaterial while routing considers only symbols, and this is the order to have when it stops
+ being: a short wire has the least freedom in where it can go, so it is the one that should
+ already be there when a longer wire of the same net is routed and looking for something to
+ join. The re-route this replaces went in Map order - by ConnectionId, which is a GUID, so in no
+ order at all and not the same one twice.
                   </p>
                 </div>
               </summary>
               <dl class="fsdocs-params">
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
-                    comps
+                    toRedraw
                   </span>
                   :
-                  <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
+                  <code><span><a href="/issie/reference/drawmodeltype-buswiret-wire.html">Wire</a>&#32;->&#32;bool</span></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
@@ -2408,103 +2623,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '452', 452)" onmouseover="showTip(event, '452', 452)">
-                <p>
-                  <a id="reSeparateWiresFrom">
-                    <a href="#reSeparateWiresFrom">
-                      <code><span>reSeparateWiresFrom&#32;<span>comps&#32;model</span></span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="452">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>reSeparateWiresFrom&#32;<span>comps&#32;model</span></span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        comps
-                      </b>
-                      :
-                      <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        model
-                      </b>
-                      :
-                      <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:BusWireSeparate.reSeparateWiresFrom`')">
-                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
-                  </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.reSeparateWiresFrom\'/>')">
-                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
-                  </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L1005-1005" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     all wires from comps have all segments made auto.
- then the separation logic is rerun on these wires
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-params">
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    comps
-                  </span>
-                  :
-                  <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    model
-                  </span>
-                  :
-                  <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-              </dl>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Returns: 
-                  </span>
-                  <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '453', 453)" onmouseover="showTip(event, '453', 453)">
+              <code onmouseout="hideTip(event, '462', 462)" onmouseover="showTip(event, '462', 462)">
                 <p>
                   <a id="removeCorner">
                     <a href="#removeCorner">
@@ -2513,7 +2632,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="453">
+              <div class="fsdocs-tip" id="462">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>removeCorner&#32;<span>info&#32;wc</span></span></code>
@@ -2558,7 +2677,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.removeCorner\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L828-828" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L976-976" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2600,7 +2719,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '454', 454)" onmouseover="showTip(event, '454', 454)">
+              <code onmouseout="hideTip(event, '463', 463)" onmouseover="showTip(event, '463', 463)">
                 <p>
                   <a id="removeModelCorners">
                     <a href="#removeModelCorners">
@@ -2609,7 +2728,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="454">
+              <div class="fsdocs-tip" id="463">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>removeModelCorners&#32;<span>wires&#32;model</span></span></code>
@@ -2654,7 +2773,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.removeModelCorners\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L846-846" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L994-994" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2696,7 +2815,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '455', 455)" onmouseover="showTip(event, '455', 455)">
+              <code onmouseout="hideTip(event, '464', 464)" onmouseover="showTip(event, '464', 464)">
                 <p>
                   <a id="removeModelSpikes">
                     <a href="#removeModelSpikes">
@@ -2705,7 +2824,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="455">
+              <div class="fsdocs-tip" id="464">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>removeModelSpikes&#32;<span>model</span></span></code>
@@ -2742,7 +2861,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.removeModelSpikes\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L885-885" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L1037-1037" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2775,7 +2894,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '456', 456)" onmouseover="showTip(event, '456', 456)">
+              <code onmouseout="hideTip(event, '465', 465)" onmouseover="showTip(event, '465', 465)">
                 <p>
                   <a id="removeWireSpikes">
                     <a href="#removeWireSpikes">
@@ -2784,7 +2903,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="456">
+              <div class="fsdocs-tip" id="465">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>removeWireSpikes&#32;<span>wire</span></span></code>
@@ -2821,7 +2940,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.removeWireSpikes\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L860-860" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L1008-1008" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2856,7 +2975,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '457', 457)" onmouseover="showTip(event, '457', 457)">
+              <code onmouseout="hideTip(event, '466', 466)" onmouseover="showTip(event, '466', 466)">
                 <p>
                   <a id="routeAndSeparateSymbolWires">
                     <a href="#routeAndSeparateSymbolWires">
@@ -2865,7 +2984,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="457">
+              <div class="fsdocs-tip" id="466">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>routeAndSeparateSymbolWires&#32;<span>model&#32;compId</span></span></code>
@@ -2910,12 +3029,21 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.routeAndSeparateSymbolWires\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L982-982" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L1300-1300" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     Top-level function does routing and then separation of set of wires.
- Uses partial routing if possible.
+                     Route and then separate after one symbol has changed - moved a step, rotated, scaled, flipped
+ or had its type edited. Uses partial routing to keep the symbol's hand-routed wires attached -
+ a changed port position must reach them, and the redraw below deliberately leaves manual wires
+ alone. A wire with both ends on the symbol is re-routed from each end in turn rather than
+ translated, since the symbol may have been resized or rotated, not just moved.
+
+ It ends as a drag does: every floating wire re-routed from scratch and the whole sheet
+ separated. A wire that had been ROUTED AROUND this symbol is not connected to it, so no
+ re-route of the symbol's own wires reaches it, and its detour is routing's - separation cannot
+ undo it. The layout left behind is exactly what "redraw floating wires" would produce, so a
+ symbol change leaves nothing for a redraw to improve.
                   </p>
                 </div>
               </summary>
@@ -2952,7 +3080,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '458', 458)" onmouseover="showTip(event, '458', 458)">
+              <code onmouseout="hideTip(event, '467', 467)" onmouseover="showTip(event, '467', 467)">
                 <p>
                   <a id="segmentToLine">
                     <a href="#segmentToLine">
@@ -2961,7 +3089,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="458">
+              <div class="fsdocs-tip" id="467">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>segmentToLine&#32;<span>lType&#32;ori&#32;wire&#32;seg</span></span></code>
@@ -3083,7 +3211,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '459', 459)" onmouseover="showTip(event, '459', 459)">
+              <code onmouseout="hideTip(event, '468', 468)" onmouseover="showTip(event, '468', 468)">
                 <p>
                   <a id="separateAndOrderModelSegments">
                     <a href="#separateAndOrderModelSegments">
@@ -3092,7 +3220,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="459">
+              <div class="fsdocs-tip" id="468">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>separateAndOrderModelSegments&#32;<span>wiresToRoute&#32;model</span></span></code>
@@ -3137,12 +3265,20 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.separateAndOrderModelSegments\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L937-937" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L1178-1178" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
                      Perform complete wire segment separation and ordering for all orientations.
- wiresToRoute: set of wires to have segments separated and ordered
+
+ `wiresToRoute` is the SCOPE: only clusters holding one of these wires are touched, so a small
+ list is a local adjustment and every wire id is a whole-sheet pass. Which to use follows from
+ what changed. Adding one wire, or dragging a segment of one, disturbs only the clusters that
+ wire runs through - the rest of the sheet was settled a moment ago and owes nothing to this
+ change. Moving a SYMBOL is different: its wires may leave clusters anywhere on the sheet, and
+ the space they vacate is space other wires should take up, so a drag's mouse-up passes every
+ wire (see the MovingSymbols cases in SheetUpdateHelpers, and routeAndSeparateSymbolWires).
+ An empty list means nothing changed, and the whole pass is skipped.
                   </p>
                 </div>
               </summary>
@@ -3179,7 +3315,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '460', 460)" onmouseover="showTip(event, '460', 460)">
+              <code onmouseout="hideTip(event, '469', 469)" onmouseover="showTip(event, '469', 469)">
                 <p>
                   <a id="separateFixedSegments">
                     <a href="#separateFixedSegments">
@@ -3188,7 +3324,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="460">
+              <div class="fsdocs-tip" id="469">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>separateFixedSegments&#32;<span>wiresToRoute&#32;ori&#32;model</span></span></code>
@@ -3241,7 +3377,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.separateFixedSegments\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L578-578" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L685-685" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3293,7 +3429,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '461', 461)" onmouseover="showTip(event, '461', 461)">
+              <code onmouseout="hideTip(event, '470', 470)" onmouseover="showTip(event, '470', 470)">
                 <p>
                   <a id="separateModelSegmentsOneOrientation">
                     <a href="#separateModelSegmentsOneOrientation">
@@ -3302,7 +3438,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="461">
+              <div class="fsdocs-tip" id="470">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>separateModelSegmentsOneOrientation&#32;<span>wiresToRoute&#32;ori&#32;model</span></span></code>
@@ -3338,7 +3474,7 @@
                   <br/>
                   <span>
                     Returns: 
-                    <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                    <code><span>bool&#32;*&#32;<a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></span></code>
                   </span>
                   <br/>
                 </div>
@@ -3355,12 +3491,14 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.separateModelSegmentsOneOrientation\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L900-900" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L1144-1144" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
                      Perform complete segment ordering and separation for segments of given orientation.
- wires: set of wires allowed to be moved.
+ wiresToRoute: the clusters worked on are those holding at least one of these wires. Lines are
+ generated for ALL wires either way - a cluster is defined by everything near it - and passing
+ every wire id makes this a whole-sheet pass.
                   </p>
                 </div>
               </summary>
@@ -3395,7 +3533,7 @@
                   <span class="fsdocs-return-name">
                     Returns: 
                   </span>
-                  <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                  <code><span>bool&#32;*&#32;<a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></span></code>
                 </dt>
                 <dd class="fsdocs-return-docs"></dd>
               </dl>
@@ -3405,7 +3543,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '462', 462)" onmouseover="showTip(event, '462', 462)">
+              <code onmouseout="hideTip(event, '471', 471)" onmouseover="showTip(event, '471', 471)">
                 <p>
                   <a id="turnDirs">
                     <a href="#turnDirs">
@@ -3414,7 +3552,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="462">
+              <div class="fsdocs-tip" id="471">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>turnDirs&#32;<span>line&#32;wires</span></span></code>
@@ -3450,21 +3588,99 @@
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  line
+                </span>
+                :
+                <code><a href="/issie/reference/buswireroutinghelpers-line.html">Line</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  wires
+                </span>
+                :
+                <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-connectionid.html">ConnectionId</a>,&#32;<a href="/issie/reference/drawmodeltype-buswiret-wire.html">Wire</a></span>&gt;</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><span>int&#32;*&#32;int</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '472', 472)" onmouseover="showTip(event, '472', 472)">
+                <p>
+                  <a id="turnLengths">
+                    <a href="#turnLengths">
+                      <code><span>turnLengths&#32;<span>line&#32;wires</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="472">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>turnLengths&#32;<span>line&#32;wires</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        line
+                      </b>
+                      :
+                      <code><a href="/issie/reference/buswireroutinghelpers-line.html">Line</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        wires
+                      </b>
+                      :
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-connectionid.html">ConnectionId</a>,&#32;<a href="/issie/reference/drawmodeltype-buswiret-wire.html">Wire</a></span>&gt;</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span>float&#32;*&#32;float</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:BusWireSeparate.turnDirs`')">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:BusWireSeparate.turnLengths`')">
                     <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
                   </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.turnDirs\'/>')">
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.turnLengths\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L204-204" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L258-258" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     Returns integers +/- 1 indicating direction of wire leaving ends of line segment.
- Pair returned is MaxB, MinB end of line
+                     How far the wire turns away at each end of a line segment, as absolute lengths.
+ Pair returned is MaxB, MinB end of line, matching turnDirs. Where two lines' ends coincide,
+ this is what says which wire encloses the other - the sign alone cannot.
                   </p>
                 </div>
               </summary>
@@ -3491,7 +3707,7 @@
                   <span class="fsdocs-return-name">
                     Returns: 
                   </span>
-                  <code><span>int&#32;*&#32;int</span></code>
+                  <code><span>float&#32;*&#32;float</span></code>
                 </dt>
                 <dd class="fsdocs-return-docs"></dd>
               </dl>
@@ -3501,7 +3717,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '463', 463)" onmouseover="showTip(event, '463', 463)">
+              <code onmouseout="hideTip(event, '473', 473)" onmouseover="showTip(event, '473', 473)">
                 <p>
                   <a id="updateWireSegmentJumpsAndSeparations">
                     <a href="#updateWireSegmentJumpsAndSeparations">
@@ -3510,7 +3726,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="463">
+              <div class="fsdocs-tip" id="473">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>updateWireSegmentJumpsAndSeparations&#32;<span>wires&#32;model</span></span></code>
@@ -3555,7 +3771,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.updateWireSegmentJumpsAndSeparations\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L975-975" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L1237-1237" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3599,7 +3815,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '464', 464)" onmouseover="showTip(event, '464', 464)">
+              <code onmouseout="hideTip(event, '474', 474)" onmouseover="showTip(event, '474', 474)">
                 <p>
                   <a id="warnLostSegmentInCluster">
                     <a href="#warnLostSegmentInCluster">
@@ -3608,7 +3824,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="464">
+              <div class="fsdocs-tip" id="474">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>warnLostSegmentInCluster&#32;<span>msg&#32;lines&#32;lostIndex&#32;loc</span></span></code>
@@ -3664,7 +3880,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.warnLostSegmentInCluster\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L395-395" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L486-486" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3709,6 +3925,94 @@
                   <code><a href="/issie/reference/buswireroutinghelpers-cluster.html">Cluster</a></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '475', 475)" onmouseover="showTip(event, '475', 475)">
+                <p>
+                  <a id="wiringCost">
+                    <a href="#wiringCost">
+                      <code><span>wiringCost&#32;<span>model</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="475">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>wiringCost&#32;<span>model</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        model
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>float</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:BusWireSeparate.wiringCost`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWireSeparate.wiringCost\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireSeparate.fs#L1085-1085" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     How bad a wiring is: the length of wire actually drawn, plus a heavy penalty for two different
+ nets drawn on top of each other.
+
+ Wire drawn is the length of the UNION of the segments on each line of the drawing, so two
+ segments of one net lying on top of each other are one wire and are counted once. That makes
+ "keep wires short" and "let a net share a trunk" the same objective rather than two which have
+ to be traded off by hand.
+
+ This is called once per settling round, so it is one sort and one sweep. Deliberately not built
+ on makeLines, which links same-net lines pairwise and costs as much as a separation pass.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    model
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
               </dl>
             </details>
           </td>

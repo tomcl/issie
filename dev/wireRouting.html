@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Main" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="How a wire gets its shape
+" />
+    <meta property="og:url" content="/issie/dev/wireRouting.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="How a wire gets its shape
+">
+    
+    <title>How a wire gets its shape
+ | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="content">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/drivingTheApp.html">
+    Driving Issie from outside it
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/wireRouting.html">
+    How a wire gets its shape
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/wiki">Developers Wiki
+                </a></li>
+    
+        <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/drivingTheApp.html">
+    Driving Issie from outside it
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/wireRouting.html">
+    How a wire gets its shape
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        <h1><a name="How-a-wire-gets-its-shape" class="anchor" href="#How-a-wire-gets-its-shape">How a wire gets its shape</a></h1>
+<p>A map of the two passes that decide where a wire is drawn: <strong>routing</strong>, which turns a pair of ports
+into a list of segments, and <strong>separation</strong>, which afterwards moves whole groups of segments apart
+so that parallel wires do not sit on top of each other. Written for someone about to change
+<code>BusWireRoute.fs</code> or <code>BusWireSeparate.fs</code>.</p>
+<p>The two are quite different kinds of code. Routing works on one wire at a time and is pure.
+Separation works on the whole sheet at once, builds a mutable array as its working representation,
+and is the only place in the draw block where that is deliberate.</p>
+<h2><a name="What-a-wire-is" class="anchor" href="#What-a-wire-is">What a wire is</a></h2>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">Wire</span> <span class="o">=</span> <span class="pn">{</span> <span class="id">StartPos</span><span class="pn">;</span> <span class="id">InitialOrientation</span><span class="pn">;</span> <span class="id">Segments</span><span class="pn">:</span> <span class="id">Segment</span> <span onmouseout="hideTip(event, 'fs1', 1)" onmouseover="showTip(event, 'fs1', 1)" class="id">list</span><span class="pn">;</span> <span class="o">..</span><span class="pn">.</span> <span class="pn">}</span>
+<span class="id">Segment</span> <span class="o">=</span> <span class="pn">{</span> <span class="id">Index</span><span class="pn">;</span> <span class="id">Length</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs2', 2)" onmouseover="showTip(event, 'fs2', 2)" class="id">float</span><span class="pn">;</span> <span class="id">Mode</span><span class="pn">:</span> <span class="id">Auto</span> <span class="pn">|</span> <span class="id">Manual</span><span class="pn">;</span> <span class="id">Draggable</span><span class="pn">;</span> <span class="o">..</span><span class="pn">.</span> <span class="pn">}</span>
+</code></pre>
+<p>A segment has a <strong>signed length and no position</strong>. Its direction alternates: segment 0 has
+<code>InitialOrientation</code>, segment 1 is perpendicular, and so on, so a segment's orientation is
+<code>Index % 2</code> and the absolute positions come from folding the lengths onto <code>StartPos</code>
+(<code>BlockHelpers.foldOverSegs</code>, <code>getAbsSegments</code>). Every geometric fact about a wire is derived, and
+the only stored coordinate is where it starts.</p>
+<p>Three consequences run through everything below.</p>
+<ul>
+<li>
+<strong>A zero-length segment is not nothing.</strong> It joins two parallel segments, which is how a wire
+gets a straight run that can still be dragged in the middle, and how the segment count stays
+aligned with the alternating-orientation rule. <code>IsZero</code> is used far more than <code>Length = 0</code>.
+</li>
+<li>
+<strong>The first and last segments are nubs</strong>: short, <code>Draggable = false</code>, perpendicular to the symbol
+edge they leave, at least <code>BusWire.Constants.nubLength</code> (10) long so a wire visibly emerges from
+its port. Both separation and routing take care never to move them. Every separation distance
+constant is smaller than <code>nubLength</code> for this reason.
+</li>
+<li>
+<strong>Changing a middle segment's position never moves the wire's ends.</strong> Moving segment <em>i</em>
+sideways is <code>segs[i-1].Length += d; segs[i+1].Length -= d</code> (<code>BusWireRoutingHelpers.moveSegment</code>),
+which leaves the total displacement — and so the endpoint — untouched. That invariant is what
+lets separation cache each segment's absolute position once and then move many segments in one
+pass.
+</li>
+</ul>
+<p><code>getStartAndEndWirePos</code> deserves a warning: it returns the <strong>second-to-last</strong> vertex as the end,
+not the last. That is deliberate — its callers in <code>tryShiftHorizontalSeg</code> want the point before the
+final nub — but it means it is the wrong function for "where does this wire end".</p>
+<h2><a name="Why-it-is-split-into-two-passes" class="anchor" href="#Why-it-is-split-into-two-passes">Why it is split into two passes</a></h2>
+<p>The split is a response to a user-facing budget, not an implementation accident.</p>
+<p><strong>While a symbol is being dragged, only routing runs.</strong> Every mouse move sends <code>UpdateWires</code>,
+which re-routes the affected wires and nothing else; separation runs on mouse-<em>up</em>. The reason is
+that someone dragging a component is judging the placement by the wiring they can see, so the
+route has to appear within a few tens of milliseconds of the symbol moving, and it has to be the
+same route they will end up with. Separation is then a <strong>fine adjustment</strong>: it moves segments
+sideways by tens of pixels, which reads as the drawing settling rather than as it changing.</p>
+<p>Mid-drag routing is deliberately quick rather than canonical — a wire is re-routed from where the
+symbol now is, against whatever else is there. What makes the END of the drag canonical is that
+mouse-up runs the floating redraw: every wire not routed by hand is re-routed from scratch and the
+whole sheet separated, exactly the Edit-menu "redraw floating wires". The wiring after a drag is
+therefore a function of the positions alone, a drag leaves nothing for a redraw to improve, and a
+drag round trip restores the wiring wire-for-wire — the round-trip test in <code>WireQuality.fs</code>
+asserts exact equality, with no tolerance.</p>
+<p>This is also what catches the wires a drag cannot reach by re-routing its own symbol's wires: a
+wire ROUTED AROUND the moved symbol is not connected to it, and its detour belongs to routing,
+which no amount of separation can undo. Before mouse-up ran the redraw, such a wire kept its
+detour after the obstacle had gone.</p>
+<p><strong>Separation, on the other hand, settles, and that is enforced rather than hoped for.</strong> It is
+applied to an already-separated sheet after every drag, paste and rotate, so if a second
+application moved wires then what the user is left with would depend on how many times the pass
+happened to run. See "the settling loop" below.</p>
+<h2><a name="The-cases-the-complexity-is-for" class="anchor" href="#The-cases-the-complexity-is-for">The cases the complexity is for</a></h2>
+<p>Most of the machinery in <code>BusWireSeparate</code> — clustering, same-net linking, the repeated passes,
+corner removal — exists for two shapes that are common in real designs and pathological for a
+local heuristic.</p>
+<ul>
+<li>
+<strong>An array of ports facing an array of ports</strong>, with some of the connections crossed. Every wire
+in the bundle wants the same channel, the order they should be in is decided by where they end,
+and one wire's choice constrains every other's. This is what segment ordering
+(<code>orderPairwiseToMinimiseCrossings</code>) is for.
+</li>
+<li>
+<strong>The same, but the two arrays are on opposite sides of a symbol</strong>, so the whole bundle has to
+turn back and go round it. Now the bundle competes with itself on both sides of the obstacle, and
+the segments doing the going-round are exactly the ones that clustering will try to spread.
+</li>
+</ul>
+<p><code>WireQuality.fs</code> holds both (<code>crossedArrays</code>, <code>wrappedArrays</code>). They are worth building first when
+changing anything here: sheets where every wire runs left to right will not show a difference.</p>
+<h2><a name="Routing" class="anchor" href="#Routing">Routing</a></h2>
+<h3><a name="The-initial-shape" class="anchor" href="#The-initial-shape">The initial shape</a></h3>
+<p><code>BusWireUpdateHelpers.autoroute</code> is the whole of the initial layout and does three things.</p>
+<ol>
+<li>
+<strong>Normalise.</strong> <code>rotateStartDest Right</code> rotates both ports 90° at a time until the <em>source</em> port
+faces Right. So the case analysis only has to cope with a wire leaving rightwards, and the
+rotated result is rotated back afterwards (<code>rotateSegments</code>). Everything downstream of this,
+including the comments in <code>BusWireRoute.fs</code> that talk about "the vertical segment", is written
+as if no symbol were ever rotated.
+</li>
+<li>
+<strong>Pick a shape</strong> from a 16-way table in <code>BusWire.makeInitialWireVerticesList</code>: (target left or
+right of source) × (target above or below) × (which edge the target port is on). Each entry is a
+literal vertex list. Most start with <code>rightNub</code> — the stick out of the port plus a zero-length
+segment — and end with a matching stick into the target port.
+</li>
+<li><strong>Convert to segments</strong> by pairwise differencing the vertices.</li>
+</ol>
+<p>The table produces wires of <strong>6, 7, 8 or 9 segments</strong> depending on the case, and anything
+downstream that matches on segment count has to cover all four. <code>tryShiftHorizontalSeg</code> covered
+every count but 8 for a long time and silently returned the wire it was handed, which is a failure
+mode worth recognising: a <code>| _ -&gt; wire.Segments</code> fallthrough in this code does not fail, it routes
+badly. Which count a wire has is not obvious from the sheet, so a test that pins one
+(<code>DrawBlockTests</code>, "a wire into a bottom-edge port") is worth more than reading the table.</p>
+<h3><a name="Getting-out-of-the-way-of-symbols" class="anchor" href="#Getting-out-of-the-way-of-symbols">Getting out of the way of symbols</a></h3>
+<p><code>BusWireRoute.smartAutoroute</code> wraps <code>autoroute</code> with obstacle avoidance:</p>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">autoroute</span>
+  
+                                
+                                          
+                                          
+                                          
+</code></pre>
+<p><code>findWireSymbolIntersections</code> expands every symbol's bounding box by <code>minWireSeparation</code> (7) and
+asks which boxes any <strong>interior</strong> segment crosses — the nubs are excluded from the scan, and the
+box of the symbol a nub belongs to is not expanded, because a wire must be allowed to touch the
+symbol it connects to.</p>
+<p>One exemption is worth knowing about because it is the sharpest edge here. A multiplexer's SEL port
+sits <em>inside</em> its own bounding box — the body is a trapezoid, so the port is drawn in from the
+edge — and the last segments of a wire reaching one therefore have to be allowed into that box.
+Allowed into <strong>that</strong> box: the exemption used to apply to every mux and demux on the sheet, so a
+wire climbing to a SEL port past a <em>different</em> mux could not see it. Nothing was reported as
+intersecting, so no shift was attempted either, and the wire was drawn straight through. On a
+register file — a column of muxes with address wires arriving from below — that is not an edge
+case, it is most of them. <strong>Anything which suppresses the intersection check suppresses the
+avoidance as well</strong>, which makes an over-broad exemption much more expensive than it looks.</p>
+<p><code>tryShiftVerticalSeg</code> slides the wire's one crossing (post-rotation: vertical) segment to just
+outside the leftmost, then the rightmost, edge of the obstacles, by adding to segment 2 and
+subtracting the same amount from segment 4. It accepts the first shift that clears <strong>all</strong>
+intersections, re-running the full check rather than trusting the geometry.</p>
+<p><code>tryShiftHorizontalSeg</code> is the fallback and is recursive, bounded by
+<code>maxCallsToShiftHorizontalSeg</code> (5). For each direction it builds a short list of candidate wires —
+one per movable horizontal segment, each moved to just clear the extreme obstacle — and takes the
+first that is clear. If either direction yields one it takes the shorter, and if neither does it
+recurses on whichever side has the smaller remaining vertical distance to escape. The bound exists
+because there are configurations with no clean route at all — a symbol dragged on top of another,
+for instance — and without it a drag would hang.</p>
+<p>The candidate list is ordered, and the order is the whole point. The shape the segment-count table
+picks comes first, so a wire that routes today routes identically and this is only ever a fallback;
+then the segments which <code>findWireSymbolIntersectionsBySegment</code> says are <em>actually obstructed</em>; then
+the rest. Choosing the segment to move by the wire's segment count — which is what this did — is a
+guess in a place where the obstacle geometry is the answer, and it is why wires into a top or
+bottom edge port used to be left drawn across a component.</p>
+<p>When every one of those still crosses something, a last family is tried which moves <strong>the crossing
+and the turn together</strong>: the horizontal run goes onto the chosen row <em>and</em> the turn which follows it
+goes to a chosen column - hard against either side of the obstacles, or at the destination itself.
+Neither shift can do this alone, because moving a segment sideways cannot change where the wire
+turns and moving the turn cannot change which row the wire crosses on. An obstacle blocking both
+the row a wire leaves on and the row it arrives on needs both at once, and that is the ordinary
+case for reaching a port on a top or bottom edge from beyond an obstacle: the crossing has to
+happen past the obstacle, next to the destination rather than next to the source.</p>
+<p>Putting the crossing next to the destination is what makes these work, and it is worth knowing why
+it is not the natural thing for this code to do: the shape comes from a table indexed on where the
+two ports are, and its intermediate coordinate is a midpoint. Everything the shift code does is a
+correction to that midpoint.</p>
+<p><code>ensureBothNubs</code> runs first because both shift functions address segments by absolute index, and a
+short wire may not have an interior segment there yet; it splits the end segment into
+nub / zero / remainder so the indices mean what the shift code assumes.</p>
+<h3><a name="Branching-off-the-same-net" class="anchor" href="#Branching-off-the-same-net">Branching off the same net</a></h3>
+<p>A wire is routed as a branch off a wire of its own net wherever that is legal:
+<code>BusWireRoute.sameNetRoutes</code> offers one candidate per vertex of every already-routed wire of the
+net, and <code>smartAutoroute</code> takes the first that crosses no symbol.</p>
+<p>The construction is the point. The two wires start at the same port, so the leading segments are
+simply <strong>copied</strong>, and routing carries on from the branch point as though it were a port facing the
+way that wire was going — so the first segment it generates runs <em>along</em> the wire it left before
+turning off. That first segment, and the one after the zero-length segment which follows it, are
+<strong>merged into the shared segment</strong>: a route begins nub, zero, rest, and leaving that zero where it
+falls would put two coincident vertices in the middle of the wire. A zero-length segment belongs
+beside a nub and nowhere else — a separation move which crosses one draws the wire back over
+itself, which is what a spike is. That overlap costs nothing: it is the same net, so <code>linkSameNetLines</code> merges the two
+and they are drawn as one line. It is also why offering only the <em>ends</em> of segments as branch
+points loses nothing — a branch that ought to leave from the middle of a segment leaves at the end
+of the one before and runs back along it.</p>
+<p>Candidates are ordered by how far the branch point is from the destination, nearest first, and the
+ordinary route is one of them: it is the branch at the driver port, where nothing is shared. So the
+wire follows its net for as long as it legally can.</p>
+<p>Two things make this stable rather than a gamble. A shared run <strong>cannot afterwards be separated</strong> —
+separation links same-net segments and moves them as one — so the saving stays saved. And branching
+at a vertex and running parallel produces T-junctions and overlaps, never a <strong>cross-roads</strong>: the net
+does not cross itself, so this does not manufacture the ambiguity that circles exist to resolve.</p>
+<p><strong>Order matters now, and it did not before.</strong> A wire can only branch off a wire that is already
+routed, so what a wire can see depends on what was routed first. <code>redrawWires</code> routes shortest
+first, by straight-line port distance: a short wire has the least freedom in where it can go, so it
+should be in place when a longer wire of the same net comes looking for something to join. Measured
+on the <code>fanout</code> sheet, the same wires routed in an arbitrary order are drawn with <strong>10971</strong> units of
+wire against <strong>9470</strong> shortest-first — a bigger difference than the feature itself makes.</p>
+<p>What this is for is <strong>not</strong> the average sheet. It is the occasional long wire with several
+destinations, where the failure is not that the drawing is 20% longer but that three long wires
+running nearly in parallel across a sheet cannot be read as one signal. <code>longFanout</code> in
+<code>WireQuality.fs</code> is that case.</p>
+<h3><a name="Not-re-routing-partial-autoroute" class="anchor" href="#Not-re-routing-partial-autoroute">Not re-routing: partial autoroute</a></h3>
+<p>When a symbol moves, <code>updateWire</code> tries <code>partialAutoroute</code> before falling back to
+<code>smartAutoroute</code>. It preserves manual routing: it finds the first <code>Manual</code> segment, treats the
+vertex before it as a fixed point, and translates only the segments between the moved port and that
+point. It refuses (returns <code>None</code>, forcing a full re-route) if the port has ended up on a different
+side of the fixed point than it started, or if the wire would now leave its port on the wrong edge.</p>
+<p><code>rerouteMovedWires</code> — which <code>updateWires</code> and <code>routeAndSeparateSymbolWires</code> both are — classifies
+wires by which end moved: both ends moved means keep the shape and move it with them, one end moved
+means re-route from that end (<code>reverseWire</code> lets the same code run from either end), neither means
+leave it alone.</p>
+<p><strong>It takes the routing off every wire it is going to autoroute before it routes any of them</strong>, as
+<code>redrawWires</code> does. Without that, a wire routed as a branch off a wire of its own net could follow
+one that had not been re-routed yet — and a branch takes over the reference wire's start position,
+so the new route was drawn from where the driver port used to be, joined to nothing. Dragging a mux
+in <code>3cpu</code>'s <code>addsub</code> left both of its output wires behind exactly so. It is not a rare corner: a
+drag of the driver of a 24-wire net detached all 24, and "the wiring is fine until you drag
+something, and <em>redraw all wires</em> fixes it" is what it looks like from the outside.</p>
+<p>Stripping first is also what makes the drag as good as a redraw rather than merely correct. Each
+wire can then see the wires of its net that have already been re-routed, so the net is commoned up
+during the drag instead of being left to separation. Measured on the corpus, after dragging the
+busiest driver:</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>sheet</p></th>
+<th><p>wire drawn for the fanned nets</p></th>
+<th><p>if the whole sheet were redrawn</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><code>fanout</code></p></td>
+<td><p>2938</p></td>
+<td><p>2938</p></td>
+</tr>
+<tr class="even">
+<td><p><code>longFanout</code></p></td>
+<td><p>3850</p></td>
+<td><p>3850</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>reg16x8</code></p></td>
+<td><p>12554</p></td>
+<td><p>12597</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Two other orderings were tried and are worse. Routing every wire against the model as it was, with
+<code>sameNetRoutes</code> refusing to follow a wire that is not attached to the driver port, is correct but
+gives up commoning entirely during a drag: <code>fanout</code> 3283 against 2938, and 12 crossings against 4 on
+<code>staggeredFanout</code>. Feeding each result back in <strong>without</strong> stripping first lets a wire follow a
+route that is about to be thrown away: <code>reg16x8</code> 13839 against 12554, and 20 crossings against 8 on
+<code>longFanout</code>.</p>
+<p>Hand-routed wires are the exception and are not stripped: <code>partialAutoroute</code> holds the shape the
+user dragged into place by working from the segments that are already there. They are re-routed
+first so the rest of their net can follow them.</p>
+<p>The other shape this bug takes is worth recognising, because it does not look like a detached wire
+at all. Where the stale wire being followed is one whose destination is on the <em>other</em> side of the
+port, the branch runs to that wire's old midline and turns back, and the net is drawn as a long
+thin loop out of the port with its two wires going opposite ways — visibly not following each
+other, but attached at both ends and so passing every check that looks at endpoints. <code>customPair</code>
+in <code>WireQuality.fs</code> is that case: two custom components 60 apart, one output driving two inputs on
+the far side, and dragging one of them down and left used to produce it.</p>
+<h3><a name="Dead-code-to-know-about" class="anchor" href="#Dead-code-to-know-about">Dead code to know about</a></h3>
+<p><code>snapToNet</code> — 80 lines that make a new wire copy the shape of an existing wire in the same net — is
+unreachable: <code>smartAutoroute</code> matches <code>model.SnapToNet</code> with a wildcard that always keeps the
+unsnapped wire, and the real branch is commented out. <code>copySegments</code> and <code>generateEndSegments</code>
+exist only to serve it.</p>
+<h2><a name="Separation" class="anchor" href="#Separation">Separation</a></h2>
+<p><code>separateAndOrderModelSegments</code> runs after routing, at the end of a drag or a wire creation, when
+there is time to look at the whole sheet. Its job is that parallel segments of different wires
+should be spread <code>maxSegmentSeparation</code> (30) apart, ordered so as to minimise crossings, and <em>not</em>
+spread apart when they belong to the same net (overlapping same-net segments are one visible line,
+which is what you want).</p>
+<h3><a name="The-working-representation" class="anchor" href="#The-working-representation">The working representation</a></h3>
+<p>Horizontal and vertical segments are separated independently, and each pass flattens the problem to
+one dimension. A <code>Line</code> (in <code>BusWireRoutingHelpers.fs</code>) is a segment or a symbol edge reduced to:</p>
+<ul>
+<li><code>P</code> — the coordinate perpendicular to it, the only thing separation changes;</li>
+<li><code>B</code> — the interval it spans along itself, which decides whether two lines are "the same place";</li>
+<li><code>LType</code> — what may be done to it;</li>
+<li><code>SameNetLink</code> — other lines that must move with it.</li>
+</ul>
+<p><code>P</code> and <code>LType</code> are <code>mutable</code>, the lines live in an array sorted by <code>P</code>, and <code>Lid</code> is that array
+index. The module then works by mutation, which is against the grain of the rest of the draw block
+and is deliberate: this runs on every drag and the alternative is rebuilding the array per move.
+Read the mutation as scoped — the array is built, mutated and consumed inside one call, and
+<code>adjustSegmentsInModel</code> is the single point where the result re-enters the immutable model.</p>
+<p><code>makeLines</code> builds the array for one orientation, per pass:</p>
+<table>
+<thead>
+<tr class="header">
+<th><p><code>LType</code></p></th>
+<th><p>comes from</p></th>
+<th><p>may it move?</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><code>BARRIERPOS</code> / <code>BARRIERNEG</code></p></td>
+<td><p>the two edges of a symbol's bounding box</p></td>
+<td><p>never; stops a cluster</p></td>
+</tr>
+<tr class="even">
+<td><p><code>FIXEDMANUALSEG</code></p></td>
+<td><p>a <code>Manual</code> segment, or any segment of a wire not being routed</p></td>
+<td><p>never</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>FIXEDSEG</code></p></td>
+<td><p>a segment next to a zero-length segment — i.e. one continuing the straight line out of a nub</p></td>
+<td><p>not by clustering; only by <code>separateFixedSegments</code></p></td>
+</tr>
+<tr class="even">
+<td><p><code>NORMSEG</code></p></td>
+<td><p>anything else interior and non-zero</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>LINKEDSEG</code></p></td>
+<td><p>a same-net segment linked to another</p></td>
+<td><p>it follows its link</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Nubs (index 0 and last) and zero-length segments are never lines at all, and neither is any segment
+of a wire shorter than <code>minWireLengthToSeparate</code> (10) end to end — short wires stay straight rather
+than becoming squiggly.</p>
+<h3><a name="The-four-steps" class="anchor" href="#The-four-steps">The four steps</a></h3>
+<p><strong>1. Link same-net segments.</strong> <code>linkSameNetLines</code> groups lines by output port and, within a group,
+merges lines that are close in <code>P</code> and overlapping in <code>B</code>: one line keeps the union of the bounds
+and a list of the others in <code>SameNetLink</code>, and the others become <code>LINKEDSEG</code> so clustering ignores
+them. This is what keeps a fan-out drawn as a single trunk instead of <em>n</em> parallel lines 30 apart.</p>
+<p><strong>This is the only thing in either pass that knows a net exists</strong>, so how far it reaches decides how
+well a net is drawn. Its capture distance is <code>sameNetTrunkCapture</code> (10), and it was
+<code>modernCirclePositionTolerance</code> (2) — which answers a different question. That constant is how close
+two coordinates must be to count as the <em>same point</em>, when <code>updateCirclesOnNet</code> works out where a
+net crosses itself: a circle is drawn at a cross-roads to say that the four wires meeting there are
+one net and not two crossing. Two units is the right answer to "is this the same place"; it is the
+wrong answer to "are these close enough to be one line".</p>
+<p>And two units is nothing: a sink port a couple of units off its neighbours' gives that wire a trunk
+segment 2 away from theirs, which is then not linked, is <code>NORMSEG</code> where theirs are <code>FIXEDSEG</code>, and
+so is the only one of them that can move. Separation duly pushed it a full <code>maxSegmentSeparation</code>
+clear of a trunk it was 2 units from. <code>staggeredFanout</code> in <code>WireQuality.fs</code> is that sheet, and it is
+what a fan-out looks like whenever the components are not in a column.</p>
+<p>Note what linking can and cannot do. It <strong>merges lines that are already nearly coincident</strong> — it is
+an attraction of last resort, not a construction. It cannot bring together two wires of a net whose
+routes bend in different places, because their trunk segments are nowhere near each other to start
+with. That needs routing to know about the net, which is what <code>sameNetRoutes</code> is for — below.</p>
+<p><strong>2. Cluster.</strong> <code>makeClusters</code> walks the <code>P</code>-sorted array and repeatedly grows a cluster around the
+lowest not-yet-clustered movable line: <code>expandCluster</code> searches upward until it hits a gap larger
+than the cluster could possibly need, or a barrier (symbol edge or fixed segment) which is recorded
+as <code>UpperFix</code>; then searches downward from the top of what it found, using the union of bounds
+gathered on the way up, which can pick up lines the upward pass could not see. Only lines whose
+<code>B</code> overlaps the running cluster bound join. Every movable line ends in exactly one cluster —
+<code>makeClusters</code> asserts this and logs (once) if a line is ever orphaned.</p>
+<p>A cluster's <code>Bound</code> is the union of its members' spans, and a union is as wide as its widest
+member — so it says almost nothing about where any particular segment is. Two things follow, and
+between them they are the whole subtlety of this code. The downward search deliberately reuses the
+wider bound from the upward one, because that is how it finds segments the first search could not
+see. But a bound carried over to a cluster with <em>different membership</em> silently changes which
+barriers apply: a symbol edge that only ever obstructed a segment now in another cluster will stop
+this one's search, and every segment beyond it is dropped. Recompute the bound whenever the
+membership changes.</p>
+<p><strong>3. Order and place.</strong> For each cluster, <code>orderPairwiseToMinimiseCrossings</code> sorts its segments into
+the order that produces the fewest crossings. Whether two wires cross depends on which of the two
+is placed first and on nothing else, so a cluster's crossings are the <strong>sum over its pairs</strong>, and
+<code>numCrossingsSign</code> is one term of that sum: which way round a pair is cheaper, by looking at which
+way each wire turns at the two ends of its segment.</p>
+<p>It returns <strong>zero for most pairs</strong>, and that is not a gap in it — a pair whose spans <em>nest</em> costs
+one crossing whichever way round it goes, and in a bundle fanning out from one place most pairs
+nest (22 of the 36 pairs in one cluster on <code>reg16x8</code>). What comes back is therefore a <strong>partial
+order</strong>: definite about some pairs, genuinely indifferent about the rest.</p>
+<p>It is treated as one. The relation is completed to a partial order, the longest chain in it is
+found, and that chain's minimal element is placed — nothing else can go before it, since a chain of
+that length hangs off it — then removed, and the process repeats. A segment the relation is silent
+about sits in no long chain and falls out wherever its own preferences allow, which is the right
+answer to a genuine indifference.</p>
+<p>This was a bubble sort over <strong>adjacent</strong> pairs, which cannot carry a segment past a run of segments
+it ties with to reach the one that has an opinion about it, so every tie was settled by wherever
+routing happened to leave the segment. On <code>reg16x8</code> that cost 22 crossings out of 103.</p>
+<p>Three orderings that sound plausible are worse, and each was measured before being discarded.
+Barycentre — place each segment near the mean of what its two arms reach to, which is what layered
+graph drawing would use — doubles the crossings on <code>wrappedArrays</code>, where wires double back and
+the arms predict nothing. Scoring each segment by the sum of its preferences against all the others
+gets <code>reg16x8</code> only to 87 and costs 2% more wire. Taking the largest subset the relation orders
+completely and fitting the others around it costs <code>tangle</code> six crossings and its ability to settle
+in one pass.</p>
+<p><code>calcSegPositions</code> then assigns the actual coordinates, and the interesting part is what happens
+near a boundary: segments are placed a full <code>maxSegmentSeparation</code> away from a <strong>fixed</strong> bound (a
+symbol edge), but only spread symmetrically about their own midpoint when free. Between two fixed
+bounds too close together, the spacing shrinks to fit rather than the cluster overflowing.</p>
+<p><strong>4. Write back.</strong> <code>adjustSegmentsInModel</code> first copies each line's new <code>P</code> onto everything in its
+<code>SameNetLink</code>, then converts each <code>P</code> change into a <code>moveSegment</code> on the wire — which, by the
+invariant at the top of this page, cannot move any port.</p>
+<h3><a name="The-settling-loop" class="anchor" href="#The-settling-loop">The settling loop</a></h3>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">repeat</span> <span class="pn">(</span><span class="id">up</span> <span class="k">to</span> <span class="id">maxSettlingRounds</span><span class="pn">)</span><span class="pn">:</span>  <span class="id">separate</span> <span class="id">Horizontal</span> 
+                               <span class="id">keep</span> <span class="id">the</span> <span onmouseout="hideTip(event, 'fs3', 3)" onmouseover="showTip(event, 'fs3', 3)" class="id">round</span> <span class="id">only</span> <span class="k">if</span> <span class="id">wiringCost</span> <span class="id">improved</span>
+<span class="id">separateFixedSegments</span> <span class="id">Horizontal</span> 
+<span class="id">removeModelCorners</span>
+</code></pre>
+<p>The two orientations are separated <strong>independently</strong>, and that is what makes the pass fast: each
+is a one-dimensional problem over a sorted array. They are not independent in the answer, though —
+where a horizontal segment can go depends on where the vertical segments it joins ended up — so the
+passes alternate, and repeating the alternation resolves most of the coupling.</p>
+<p>Not all of it. Some pairs of decisions are mutually exclusive: doing what H wants means undoing
+what V did, and the other way about. Alternating then <strong>oscillates</strong> instead of converging. This
+was a fixed sequence of five passes, which on such a sheet landed on whichever phase the count
+ended on — so the wiring depended on how many passes there happened to be, and running the pass
+again flipped it.</p>
+<p>The loop replaces the count with a decision. <code>wiringCost</code> scores the sheet — wire drawn, plus a
+heavy penalty for two nets drawn on top of each other — and a round is kept only if it improved
+that score by more than <code>settlingTolerance</code>. Three properties follow, and they are the reason for
+the shape:</p>
+<ul>
+<li>
+<strong>Idempotence.</strong> The pass returns what it was given unless it can show it improved it, so
+applying it again changes nothing. That is a property of the acceptance rule, not of the round
+count.
+</li>
+<li><strong>An oscillation resolves to its better phase</strong> rather than flipping for ever.</li>
+<li>
+<strong>Ties break towards not moving</strong>, which is what makes a drawing feel stable to someone dragging
+components.
+</li>
+</ul>
+<p>A round that moves nothing at all is detected without costing anything (<code>adjustSegmentsInModel</code>
+reports whether any segment moved), which is the common case after a drag and the reason the pass
+is now <em>faster</em> than the fixed five: measured on a 192-wire sheet, a drag end went from 62 ms to
+36 ms and re-separating a settled sheet from 41 ms to 16 ms. The first separation of a whole
+unseparated sheet — sheet open, or Ctrl-Shift-R — is slower, 64 ms to 79 ms, because that is where
+the extra rounds are actually earned.</p>
+<p><code>separateFixedSegments</code> then handles what clustering deliberately would not touch: <code>FIXEDSEG</code>s that
+are exactly on top of each other, which it nudges apart into whatever space it can find nearby.</p>
+<p><code>removeModelCorners</code> is cleanup. Separation can leave a wire with a small useless staircase, and
+<code>findWireCorner</code> looks for four consecutive segments where the middle two can be deleted and the
+outer two extended, then checks with <code>isSegmentExtensionOk</code> that the extended segments would not
+run into a symbol or another wire. At most one corner is removed per wire per pass, and the check
+runs against a <code>LineInfo</code> snapshot taken before any corner was removed. <code>removeWireSpikes</code> (called
+from elsewhere) removes the other artifact: a segment that doubles straight back on itself with a
+zero-length segment between.</p>
+<h2><a name="Where-it-is-called-from" class="anchor" href="#Where-it-is-called-from">Where it is called from</a></h2>
+<table>
+<thead>
+<tr class="header">
+<th><p>trigger</p></th>
+<th><p>entry point</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>a new wire is drawn</p></td>
+<td><p><code>BusWireUpdate.newWire</code> → <code>smartAutoroute</code> → <code>updateWireSegmentJumpsAndSeparations</code></p></td>
+</tr>
+<tr class="even">
+<td><p>a symbol is dragged, rotated, scaled</p></td>
+<td><p><code>routeAndSeparateSymbolWires</code> (routes affected wires, then separates all)</p></td>
+</tr>
+<tr class="odd">
+<td><p>Ctrl-Shift-W / menu "separate wires"</p></td>
+<td><p><code>reSeparateWiresFrom</code> — makes segments <code>Auto</code> again, keeps positions, re-separates</p></td>
+</tr>
+<tr class="even">
+<td><p>Ctrl-Shift-R / menu "reroute wires"</p></td>
+<td><p><code>reRouteWiresFrom</code> — full <code>smartAutoroute</code> then separate</p></td>
+</tr>
+<tr class="odd">
+<td><p>a sheet is opened</p></td>
+<td><p>the load path routes each wire, then one global separation</p></td>
+</tr>
+<tr class="even">
+<td><p>Edit &gt; Redraw floating wires</p></td>
+<td><p><code>redrawFloatingWires</code> — every wire without a hand-routed segment is thrown away and routed again, then the sheet is separated</p></td>
+</tr>
+<tr class="odd">
+<td><p>Edit &gt; Redraw all wires</p></td>
+<td><p><code>redrawAllWires</code> — the same, hand routing included</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>The two redraw items exist so that a change to routing can be seen over a whole sheet at once:
+everything else re-routes only the wires a drag happens to touch, so a sheet laid out before a
+change keeps most of its old routing and says almost nothing about whether the change helped.
+Neither changes routing or separation — they are the ordinary pair of passes over many wires at
+once. Two details of <em>how</em> they do it are there for what comes next rather than for now:</p>
+<ul>
+<li>
+the routing comes off <strong>all</strong> the chosen wires before any of them is routed, so that no wire is
+routed against a route which is about to be discarded;
+</li>
+<li>they are routed <strong>shortest first</strong>, by the straight-line distance between the two ports.</li>
+</ul>
+<p>Both are immaterial while routing considers only symbols. They stop being immaterial the moment a
+wire is routed with any regard for the wires already there — and shortest-first is the order to
+have then, because a short wire has the least freedom in where it can go, so it should be the one
+already in place when a longer wire of the same net is routed and looking for something to join.
+For the record, the re-route these replace went in <code>Map</code> order, which is by <code>ConnectionId</code> — a
+GUID, so no order at all, and not the same one twice.</p>
+<p><code>separateAndOrderModelSegments</code> takes a list of wires as its SCOPE: only clusters holding one of
+them are touched, so a short list is a local adjustment and every wire id is a whole-sheet pass.
+An empty list means nothing changed and the pass is skipped. Which scope a caller uses follows
+from what changed:</p>
+<ul>
+<li>
+<strong>Adding a wire, dragging a wire segment, un-fixing a wire</strong> — local: the clusters that wire
+runs through. The rest of the sheet was settled a moment ago and owes nothing to this change.
+Manual segments stay fixed either way — <code>makeLines</code> marks them <code>FIXEDMANUALSEG</code>, and no pass
+moves those.
+</li>
+<li>
+<strong>Moving, dropping, rotating, scaling or editing a symbol</strong> — the floating redraw: every wire
+not routed by hand re-routed from scratch, then the whole sheet separated. The symbol's wires
+are not enough: a wire routed AROUND the symbol is not connected to it, and the space the moved
+wires vacate is space other wires should take up. Hand-routed wires are re-attached first
+(<code>rerouteMovedWires</code>, partial routing) and the redraw then leaves them alone.
+</li>
+</ul>
+<p>Whole-sheet separation is safe because the settling loop makes the pass idempotent — a round that
+cannot show it improved the sheet is discarded — so a cluster which is already settled costs a
+little time and changes nothing, while one that is not gets the adjustment it was owed. It is also
+what every test in <code>WireQuality.fs</code> measures, so the whole-sheet behaviour is the one the recorded
+numbers describe; a test pins the local scope too, by putting two circuits far apart and checking
+a local pass leaves the far one alone.</p>
+<h3><a name="The-line-array-is-ordered-totally-and-has-to-be" class="anchor" href="#The-line-array-is-ordered-totally-and-has-to-be">The line array is ordered totally, and has to be</a></h3>
+<p><code>makeLines</code> sorts its lines and then hands out <code>Lid</code> from the position in the array. Everything
+after that reads the array by index: clusters grow by walking neighbours, <code>calcSegPositions</code> works
+along it, and the ordering that minimises crossings breaks ties by arrival. So which of two
+coincident lines comes first is not a presentational detail — it decides where wires end up.</p>
+<p>Lines at the same <code>P</code> are the normal case rather than an edge case: two same-net segments leaving
+one port start life exactly on top of each other. Sorting by <code>P</code> alone left their relative order to
+the sort — and <strong>F#'s <code>Array</code> sorts are stable under Fable but not under .NET</strong>. Fable compiles
+them to JavaScript's <code>Array.prototype.sort</code>, stable since ES2019; on .NET they run on
+<code>System.Array.Sort</code>, an introsort that reorders equal elements. The same sheet, with byte-identical
+routing going in — Map order, generation order and port geometry were all checked equal to the
+last bit — separated one way in the test suite and another way in the application: on the eep1
+<code>TEST1</code>/<code>TEST2</code> pair the tests drew the two-wire net as a single trunk while the app split it into
+a long thin loop out of the port. Which is worse than either answer on its own, because it means
+the recorded numbers in <code>WireQuality.fs</code> described a layout no user ever saw.</p>
+<p>Two fixes, one general and one local. <code>src/Shared/ArraySorts.fs</code> shadows the <code>Array</code> sorts with
+stable ones in both runtimes, the same treatment <code>ListPairs</code> gives the pairwise list functions, so
+no other tying key can reopen the gap. And this sort key is <code>(P, B.MinB, B.MaxB, wire id)</code>, which
+no two lines can share: geometry first, and the wire only as a last resort — better than relying
+on stability, because it ties the order to the drawing rather than to the incidental order the
+lines were generated in.</p>
+<h3><a name="Turns-are-read-through-zero-length-joints-and-tied-ends-are-broken-by-depth" class="anchor" href="#Turns-are-read-through-zero-length-joints-and-tied-ends-are-broken-by-depth">Turns are read through zero-length joints, and tied ends are broken by depth</a></h3>
+<p>Three related defects in the ordering machinery were found through one sheet — two custom
+components with wires wrapping over and under them (<code>customPair</code> in <code>WireQuality.fs</code>) — and each
+had the same symptom: a pair of segments whose order the algorithm should have decided fell to
+arrival order instead.</p>
+<ul>
+<li>
+*<em><code>turnDirs</code> read only the immediately adjacent segment*</em>, and the segment beside a port's nub
+stack is zero-length on nearly every wire. A zero segment is a joint, not a turn: the wire's
+real departure is the first non-zero perpendicular segment beyond it. Reading a joint as
+"sign 0" made the ordering blind at exactly the ends that decide how wires running into a
+column of ports should nest.
+</li>
+<li>
+*<em><code>numCrossingsSign</code> was undefined on tied bounds.*</em> Its case analysis keys on strict bound
+comparison to find the inner end; when two lines' ends coincide - which is what routing produces
+for two wires wrapping the same symbols - both orders fell into the same arm, the function
+answered the same sign for <code>(a, b)</code> and <code>(b, a)</code>, and the preference relation got a 2-cycle.
+What decides a tied end is how <em>deep</em> each wire turns: the one turning further encloses the
+other, so the shorter turn is the inner one (<code>turnLengths</code>).
+</li>
+<li>
+*<em><code>separateFixedSegments</code>' space search counted the escaped net as a wall.*</em> When it moves a
+fixed segment out of an overlap, it looks each way for the nearest obstacle; a line lying on top
+of the overlap - the other wire of the very net being escaped - read as an obstacle at distance
+zero, so that side always looked full and the move went the other way regardless of what was
+actually there. Lines within <code>overlapTolerance</code> of the current position are now ignored: they
+are the overlap, not the wall.
+</li>
+</ul>
+<p>And one invariant restored: <strong>two wires of a net that routing commoned into one trunk can no
+longer be split by a later pass.</strong> The trunk's port-adjacent segments are FIXEDSEG, and
+<code>linkSameNetLines</code> refused a FIXEDSEG follower, so the twins were never tied together and the
+fixed-segment resolver could move each one alone - which is how a two-wire net came to be drawn as
+a long thin loop out of its port. Coincident same-net FIXEDSEGs now link, and a linked pair moves
+as one wherever it is moved from.</p>
+<p>None of the seven corpus sheets moved on any metric when these landed; the <code>customPair</code> sheet went
+from 7 crossings to its topological minimum of 3.</p>
+<h3><a name="What-separation-costs" class="anchor" href="#What-separation-costs">What separation costs</a></h3>
+<p>Measured under .NET (Release, median of 5, warm; the app's JavaScript runs the same code roughly
+2-3x slower). Every sheet of the <code>3cpu</code> project separates in <strong>1.4-7.5 ms</strong> - <code>dpdecode</code>, the
+largest at 78 wires / 375 segments, is 7.5 ms. The end of a drag pays for the floating redraw -
+routing every auto wire plus this separation - which is 32 ms on <code>dpdecode</code>, paid once per drag;
+during the drag itself only the moved symbol's wires are routed, per mouse move. If mouse-up ever
+needs to be cheaper on very large sheets, the targeted cut is to re-route only wires whose routes
+intersect the moved symbol's old or new footprint instead of all of them.</p>
+<p>The cost scales with the <strong>largest cluster</strong>, not the wire count. A synthetic 40-way fan-out (120
+wires, one 80-wire net) takes ~65 ms, of which one vertical pass is 17.5 ms against 3.2 ms for the
+horizontal: the net's segments form a single cluster, and <code>orderPairwiseToMinimiseCrossings</code> -
+pairwise signs, partial-order completion, longest-chain placement - is roughly cubic in cluster
+size (and its full mouse-up redraw is 165 ms). If a real design ever makes that pathological, the
+ordering pass is the thing to optimise;
+<code>makeLines</code>, <code>wiringCost</code>, the fixed-segment resolver and corner removal are all a few ms even
+there, and jump recomputation is negligible.</p>
+<h2><a name="Measuring-it" class="anchor" href="#Measuring-it">Measuring it</a></h2>
+<p>The user-facing requirement is that for <em>any</em> component positions the wiring looks good, which
+breaks down into objectives that conflict:</p>
+<ul>
+<li>
+<strong>Wire drawn</strong> — the length of the <em>union</em> of what is on the canvas, so same-net segments lying
+on top of each other count once. This is the metric to minimise, and the reason to define it as a
+union is that it makes "short wires" and "same-net wires share a trunk" the same objective
+instead of two that have to be traded off by hand.
+</li>
+<li>
+<strong>Bends</strong>, <strong>crossings between different nets</strong>, and <strong>overlap between different nets</strong> (which
+must be zero — it is the one thing separation guarantees).
+</li>
+</ul>
+<p><code>Tests/Issie.Tests/WireQuality.fs</code> computes all of these over a corpus of the hard sheets and
+records the current scores, so a change to either pass has to say which way each number moved. Two
+traps it encodes:</p>
+<ul>
+<li>
+<strong>Crossings are meaningless before separation.</strong> Unseparated wires do not cross, because they are
+lying on top of each other. Anything comparing before and after must read the overlap column
+alongside, or it will conclude that separation makes sheets worse.
+</li>
+<li>
+<strong>Separation is not the place most quality is won or lost.</strong> Measured over the corpus it removes
+every cross-net overlap while adding under 5% to the wire drawn, and adds bends only in the two
+array cases. Length, bends and crossings are decided by the initial route — a 16-entry table with
+no knowledge of other wires — and by where the symbols are.
+</li>
+</ul>
+<h2><a name="Testing-it" class="anchor" href="#Testing-it">Testing it</a></h2>
+<p><code>Tests/Issie.Tests/DrawBlockTests.fs</code> builds symbols, routes wires and runs the whole separation
+pass under plain .NET — no browser, no Electron — via the sheet-description DSL. Assert <em>structure</em>
+(a wire still joins the ports it names; every segment is axis-aligned; no wire was lost) rather
+than coordinates. <code>node scripts/inspect-canvas.js</code> will show what the running app actually drew
+when a test and the app seem to disagree.</p>
+<p>The DSL lays a sheet out for readability, which is the wrong layout for a routing test: <code>movedTo</code>
+puts the symbols where the case under test needs them. Beyond that, two things bite when writing
+one.</p>
+<ul>
+<li>
+*<em><code>string</code> on a port id is not the port id under .NET.*</em> <code>InputPortId</code> and <code>OutputPortId</code> are
+<code>[&lt;Erase&gt;]</code>, so <code>string wire.InputPort</code> gives the bare id in the app and <code>InputPortId "…"</code> under
+.NET, where a <code>Ports</code> lookup then throws. Use <code>inputPortStr</code> / <code>outputPortStr</code>. This is the
+reason routing looked untestable outside Electron for so long.
+</li>
+<li>
+*<em><code>getStartAndEndWirePos</code> returns the second-to-last vertex*</em>, so it is not the function for
+checking where a wire ends. <code>getAbsSegments</code> is.
+</li>
+</ul>
+
+        <div class="fsdocs-tip" id="fs1">type &#39;T list = List&lt;&#39;T&gt;</div>
+<div class="fsdocs-tip" id="fs2">Multiple items<br />val float: value: &#39;T -&gt; float (requires member op_Explicit)<br /><br />--------------------<br />type float = System.Double<br /><br />--------------------<br />type float&lt;&#39;Measure&gt; =
+  float</div>
+<div class="fsdocs-tip" id="fs3">val round: value: &#39;T -&gt; &#39;T (requires member Round)</div>
+
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <ul>
+  <li class="level-1">
+    <a href="#How-a-wire-gets-its-shape">
+      How a wire gets its shape
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-a-wire-is">
+      What a wire is
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Why-it-is-split-into-two-passes">
+      Why it is split into two passes
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#The-cases-the-complexity-is-for">
+      The cases the complexity is for
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Routing">
+      Routing
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#The-initial-shape">
+      The initial shape
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Getting-out-of-the-way-of-symbols">
+      Getting out of the way of symbols
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Branching-off-the-same-net">
+      Branching off the same net
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Not-re-routing-partial-autoroute">
+      Not re-routing: partial autoroute
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Dead-code-to-know-about">
+      Dead code to know about
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Separation">
+      Separation
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#The-working-representation">
+      The working representation
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#The-four-steps">
+      The four steps
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#The-settling-loop">
+      The settling loop
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Where-it-is-called-from">
+      Where it is called from
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#The-line-array-is-ordered-totally-and-has-to-be">
+      The line array is ordered totally, and has to be
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Turns-are-read-through-zero-length-joints-and-tied-ends-are-broken-by-depth">
+      Turns are read through zero-length joints, and tied ends are broken by depth
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#What-separation-costs">
+      What separation costs
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Measuring-it">
+      Measuring it
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Testing-it">
+      Testing it
+    </a>
+  </li>
+</ul>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-details-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

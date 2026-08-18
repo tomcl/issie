@@ -139,6 +139,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/wireRouting.html">
+    How a wire gets its shape
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
 
@@ -334,6 +340,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/wireRouting.html">
+    How a wire gets its shape
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
 
@@ -442,6 +454,67 @@ value it receives that number as "most recent bus width", which is what the prop
 offers as the default width for the next component.
 </li>
 </ul>
+<h2><a name="Wire-routing-and-separation" class="anchor" href="#Wire-routing-and-separation">Wire routing and separation</a></h2>
+<p>How these two passes are meant to work is in <a href="wireRouting.html">wireRouting.md</a>.</p>
+<ul>
+<li>
+<strong>A shift aims 0.0001 clear of a symbol; the check that accepts it demands 7.</strong> The four shift
+sites use <code>smallOffset</code> while <code>findWireSymbolIntersections</code> expands every unconnected symbol's
+box by <code>minWireSeparation</code>, so a shift along the box it is avoiding can never satisfy the test.
+<code>wireSeparationFromSymbol</code> (7) — the constant named for this, and the one the comments say is
+used — appears only in comments. Changing the shifts to clear by 7 made no difference to any
+sweep, so this is latent rather than active.
+</li>
+<li>
+*<em><code>string</code> on an <code>[&lt;Erase&gt;]</code> id means two different things.*</em> <code>InputPortId</code>, <code>OutputPortId</code> and
+friends are erased by Fable, so <code>string portId</code> is the bare id in the app and
+<code>InputPortId "…"</code> under .NET. <code>BusWireRoute</code> used it for five <code>model.Symbol.Ports</code> lookups, which
+therefore threw in any .NET test that routed a wire; those are now <code>inputPortStr</code>/<code>outputPortStr</code>.
+Nothing checks for the pattern, and the same trap is open wherever an erased id meets <code>string</code>,
+<code>sprintf</code> or an interpolation.
+</li>
+<li>
+*<em><code>removeWireSpikes</code> and <code>removeModelSpikes</code> have no callers.*</em> Spike removal is written, exported
+and never run: <code>separateAndOrderModelSegments</code> ends with <code>removeModelCorners</code> and nothing calls
+the spike pass. Either the artifact it removes no longer occurs, in which case delete it, or it
+does and the pass was dropped by accident.
+</li>
+<li>
+*<em><code>hasOverlap</code> and <code>hasNearOverlap</code> each have a clause that can only fire on exact equality.*</em>
+Both write <code>b1.MinB</code> where the third argument should be <code>b1.MaxB</code>. Harmless — the other two
+clauses already decide overlap in every case — but it reads as if it were load-bearing.
+</li>
+<li>
+*<em><code>makeClusters</code> calls the head of a descending-sorted list <code>lowestLoc2Index</code>.*</em> It is the
+highest index, so the test that follows it is not the "did the downward search fail to reach the
+starting segment" check it appears to be. It errs towards the branch that splits off a second
+cluster, which is the safe one.
+</li>
+<li>
+<strong>Zero-length segments turn up in the middle of wires.</strong> They belong beside a nub, where they
+make the first visible segment draggable, and nowhere else: a zero segment mid-wire is two
+coincident vertices - a vertex that is not a vertex - and a separation move which crosses one
+draws the wire back over itself. Redrawing <code>reg16x8</code> from the <code>3cpu</code> fixture leaves 3 of them and
+one such spike, with or without same-net branching, so ordinary routing and separation produce
+them too. <code>removeWireSpikes</code> was written to clean up after this and is called from nowhere;
+removing the cause is better than calling it.
+</li>
+<li>
+<strong>Separation on <code>longFanout</code> beats routing's commoning.</strong> Branching reduces the wire that net is
+drawn with from 4620 to 3960 at routing time, but separation gets the unbranched routes to 3870,
+so after both passes branching is 1% behind there. Worth understanding before more effort goes
+into the routing side.
+</li>
+<li>
+<strong>Dead code kept alive.</strong> <code>snapToNet</code> (and <code>copySegments</code>, <code>generateEndSegments</code>, which serve only
+it) was the first attempt at what <code>sameNetRoutes</code> now does, and is still there and still
+unreachable — it only ever handled 5 or 7 segment unrotated wires and copied from whichever wire
+of the net came first out of a <code>Map</code>. It should go. <code>expandCluster</code>
+computes <code>lowestDownwardsIndex</code> for a guard that is commented out. <code>adjustSegmentsInModel</code> binds
+<code>Option.get line.Seg1</code> and never uses it. The doc comment on <code>Constants.separateCaptureOverlap</code>
+describes <code>maxCornerSize</code>.
+</li>
+</ul>
 <h2><a name="Component-libraries" class="anchor" href="#Component-libraries">Component libraries</a></h2>
 <ul>
 <li>
@@ -521,6 +594,11 @@ so a refresh can be scripted rather than done by hand.
   <li class="level-2">
     <a href="#Parameters">
       Parameters
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Wire-routing-and-separation">
+      Wire routing and separation
     </a>
   </li>
   <li class="level-2">

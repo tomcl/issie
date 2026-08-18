@@ -1138,19 +1138,27 @@ let wiringCost (model: Model) : float =
     swept.Drawn + overlapCostWeight * (swept.Drawn - swept.Covered)
 
 /// Perform complete segment ordering and separation for segments of given orientation.
-///
-/// Every cluster on the sheet is separated, not only those holding a wire that has just changed.
-/// Restricting it to those was worth doing while a separation pass could not be relied on to
-/// return what it was given: re-separating a cluster nothing had touched could move it, so the
-/// drawing shifted about under wires the user had not gone near. The settling loop in
-/// `separateAndOrderModelSegments` makes the pass idempotent - a round which cannot show it
-/// improved the sheet is discarded - so a cluster that is already settled costs a little time and
-/// changes nothing, while one that is not gets the adjustment it was owed. A drag which frees up
-/// space for wires elsewhere on the sheet now has that space taken up.
-let separateModelSegmentsOneOrientation (ori: Orientation) (model: Model) =
+/// wiresToRoute: the clusters worked on are those holding at least one of these wires. Lines are
+/// generated for ALL wires either way - a cluster is defined by everything near it - and passing
+/// every wire id makes this a whole-sheet pass.
+let separateModelSegmentsOneOrientation (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model) =
+
+    /// Change segments only in clusters that contain a wire in wiresToRoute. The other clusters
+    /// are left exactly as found - which is what makes a local pass local.
+    let excludeClustersWithoutWiresToRoute (lines: Line array) =
+        let routable = Set.ofList wiresToRoute
+        let routedLines =
+            lines
+            |> Array.filter (fun line -> routable.Contains line.Wid)
+
+        List.filter (fun (cluster: Cluster) ->
+            cluster.Segments
+            |> List.exists (fun seg -> (Array.exists (fun line -> line.Lid.Index = seg) routedLines)))
+
     let lines = makeLines (Map.keysL model.Wires) ori model
 
     makeClusters lines
+    |> excludeClustersWithoutWiresToRoute lines
     |> List.iter (calcSegPositions model lines)
 
     lines
@@ -1159,19 +1167,20 @@ let separateModelSegmentsOneOrientation (ori: Orientation) (model: Model) =
 
 /// Perform complete wire segment separation and ordering for all orientations.
 ///
-/// `changedWires` says only whether there is anything to do: an empty list means nothing has
-/// moved, and the whole pass is skipped. What is separated is the whole design, every wire of it.
-/// A wire that has not changed can still be in the way of one that has, or be sitting where a wire
-/// that has changed no longer is, and the pass is idempotent - so re-separating a part of the
-/// sheet nothing touched costs a little time and leaves it as it was.
-let separateAndOrderModelSegments (changedWires: ConnectionId list) (model: Model) : Model =
-        if changedWires = [] then
+/// `wiresToRoute` is the SCOPE: only clusters holding one of these wires are touched, so a small
+/// list is a local adjustment and every wire id is a whole-sheet pass. Which to use follows from
+/// what changed. Adding one wire, or dragging a segment of one, disturbs only the clusters that
+/// wire runs through - the rest of the sheet was settled a moment ago and owes nothing to this
+/// change. Moving a SYMBOL is different: its wires may leave clusters anywhere on the sheet, and
+/// the space they vacate is space other wires should take up, so a drag's mouse-up passes every
+/// wire (see the MovingSymbols cases in SheetUpdateHelpers, and routeAndSeparateSymbolWires).
+/// An empty list means nothing changed, and the whole pass is skipped.
+let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Model) : Model =
+        if wiresToRoute = [] then
             model // do nothing
         else
-            let allWires = Map.keysL model.Wires
-
             /// convenience abbreviation
-            let separate = separateModelSegmentsOneOrientation
+            let separate = separateModelSegmentsOneOrientation wiresToRoute
 
             // Horizontal and vertical segments are separated independently, which is what makes
             // this fast: each pass is a one-dimensional problem. The two are not independent
@@ -1212,13 +1221,13 @@ let separateAndOrderModelSegments (changedWires: ConnectionId list) (model: Mode
             // after normal separation there may be "fixed" segments which should be separated because they overlap
             // one run for Vert and then Horiz segments is enough for this
             // TODO - include a comprehensive check for any remaining overlapping wires after this - and fix them
-            |> separateFixedSegments allWires Horizontal
-            |> separateFixedSegments allWires Vertical
+            |> separateFixedSegments wiresToRoute Horizontal
+            |> separateFixedSegments wiresToRoute Vertical
 
             // after the previous two phases there may be artifacts where wires have an unnecessary number of corners.
             // this code attempts to remove such corners if it can be done while keeping routing ok
 
-            |> removeModelCorners allWires // code to clean up some non-optimal routing
+            |> removeModelCorners wiresToRoute // code to clean up some non-optimal routing
 
 
 /// Top-level function to replace updateWireSegmentJumps

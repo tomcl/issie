@@ -741,6 +741,44 @@ let tests =
                        drawn for the multi-wire nets, against %.0f{redrawn} redrawing from nothing")
         }
 
+        test "separating one wire is local; a drag separates everything" {
+            // The scope rule: adding a wire (or dragging one of its segments) separates only the
+            // clusters that wire runs through; moving a symbol separates the whole sheet. Two
+            // circuits far apart pin the first half: region B needs separating - its two wires
+            // are drawn on top of each other - and a local pass scoped to region A's wire must
+            // not touch it, while a whole-sheet pass must fix it.
+            let canvas =
+                canvasOf
+                    (describeSheet "twoRegions"
+                        [ comp "IA" (Input1(1, None)); comp "OA" (Output 1)
+                          comp "IB1" (Input1(1, None)); comp "OB1" (Output 1)
+                          comp "IB2" (Input1(1, None)); comp "OB2" (Output 1) ]
+                        [ "IA" ==> "OA"; "IB1" ==> "OB1"; "IB2" ==> "OB2" ])
+                |> movedTo
+                    [ "IA", { X = 100.; Y = 100. }; "OA", { X = 600.; Y = 100. }
+                      // B: two wires forced onto the same horizontal line, 2000 below A
+                      "IB1", { X = 100.; Y = 2100. }; "OB1", { X = 600.; Y = 2100. }
+                      "IB2", { X = 300.; Y = 2100. }; "OB2", { X = 800.; Y = 2100. } ]
+            let routed = routedModel canvas
+            Expect.isGreaterThan (metricsOf routed).CrossNetOverlap 1.0
+                "the fixture is broken: region B's wires are meant to start out overlapping"
+            let aWire =
+                routed.Wires
+                |> Map.toList
+                |> List.find (fun (_, w) ->
+                    routed.Symbol.Ports[outputPortStr w.OutputPort].HostId
+                    |> fun hid -> routed.Symbol.Symbols[ComponentId hid].Component.Label = "IA")
+                |> fst
+            let local = BusWireSeparate.updateWireSegmentJumpsAndSeparations [ aWire ] routed
+            Expect.isGreaterThan (metricsOf local).CrossNetOverlap 1.0
+                "separating region A's wire reached across the sheet and moved region B"
+            let whole =
+                BusWireSeparate.updateWireSegmentJumpsAndSeparations
+                    (routed.Wires |> Map.toList |> List.map fst) routed
+            Expect.isLessThan (metricsOf whole).CrossNetOverlap 1.0
+                "a whole-sheet pass left region B's wires on top of each other"
+        }
+
         test "wires wrapping the same symbols nest by turn depth" {
             // Two wires wrap over the top of the TEST1/TEST2 pair. Routing gives their top runs
             // identical spans at the same height, so which nests inside which is decided entirely

@@ -311,7 +311,10 @@ let mDownUpdate
                 SnapSegments = emptySnap
                 AutomaticScrolling = false
             }
-            |> Optic.map wire_ (BusWireSeparate.updateWireSegmentJumpsAndSeparations model.SelectedWires)
+            // Dropping a component is a component move: the new symbol's edges are barriers the
+            // whole sheet has to respect, so everything is separated, as at the end of a drag.
+            |> Optic.map wire_ (fun wModel ->
+                BusWireSeparate.updateWireSegmentJumpsAndSeparations (wModel.Wires |> Map.toList |> List.map fst) wModel)
             |> (fun model ->
                         model ,
                         Cmd.batch [ symbolCmd (SymbolT.SelectSymbols model.SelectedComponents)
@@ -738,7 +741,11 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
         // Reset Movement State in Model
         match model.ErrorComponents with
         | [] ->
-            let movingWires = BusWireUpdateHelpers.getConnectedWireIds model.Wire model.SelectedComponents
+            // A symbol drag ends with the WHOLE sheet separated, not just the wires that moved: the
+            // moved wires may leave clusters anywhere, and the space they vacate is space other
+            // wires should take up. A local scope here left the rest of the sheet holding the shape
+            // it had adopted around wires that are no longer there.
+            let movingWires = model.Wire.Wires |> Map.toList |> List.map fst
             match model.SelectedComponents.Length with
                 | s when s < 2 -> 
                     {model with
@@ -766,7 +773,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
             
 
         | _ ->
-            let movingWires = BusWireUpdateHelpers.getConnectedWireIds model.Wire model.SelectedComponents
+            let movingWires = model.Wire.Wires |> Map.toList |> List.map fst
             {model with
                 BoundingBoxes = model.LastValidBoundingBoxes;
                 Action = Idle;

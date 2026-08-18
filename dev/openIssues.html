@@ -458,14 +458,6 @@ offers as the default width for the next component.
 <p>How these two passes are meant to work is in <a href="wireRouting.html">wireRouting.md</a>.</p>
 <ul>
 <li>
-<strong>A shift aims 0.0001 clear of a symbol; the check that accepts it demands 7.</strong> The four shift
-sites use <code>smallOffset</code> while <code>findWireSymbolIntersections</code> expands every unconnected symbol's
-box by <code>minWireSeparation</code>, so a shift along the box it is avoiding can never satisfy the test.
-<code>wireSeparationFromSymbol</code> (7) — the constant named for this, and the one the comments say is
-used — appears only in comments. Changing the shifts to clear by 7 made no difference to any
-sweep, so this is latent rather than active.
-</li>
-<li>
 *<em><code>string</code> on an <code>[&lt;Erase&gt;]</code> id means two different things.*</em> <code>InputPortId</code>, <code>OutputPortId</code> and
 friends are erased by Fable, so <code>string portId</code> is the bare id in the app and
 <code>InputPortId "…"</code> under .NET. <code>BusWireRoute</code> used it for five <code>model.Symbol.Ports</code> lookups, which

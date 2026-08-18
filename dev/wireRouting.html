@@ -1020,6 +1020,25 @@ size (and its full mouse-up redraw is 165 ms). If a real design ever makes that 
 ordering pass is the thing to optimise;
 <code>makeLines</code>, <code>wiringCost</code>, the fixed-segment resolver and corner removal are all a few ms even
 there, and jump recomputation is negligible.</p>
+<h3><a name="Port-anchored-runs-keep-minimum-separation" class="anchor" href="#Port-anchored-runs-keep-minimum-separation">Port-anchored runs keep minimum separation</a></h3>
+<p>Two wires whose ports happen to sit nearly level run alongside each other at whatever distance the
+ports dictate - both runs are FIXEDSEG (port-adjacent), which no cluster pass may move. The
+fixed-segment resolver is the one pass that moves them, and its trigger used to be
+<code>overlapTolerance</code> (2px): near-coincidence was mended, while a pair 4.6px apart - visually
+touching for hundreds of pixels - was nobody's job. Its trigger is now <code>minWireSeparation</code>, and
+because moving a FIXEDSEG puts a jog beside a port, the move is the MINIMUM outward nudge that
+restores minimum separation, split between the two lines by the room each side has - not a leap to
+the roomiest spot. The cost is a small jog where the ports disagree; the regfile8 pair that showed
+this is pinned as a test.</p>
+<h3><a name="How-far-a-wire-clears-a-symbol-it-passes" class="anchor" href="#How-far-a-wire-clears-a-symbol-it-passes">How far a wire clears a symbol it passes</a></h3>
+<p>A wire routed around a symbol clears it by <code>wireSeparationFromSymbol</code> (15px - the pitch between
+two 2-input gate inputs) when there is room. The obstacle boxes the shift sites aim past are
+already expanded by <code>minWireSeparation</code> (7), so the sites clear a further 8 beyond them; for years
+they aimed <code>smallOffset</code> past the expanded box instead, which put every symbol-passing wire at
+exactly 7px - visually touching - while wires in channels sat 15-30 apart. Separation leaves a
+lone wire where routing put it (the settling cost gate rejects pure moves away from a symbol, as
+they only add ink), so routing's clearance is what the user sees; channels may still squeeze
+wires below 15 where space demands, which is the channel machinery's job and unchanged.</p>
 <h3><a name="No-movement-may-take-a-segment-into-a-symbol" class="anchor" href="#No-movement-may-take-a-segment-into-a-symbol">No movement may take a segment into a symbol</a></h3>
 <p>Separation's movers - the cluster pass, linked-net propagation, the fixed-segment resolver - all
 turn their decisions into wire changes through <code>adjustSegmentsInModel</code>, and that is where the one
@@ -1056,14 +1075,18 @@ the trunk then ends where the two leave together. <code>alignSameNetDepartures</
 the moved riser's two neighbour segments, exactly as a segment drag would, and only ever when the
 net's visible drawn length strictly falls - which both chooses the better of the two directions
 and guarantees termination.</p>
-<p>Four guards: the riser's neighbours must keep their directions (a neighbour pushed past zero folds
+<p>Five guards: the riser's neighbours must keep their directions (a neighbour pushed past zero folds
 the wire back over itself); the riser at its new position must stay <code>minWireSeparation</code> clear of
 every same-orientation segment of any other net - the merged riser can be longer than the one it
 joins; it must stay the same distance clear of every symbol; and the moved wire must not cross
 more than it did - sliding a long riser along its trunk sweeps it across other nets'
 perpendicular segments, which neither the drawn length nor the parallel clearance can see, and on
-<code>reg16x8</code> the unguarded version bought its ink with fifteen new crossings. Hand-routed wires are
-left alone entirely.</p>
+<code>reg16x8</code> the unguarded version bought its ink with fifteen new crossings. And the junction a
+merge would leave may have at most THREE arms: evening up two side branches where the trunk also
+continues straight ahead makes a same-net cross-roads - four ways meeting at a point - which
+modern wires cannot draw legally (a four-way meet is exactly what the junction circles exist to
+disambiguate) and which reads badly in every style, so such a merge is refused even when it
+shortens the drawing. Hand-routed wires are left alone entirely.</p>
 <p>Separation and the merge run to a joint fixed point: a merge frees the space its riser vacated,
 the next separation is entitled to take it up, and the loop repeats (bounded) until neither moves
 anything. That is what keeps the combined pass idempotent, which the settling tests demand.</p>
@@ -1223,6 +1246,16 @@ checking where a wire ends. <code>getAbsSegments</code> is.
   <li class="level-3">
     <a href="#What-separation-costs">
       What separation costs
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Port-anchored-runs-keep-minimum-separation">
+      Port-anchored runs keep minimum separation
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#How-far-a-wire-clears-a-symbol-it-passes">
+      How far a wire clears a symbol it passes
     </a>
   </li>
   <li class="level-3">

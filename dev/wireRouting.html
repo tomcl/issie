@@ -1020,24 +1020,58 @@ size (and its full mouse-up redraw is 165 ms). If a real design ever makes that 
 ordering pass is the thing to optimise;
 <code>makeLines</code>, <code>wiringCost</code>, the fixed-segment resolver and corner removal are all a few ms even
 there, and jump recomputation is negligible.</p>
+<h3><a name="No-movement-may-take-a-segment-into-a-symbol" class="anchor" href="#No-movement-may-take-a-segment-into-a-symbol">No movement may take a segment into a symbol</a></h3>
+<p>Separation's movers - the cluster pass, linked-net propagation, the fixed-segment resolver - all
+turn their decisions into wire changes through <code>adjustSegmentsInModel</code>, and that is where the one
+rule they all answer to is enforced: <strong>a move that would take a segment into a symbol box its span
+overlaps, which it is not already inside, is refused</strong> (linked groups as a unit, so a refusal
+cannot split a net; the wire's own two endpoint symbols exempt, since a mux SEL wire legitimately
+enters its own box; already-inside wires may still move, else they could never move out).</p>
+<p>This is an invariant, not a patch, and it is needed because the passes' own bounds cannot express
+it: a cluster carries ONE bound, while which symbol edges apply is a fact about each SEGMENT's
+span - so a segment sharing a cluster with others can be placed across an edge its own span
+overlaps while the cluster's bound, taken from a different member, allows it. That is exactly how
+a wire was dragged through a multiplexer 23px past the bound its own cluster had computed (below).
+The corner-removal pass checks its extensions against the barrier lines itself, and the T-junction
+pass holds the whole moved wire to no-more-symbols-than-before; everything else goes through the
+choke point. The corpus test pins the pipeline-wide consequence: separation never increases
+<code>SymbolCrossings</code> over what routing delivered.</p>
+<h3><a name="Sub-visible-segments-are-joints-not-structure" class="anchor" href="#Sub-visible-segments-are-joints-not-structure">Sub-visible segments are joints, not structure</a></h3>
+<p>A separate concern from the invariant above, though one bug involved both. Ports can be misaligned
+by a fraction of a pixel (custom-component port arithmetic), so a "straight" wire can carry a
+0.04px jog - far longer than <code>IsZero</code>'s 1e-7 epsilon, invisible on screen. Such a segment must not
+be structure: <code>minVisibleSegmentLength</code> (0.5px) governs what <code>makeLines</code> will make a line of (so a
+sub-visible jog cannot be moved, linked, or made the head of a same-net link), what <code>turnFrom</code>
+reads as a turn, and what the T-junction pass treats as a departure. On the eep1 <code>alu</code> sheet a
+0.04px jog became the head of a link whose union bounds were 359px long, and the cluster moved a
+real riser through a multiplexer by moving the invisible stub - the crossing is stopped
+independently by the invariant above, and the stub is kept out of the machinery by this rule.</p>
 <h3><a name="T-junctions-same-net-departures-merged-after-separation" class="anchor" href="#T-junctions-same-net-departures-merged-after-separation">T junctions: same-net departures merged after separation</a></h3>
 <p>The last thing separation does is merge same-net turns. Where two wires of a net run along a
 shared trunk and turn off it at different points, one turn is slid along the trunk onto the other,
-so the net leaves the trunk once, as a T junction: the reader sees one branch instead of two
-near-parallel ones. <code>alignSameNetDepartures</code> does it by adjusting the moved riser's two neighbour
-segments, exactly as a segment drag would, and only ever when the net's visible drawn length
-strictly falls - which both chooses the better of the two directions and guarantees termination.</p>
-<p>Its guards are what make it safe to run last, with no separation after it: the riser's neighbours
-must keep their directions (a neighbour pushed past zero folds the wire back over itself); the
-riser at its new position must stay <code>minWireSeparation</code> clear of every same-orientation segment of
-any other net - the merged riser can be longer than the one it joins, and separation is not coming
-back to fix an overlap; and it must stay the same distance clear of every symbol, for the same
-reason. Hand-routed wires are left alone entirely.</p>
+so the net leaves the trunk once, as a T junction. The departures may head the same way - two
+risers to destinations on the same side, which merge along their shared length - or opposite ways,
+one up and one down, the register-file shape where a Q output feeds the same input of two muxes:
+the trunk then ends where the two leave together. <code>alignSameNetDepartures</code> does it by adjusting
+the moved riser's two neighbour segments, exactly as a segment drag would, and only ever when the
+net's visible drawn length strictly falls - which both chooses the better of the two directions
+and guarantees termination.</p>
+<p>Four guards: the riser's neighbours must keep their directions (a neighbour pushed past zero folds
+the wire back over itself); the riser at its new position must stay <code>minWireSeparation</code> clear of
+every same-orientation segment of any other net - the merged riser can be longer than the one it
+joins; it must stay the same distance clear of every symbol; and the moved wire must not cross
+more than it did - sliding a long riser along its trunk sweeps it across other nets'
+perpendicular segments, which neither the drawn length nor the parallel clearance can see, and on
+<code>reg16x8</code> the unguarded version bought its ink with fifteen new crossings. Hand-routed wires are
+left alone entirely.</p>
+<p>Separation and the merge run to a joint fixed point: a merge frees the space its riser vacated,
+the next separation is entitled to take it up, and the loop repeats (bounded) until neither moves
+anything. That is what keeps the combined pass idempotent, which the settling tests demand.</p>
 <p>On <code>longFanout</code> this is worth 1100 units of drawn wire (9740 to 8615, and the fanned nets from
-3960 to 2835) - more than same-net branch routing itself saves there. On <code>reg16x8</code> the remaining
-unmerged departures are each rejected for cause: the merge would lengthen the drawing (a long mux
-run slid onto a short stub costs more run than the shared riser saves), or another net's riser
-already occupies the target line where the moved riser would land.</p>
+3960 to 2835) - more than same-net branch routing itself saves there. On <code>reg16x8</code> it saves 284
+with crossings unchanged, and every one of the eight register-file nets leaves its trunk as a
+single T. A departure that cannot merge is rejected for cause: the merge would lengthen the
+drawing, cross more, or land on another net's line.</p>
 <h2><a name="Measuring-it" class="anchor" href="#Measuring-it">Measuring it</a></h2>
 <p>The user-facing requirement is that for <em>any</em> component positions the wiring looks good, which
 breaks down into objectives that conflict:</p>
@@ -1189,6 +1223,16 @@ checking where a wire ends. <code>getAbsSegments</code> is.
   <li class="level-3">
     <a href="#What-separation-costs">
       What separation costs
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#No-movement-may-take-a-segment-into-a-symbol">
+      No movement may take a segment into a symbol
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Sub-visible-segments-are-joints-not-structure">
+      Sub-visible segments are joints, not structure
     </a>
   </li>
   <li class="level-3">

@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="SymbolEditMode (issie)" />
+    <meta property="og:title" content="WheelZoom (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="SymbolEditMode (issie)">
+    <meta name="twitter:title" content="WheelZoom (issie)">
     
-    <title>SymbolEditMode (issie) | issie</title>
+    <title>WheelZoom (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -424,7 +424,7 @@
     <div id="content">
         <div>
   <h2>
-    SymbolEditMode Type
+    WheelZoom Type
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
@@ -438,8 +438,8 @@
     </dt>
     <dt>
       Parent Module: 
-      <a href="/issie/reference/drawmodeltype-sheett.html">
-        SheetT
+      <a href="/issie/reference/global-sheet.html">
+        Sheet
       </a>
     </dt>
     <dt>
@@ -448,11 +448,11 @@
     </dt>
     <dt>
       All Interfaces: 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/drawmodeltype-sheett-symboleditmode.html">SymbolEditMode</a>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/sheet-wheelzoom.html">WheelZoom</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
       , 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/drawmodeltype-sheett-symboleditmode.html">SymbolEditMode</a>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/sheet-wheelzoom.html">WheelZoom</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
       , 
@@ -462,12 +462,7 @@
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         What a right-click has made draggable on one custom component.
-
- These used to be reached by holding Ctrl, which meant the affordance appeared on every
- custom component at once, vanished if the key was released or the window lost focus, and
- was undiscoverable. A mode entered from the component's own menu applies to that component
- alone and stays until the user clicks away.
+        
       </p>
     </div>
   </div>
@@ -493,67 +488,95 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4235', 4235)" onmouseover="showTip(event, '4235', 4235)">
+              <code onmouseout="hideTip(event, '5754', 5754)" onmouseover="showTip(event, '5754', 5754)">
                 <p>
-                  <a id="EditPorts">
-                    <a href="#EditPorts">
-                      <code><span>EditPorts</span></code>
+                  <a id="PhysicalWheelZoom">
+                    <a href="#PhysicalWheelZoom">
+                      <code><span>PhysicalWheelZoom&#32;float</span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4235">
+              <div class="fsdocs-tip" id="5754">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>EditPorts</span></code>
+                  <code><span>PhysicalWheelZoom&#32;float</span></code>
                   <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        Item
+                      </b>
+                      :
+                      <code>float</code>
+                    </span>
+                    <br/>
+                  </ul>
                   <br/>
                 </div>
               </div>
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <div class="fsdocs-summary">
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L466-466" class="fsdocs-source-link" title="Source on GitHub">
-                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-              </a>
-              <p class="fsdocs-summary">
-                 drag a port along the symbol's edges
-              </p>
-            </div>
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  Item
+                </span>
+                :
+                <code>float</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
           </td>
         </tr>
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4236', 4236)" onmouseover="showTip(event, '4236', 4236)">
+              <code onmouseout="hideTip(event, '5755', 5755)" onmouseover="showTip(event, '5755', 5755)">
                 <p>
-                  <a id="EditSize">
-                    <a href="#EditSize">
-                      <code><span>EditSize</span></code>
+                  <a id="PinchZoom">
+                    <a href="#PinchZoom">
+                      <code><span>PinchZoom&#32;float</span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4236">
+              <div class="fsdocs-tip" id="5755">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>EditSize</span></code>
+                  <code><span>PinchZoom&#32;float</span></code>
                   <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        Item
+                      </b>
+                      :
+                      <code>float</code>
+                    </span>
+                    <br/>
+                  </ul>
                   <br/>
                 </div>
               </div>
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <div class="fsdocs-summary">
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L468-468" class="fsdocs-source-link" title="Source on GitHub">
-                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-              </a>
-              <p class="fsdocs-summary">
-                 drag a corner to resize the symbol
-              </p>
-            </div>
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  Item
+                </span>
+                :
+                <code>float</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
           </td>
         </tr>
       </tbody>
@@ -581,19 +604,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4237', 4237)" onmouseover="showTip(event, '4237', 4237)">
+              <code onmouseout="hideTip(event, '5756', 5756)" onmouseover="showTip(event, '5756', 5756)">
                 <p>
-                  <a id="IsEditPorts">
-                    <a href="#IsEditPorts">
-                      <code><span>this.IsEditPorts</span></code>
+                  <a id="IsPhysicalWheelZoom">
+                    <a href="#IsPhysicalWheelZoom">
+                      <code><span>this.IsPhysicalWheelZoom</span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4237">
+              <div class="fsdocs-tip" id="5756">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>this.IsEditPorts</span></code>
+                  <code><span>this.IsPhysicalWheelZoom</span></code>
                   <br/>
                   <br/>
                   <span>
@@ -620,19 +643,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4238', 4238)" onmouseover="showTip(event, '4238', 4238)">
+              <code onmouseout="hideTip(event, '5757', 5757)" onmouseover="showTip(event, '5757', 5757)">
                 <p>
-                  <a id="IsEditSize">
-                    <a href="#IsEditSize">
-                      <code><span>this.IsEditSize</span></code>
+                  <a id="IsPinchZoom">
+                    <a href="#IsPinchZoom">
+                      <code><span>this.IsPinchZoom</span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4238">
+              <div class="fsdocs-tip" id="5757">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>this.IsEditSize</span></code>
+                  <code><span>this.IsPinchZoom</span></code>
                   <br/>
                   <br/>
                   <span>

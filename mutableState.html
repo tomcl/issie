@@ -507,7 +507,7 @@ structurally would cost more than recomputing.</p>
 <tbody>
 <tr class="odd">
 <td><p><code>DrawBlock/SheetDisplay.fs</code></p></td>
-<td><p><code>mountedCanvas</code>, <code>modelScrollPos</code> — DOM refs</p></td>
+<td><p><code>mountedCanvas</code>, <code>modelScrollPos</code> — DOM refs; <code>physicalModifierHeld</code> — the shared physical modifier state read by the wheel handler and the keyboard handler; DOM events need it synchronously to distinguish a real Ctrl/Cmd wheel from Chromium's pinch gesture</p></td>
 </tr>
 <tr class="even">
 <td><p><code>DrawBlock/Sheet.fs</code></p></td>
@@ -519,7 +519,7 @@ structurally would cost more than recomputing.</p>
 </tr>
 <tr class="even">
 <td><p><code>UI/KeyBindings.fs</code></p></td>
-<td><p><code>modelContext</code> — a cached projection of the model for DOM handlers, which cannot see it and must decide <code>preventDefault</code> synchronously; <code>ctrlHeld</code> and <code>spaceHeld</code> — physical modifier state, wanted on its edges and across focus loss, and a held key is not something the shortcut table can express; <code>keyLog</code> — debug-only log of what the dispatcher decided</p></td>
+<td><p><code>modelContext</code> — a cached projection of the model for DOM handlers, which cannot see it and must decide <code>preventDefault</code> synchronously; <code>spaceHeld</code> — physical space state, wanted on its edges and across focus loss, and a held key is not something the shortcut table can express; <code>keyLog</code> — debug-only log of what the dispatcher decided</p></td>
 </tr>
 <tr class="odd">
 <td><p><code>Interface/JSHelpers.fs</code></p></td>
@@ -579,7 +579,7 @@ written per keystroke in a large memory table, so measure before moving.
 <p>Not everything in this position moves into <code>Model</code>. A mutable that exists because a <strong>DOM handler
 cannot read the model</strong> — it must decide <code>preventDefault</code> synchronously, and the model is not
 reachable from inside the handler — belongs in the "not model state" table above instead. That is
-what <code>KeyBindings.modelContext</code> and <code>ctrlHeld</code> are.</p>
+what <code>KeyBindings.modelContext</code> and <code>SheetDisplay.physicalModifierHeld</code> are.</p>
 
         
     </div>

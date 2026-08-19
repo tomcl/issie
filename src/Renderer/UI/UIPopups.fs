@@ -741,9 +741,12 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
         | Error _ -> "Unknown: correct schematic error to get size information"
         | Ok cost ->
             let needed = float cost.TotalBytes * float c.LastClock
+            // the number quoted is the one this dialog enforces, so it is the memory bound capped
+            // by the absolute maximum rather than the memory bound alone
+            let maxAllowed = min (FastCreate.maxCyclesFor cost) Constants.maxSimulationSize
             $"Simulating {c.LastClock} cycles of this design needs \
               {SimTypes.SimulationBudget.formatBytes needed} of simulation memory. At most \
-              {FastCreate.maxCyclesFor cost} cycles of it can be simulated."
+              {maxAllowed} cycles of it can be simulated."
 
     /// Too big to simulate at all, rather than merely large. FastCreate.maxCyclesFor is the same
     /// limit the simulator applies when it builds, so OK is disabled here rather than the
@@ -831,8 +834,16 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
                         Input.Color (if hasError "last" then IColor.IsDanger else IColor.IsBlack)
                         Input.OnChange (JSHelpers.getIntEventValue >> setConfigInt lastClock_)
                     ]
-                    str "Note that the waveform simulator will only simulate and scroll up to the current last cycle \
-                         which is much smaller than this unless cursor movement or scroll forces more to be simulated."
+                    div [] [
+                        str "Note that the waveform simulator will only simulate and scroll up to the current last cycle \
+                             which is much smaller than this unless cursor movement or scroll forces more to be simulated."
+                        br []
+                        br []
+                        // the limit this dialog enforces, always on show rather than only in the
+                        // refusal: what may be asked for is the first thing a user raising the
+                        // cycle count wants to know
+                        str (arraySizeMessage initConfig)
+                    ]
                 ]
 
             ]

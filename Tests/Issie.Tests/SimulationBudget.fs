@@ -252,15 +252,28 @@ let tests =
                 "and so does one whose size is not known"
         }
 
-        test "the clock count falls smoothly to the short start, and does not jump at it" {
+        test "below the threshold the configuration is the only limit on the start" {
+            // This used to taper as 40/share below the threshold, which read as a hard limit
+            // nobody had asked for: any design past a few dozen components was quietly started
+            // below its configured cycle count. The cap is now the threshold alone - the
+            // configuration dialog already bounds what may be asked for by what fits in memory.
             let budget = SimulationBudget.maxHeapBytes
-            let atShare share = ModelHelpers.startingLastClock 100000 (share * budget)
-            // 40 / share, so the threshold share of 0.2 is exactly the short start: a design just
-            // under it must not be given hugely more cycles than one just over.
-            Expect.equal (atShare 0.2) ModelHelpers.Constants.shortStartClock "at the threshold"
-            Expect.equal (atShare 0.1) 400 "half the size, twice the cycles"
-            Expect.equal (atShare 0.02) 2000 "a fiftieth of the budget is the ordinary default"
-            Expect.isLessThan (atShare 0.21) (atShare 0.19 + 1) "and nothing jumps upward across it"
+            let atShare share = ModelHelpers.startingLastClock 1_000_000 (share * budget)
+            Expect.equal (atShare 0.19) 1_000_000
+                "just under the threshold the configured value stands, however large"
+            Expect.equal (atShare 0.21) ModelHelpers.Constants.shortStartClock
+                "and just over it the design starts short"
+        }
+
+        test "a real CPU asked for a million cycles is started at a million cycles" {
+            // the regression this guards: 3cpu/eep1 - about 350 expanded components - was being
+            // started at ~75,000 of a configured 1,000,000 cycles by the 40/share taper
+            let ldcs = TestFixtures.loadProject "3cpu"
+            let top = ldcs |> List.find (fun ldc -> ldc.Name = "eep1")
+            let estimate = GraphMerger.expandedHeapEstimate "eep1" top.CanvasState ldcs
+            Expect.isGreaterThan estimate 0.0 "the design must price as something"
+            Expect.equal (ModelHelpers.startingLastClock 1_000_000 estimate) 1_000_000
+                "the start honours the configuration; memory alone is what may refuse it"
         }
 
         test "a design is never started at more cycles than it asked for" {

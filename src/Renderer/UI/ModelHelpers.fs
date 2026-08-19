@@ -53,10 +53,6 @@ module Constants =
     /// The share of the heap budget its expanded design may take before a simulation is started at
     /// shortStartClock rather than at what it was configured for.
     let bigDesignHeapShare = 0.2
-    /// Clock cycles allowed per unit of that share, below the threshold. 40 / share, which is
-    /// exactly shortStartClock at the threshold and grows past any configured number as the design
-    /// gets small - so an ordinary design starts at what it asked for and nothing else changes.
-    let startClockPerHeapShare = 40.0
     let defaultWSConfig = {
             LastClock = 2000; // Simulation array limit during wave simulation
             FirstClock = 0; // first clock accessible - limits scroll range. NOT IMPLEMENTED
@@ -704,16 +700,19 @@ let simulationHeapEstimate (simulatedSheet: string option) (openSheetCanvasState
 /// arrays and another two building 835,000 wave records - all before showing anything. Started
 /// short it is seconds, and the configuration is still there to raise once the user has seen the
 /// design work. This only ever lowers what was asked for.
+///
+/// Only a design past bigDesignHeapShare is touched: for everything else the configured value -
+/// which the waveform configuration dialog bounds by what actually fits in memory
+/// (FastCreate.maxCyclesFor) - is the one cap on a simulation's length. This used to taper the
+/// allowed cycles as 40/share below the threshold, which read as a hard limit nobody had asked
+/// for: a 350-component CPU was quietly started at 75,000 cycles of the 1,000,000 its user
+/// configured, on a machine with room for several times that.
 let startingLastClock (configured: int) (heapEstimate: float) =
     let budget = SimTypes.SimulationBudget.maxHeapBytes
-    if heapEstimate <= 0.0 || budget <= 0.0 then
-        configured
+    if heapEstimate > 0.0 && budget > 0.0 && heapEstimate / budget > Constants.bigDesignHeapShare then
+        min configured Constants.shortStartClock
     else
-        let share = heapEstimate / budget
-        if share > Constants.bigDesignHeapShare then
-            min configured Constants.shortStartClock
-        else
-            min (float configured) (Constants.startClockPerHeapShare / share) |> int
+        configured
 
 let simulateModel (isWaveSim: bool) (simulatedSheet: string option) (simulationArraySize: int) openSheetCanvasState model =
     let start = TimeHelpers.getTimeMs()

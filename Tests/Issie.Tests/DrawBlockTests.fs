@@ -162,6 +162,45 @@ let tests =
             Expect.floatClose Accuracy.high (at "20px") (2. * at "10px") "twice the size, twice the width"
         }
 
+        test "wheel zoom classifies gestures and bounds pinch factors" {
+            match Sheet.wheelZoom 0.0 120.0 true true with
+            | Some (Sheet.PhysicalWheelZoom factor) ->
+                Expect.floatClose Accuracy.high (Sheet.Constants.fineZoomIncrement ** -4.0) factor
+                    "a 120-pixel physical wheel delta is four fine steps"
+            | _ -> failtest "a physical modifier wheel was not classified as discrete zoom"
+
+            match Sheet.wheelZoom 0.0 120.0 true false with
+            | Some (Sheet.PinchZoom factor) ->
+                Expect.floatClose Accuracy.high (1. / Sheet.Constants.maxZoomFactorPerWheelEvent) factor
+                    "a large pinch delta is clamped instead of halving the zoom"
+            | _ -> failtest "a trackpad pinch was not classified as pinch zoom"
+
+            Expect.equal (Sheet.wheelZoom 0.0 120.0 false false) None
+                "an ordinary wheel event must not zoom"
+        }
+
+        test "no single wheel event may zoom by more than the bound" {
+            // a precision touchpad or Magic Mouse sends trackpad-sized deltas while Ctrl is held,
+            // and deltaMode 2 scales a delta of 1 to 800, so both branches must be bounded
+            let factorOf deltaMode deltaY physicalModifierHeld =
+                match Sheet.wheelZoom deltaMode deltaY true physicalModifierHeld with
+                | Some (Sheet.PinchZoom factor) | Some (Sheet.PhysicalWheelZoom factor) -> factor
+                | None -> failtest "a zoom gesture was not classified as a zoom"
+            let bound = Sheet.Constants.maxZoomFactorPerWheelEvent
+            [ 0.0, 400.0, true; 0.0, -400.0, true; 2.0, 1.0, true; 2.0, -1.0, true
+              0.0, 400.0, false; 0.0, -400.0, false; 2.0, 1.0, false; 2.0, -1.0, false ]
+            |> List.iter (fun (deltaMode, deltaY, physical) ->
+                let factor = factorOf deltaMode deltaY physical
+                Expect.isTrue (factor >= 1. / bound && factor <= bound)
+                    $"deltaMode {deltaMode}, deltaY {deltaY}, physical {physical} gave {factor}")
+        }
+
+        test "zoom centering preserves the requested sheet point" {
+            let centre = { X = 240.; Y = 180. }
+            let scroll = Sheet.zoomCenteredScrollPosition centre 1.5 800. 600.
+            Expect.equal scroll { X = -40.; Y = -30. } "the new scroll is computed from the new zoom and viewport"
+        }
+
         test "symbols are built from a canvas with no browser" {
             let comps, _ = canvasOf adderSheet
             let model = modelOf (comps, [])

@@ -300,6 +300,20 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     | UpdateScrollPosFromCanvas(pos) ->
         {model with ScreenScrollPos = pos}, Cmd.none
 
+    | ApplyPendingZoomCenter ->
+        let pendingCenter = model.PendingZoomCenter
+        let model = {model with PendingZoomCenter = None}
+        match pendingCenter with
+        | None -> model, Cmd.none
+        | Some oldScreenCentre ->
+            let canvas = document.getElementById "Canvas"
+            if canvas = null then
+                model, Cmd.none
+            else
+                let scrollPos =
+                    zoomCenteredScrollPosition oldScreenCentre model.Zoom canvas.clientWidth canvas.clientHeight
+                model, sheetCmd (UpdateScrollPos scrollPos)
+
  
     | UpdateScrollPos scrollPos ->
         let scrollDif = scrollPos - model.ScreenScrollPos * (1. / model.Zoom)
@@ -360,15 +374,29 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             sheetCmd (KeepZoomCentered oldScreenCentre)
         | None-> model, Cmd.none
 
-    | KeepZoomCentered oldScreenCentre ->
-        let canvas = document.getElementById "Canvas"
-        let newScreenCentre = getVisibleScreenCentre model
-        let requiredOffset = oldScreenCentre - newScreenCentre
+    | PreciseZoom zoomFactor ->
+        match getScreenEdgeCoords model with
+        | None -> model, Cmd.none
+        | Some edge ->
+            let oldScreenCentre = getVisibleScreenCentre model
+            let unclampedZoom = model.Zoom * zoomFactor
+            let newZoom =
+                if zoomFactor >= 1.0 then
+                    min Constants.maxMagnification unclampedZoom
+                else
+                    let minXZoom = (edge.Right - edge.Left) / model.CanvasSize
+                    let minYZoom = (edge.Top - edge.Bottom) / model.CanvasSize
+                    List.max [unclampedZoom; minXZoom; minYZoom]
 
-        // Update screen so that the zoom is centred around the middle of the screen.
-        canvas.scrollLeft <- canvas.scrollLeft + requiredOffset.X * model.Zoom
-        canvas.scrollTop <- canvas.scrollTop + requiredOffset.Y * model.Zoom
-        model, Cmd.none
+            { model with Zoom = newZoom },
+            sheetCmd (KeepZoomCentered oldScreenCentre)
+
+    | KeepZoomCentered oldScreenCentre ->
+        // Keep the first centre while a burst of zoom messages is waiting for React to commit.
+        // SheetDisplay applies it from an SVG ref callback, after the resized canvas is mounted.
+        match model.PendingZoomCenter with
+        | Some _ -> model, Cmd.none
+        | None -> {model with PendingZoomCenter = Some oldScreenCentre}, Cmd.none
 
     // ManualKeyDown/Up used to live here, synthesising Ctrl+C/V/A/W by keeping a list of held
     // keys and discarding entries older than a second, because keyup was unreliable. KeyBindings
@@ -563,6 +591,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             TmpModel = None
             ScalingTmpModel = None
             Zoom = 1.0
+            PendingZoomCenter = None
             AutomaticScrolling = false
             ScrollingLastMousePos = {Pos={ X = 0.0; Y = 0.0 };Move={X=0.0; Y=0.0}}
             MouseCounter = 0
@@ -909,6 +938,7 @@ let init () =
         CursorType = Default
         LastCursorType = Default
         ScreenScrollPos = { X = 0.0; Y = 0.0 }
+        PendingZoomCenter = None
         LastValidPos = { X = 0.0; Y = 0.0 }
         LastValidSymbol = None
         SymbolEdit = None

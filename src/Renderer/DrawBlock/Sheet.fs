@@ -85,6 +85,16 @@ module Constants =
     let minMagnification = 0.1
     /// factor by which zoom is increased or decreased
     let zoomIncrement = 1.2
+    /// smaller step for physical Ctrl/Cmd-wheel zoom, so a wheel notch is not too coarse
+    let fineZoomIncrement = 1.05
+    /// physical wheel delta represented by one fine zoom step
+    let fineZoomWheelStep = 30.0
+    /// sensitivity for the continuous pinch gesture reported by trackpads
+    let pinchZoomSensitivity = 0.007
+    /// largest zoom change one wheel event may make, in either direction. A precision touchpad
+    /// coalesces scrolling into deltas an order of magnitude larger than a mouse notch, and reports
+    /// them as a physical Ctrl-wheel when Ctrl really is held, so both branches need the bound
+    let maxZoomFactorPerWheelEvent = 1.3
     /// aspect ratio required before align or distribute can be done
     let boxAspectRatio = 2. 
     /// id of the Sheet menu's dropdown, which when pinned covers the left of the canvas. Its width
@@ -112,6 +122,43 @@ module Constants =
             CanvasBorder = 0.5 // minimum scrollable white space border as fraction of circuit size after ctrlW
             CanvasExtensionFraction = 0.1 // fraction of screen size used to extend canvas by when going off edge
         |}
+
+type WheelZoom =
+    | PinchZoom of float
+    | PhysicalWheelZoom of float
+
+let private normalizedWheelDelta deltaMode deltaY =
+    match deltaMode with
+    | 1.0 -> deltaY * 16.0
+    | 2.0 -> deltaY * 800.0
+    | _ -> deltaY
+
+let private clamp minValue maxValue value =
+    min maxValue (max minValue value)
+
+/// Classify a modified wheel event and calculate its zoom factor without touching the DOM.
+let wheelZoom deltaMode deltaY isZoomGesture physicalModifierHeld =
+    if not isZoomGesture then
+        None
+    else
+        let delta = normalizedWheelDelta deltaMode deltaY
+        let bound =
+            clamp (1. / Constants.maxZoomFactorPerWheelEvent) Constants.maxZoomFactorPerWheelEvent
+        if physicalModifierHeld then
+            Constants.fineZoomIncrement ** (-delta / Constants.fineZoomWheelStep)
+            |> bound
+            |> PhysicalWheelZoom
+            |> Some
+        else
+            exp (-delta * Constants.pinchZoomSensitivity)
+            |> bound
+            |> PinchZoom
+            |> Some
+
+/// Calculate the scroll position that keeps a sheet point at the centre of the viewport.
+let zoomCenteredScrollPosition (oldScreenCentre: XYPos) zoom clientWidth clientHeight : XYPos =
+    { X = oldScreenCentre.X * zoom - clientWidth / 2.0
+      Y = oldScreenCentre.Y * zoom - clientHeight / 2.0 }
     
 
 //---------------------------------------Derived constants----------------------------------------//

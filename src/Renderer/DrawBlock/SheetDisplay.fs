@@ -12,6 +12,16 @@ open Operators
 open Sheet
 open SheetSnap
 
+// Chromium reports a trackpad pinch as a wheel event with ctrlKey/metaKey set, even though no
+// physical modifier key is held. This single flag is shared with KeyBindings so the two gestures
+// can be handled differently without keeping a second copy of the same state.
+let mutable private physicalModifierHeld = false
+
+let setPhysicalModifierHeld value =
+    physicalModifierHeld <- value
+
+let isPhysicalModifierHeld () = physicalModifierHeld
+
 /// This actually writes to the DOM a new scroll position.
 /// In the special case that DOM has not yet been created it does nothing.
 let writeCanvasScroll (scrollPos:XYPos) =
@@ -64,10 +74,28 @@ let getDrawBlockPos (ev: Types.MouseEvent) (headerHeight: float) (sheetModel:Mod
         Y = (ev.pageY - headerHeight + sheetModel.ScreenScrollPos.Y) / sheetModel.Zoom
     }
 
-// Ctrl+wheel zoom used to be handled here as well as on the wrapper div in MainView. Both fired
-// on the same bubbled event, so one wheel notch zoomed twice. MainView's is the one kept: it reads
-// the modifier off the event itself rather than off a decaying list of held keys, and it is the
-// one that suppresses the browser's own page zoom.
+/// Every wheel event over the canvas is decided here, and this is a NATIVE listener - registered
+/// non-passive on the document by Renderer.appSubscriptions - not a React one, because React 18
+/// attaches its wheel listeners passively and a passive listener cannot preventDefault.
+///
+/// A wheel that classifies as a zoom gesture - real Ctrl/Cmd held, or the synthetic ctrlKey
+/// Chromium puts on a trackpad pinch - must zoom and only zoom, so its native default (scrolling
+/// the canvas, or the browser's own page zoom) is suppressed even when the factor is too small
+/// to be worth dispatching: Ctrl + a diagonal two-finger scroll must not creep sideways. An
+/// unmodified wheel is left entirely alone, so the canvas scrolls natively as it always has.
+let onCanvasWheel (dispatch: ModelType.Msg -> unit) (e: Browser.Types.Event) =
+    let ev = unbox<Browser.Types.WheelEvent> e
+    let overCanvas =
+        match document.getElementById "Canvas" with
+        | null -> false
+        | canvas -> canvas.contains (unbox ev.target)
+    if overCanvas then
+        match Sheet.wheelZoom ev.deltaMode ev.deltaY (ev.ctrlKey || ev.metaKey) (isPhysicalModifierHeld ()) with
+        | None -> ()
+        | Some (PinchZoom zoomFactor | PhysicalWheelZoom zoomFactor) ->
+            ev.preventDefault ()
+            if abs (zoomFactor - 1.0) > 0.0001 then
+                dispatch (ModelType.Sheet (PreciseZoom zoomFactor))
 
 /// Is the mouse button currently down?
 let mDown (ev:Types.MouseEvent) = ev.buttons <> 0.
@@ -124,27 +152,43 @@ let displaySvgWithZoom
               OnMouseDown (fun ev -> (mouseOp Down ev dispatch headerHeight))
               OnMouseUp (fun ev -> (mouseOp Up ev dispatch headerHeight))
               OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev dispatch headerHeight)
+              // Read the position when the event fires. A programmatic zoom correction can happen
+              // before React commits the next view, so the render-time value may already be stale.
               OnScroll (fun _ ->
-                match scrollOpt with
-                | None -> ()
-                | Some scrollPos ->
-                    if not firstView then
-                        dispatch <| UpdateScrollPosFromCanvas scrollPos)
+                if not firstView then
+                    getScrollProps()
+                    |> Option.iter (fun scrollPos ->
+                        dispatch <| UpdateScrollPosFromCanvas scrollPos))
               let sPos = model.ScreenScrollPos
               match not firstView, scrollOpt with
                 | true, Some scroll ->putScrollProps scroll |> ignore
                 | _ -> ()
+              // Wheel is deliberately not handled here: a React OnWheel is passive and cannot
+              // stop the scroll that accompanies a zoom gesture - see onCanvasWheel above.
         ]
+    let zoomCommitRef : IProp list =
+        match model.PendingZoomCenter with
+        | Some _ ->
+            [ (Ref (fun element ->
+                    if element <> null then
+                        // The ref runs during React's commit. Dispatch immediately so the resulting
+                        // UpdateScrollPos writes the corrected scroll before this rendering task
+                        // can yield to the browser for a paint.
+                        dispatch ApplyPendingZoomCenter)
+              :> IProp) ]
+        | None -> []
+
     div (scrollAttrL @  attrs)
         [
           svg
-            [ Style
-                [
-                    Height sizeInPixels
-                    Width sizeInPixels
-                ]
-              Id "DrawBlockSVGTop"
-            ]
+            (zoomCommitRef @
+                [ Style
+                    [
+                        Height sizeInPixels
+                        Width sizeInPixels
+                    ]
+                  Id "DrawBlockSVGTop"
+                ])
             [ g // group list of elements with list of attributes
                 [ Style [Transform (sprintf "scale(%f)" zoom)]] // top-level transform style attribute for zoom
                     svgReact // the application code

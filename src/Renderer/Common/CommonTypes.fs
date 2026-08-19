@@ -922,6 +922,23 @@ type WSConfig = {
     /// The weight of the waveform display font: 300 = normal, 600 = bold.
     FontWeight: int
 }
+
+/// The zoom multipliers the waveform viewer can sample at. Zooming out samples every Nth cycle,
+/// so the step arrays carry a margin past WSConfig.LastClock of up to the largest multiplier,
+/// plus a few overflow steps - ModelHelpers.waveSimRequiredArraySize computes the exact size a
+/// configuration implies. These live here, beside WSConfig, because the simulator's memory check
+/// (FastCreate) and the configuration dialog sit on opposite sides of the UI boundary and must
+/// agree about what a configuration costs: each once had its own idea of the margin, so a last
+/// clock the dialog allowed could be refused the moment the simulation was built.
+let waveSimMultipliers = [1; 2; 5; 10; 20; 50; 100; 200; 500; 1000]
+
+/// Extra simulation steps the waveform viewer may run past the last sampled cycle.
+let waveSimStepsOverflow = 3
+
+/// The most step-array cycles a WSConfig.LastClock can imply beyond LastClock itself: the
+/// worst-case zoom margin plus the overflow steps. The largest configurable last clock and the
+/// largest array that fits differ by exactly this.
+let waveSimMaxArrayMargin = waveSimStepsOverflow + List.max waveSimMultipliers
     
 
 

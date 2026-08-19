@@ -303,6 +303,20 @@ module SimulationBudget =
     /// renderer holds come out of that same 4GB.
     let mutable maxHeapBytes = 1.0e9
 
+    /// How far past a budget the runtime memory check (FastCreate.checkSimulationFits) lets a
+    /// simulation go before refusing to build it.
+    ///
+    /// The budgets are deliberately conservative - a third of physical where allocation was
+    /// measured to fail just under half, and 0.35 of a heap limit of which roughly 0.7 is
+    /// usable - so there is real margin between "past the budget" and "will crash". The
+    /// configuration dialog holds users to the budgets exactly (FastCreate.maxLastClockFor);
+    /// this headroom exists for the simulation that arrives WITHOUT passing that dialog - a
+    /// LastClock saved into a sheet on a machine with more memory than this one, most commonly -
+    /// which should run if it safely can, not be refused over a bound it only just misses. At
+    /// 1.5 the worst case stays at half of physical for the typed arrays and just over half of
+    /// the heap limit for the BigInt arrays: inside the measured margin on both.
+    let runtimeHeadroom = 1.5
+
     /// Size both budgets to the machine this is running on. Called once from renderer startup.
     ///
     /// physicalBytes comes from process.getSystemMemoryInfo, heapLimitBytes from

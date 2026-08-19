@@ -114,17 +114,43 @@ let tests =
             | Ok _ -> failtest "a simulation needing tens of GB of step arrays should be refused"
         }
 
-        test "the number of cycles the refusal offers is one that is actually allowed" {
-            // the message names a number, and the waveform simulator's configuration repeats it, so
-            // it has to be a number the check itself accepts - and the next one up must not be
+        test "the runtime check enforces the budget with headroom, not to the byte" {
+            // The configuration dialog holds users to the budget exactly; this check is the crash
+            // guard of last resort, for a simulation that arrives without passing the dialog - a
+            // LastClock saved into a sheet on a larger machine, above all. So a little past the
+            // budget still builds, and only well past it is refused.
             let cost = costOf 16
             let fits = FastCreate.maxCyclesFor cost
             Expect.isOk
                 (FastCreate.checkSimulationFits fits cost)
-                "the largest number of cycles reported must itself be accepted"
-            Expect.isError
+                "the budget-sized simulation must be accepted"
+            Expect.isOk
                 (FastCreate.checkSimulationFits (fits + 1) cost)
-                "and one more must not be"
+                "just past the budget is inside the headroom and still builds"
+            let pastHeadroom = int (SimulationBudget.runtimeHeadroom * float fits) + 16
+            Expect.isError
+                (FastCreate.checkSimulationFits pastHeadroom cost)
+                "past the headroom it is refused"
+        }
+
+        test "a last clock the configuration dialog allows is never refused by the build" {
+            // The dialog bounds LastClock; the build bounds LastClock plus the zoom margin the
+            // step arrays carry. Both once quoted and checked the same raw array bound, so the
+            // top of the dialog's range - a value it had just called allowed - failed the moment
+            // Start was pressed, with advice ("simulate at most N") that itself failed too.
+            // maxLastClockFor is the one shared answer.
+            let cost = costOf 16
+            let maxLastClock = FastCreate.maxLastClockFor cost
+            Expect.equal (maxLastClock + CommonTypes.waveSimMaxArrayMargin) (FastCreate.maxCyclesFor cost)
+                "the config bound and the array bound differ by exactly the worst-case margin"
+            // the worst case that margin covers: the largest zoom multiplier in use
+            let ws =
+                { ModelHelpers.initWSModel with
+                    WSConfig = { ModelHelpers.initWSModel.WSConfig with LastClock = maxLastClock }
+                    SamplingZoom = List.max CommonTypes.waveSimMultipliers }
+            Expect.isOk
+                (FastCreate.checkSimulationFits (ModelHelpers.Constants.waveSimRequiredArraySize ws) cost)
+                "the largest value the dialog offers must build"
         }
 
         test "each budget is applied to its own memory" {
@@ -132,9 +158,9 @@ let tests =
             // memory's budget alone, so the two cannot mask each other
             let typedOnly = { TypedArrayBytes = 1000; HeapBytes = 0 }
             let heapOnly = { TypedArrayBytes = 0; HeapBytes = 1000 }
-            let cycles = int (SimulationBudget.maxHeapBytes / 1000.0) + 1
+            let cycles = int (SimulationBudget.runtimeHeadroom * SimulationBudget.maxHeapBytes / 1000.0) + 1
             Expect.isError (FastCreate.checkSimulationFits cycles heapOnly)
-                "past the heap budget, with no typed array use at all"
+                "past the heap budget and its headroom, with no typed array use at all"
             Expect.isOk (FastCreate.checkSimulationFits cycles typedOnly)
                 "the same size in typed arrays is still within the larger budget for them"
         }
@@ -242,38 +268,30 @@ let tests =
         // anything, so a big one starts at a clock count it can be started in and says so.
         //--------------------------------------------------------------------------------------//
 
-        test "a big design starts short and a small one starts where it was asked to" {
+        test "a big design starts its default short, and a small one starts where it was asked to" {
             let budget = SimulationBudget.maxHeapBytes
-            let atShare share = ModelHelpers.startingLastClock 2000 (share * budget)
+            let defaultClock = ModelHelpers.Constants.defaultWSConfig.LastClock
+            let atShare share = ModelHelpers.startingLastClock defaultClock (share * budget)
             Expect.equal (atShare 0.5) ModelHelpers.Constants.shortStartClock
                 "half the heap budget is a design to start short"
-            Expect.equal (atShare 0.001) 2000 "a design of no size starts at what it was configured for"
-            Expect.equal (ModelHelpers.startingLastClock 2000 0.0) 2000
+            Expect.equal (atShare 0.001) defaultClock
+                "a design of no size starts at what it was configured for"
+            Expect.equal (ModelHelpers.startingLastClock defaultClock 0.0) defaultClock
                 "and so does one whose size is not known"
         }
 
-        test "below the threshold the configuration is the only limit on the start" {
-            // This used to taper as 40/share below the threshold, which read as a hard limit
-            // nobody had asked for: any design past a few dozen components was quietly started
-            // below its configured cycle count. The cap is now the threshold alone - the
-            // configuration dialog already bounds what may be asked for by what fits in memory.
+        test "an explicitly configured cycle count is honoured whatever the design's size" {
+            // The regression this guards: main6 of largeTest, configured to 4000 cycles well
+            // inside the limit its own dialog stated, was silently started at 200 - and with the
+            // dialog closed to a running simulation, there was no way to raise it. Only the
+            // untouched default may be started short; a chosen value is a choice.
+            // (An earlier version also tapered the allowed cycles as 40/share below the
+            // threshold, which capped any design past a few dozen components.)
             let budget = SimulationBudget.maxHeapBytes
-            let atShare share = ModelHelpers.startingLastClock 1_000_000 (share * budget)
-            Expect.equal (atShare 0.19) 1_000_000
-                "just under the threshold the configured value stands, however large"
-            Expect.equal (atShare 0.21) ModelHelpers.Constants.shortStartClock
-                "and just over it the design starts short"
-        }
-
-        test "a real CPU asked for a million cycles is started at a million cycles" {
-            // the regression this guards: 3cpu/eep1 - about 350 expanded components - was being
-            // started at ~75,000 of a configured 1,000,000 cycles by the 40/share taper
-            let ldcs = TestFixtures.loadProject "3cpu"
-            let top = ldcs |> List.find (fun ldc -> ldc.Name = "eep1")
-            let estimate = GraphMerger.expandedHeapEstimate "eep1" top.CanvasState ldcs
-            Expect.isGreaterThan estimate 0.0 "the design must price as something"
-            Expect.equal (ModelHelpers.startingLastClock 1_000_000 estimate) 1_000_000
-                "the start honours the configuration; memory alone is what may refuse it"
+            Expect.equal (ModelHelpers.startingLastClock 4000 (0.5 * budget)) 4000
+                "a value the user set stands even on a design past the threshold"
+            Expect.equal (ModelHelpers.startingLastClock 1_000_000 (0.19 * budget)) 1_000_000
+                "and below the threshold, however large the value"
         }
 
         test "a design is never started at more cycles than it asked for" {

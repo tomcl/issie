@@ -56,13 +56,13 @@ let viewSpinnerPopup (spinPayload:SpinPayload) (model: Model) (dispatch: (Msg ->
                 Level.item [] [
                     Button.button [
                         Button.Color IsLight
-                        Button.OnClick (fun _ -> 
+                        Button.OnClick (fun _ ->
                             dispatch ClosePopup)
                     ] [ str "Cancel" ]
                 ]
             ]
         ]
-        
+
     buildPopup spinPayload.Name body foot (fun dispatch _ -> dispatch ClosePopup) [] dispatch model
 
 
@@ -741,20 +741,22 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
         | Error _ -> "Unknown: correct schematic error to get size information"
         | Ok cost ->
             let needed = float cost.TotalBytes * float c.LastClock
-            // the number quoted is the one this dialog enforces, so it is the memory bound capped
-            // by the absolute maximum rather than the memory bound alone
-            let maxAllowed = min (FastCreate.maxCyclesFor cost) Constants.maxSimulationSize
+            // the number quoted is the one this dialog enforces, so it is a LAST CLOCK value -
+            // the array bound less the zoom margin the arrays carry - capped by the absolute
+            // maximum. Quoting the array bound here offered a value the build then refused.
+            let maxAllowed = min (FastCreate.maxLastClockFor cost) Constants.maxSimulationSize
             $"Simulating {c.LastClock} cycles of this design needs \
-              {SimTypes.SimulationBudget.formatBytes needed} of simulation memory. At most \
-              {maxAllowed} cycles of it can be simulated."
+              {SimTypes.SimulationBudget.formatBytes needed} of simulation memory. The last clock \
+              cycle can be set to at most {maxAllowed}."
 
-    /// Too big to simulate at all, rather than merely large. FastCreate.maxCyclesFor is the same
-    /// limit the simulator applies when it builds, so OK is disabled here rather than the
-    /// simulation being refused after the dialog has been closed.
+    /// Too big to simulate at all, rather than merely large. FastCreate.maxLastClockFor accounts
+    /// for the zoom margin the step arrays carry past the last clock, so a value OK accepts here
+    /// is one the build's own memory check (checkSimulationFits) will accept - refusing on the
+    /// bare array bound let the top of the range through, to fail only after Start.
     let sizeIsRefused (c: WSConfig) =
         match designCost with
         | Error _ -> c.LastClock > Constants.maxWarnSimulationSize
-        | Ok cost -> c.LastClock > FastCreate.maxCyclesFor cost
+        | Ok cost -> c.LastClock > FastCreate.maxLastClockFor cost
 
     let errorKeys, messages  =
         let c = model |> Optic.get configDialog_

@@ -295,6 +295,14 @@ let maxCyclesFor (cost: StepCost) : int =
     |> floor
     |> int
 
+/// The largest WSConfig.LastClock a design costing this much can be configured to. maxCyclesFor
+/// bounds the step ARRAYS, and the arrays carry a zoom margin past the last clock - up to
+/// CommonTypes.waveSimMaxArrayMargin - so the two numbers differ by exactly that margin. Every
+/// message that tells the user what may be ASKED for must quote this one: quoting the array
+/// bound as a configuration value told the user to set a number that was itself refused.
+let maxLastClockFor (cost: StepCost) : int =
+    max 0 (maxCyclesFor cost - CommonTypes.waveSimMaxArrayMargin)
+
 /// Refuse a simulation whose step arrays would not fit, before a byte of them is allocated.
 ///
 /// Before rather than after, because the arrays ARE what exhausts memory: a check that had to build
@@ -305,23 +313,31 @@ let maxCyclesFor (cost: StepCost) : int =
 /// A Result and not an exception: this is a limit an ordinary user reaches by asking for a long
 /// waveform simulation of a big design, so it travels the same path as any other simulation error
 /// and is shown the same way, saying what would fit instead.
+///
+/// The line enforced here is the budget times SimulationBudget.runtimeHeadroom, not the budget:
+/// this check is the crash guard of last resort, and the configuration dialog - which holds
+/// users to the budgets exactly - is the advertised limit. The gap is for the simulation that
+/// arrives without passing that dialog, a LastClock saved into a sheet on a larger machine above
+/// all, which should run if it safely can rather than fail the moment Start is pressed. The
+/// advice in the refusal still quotes the dialog's own bound, so following it always works.
 let checkSimulationFits (arraySize: int) (cost: StepCost) : Result<unit, SimulationError> =
     let cycles = float arraySize
 
     let check (bytesPerStep: int) (budget: float) (ofWhat: string) =
         let needed = float bytesPerStep * cycles
-        if bytesPerStep = 0 || needed <= budget then
+        let enforced = budget * SimulationBudget.runtimeHeadroom
+        if bytesPerStep = 0 || needed <= enforced then
             Ok()
         else
             Error
                 { ErrType =
                     GenericSimError
                         $"This design needs {SimulationBudget.formatBytes (float bytesPerStep)} of {ofWhat} for every \
-                          clock cycle, so simulating {arraySize} cycles of it would need \
-                          {SimulationBudget.formatBytes needed} - more than the {SimulationBudget.formatBytes budget} Issie will use. \
-                          Simulate at most {maxCyclesFor cost} cycles - the waveform simulator's last \
-                          clock cycle is set in its configuration - or simulate one subsheet rather \
-                          than the whole design."
+                          clock cycle, so the {arraySize} cycles of step storage this simulation asks for \
+                          (its last clock cycle plus the zoom margin) would need \
+                          {SimulationBudget.formatBytes needed} - more than the {SimulationBudget.formatBytes enforced} Issie will risk. \
+                          Set the waveform simulator's last clock cycle, in its configuration, to at most \
+                          {maxLastClockFor cost}, or simulate one subsheet rather than the whole design."
                   InDependency = None
                   ComponentsAffected = []
                   ConnectionsAffected = [] }

@@ -319,9 +319,10 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
         let wsModel =
             getWSModel model
             |> fun wsModel -> {wsModel with ScrollbarBkgRepCycs= Constants.scrollbarBkgRepCyclesInit}
-            // A simulation being started is given a clock count its design can be started in.
-            // Only on starting: a Refresh of a running simulation keeps what the configuration
-            // says, so raising the clock count there and pressing Refresh does what it looks like.
+            // A simulation being started at the untouched default clock count is given one its
+            // design can be started in - an explicitly configured count is honoured exactly, see
+            // startingLastClock. Only on starting: a Refresh of a running simulation keeps what
+            // the configuration says.
             |> fun wsModel ->
                 match wsModel.State with
                 | Success -> wsModel
@@ -331,9 +332,14 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
                     if lastClock = wsModel.WSConfig.LastClock then
                         wsModel
                     else
-                        Log.warn
+                        let message =
                             $"This design is large, so its waveform simulation starts at {lastClock} clock cycles \
-                              rather than {wsModel.WSConfig.LastClock}. Use Configure to ask for more."
+                              rather than the default {wsModel.WSConfig.LastClock}. Set the cycle count in \
+                              Configure to simulate more."
+                        Log.warn message
+                        // in the UI as well as the log: the console is not where the user who
+                        // wonders why the viewer stops at 200 cycles will be looking
+                        dispatch <| SetSimulationNotification (Notifications.warningSimNotification message)
                         Optic.set (wSConfig_ >-> lastClock_) lastClock wsModel
         let simRes =
             // Here is where the new fast simulation is created

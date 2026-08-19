@@ -27,9 +27,11 @@ module Constants =
     /// gap between two deliberate edits, short enough that the button follows the design rather
     /// than lagging behind it.
     let circuitCheckDelayMs = 300
-    /// Needed to prevent possible overrun of simulation arrays
-    let multipliers = [1;2;5;10;20;50;100;200;500;1000]
-    let maxStepsOverflow = 3
+    /// Needed to prevent possible overrun of simulation arrays. Defined in CommonTypes, beside
+    /// WSConfig, because FastCreate's memory check must agree with the dialog about the array
+    /// size a configuration implies; aliased here for the many existing readers.
+    let multipliers = CommonTypes.waveSimMultipliers
+    let maxStepsOverflow = CommonTypes.waveSimStepsOverflow
 
     /// How many cycles a waveform simulation must hold beyond its last clock.
     ///
@@ -60,6 +62,8 @@ module Constants =
             FontWeight = 500 // weight of text on waveforms
             }
     let maxWarnSimulationSize = 100000
+    /// The absolute ceiling on a waveform simulation's last clock, whatever fits in memory:
+    /// past this the viewer itself cannot display the whole waveform nicely.
     let maxSimulationSize = 4000000
     let minScrollingWindow = 200
 
@@ -701,15 +705,20 @@ let simulationHeapEstimate (simulatedSheet: string option) (openSheetCanvasState
 /// short it is seconds, and the configuration is still there to raise once the user has seen the
 /// design work. This only ever lowers what was asked for.
 ///
-/// Only a design past bigDesignHeapShare is touched: for everything else the configured value -
-/// which the waveform configuration dialog bounds by what actually fits in memory
-/// (FastCreate.maxCyclesFor) - is the one cap on a simulation's length. This used to taper the
-/// allowed cycles as 40/share below the threshold, which read as a hard limit nobody had asked
-/// for: a 350-component CPU was quietly started at 75,000 cycles of the 1,000,000 its user
-/// configured, on a machine with room for several times that.
+/// Only the UNTOUCHED DEFAULT of a design past bigDesignHeapShare is lowered: a value anyone has
+/// set in the configuration dialog is honoured exactly, however big the design. The dialog
+/// already refuses what will not fit in memory (FastCreate.maxLastClockFor), so an explicit
+/// value is one the user has been told the cost of - and overriding it made the configuration a
+/// lie: main6 of largeTest, configured to 4000 cycles well inside its stated limit, was silently
+/// started at 200 with no way to raise it, since the dialog is closed to a running simulation.
+/// The overwrite even outlived the session, because WSConfig is saved in the sheet.
+/// (An earlier version also tapered the allowed cycles as 40/share below the threshold, which
+/// capped a 350-component CPU at 75,000 of its configured 1,000,000 cycles.)
 let startingLastClock (configured: int) (heapEstimate: float) =
     let budget = SimTypes.SimulationBudget.maxHeapBytes
-    if heapEstimate > 0.0 && budget > 0.0 && heapEstimate / budget > Constants.bigDesignHeapShare then
+    if configured = Constants.defaultWSConfig.LastClock
+       && heapEstimate > 0.0 && budget > 0.0
+       && heapEstimate / budget > Constants.bigDesignHeapShare then
         min configured Constants.shortStartClock
     else
         configured

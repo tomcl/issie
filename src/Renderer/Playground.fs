@@ -270,6 +270,86 @@ module WebWorker =
 
             
 
+module Sidecar =
+
+    /// What the latency test sends. Sizes are payload bytes; each size is measured in all three
+    /// directions (echo both ways, upload, download), warmed up untimed first.
+    type SidecarLatencyTestConfig = {
+        PayloadSizes: int list
+        /// untimed round trips before each series, so connection setup is not in the numbers
+        Warmup: int
+        /// timed round trips per size and direction
+        Runs: int
+        /// as Runs, for sizes at or over BigThreshold bytes - big transfers take long enough
+        /// that fewer runs still settle
+        BigRuns: int
+        BigThreshold: int
+    }
+
+    module Constants =
+        let latencyTestConfig = {
+            PayloadSizes = [ 0; 1024; 65536; 1_048_576; 16_777_216 ]
+            Warmup = 2
+            Runs = 10
+            BigRuns = 3
+            BigThreshold = 1_048_576
+        }
+
+    /// Mean round-trip milliseconds over `runs` timed requests, after `warmup` untimed ones.
+    let private runSeries (warmup: int) (runs: int) (cmd: int) (payload: obj) =
+        promise {
+            for _ in [ 1 .. warmup ] do
+                let! _ = SidecarClient.request cmd payload
+                ()
+
+            let mutable total = 0.0
+
+            for _ in [ 1 .. runs ] do
+                let start = TimeHelpers.getTimeMs ()
+                let! _ = SidecarClient.request cmd payload
+                total <- total + TimeHelpers.getInterval start
+
+            return total / float runs
+        }
+
+    /// MB/s for `bytes` moved in `ms` - 0 when the time is too small to divide by.
+    let private throughput (bytes: float) (ms: float) =
+        if ms <= 0.0 then 0.0 else bytes / 1.0e6 / (ms / 1000.0)
+
+    /// Development > Play > Test Sidecar Latency. Output goes to Log.out because it is what was
+    /// asked for; errors (sidecar not up yet, connection dropped) land on Log.error.
+    let testLatency (conf: SidecarLatencyTestConfig) =
+        promise {
+            do! SidecarClient.connect ()
+            Log.out "sidecar latency: mean round trip, renderer <-> dotnet sidecar over a loopback WebSocket"
+
+            for size in conf.PayloadSizes do
+                let runs = if size >= conf.BigThreshold then conf.BigRuns else conf.Runs
+
+                // echo and upload carry the payload up; download asks for that many bytes back
+                let sized () = SidecarClient.makeBytes size
+
+                let downRequest () =
+                    let request = SidecarClient.makeBytes 4
+                    SidecarClient.writeUint32At request 0 (float size)
+                    request
+
+                let! echoMs = runSeries conf.Warmup runs SidecarClient.Constants.echoCmd (sized ())
+                let! upMs = runSeries conf.Warmup runs SidecarClient.Constants.uploadCmd (sized ())
+                let! downMs = runSeries conf.Warmup runs SidecarClient.Constants.downloadCmd (downRequest ())
+
+                let mbs bytes ms = throughput (float (bytes: int)) ms
+
+                Log.out (
+                    $"%9d{size}B x%2d{runs}:  "
+                    + $"echo %8.3f{echoMs}ms (%.1f{mbs (2 * size) echoMs}MB/s)  "
+                    + $"up %8.3f{upMs}ms (%.1f{mbs size upMs}MB/s)  "
+                    + $"down %8.3f{downMs}ms (%.1f{mbs size downMs}MB/s)"
+                )
+        }
+        |> Promise.catch (fun e -> Log.error $"sidecar latency test: {e.Message}")
+        |> ignore
+
 module Misc =
     open DrawModelType
     open ModelType

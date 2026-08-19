@@ -24,11 +24,12 @@
     "dev:once": "node scripts/dev.js --once",
     "start": "cross-env NODE_ENV=development node scripts/start.js",
     "build": "cross-env NODE_ENV=production ELECTRON_ENABLE_LOGGING=true node scripts/build.js",
-    "pack": "npm run compile && npm run build && electron-builder --dir",
+    "pack": "npm run compile && node scripts/publish-sidecar.js && npm run build && electron-builder --dir",
     "audit": "npm audit",
     "predist": "npm run audit",
-    "dist": "npm run compile && npm run build && electron-builder",
+    "dist": "npm run compile && node scripts/publish-sidecar.js && npm run build && electron-builder",
     "buildonly": "electron-builder",
+    "sidecar:publish": "node scripts/publish-sidecar.js",
     "preversion": "node scripts/sync-version.js --preflight",
     "version": "node scripts/sync-version.js && git add src/Renderer/Interface/Version.fs",
     "postversion": "git push origin master --follow-tags",
@@ -40,6 +41,15 @@
     "npmRebuild": false,
     "files": [
       "build/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "build-sidecar/${os}-${arch}",
+        "to": "sidecar",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "extraFiles": [
       {

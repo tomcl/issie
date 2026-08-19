@@ -98,6 +98,7 @@ let shortDisplayMsg (msg:Msg) =
     | SetWSModelAndSheet (ws,s)-> Some $"SetWSModelAndSheet:{s}->{shortDWSM ws}"
     | GenerateWaveforms ws -> Some $"GenerateWaveforms:{shortDWSM ws}"
     | GenerateCurrentWaveforms -> Some $"Generate Current Waveforms"
+    | CancelWaveSimulation -> Some "CancelWaveSimulation"
     | RefreshWaveSim ws -> Some "RefreshWaveSim"
     | SetWaveSheetSelectionOpen _ -> Some "SetWaveSheetSelectionOpen"
     | SetWaveGroupSelectionOpen _

@@ -56,14 +56,19 @@ let viewSpinnerPopup (spinPayload:SpinPayload) (model: Model) (dispatch: (Msg ->
                 Level.item [] [
                     Button.button [
                         Button.Color IsLight
+                        // Not ClosePopup: this popup is not PopupViewFunc but SpinnerPayload,
+                        // whose owner - the waveform simulator's long simulation run - re-arms
+                        // itself after every render. Only CancelWaveSimulation stops the loop;
+                        // closing the popup alone left it running with the popup put straight
+                        // back, which is why Cancel did nothing.
                         Button.OnClick (fun _ ->
-                            dispatch ClosePopup)
+                            dispatch CancelWaveSimulation)
                     ] [ str "Cancel" ]
                 ]
             ]
         ]
 
-    buildPopup spinPayload.Name body foot (fun dispatch _ -> dispatch ClosePopup) [] dispatch model
+    buildPopup spinPayload.Name body foot (fun dispatch _ -> dispatch CancelWaveSimulation) [] dispatch model
 
 
 

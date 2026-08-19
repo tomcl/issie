@@ -410,6 +410,20 @@ let updateUnpinned (msg : Msg) oldModel =
         let ws = getWSModel model
         WaveSimTop.refreshWaveSim false ws model
 
+    | CancelWaveSimulation ->
+        // The simulation-extension loop re-arms itself through RunAfterRenderWithSpinner, so
+        // cancelling means clearing that continuation along with the spinner - nothing else
+        // stops it, which is why the Cancel button that merely closed the popup did not work.
+        // Everything already simulated is kept: the cursor is put on the last simulated cycle,
+        // which also scrolls the view to end there, and regenerates the waveforms for exactly
+        // the cycles that exist.
+        let model = { model with SpinnerPayload = None; RunAfterRenderWithSpinner = None }
+        let fs = Simulator.getFastSim ()
+        if fs.NumStepArrays = 0 then
+            model |> withNoMsg
+        else
+            model |> withMsg (WaveSimNavigation.setClkCycleMsg (getWSModel model) fs.ClockTick)
+
     | SetWaveGroupSelectionOpen (fIdL, show) ->
         model
         |> updateWSModel (fun ws -> WaveSimStyle.setWaveGroupSelectionOpen ws fIdL show)

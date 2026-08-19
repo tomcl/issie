@@ -510,7 +510,10 @@ type Msg =
     /// of the given WaveSimModel
     | GenerateWaveforms of WaveSimModel
     /// Generate waveforms according to the model paramerts of Wavesim
-    | GenerateCurrentWaveforms 
+    | GenerateCurrentWaveforms
+    /// The progress-bar popup's Cancel: stop the long simulation run it is reporting, keeping
+    /// everything simulated so far, with the viewer moved to the last simulated cycle.
+    | CancelWaveSimulation
     /// Run, or rerun, the FastSimulation with the current state of the Canvas.
     | RefreshWaveSim of WaveSimModel
     /// Sets or clears ShowSheetDetail (clearing will remove all child values in the set)

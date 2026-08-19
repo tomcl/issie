@@ -227,6 +227,18 @@ let systemMemoryTotalKB () : float = jsNative
 [<Emit("window.issieBridge.diagnostics.ipcListenerCounts()")>]
 let ipcListenerCounts () : obj = jsNative
 
+// ---- the dotnet sidecar ----
+
+[<Emit("window.issieBridge.sidecar.port()")>]
+let private sidecarPortRaw () : obj = jsNative
+
+/// The sidecar's WebSocket endpoint - (port, token) once it is listening, None while it is still
+/// starting or after it has died. Poll at the moment of connecting; nothing pushes this.
+let sidecarEndpoint () : (int * string) option =
+    match sidecarPortRaw () with
+    | null -> None
+    | v -> Some(unbox v?port, unbox v?token)
+
 // ---- messages to and from main ----
 
 [<Emit("window.issieBridge.ipc.quit()")>]
@@ -329,6 +341,8 @@ let processMemory () : Fable.Core.JS.Promise<obj> =
 let systemMemoryTotalKB () : float = 0.0
 
 let ipcListenerCounts () : obj = box null
+
+let sidecarEndpoint () : (int * string) option = None
 
 let quit () : unit = ()
 let toggleDevTools () : unit = ()

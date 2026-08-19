@@ -255,6 +255,8 @@ let devMenu (dispatch) =
                 (fun ev -> failwithf "User exception from menus")
             makeDebugItem "Test Web Sorker Performance" None
                 (fun _ -> Playground.WebWorker.testWorkers Playground.WebWorker.Constants.workerTestConfig)
+            makeDebugItem "Test Sidecar Latency" None
+                (fun _ -> Playground.Sidecar.testLatency Playground.Sidecar.Constants.latencyTestConfig)
 
         ]
         makeMenuGen (debugLevel > 0) false "Verilog" [

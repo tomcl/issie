@@ -346,6 +346,10 @@ let startRenderer (doAfterReady: BrowserWindow -> Unit) =
         // window's contents start loading - always finds a handler waiting.
         Bridge.register ()
 
+        // The dotnet sidecar starts with the app; its port is answered by issie:sidecarPort
+        // once the process has reported in.
+        Bridge.startSidecar ()
+
         let startApp () =
             if not appStarted then
                 appStarted <- true

@@ -63,6 +63,13 @@ const is = (exe, ...names) => names.some((n) => exe === n || exe === n + '.exe')
 const groups = [
   { what: 'fable', matches: (c, exe) => is(exe, 'dotnet') && /\bfable\b/i.test(c) },
   { what: 'app', matches: (_c, exe) => is(exe, 'electron', 'issie') },
+  // A sidecar orphaned by a killed dev session: the published binary by its name, the dev
+  // `dotnet run` form by the project it names. Plain `dotnet` alone is never enough - see fable.
+  {
+    what: 'sidecar',
+    matches: (c, exe) =>
+      is(exe, 'issie-sidecar') || (is(exe, 'dotnet') && /[\\/]Sidecar\b|issie-sidecar/i.test(c)),
+  },
   {
     what: 'dev server',
     matches: (c, exe) =>

@@ -79,6 +79,13 @@ const api = {
     edit: (op) => sync('issie:window', { op }),
   },
 
+  // The dotnet sidecar: {port, token} once it has reported in, null before then (and again if
+  // it dies) - callers poll at the moment they want to connect. Only a loopback port number and
+  // a token cross here; main owns the process and its executable path.
+  sidecar: {
+    port: () => sync('issie:sidecarPort', null),
+  },
+
   openExternal: (url) => sync('issie:openExternal', url),
   clipboardWrite: (text) => sync('issie:clipboardWrite', text),
 

@@ -94,6 +94,7 @@
     <Compile Include="Interface\FilesIO.fs" />
     <Compile Include="Interface\ComponentLibraries.fs" />
     <Compile Include="Interface\WorkerInterface.fs" />
+    <Compile Include="Interface\SidecarClient.fs" />
 
     <!-- Verilog Component -->
     <Compile Include="VerilogComponent\VerilogTypes.fs" />

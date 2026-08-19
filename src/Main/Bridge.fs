@@ -542,20 +542,28 @@ let rec private attachMenuClicks (send: string -> unit) (items: obj array) =
             let id: string = unbox item?id
             item?click <- (fun _ _ _ -> send id))
 
-let private setApplicationMenu (template: obj array) =
-    match focusedWindow () with
-    | None -> Log.warn "bridge: no window to attach an application menu to"
-    | Some w ->
-        attachMenuClicks (fun id -> w.webContents.send ("application-menu-command", Some(box id))) template
+/// Deliver a clicked item's id to whatever windows are alive at that moment. The window is
+/// looked up per click rather than captured when the menu was registered: registration happens
+/// while the splash is still the focused window, and a handler holding on to the splash throws
+/// "Object has been destroyed" on every click for the rest of the session. Only the app window's
+/// preload listens on this channel, so the send is a no-op for any other window.
+let private sendMenuCommand (id: string) =
+    mainProcess.BrowserWindow.getAllWindows ()
+    |> Seq.iter (fun w ->
+        if not (w.isDestroyed ()) then
+            w.webContents.send ("application-menu-command", Some(box id)))
 
-        match template with
-        | [||] -> mainProcess.Menu.setApplicationMenu None
-        | items ->
-            items
-            |> Array.map (unbox<MenuItemConstructorOptions> >> U2.Case1)
-            |> mainProcess.Menu.buildFromTemplate
-            |> Some
-            |> mainProcess.Menu.setApplicationMenu
+let private setApplicationMenu (template: obj array) =
+    attachMenuClicks sendMenuCommand template
+
+    match template with
+    | [||] -> mainProcess.Menu.setApplicationMenu None
+    | items ->
+        items
+        |> Array.map (unbox<MenuItemConstructorOptions> >> U2.Case1)
+        |> mainProcess.Menu.buildFromTemplate
+        |> Some
+        |> mainProcess.Menu.setApplicationMenu
 
 // ---------------------------------------------------------------------------------------------
 // The FPGA toolchain
@@ -743,6 +751,86 @@ let private runDevTool (request: obj) =
                 Log.error $"dev tool: could not start '{prog}': {e.Message}"
 
 // ---------------------------------------------------------------------------------------------
+// The dotnet sidecar (skeleton)
+//
+// A .NET process serving a WebSocket on loopback, which the renderer talks to directly with the
+// browser WebSocket API - src/Sidecar/Program.fs is the process's half of the contract. Main's
+// part is the same shape as the toolchain above: it owns the executable path and the process,
+// and the renderer only ever learns a loopback port number and a token.
+// ---------------------------------------------------------------------------------------------
+
+/// Process handle belonging to the main process, not model state (docs/mutableState.md).
+let mutable private sidecarProc: ChildProcess option = None
+
+/// 0 until the sidecar has printed its handshake; back to 0 if it exits.
+let mutable private sidecarPort = 0
+
+[<Emit("require('crypto').randomBytes(16).toString('hex')")>]
+let private randomHexToken () : string = jsNative
+
+/// Fresh per app run. The sidecar rejects a connection that does not present it, so nothing else
+/// on the machine can reach the socket just by scanning localhost ports.
+let private sidecarToken = randomHexToken ()
+
+[<Emit("Object.assign({}, process.env, { ISSIE_SIDECAR_TOKEN: $0 })")>]
+let private envWithSidecarToken (token: string) : obj = jsNative
+
+/// Start the sidecar. In development that is `dotnet run`, which builds first when it must - the
+/// port channel below answers null until the handshake lands, so a slow first build costs nothing
+/// but waiting. In production it is the self-contained binary electron-builder placed under
+/// resources/sidecar (scripts/publish-sidecar.js). No respawn on exit: this is a skeleton.
+let startSidecar () =
+    let prog, args =
+        if isDev () then
+            "dotnet", [ "run"; "-c"; "Release"; "--project"; path.join (cwd (), "src", "Sidecar") ]
+        else
+            let exe = if platform () = "win32" then "issie-sidecar.exe" else "issie-sidecar"
+            path.join (resourcesPath (), "sidecar", exe), []
+
+    try
+        let options =
+            {| shell = false
+               env = envWithSidecarToken sidecarToken |}
+            |> toPlainJsObj
+
+        let child = childProcess.spawn (prog, ResizeArray args, options)
+        sidecarProc <- Some child
+
+        // stdout arrives in arbitrary chunks; keep the partial line, parse only complete ones
+        let mutable partialLine = ""
+
+        child.stdout.on (
+            "data",
+            fun (data: obj) ->
+                let lines = (partialLine + string data).Split '\n'
+                partialLine <- Array.last lines
+
+                for line in lines[.. lines.Length - 2] do
+                    let line = line.Trim()
+
+                    if line.StartsWith "SIDECAR_LISTENING " then
+                        sidecarPort <- int (line.Substring "SIDECAR_LISTENING ".Length)
+                        Log.dbg Log.Misc $"sidecar listening on port {sidecarPort}")
+        |> ignore
+
+        child.stderr.on ("data", fun e -> Log.error $"sidecar: {e}") |> ignore
+
+        child.on (
+            "exit",
+            fun code ->
+                Log.dbg Log.Misc $"sidecar exited with {code}"
+                sidecarPort <- 0
+                sidecarProc <- None)
+        |> ignore
+
+        // Belt: take it down with the app. The braces are the sidecar's own stdin-EOF watchdog,
+        // which catches every exit path this handler cannot.
+        mainProcess.app.``on_will-quit`` (fun _ -> sidecarProc |> Option.iter (fun c -> c.kill ()))
+        |> ignore
+    with e ->
+        Log.error $"sidecar: could not start '{prog}': {e.Message}"
+
+// ---------------------------------------------------------------------------------------------
 // The debug UART
 //
 // IS-uart.js requires the native `usb` module, which is exactly the kind of thing a renderer without
@@ -854,6 +942,14 @@ let register () =
     |> ignore
 
     onSync "issie:bootstrap" (fun _ -> box (bootstrap ()))
+
+    // The sidecar's endpoint: null until it has reported in (and again after it dies). Polled by
+    // the renderer at the moment it wants to connect, for the same reason buildStatus is polled.
+    onSync "issie:sidecarPort" (fun _ ->
+        if sidecarPort = 0 then
+            box null
+        else
+            box {| port = sidecarPort; token = sidecarToken |})
 
     // Round-trip self-test. Returns its argument, so a caller can prove the bridge is live and
     // measure what a crossing costs without needing a channel that does real work.

@@ -37,6 +37,33 @@ let Download = 0x03uy
 [<Literal>]
 let SendDesign = 0x04uy
 
+/// Build a simulation of the last-sent design's top sheet. Payload: uint32 LE maxArraySize.
+/// Reply: JSON build report or error.
+[<Literal>]
+let SimBuild = 0x05uy
+
+/// Run the built simulation towards a target cycle within a time budget. Payload: uint32 LE
+/// target cycle, uint32 LE timeout ms (0 = unbounded). Reply: JSON {clockTick, done, ms}.
+/// The caller chunks: repeat until done, cancel by not sending the next chunk - the same
+/// contract the renderer's own progress loop uses.
+[<Literal>]
+let SimRun = 0x06uy
+
+/// The deterministic-stimulus digest text of the last-sent design. Payload: uint32 LE ticks.
+/// Reply: the raw render text (an error reply starts with '{').
+[<Literal>]
+let SimDigest = 0x07uy
+
+/// Drop the simulation session. Empty payload. Reply: JSON.
+[<Literal>]
+let SimEnd = 0x08uy
+
+/// The SimLog ring - one record per simulation build and per run invocation - as a JSON array,
+/// the same shape the renderer's DevHarness simLog command returns for its own runtime.
+/// Empty payload.
+[<Literal>]
+let SimLog = 0x09uy
+
 [<Literal>]
 let ResponseFlag = 0x80uy
 

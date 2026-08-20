@@ -210,6 +210,8 @@ let startCircuitSimulation
     : Result<SimulationData, SimulationError>
     =
 
+    let buildStart = TimeHelpers.getTimeMs ()
+
     match validateCircuitSimulation diagramName canvasState loadedDependencies with
     | Error e -> Error e
     | Ok graph ->
@@ -220,6 +222,14 @@ let startCircuitSimulation
                 let components, _ = canvasState
                 let inputs, outputs = getSimulationIOs components
 
+                // one record per build, in both runtimes - see SimLog
+                SimLog.record
+                    SimLog.SimBuild
+                    diagramName
+                    (fs.FComps.Count + fs.FCustomComps.Count)
+                    0
+                    0
+                    (TimeHelpers.getTimeMs () - buildStart)
 
                 Ok
                     {   FastSim = fs

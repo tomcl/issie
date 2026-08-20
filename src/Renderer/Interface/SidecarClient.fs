@@ -32,6 +32,22 @@ module Constants =
     [<Literal>]
     let sendDesignCmd = 4
 
+    // the simulation session - argument layouts in src/Sidecar/Protocol.fs
+    [<Literal>]
+    let simBuildCmd = 5
+
+    [<Literal>]
+    let simRunCmd = 6
+
+    [<Literal>]
+    let simDigestCmd = 7
+
+    [<Literal>]
+    let simEndCmd = 8
+
+    [<Literal>]
+    let simLogCmd = 9
+
     /// Command byte plus the four bytes of correlation id.
     [<Literal>]
     let headerSize = 5
@@ -184,3 +200,26 @@ let private packStrings (strings: string list) : obj =
 let sendDesign (topSheet: string) (sheetJsons: string list) : JS.Promise<string> =
     request Constants.sendDesignCmd (packStrings (topSheet :: sheetJsons))
     |> Promise.map decodeTextPayload
+
+/// A request whose payload is uint32 LE arguments and whose reply is text.
+let private requestArgs (cmd: int) (args: int list) : JS.Promise<string> =
+    let payload = makeBytes (4 * List.length args)
+    args |> List.iteri (fun i value -> writeUint32At payload (4 * i) (float value))
+    request cmd payload |> Promise.map decodeTextPayload
+
+/// Build a simulation of the last-sent design's top sheet on the sidecar.
+let simBuild (maxArraySize: int) = requestArgs Constants.simBuildCmd [ maxArraySize ]
+
+/// Advance the sidecar's simulation towards a cycle within a millisecond budget (0 = none);
+/// the reply says where the clock got to. Chunk by repeating; cancel by stopping.
+let simRun (targetCycle: int) (timeoutMs: int) =
+    requestArgs Constants.simRunCmd [ targetCycle; timeoutMs ]
+
+/// The sidecar's deterministic-stimulus digest text for the last-sent design (an error reply
+/// starts with '{').
+let simDigest (ticks: int) = requestArgs Constants.simDigestCmd [ ticks ]
+
+let simEnd () = requestArgs Constants.simEndCmd []
+
+/// The sidecar's SimLog ring as JSON - the .NET half of a cross-runtime cost comparison.
+let simLog () = requestArgs Constants.simLogCmd []

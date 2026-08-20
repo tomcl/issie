@@ -111,6 +111,21 @@ let private responseHeader (header: byte array) =
 /// it never holds more than one design's worth.
 let mutable private sheetCache: Map<string, CommonTypes.SimpleSheet> = Map.empty
 
+/// The last design assembled from a SendDesign, which is what the Sim* commands operate on.
+let mutable private lastDesign: CommonTypes.SimpleDesign option = None
+
+/// A response frame whose payload is UTF-8 text.
+let private textResponse (header: byte array) (text: string) =
+    let payload = Text.Encoding.UTF8.GetBytes(text: string)
+    let frame = Array.zeroCreate (Protocol.HeaderSize + payload.Length)
+    Array.blit (responseHeader header) 0 frame 0 Protocol.HeaderSize
+    Array.blit payload 0 frame Protocol.HeaderSize payload.Length
+    frame
+
+/// The uint32 at a byte offset of a command payload, 0 when the payload is too short.
+let private argAt (body: byte array) (offset: int) =
+    if body.Length >= offset + 4 then int (BitConverter.ToUInt32(body, offset)) else 0
+
 /// Serve one connection until it closes or misbehaves.
 let private serve (ws: WebSocket) (ct: CancellationToken) =
     task {
@@ -170,6 +185,7 @@ let private serve (ws: WebSocket) (ct: CancellationToken) =
                     let reply =
                         match outcome with
                         | Ok(design, decoded) ->
+                            lastDesign <- Some design
                             let comps = design.Sheets |> List.sumBy (fun sheet -> sheet.Components.Length)
                             let conns = design.Sheets |> List.sumBy (fun sheet -> sheet.Connections.Length)
 
@@ -185,11 +201,27 @@ let private serve (ws: WebSocket) (ct: CancellationToken) =
                             let safe = e.Replace("\\", "/").Replace("\"", "'").Replace("\n", " ").Replace("\r", " ")
                             sprintf """{"error":"%s"}""" safe
 
-                    let payload = Text.Encoding.UTF8.GetBytes reply
-                    let frame = Array.zeroCreate (Protocol.HeaderSize + payload.Length)
-                    Array.blit (responseHeader header) 0 frame 0 Protocol.HeaderSize
-                    Array.blit payload 0 frame Protocol.HeaderSize payload.Length
-                    do! send ws frame ct
+                    do! send ws (textResponse header reply) ct
+                | Protocol.SimBuild ->
+                    let reply =
+                        match lastDesign with
+                        | None -> """{"error":"no design received - send SendDesign first"}"""
+                        | Some design -> SimSession.build design (max 2 (argAt body 0))
+
+                    do! send ws (textResponse header reply) ct
+                | Protocol.SimRun ->
+                    do! send ws (textResponse header (SimSession.run (argAt body 0) (argAt body 4))) ct
+                | Protocol.SimDigest ->
+                    let reply =
+                        match lastDesign with
+                        | None -> """{"error":"no design received - send SendDesign first"}"""
+                        | Some design -> SimSession.digest design (max 1 (argAt body 0))
+
+                    do! send ws (textResponse header reply) ct
+                | Protocol.SimEnd ->
+                    do! send ws (textResponse header (SimSession.endSession ())) ct
+                | Protocol.SimLog ->
+                    do! send ws (textResponse header (SimLog.recentJson ())) ct
                 | other ->
                     do! ws.CloseAsync(WebSocketCloseStatus.ProtocolError, $"unknown command {other}", ct)
                     running <- false

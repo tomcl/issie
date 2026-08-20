@@ -84,8 +84,8 @@ module Constants =
 
 /// Identifies a segment as wire:index, short enough to read in a log line.
 let logSegmentId (seg:Segment) =
-    let (ConnectionId wIdStr) = seg.WireId
-    $"{wIdStr[0..3]}:{seg.Index}"
+    let (ConnectionId wId) = seg.WireId
+    $"{wId}:{seg.Index}"
 
 let inline getSegmentFromId (model: Model) (segId:SegmentId) =
     let index,Wid = segId
@@ -646,7 +646,7 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
             | n when n < 8 -> 2.5
             | _ -> 3.0
         {
-            key = match wire.WId with | ConnectionId s -> s
+            key = match wire.WId with | ConnectionId s -> string s
             Wire = wire
             ColorP = wire.Color
             StrokeWidthP = strokeWidthP 

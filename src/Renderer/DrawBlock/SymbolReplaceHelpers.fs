@@ -108,7 +108,7 @@ let changeReversedInputs (symModel: Model) (compId: ComponentId) =
 
 let createNewPort no hostID portType = 
             {
-                Id = JSHelpers.uuid ()
+                Id = Helpers.IdAllocator.newPortId ()
                 PortNumber = Some no
                 PortType = portType
                 HostId = hostID

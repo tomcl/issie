@@ -29,16 +29,16 @@ let private paramDefs (defaults: (ParamName * ParamDefinition) list) (slots: (Pa
 
 /// A sheet whose one output width is its parameter W, defaulting to 4.
 let private widthSheet (name: string) =
-    let out = makeComp "o" 1 0 (Output 4) "O"
+    let out = makeComp 1 1 0 (Output 4) "O"
     let wExpr = { Expression = PParameter(ParamName "W"); Constraints = [] }
     makeLdc name
-        (Some (paramDefs [ declares "W" (PInt 4I) ] [ { CompId = "o"; CompSlot = IO "O" }, wExpr ]))
+        (Some (paramDefs [ declares "W" (PInt 4I) ] [ { CompId = 1; CompSlot = IO "O" }, wExpr ]))
         ([ out ], [])
 
 /// An instance of `child` on a parent sheet, binding W to the given expression (or to nothing).
-let private instance (child: LoadedComponent) (id: string) (binding: ParamExpression option) =
+let private instance (child: LoadedComponent) (id: int) (binding: ParamExpression option) =
     let bindings = binding |> Option.map (fun e -> Map [ ParamName "W", e ])
-    makeComp id 0 1 (customOf child [] [ "O", 4 ] bindings) (id.ToUpper())
+    makeComp id 0 1 (customOf child [] [ "O", 4 ] bindings) $"I{id}"
 
 let private sheetOf (name: string) (comps: Component list) =
     makeLdc name None (comps, [])
@@ -58,7 +58,7 @@ let tests =
 
         test "a parameter the user declared turns the vocabulary on" {
             let child = widthSheet "child"
-            let top = sheetOf "top" [ instance child "i1" (Some (PInt 8I)) ]
+            let top = sheetOf "top" [ instance child 1 (Some (PInt 8I)) ]
             Expect.isTrue (ParameterAnalysis.projectDeclaresParams [ top; child ]) "child declares W"
         }
 
@@ -66,7 +66,7 @@ let tests =
             // Placing a parameterised library component must not expose the vocabulary to someone
             // who never asked for it: on the instance those values are presented as settings.
             let child = widthSheet "L1_reg" |> asLibrary "stdlib" "reg"
-            let top = sheetOf "top" [ instance child "i1" (Some (PInt 8I)) ]
+            let top = sheetOf "top" [ instance child 1 (Some (PInt 8I)) ]
             Expect.isFalse (ParameterAnalysis.projectDeclaresParams [ top; child ])
                 "the parameter arrived with the library"
         }
@@ -77,15 +77,15 @@ let tests =
             // The old test was the mere presence of a parameter, which turned the whole top-sheet
             // apparatus on here, where there is nothing whatever to settle.
             let child = widthSheet "child"
-            let top = sheetOf "top" [ instance child "i1" (Some (PInt 8I)) ]
+            let top = sheetOf "top" [ instance child 1 (Some (PInt 8I)) ]
             Expect.isFalse (ParameterAnalysis.projectHasAmbiguousDisplay [ top; child ])
                 "a single instance settles the value by itself"
         }
 
         test "instances that agree are not ambiguous" {
             let child = widthSheet "child"
-            let top = sheetOf "top" [ instance child "i1" (Some (PInt 8I))
-                                      instance child "i2" (Some (PInt 8I)) ]
+            let top = sheetOf "top" [ instance child 1 (Some (PInt 8I))
+                                      instance child 2 (Some (PInt 8I)) ]
             Expect.isFalse (ParameterAnalysis.projectHasAmbiguousDisplay [ top; child ])
                 "both instances give the same value"
         }
@@ -96,8 +96,8 @@ let tests =
         // nothing to choose between - the two paths are both part of the same design.
         test "one design using a sheet at two sizes is not ambiguous" {
             let child = widthSheet "child"
-            let top = sheetOf "top" [ instance child "i1" (Some (PInt 8I))
-                                      instance child "i2" (Some (PInt 16I)) ]
+            let top = sheetOf "top" [ instance child 1 (Some (PInt 8I))
+                                      instance child 2 (Some (PInt 16I)) ]
             Expect.isFalse (ParameterAnalysis.projectHasAmbiguousDisplay [ top; child ])
                 "there is one design, so nothing to ask the user"
         }
@@ -114,8 +114,8 @@ let tests =
             // it at. What would make this ambiguous is the PARENT varying, and the parent is
             // caught on its own account.
             let child = widthSheet "L1_reg" |> asLibrary "stdlib" "reg"
-            let top = sheetOf "top" [ instance child "i1" (Some (PInt 8I))
-                                      instance child "i2" (Some (PInt 16I)) ]
+            let top = sheetOf "top" [ instance child 1 (Some (PInt 8I))
+                                      instance child 2 (Some (PInt 16I)) ]
             Expect.isFalse (ParameterAnalysis.projectHasAmbiguousDisplay [ top; child ])
                 "the sheet the instances disagree about cannot be opened"
         }
@@ -123,8 +123,8 @@ let tests =
         test "two independent designs using one sheet at different widths are ambiguous" {
             // Merging across forest roots is deliberate: opening child, which design is it part of?
             let child = widthSheet "child"
-            let topA = sheetOf "topA" [ instance child "i1" (Some (PInt 8I)) ]
-            let topB = sheetOf "topB" [ instance child "i2" (Some (PInt 16I)) ]
+            let topA = sheetOf "topA" [ instance child 1 (Some (PInt 8I)) ]
+            let topB = sheetOf "topB" [ instance child 2 (Some (PInt 16I)) ]
             Expect.isTrue (ParameterAnalysis.projectHasAmbiguousDisplay [ topA; topB; child ])
                 "the two roots disagree about child"
         }
@@ -140,7 +140,7 @@ let tests =
 
         test "one instance setting a value gives that value, not the stored one" {
             let child = widthSheet "child"
-            let top = sheetOf "top" [ instance child "i1" (Some (PInt 8I)) ]
+            let top = sheetOf "top" [ instance child 1 (Some (PInt 8I)) ]
             Expect.equal (displayOf [ top; child ] "top" "child" "W")
                 (Some (ParameterAnalysis.Values [ 8I ]))
                 "the sheet stores 4 and the instance binds 8: 8 is what the sheet is used at"
@@ -150,7 +150,7 @@ let tests =
         // child's stored value, and it was reported in the same shape as one an instance had set.
         test "an instance that binds nothing leaves the value unsettled" {
             let child = widthSheet "child"
-            let top = sheetOf "top" [ instance child "i1" None ]
+            let top = sheetOf "top" [ instance child 1 None ]
             Expect.equal (displayOf [ top; child ] "top" "child" "W")
                 (Some (ParameterAnalysis.NotUsed 4I))
                 "nothing sets W, so the stored value stands in - which is what greys it in the pane"
@@ -181,8 +181,8 @@ let tests =
         // taken so that the sheet has one definite value, and the others are shown beside it.
         test "instances that differ give every value, largest first" {
             let child = widthSheet "child"
-            let top = sheetOf "top" [ instance child "i1" (Some (PInt 8I))
-                                      instance child "i2" (Some (PInt 16I)) ]
+            let top = sheetOf "top" [ instance child 1 (Some (PInt 8I))
+                                      instance child 2 (Some (PInt 16I)) ]
             Expect.equal (displayOf [ top; child ] "top" "child" "W")
                 (Some (ParameterAnalysis.Values [ 16I; 8I ]))
                 "distinct and descending, so the head is the one the sheet is drawn at"
@@ -194,8 +194,8 @@ let tests =
 
         test "two designs setting a sheet differently is the case that needs a choice" {
             let child = widthSheet "child"
-            let topA = sheetOf "topA" [ instance child "i1" (Some (PInt 8I)) ]
-            let topB = sheetOf "topB" [ instance child "i2" (Some (PInt 16I)) ]
+            let topA = sheetOf "topA" [ instance child 1 (Some (PInt 8I)) ]
+            let topB = sheetOf "topB" [ instance child 2 (Some (PInt 16I)) ]
             Expect.isTrue (ParameterAnalysis.projectHasAmbiguousDisplay [ topA; topB; child ])
                 "the two designs are both right and no rule can pick between them"
         }
@@ -206,7 +206,7 @@ let tests =
         // and no popup fired, because nothing was ambiguous.
         test "a stray sheet does not stop other sheets knowing their design" {
             let child = widthSheet "child"
-            let top = sheetOf "top" [ instance child "i1" (Some (PInt 8I)) ]
+            let top = sheetOf "top" [ instance child 1 (Some (PInt 8I)) ]
             let scratch = sheetOf "scratch" []
             Expect.equal (ParameterAnalysis.effectiveTopSheetFor [ top; child; scratch ] "child") "top"
                 "child sits under exactly one root, whatever else the project holds"
@@ -247,7 +247,7 @@ let tests =
 
         test "a sheet takes the value its design sets, in its parameters and on its canvas" {
             let child = widthSheet "child"
-            let top = sheetOf "top" [ instance child "i1" (Some (PInt 16I)) ]
+            let top = sheetOf "top" [ instance child 1 (Some (PInt 16I)) ]
             let after = ParameterAnalysis.propagateParameterValues [ top; child ]
             Expect.equal (paramOf after "child" "W") (Some (PInt 16I))
                 "the stored value follows the design rather than staying at 4"
@@ -257,7 +257,7 @@ let tests =
 
         test "propagation is idempotent" {
             let child = widthSheet "child"
-            let top = sheetOf "top" [ instance child "i1" (Some (PInt 16I)) ]
+            let top = sheetOf "top" [ instance child 1 (Some (PInt 16I)) ]
             let once = ParameterAnalysis.propagateParameterValues [ top; child ]
             let twice = ParameterAnalysis.propagateParameterValues once
             Expect.equal (List.map (fun (l: LoadedComponent) -> l.CanvasState) twice)
@@ -276,9 +276,9 @@ let tests =
 
         test "differing instances leave the sheet at the largest, with the rest recorded" {
             let child = widthSheet "child"
-            let top = sheetOf "top" [ instance child "i1" (Some (PInt 8I))
-                                      instance child "i2" (Some (PInt 16I))
-                                      instance child "i3" (Some (PInt 4I)) ]
+            let top = sheetOf "top" [ instance child 1 (Some (PInt 8I))
+                                      instance child 2 (Some (PInt 16I))
+                                      instance child 3 (Some (PInt 4I)) ]
             let after = ParameterAnalysis.propagateParameterValues [ top; child ]
             Expect.equal (paramOf after "child" "W") (Some (PInt 16I)) "drawn at the largest"
             Expect.equal (widthOf after "child" "O") (Some (Output 16)) "canvas to match"
@@ -292,7 +292,7 @@ let tests =
         test "the top sheet's own value is primary and is never rewritten" {
             let child = widthSheet "child"
             let top = { widthSheet "top" with
-                            CanvasState = [ instance child "i1" (Some (PParameter (ParamName "W"))) ], [] }
+                            CanvasState = [ instance child 1 (Some (PParameter (ParamName "W"))) ], [] }
             let after = ParameterAnalysis.propagateParameterValues [ top; child ]
             Expect.equal (paramOf after "top" "W") (Some (PInt 4I))
                 "nothing sets the top, so its stored value stands"
@@ -302,7 +302,7 @@ let tests =
 
         test "a flagged top sheet wins over what the instance forest says" {
             let child = widthSheet "child"
-            let top = { sheetOf "top" [ instance child "i1" (Some (PInt 8I)) ] with IsTopSheet = true }
+            let top = { sheetOf "top" [ instance child 1 (Some (PInt 8I)) ] with IsTopSheet = true }
             Expect.equal (ParameterAnalysis.effectiveTopSheetFor [ top; child ] "child") "top"
                 "the user's choice is the design"
         }
@@ -318,11 +318,11 @@ let tests =
             // Every component with a width has a Buswidth slot, so keying on the slot name alone
             // meant one component's box read another's entry - and showed its error, in red, on a
             // component whose own value was fine.
-            let a = ParameterTypes.paramBoxKey (Some "comp-a") Buswidth
-            let b = ParameterTypes.paramBoxKey (Some "comp-b") Buswidth
+            let a = ParameterTypes.paramBoxKey (Some 1) Buswidth
+            let b = ParameterTypes.paramBoxKey (Some 2) Buswidth
             Expect.notEqual a b "two components' width boxes are different boxes"
             Expect.equal (Map.ofList [a, 1; b, 2] |> Map.count) 2 "so they do not share an entry"
-            Expect.equal (ParameterTypes.paramBoxKey None Buswidth).CompId ""
+            Expect.equal (ParameterTypes.paramBoxKey None Buswidth).CompId 0
                 "a popup has no component, and its entries go when the popup closes"
         }
 
@@ -348,7 +348,7 @@ let tests =
 
         // --- repairing the totality invariant on load ---
 
-        let bindingOf (ldcs: LoadedComponent list) (sheet: string) (instId: string) (name: string) =
+        let bindingOf (ldcs: LoadedComponent list) (sheet: string) (instId: int) (name: string) =
             ldcs
             |> List.tryFind (fun ldc -> ldc.Name = sheet)
             |> Option.map (fst << (fun ldc -> ldc.CanvasState))
@@ -360,9 +360,9 @@ let tests =
 
         test "an instance binding nothing is given the sheet's own value" {
             let child = widthSheet "child"
-            let top = sheetOf "top" [ instance child "i1" None ]
+            let top = sheetOf "top" [ instance child 1 None ]
             let repaired = ParameterAnalysis.bindMissingInstanceParams [ top; child ]
-            Expect.equal (bindingOf repaired "top" "i1" "W") (Some (PInt 4I))
+            Expect.equal (bindingOf repaired "top" 1 "W") (Some (PInt 4I))
                 "written down at the value it was already resolving to, so no design changes"
             Expect.isTrue (ParameterAnalysis.everyInstanceBindsEveryParam repaired)
                 "and the invariant the rest of the system is written against now holds"
@@ -370,9 +370,9 @@ let tests =
 
         test "repairing leaves an instance that already binds alone, and is idempotent" {
             let child = widthSheet "child"
-            let top = sheetOf "top" [ instance child "i1" (Some (PInt 16I)) ]
+            let top = sheetOf "top" [ instance child 1 (Some (PInt 16I)) ]
             let once = ParameterAnalysis.bindMissingInstanceParams [ top; child ]
-            Expect.equal (bindingOf once "top" "i1" "W") (Some (PInt 16I)) "the instance's own value stands"
+            Expect.equal (bindingOf once "top" 1 "W") (Some (PInt 16I)) "the instance's own value stands"
             Expect.equal (List.map (fun (l: LoadedComponent) -> l.CanvasState) once)
                 (List.map (fun (l: LoadedComponent) -> l.CanvasState) [ top; child ])
                 "a project that already holds the invariant is untouched"
@@ -388,9 +388,9 @@ let tests =
             // offer to follow top.W - the chain materialises W on mid - which the old test
             // (does the IMMEDIATE parent declare it?) could not see.
             let child = widthSheet "child"
-            let mid = sheetOf "mid" [ instance child "i1" (Some (PInt 4I)) ]
+            let mid = sheetOf "mid" [ instance child 1 (Some (PInt 4I)) ]
             let top = { widthSheet "top" with
-                            CanvasState = [ makeComp "m" 0 0 (customOf mid [] [] None) "MID" ], [] }
+                            CanvasState = [ makeComp 1 0 0 (customOf mid [] [] None) "MID" ], [] }
             match ParameterAnalysis.bindOfferForPlacement [ top; mid; child ] "top" "mid" (ParamName "W") with
             | Some (bindsTo, actions) ->
                 Expect.equal bindsTo "top" "the offer describes itself as following the declaring ancestor"
@@ -404,7 +404,7 @@ let tests =
 
         test "no offer where no ancestor declares the name" {
             let child = widthSheet "child"
-            let top = sheetOf "top" [ instance child "i1" (Some (PInt 4I)) ]
+            let top = sheetOf "top" [ instance child 1 (Some (PInt 4I)) ]
             Expect.isNone (ParameterAnalysis.bindOfferForPlacement [ top; child ] "top" "top" (ParamName "W"))
                 "nothing to follow, so nothing offered"
         }
@@ -415,7 +415,7 @@ let tests =
             // Placing an instance asks for every parameter, but adding one to a sheet that already
             // has instances is the hole that would otherwise leave them all binding nothing.
             let child = widthSheet "child"
-            let top = sheetOf "top" [ instance child "i1" None; instance child "i2" None ]
+            let top = sheetOf "top" [ instance child 1 None; instance child 2 None ]
             Expect.isFalse (ParameterAnalysis.everyInstanceBindsEveryParam [ top; child ])
                 "the instances start out bound to nothing"
             let fixed' = ParameterAnalysis.bindParamOnInstances "child" (ParamName "W") 4I [ top; child ]
@@ -425,7 +425,7 @@ let tests =
 
         test "binding instances leaves an instance that already had a value alone" {
             let child = widthSheet "child"
-            let top = sheetOf "top" [ instance child "i1" (Some (PInt 16I)); instance child "i2" None ]
+            let top = sheetOf "top" [ instance child 1 (Some (PInt 16I)); instance child 2 None ]
             let fixed' = ParameterAnalysis.bindParamOnInstances "child" (ParamName "W") 4I [ top; child ]
             let bindingOf id =
                 fixed'
@@ -434,8 +434,8 @@ let tests =
                     match comp.Id = id, comp.Type with
                     | true, Custom cc -> cc.ParameterBindings |> Option.bind (Map.tryFind (ParamName "W"))
                     | _ -> None)
-            Expect.equal (bindingOf "i1") (PInt 16I) "the chosen value survives"
-            Expect.equal (bindingOf "i2") (PInt 4I) "the one with none takes the declared value"
+            Expect.equal (bindingOf 1) (PInt 16I) "the chosen value survives"
+            Expect.equal (bindingOf 2) (PInt 4I) "the one with none takes the declared value"
         }
 
         test "the sheet gaining the parameter is not touched" {
@@ -456,7 +456,7 @@ let tests =
             let top =
                 makeLdc "top"
                     (Some (paramDefs [ declares "W" (PInt 8I) ] []))
-                    ([ instance child "i1" (Some (PInt 8I)) ], [])
+                    ([ instance child 1 (Some (PInt 8I)) ], [])
             let offers = ParameterAnalysis.findBindOffers [ top; child ] "top" None
             Expect.equal (List.length offers) 1 "one instance, one offer"
             Expect.equal offers[0].Param (ParamName "W") "for the parameter of that name"
@@ -468,7 +468,7 @@ let tests =
             let top =
                 makeLdc "top"
                     (Some (paramDefs [ declares "W" (PInt 8I) ] []))
-                    ([ instance child "i1" (Some (PParameter(ParamName "W"))) ], [])
+                    ([ instance child 1 (Some (PParameter(ParamName "W"))) ], [])
             Expect.isEmpty (ParameterAnalysis.findBindOffers [ top; child ] "top" None)
                 "it already stays in step"
         }
@@ -476,7 +476,7 @@ let tests =
         test "the evidence gate keeps the offer quiet with no ancestor declarer" {
             // A literal binding is not on its own evidence of a design constant.
             let child = widthSheet "child"
-            let top = sheetOf "top" [ instance child "i1" (Some (PInt 8I)) ]
+            let top = sheetOf "top" [ instance child 1 (Some (PInt 8I)) ]
             Expect.isEmpty (ParameterAnalysis.findBindOffers [ top; child ] "top" None)
                 "no sheet above declares W"
         }
@@ -507,7 +507,7 @@ let tests =
 
         test "writing a slot to a sheet that declares nothing also lands" {
             // the same hole seen from the other field: updateParamSlot writes through this lens too
-            let slot = {CompId = "c"; CompSlot = Buswidth}
+            let slot = {CompId = 1; CompSlot = Buswidth}
             let written =
                 sheetOf "fresh" []
                 |> Optic.map (lcParameterDefs_ >-> paramSlots_)
@@ -562,7 +562,7 @@ let tests =
 
         test "a custom component's property is bounded by the sheet inside it, not here" {
             let child = widthSheet "child"
-            let inst = instance child "i1" (Some (PInt 8I))
+            let inst = instance child 1 (Some (PInt 8I))
             Expect.isEmpty (ComponentSlots.constraintsFor (CustomCompParam "W") inst.Type)
                 "its bounds are the child sheet's slots, which are expressions in the child's own \
                  properties and so cannot be stated here"

@@ -28,18 +28,18 @@ let private wExpr = {Expression = PParameter (ParamName "W"); Constraints = []}
 /// The child sheet under test: one input A and one output S, both W bits wide, W defaulting to 4.
 /// A is above S on the canvas, so the ordered signature is ([A], [S]).
 let private childLdc =
-    let a = {makeComp "a" 0 1 (Input1 (4, None)) "A" with Y = 0.}
-    let s = {makeComp "s" 1 0 (Output 4) "S" with Y = 100.}
+    let a = {makeComp 1 0 1 (Input1 (4, None)) "A" with Y = 0.}
+    let s = {makeComp 2 1 0 (Output 4) "S" with Y = 100.}
     makeLdc "child"
         (Some (paramDefs [declares "W" (PInt 4I)]
-                         [{CompId = "a"; CompSlot = IO "A"}, wExpr
-                          {CompId = "s"; CompSlot = IO "S"}, wExpr]))
+                         [{CompId = 1; CompSlot = IO "A"}, wExpr
+                          {CompId = 2; CompSlot = IO "S"}, wExpr]))
         ([a; s], [conn a 0 s 0])
 
 /// An instance of the child, whose stored ports may deliberately be wrong so that the code under
 /// test has something to correct.
-let private instanceOf (id: string) (storedWidth: int) (bindings: ParamBindings option) =
-    makeComp id 1 1 (customOf childLdc ["A", storedWidth] ["S", storedWidth] bindings) (id.ToUpper())
+let private instanceOf (id: int) (label: string) (storedWidth: int) (bindings: ParamBindings option) =
+    makeComp id 1 1 (customOf childLdc ["A", storedWidth] ["S", storedWidth] bindings) label
 
 let private bindingOf (w: int) = Some (Map [ParamName "W", PInt (bigint w)])
 
@@ -70,10 +70,10 @@ let private storedAgainstExpected
         (stored: CanvasExtractor.Signature)
         (expected: CanvasExtractor.Signature)
         : CustomCompPorts.Instance =
-    { Sheet = "parent"; CompId = "i"; Label = "I"; Old = stored; Expected = expected }
+    { Sheet = "parent"; CompId = 1; Label = "I"; Old = stored; Expected = expected }
 
 /// The custom component type of `cid` on `sheet` after the project has been updated.
-let private customOn (p: Project) (sheet: string) (cid: string) =
+let private customOn (p: Project) (sheet: string) (cid: int) =
     p.LoadedComponents
     |> List.find (fun ldc -> ldc.Name = sheet)
     |> fun ldc -> fst ldc.CanvasState
@@ -138,15 +138,15 @@ let tests =
         test "an instance bound away from the default is not out of date" {
             // the regression this whole reconciliation exists for: this raised the "you have
             // changed the inputs or outputs" dialog on every save of any parameterised design
-            let inst = instanceOf "i16" 16 (bindingOf 16)
+            let inst = instanceOf 1 "I16" 16 (bindingOf 16)
             let parent = makeLdc "parent" None ([inst], [])
             let under = instanceUnderTest [childLdc; parent] parent inst
             Expect.equal under.Old under.Expected "16-bit instance of a sheet declared at 4 is correct"
         }
 
         test "instances at different widths are both up to date" {
-            let i8 = instanceOf "i8" 8 (bindingOf 8)
-            let i16 = instanceOf "i16" 16 (bindingOf 16)
+            let i8 = instanceOf 1 "I8" 8 (bindingOf 8)
+            let i16 = instanceOf 2 "I16" 16 (bindingOf 16)
             let parent = makeLdc "parent" None ([i8; i16], [])
             let ldcs = [childLdc; parent]
             Expect.equal (instanceUnderTest ldcs parent i8).Old (instanceUnderTest ldcs parent i8).Expected "8"
@@ -154,7 +154,7 @@ let tests =
         }
 
         test "an instance whose stored ports contradict its bindings is out of date" {
-            let stale = instanceOf "stale" 4 (bindingOf 8)
+            let stale = instanceOf 1 "STALE" 4 (bindingOf 8)
             let parent = makeLdc "parent" None ([stale], [])
             let under = instanceUnderTest [childLdc; parent] parent stale
             Expect.notEqual under.Old under.Expected "stored at 4 while bound to 8"
@@ -192,8 +192,8 @@ let tests =
         // --- each instance is brought to its OWN signature, not to a shared one ---
 
         test "updating instances gives each one the widths its own bindings give it" {
-            let stale8 = instanceOf "stale8" 4 (bindingOf 8)
-            let stale16 = instanceOf "stale16" 4 (bindingOf 16)
+            let stale8 = instanceOf 1 "STALE8" 4 (bindingOf 8)
+            let stale16 = instanceOf 2 "STALE16" 4 (bindingOf 16)
             let parent = makeLdc "parent" None ([stale8; stale16], [])
             let ldcs = [childLdc; parent]
             let project =
@@ -201,9 +201,9 @@ let tests =
             let updated =
                 (project, [instanceUnderTest ldcs parent stale8; instanceUnderTest ldcs parent stale16])
                 ||> List.fold (fun p inst -> CustomCompPorts.updateInstance inst p)
-            Expect.equal (customOn updated "parent" "stale8").InputLabels ["A", 8]
+            Expect.equal (customOn updated "parent" 1).InputLabels ["A", 8]
                 "the 8-bit instance goes to 8, not to the sheet's declared 4"
-            Expect.equal (customOn updated "parent" "stale16").InputLabels ["A", 16]
+            Expect.equal (customOn updated "parent" 2).InputLabels ["A", 16]
                 "and the 16-bit instance to 16, not to the other instance's 8"
         }
 
@@ -211,44 +211,44 @@ let tests =
             // the case this dialog has always existed for, and the one the reconciliation must not
             // lose: the port is the sheet's, the width is the instance's
             let grownChild =
-                let a = {makeComp "a" 0 1 (Input1 (4, None)) "A" with Y = 0.}
-                let b = {makeComp "b" 0 1 (Input1 (4, None)) "B" with Y = 50.}
-                let s = {makeComp "s" 1 0 (Output 4) "S" with Y = 100.}
+                let a = {makeComp 1 0 1 (Input1 (4, None)) "A" with Y = 0.}
+                let b = {makeComp 2 0 1 (Input1 (4, None)) "B" with Y = 50.}
+                let s = {makeComp 3 1 0 (Output 4) "S" with Y = 100.}
                 makeLdc "child"
                     (Some (paramDefs [declares "W" (PInt 4I)]
-                                     [{CompId = "a"; CompSlot = IO "A"}, wExpr
-                                      {CompId = "b"; CompSlot = IO "B"}, wExpr
-                                      {CompId = "s"; CompSlot = IO "S"}, wExpr]))
+                                     [{CompId = 1; CompSlot = IO "A"}, wExpr
+                                      {CompId = 2; CompSlot = IO "B"}, wExpr
+                                      {CompId = 3; CompSlot = IO "S"}, wExpr]))
                     ([a; b; s], [conn a 0 s 0])
-            let i16 = instanceOf "i16" 16 (bindingOf 16)
+            let i16 = instanceOf 1 "I16" 16 (bindingOf 16)
             let parent = makeLdc "parent" None ([i16], [])
             let ldcs = [grownChild; parent]
             let project =
                 { ProjectPath = ""; OpenFileName = "child"; WorkingFileName = None; LoadedComponents = ldcs }
             let updated = CustomCompPorts.updateInstance (instanceUnderTest ldcs parent i16) project
-            let cc = customOn updated "parent" "i16"
+            let cc = customOn updated "parent" 1
             Expect.equal cc.InputLabels ["A", 16; "B", 16] "B is added, at the instance's 16 rather than the sheet's 4"
             let comp =
                 updated.LoadedComponents
                 |> List.find (fun l -> l.Name = "parent")
-                |> fun l -> fst l.CanvasState |> List.find (fun c -> c.Id = "i16")
+                |> fun l -> fst l.CanvasState |> List.find (fun c -> c.Id = 1)
             Expect.equal (comp.InputPorts |> List.map (fun p -> p.PortNumber)) [Some 0; Some 1]
                 "and the instance has a port for it, numbered contiguously"
         }
 
         test "a port deleted from the sheet is deleted from each instance" {
             let shrunkChild =
-                let s = {makeComp "s" 1 0 (Output 4) "S" with Y = 100.}
+                let s = {makeComp 1 1 0 (Output 4) "S" with Y = 100.}
                 makeLdc "child"
-                    (Some (paramDefs [declares "W" (PInt 4I)] [{CompId = "s"; CompSlot = IO "S"}, wExpr]))
+                    (Some (paramDefs [declares "W" (PInt 4I)] [{CompId = 1; CompSlot = IO "S"}, wExpr]))
                     ([s], [])
-            let i16 = instanceOf "i16" 16 (bindingOf 16)
+            let i16 = instanceOf 1 "I16" 16 (bindingOf 16)
             let parent = makeLdc "parent" None ([i16], [])
             let ldcs = [shrunkChild; parent]
             let project =
                 { ProjectPath = ""; OpenFileName = "child"; WorkingFileName = None; LoadedComponents = ldcs }
             let updated = CustomCompPorts.updateInstance (instanceUnderTest ldcs parent i16) project
-            let cc = customOn updated "parent" "i16"
+            let cc = customOn updated "parent" 1
             Expect.isEmpty cc.InputLabels "A is gone"
             Expect.equal cc.OutputLabels ["S", 16] "and S keeps the instance's width"
         }
@@ -256,19 +256,19 @@ let tests =
         test "updating an instance leaves its parameter bindings alone" {
             // forcing the ports while leaving the bindings is what produced an instance the
             // simulator rejects: the two must stay in step
-            let stale = instanceOf "stale" 4 (bindingOf 8)
+            let stale = instanceOf 1 "STALE" 4 (bindingOf 8)
             let parent = makeLdc "parent" None ([stale], [])
             let ldcs = [childLdc; parent]
             let project =
                 { ProjectPath = ""; OpenFileName = "child"; WorkingFileName = None; LoadedComponents = ldcs }
             let updated = CustomCompPorts.updateInstance (instanceUnderTest ldcs parent stale) project
-            let cc = customOn updated "parent" "stale"
+            let cc = customOn updated "parent" 1
             Expect.equal cc.ParameterBindings (bindingOf 8) "the binding is untouched"
             Expect.equal (cc.InputLabels, cc.OutputLabels) (["A", 8], ["S", 8]) "and the ports now agree with it"
         }
 
         test "a sheet needing an update is flagged so that it reaches disk" {
-            let stale = instanceOf "stale" 4 (bindingOf 8)
+            let stale = instanceOf 1 "STALE" 4 (bindingOf 8)
             let parent = makeLdc "parent" None ([stale], [])
             let ldcs = [childLdc; parent]
             let project =
@@ -284,7 +284,7 @@ let tests =
             // set made every later "close without saving?" dialog name a sheet whose file was
             // correct, with no Save button anywhere to clear it - that button follows the OPEN
             // sheet, and an instance is never on the sheet being edited
-            let stale = instanceOf "stale" 4 (bindingOf 8)
+            let stale = instanceOf 1 "STALE" 4 (bindingOf 8)
             let parent = makeLdc "parent" None ([stale], [])
             let ldcs = [childLdc; parent]
             let project =
@@ -295,7 +295,7 @@ let tests =
             Expect.isEmpty
                 (saved.LoadedComponents |> List.filter (fun l -> l.LoadedComponentIsOutOfDate) |> List.map (fun l -> l.Name))
                 "no sheet reports unsaved changes"
-            Expect.equal (customOn saved "parent" "stale").InputLabels ["A", 8]
+            Expect.equal (customOn saved "parent" 1).InputLabels ["A", 8]
                 "and the update itself survived"
         }
 
@@ -310,19 +310,19 @@ let tests =
         /// mid declares W, and passes it to its instance of child through a CustomCompParam slot.
         /// The instance's stored ports are 4, which is what they were when W was 4.
         let midLdc =
-            let ci = makeComp "ci" 1 1 (customOf childLdc ["A", 4] ["S", 4] (bindingOf 4)) "CI"
+            let ci = makeComp 1 1 1 (customOf childLdc ["A", 4] ["S", 4] (bindingOf 4)) "CI"
             makeLdc "mid"
                 (Some (paramDefs [declares "W" (PInt 4I)]
-                                 [{CompId = "ci"; CompSlot = CustomCompParam "W"},
+                                 [{CompId = 1; CompSlot = CustomCompParam "W"},
                                   {Expression = PParameter (ParamName "W"); Constraints = []}]))
                 ([ci], [])
 
         /// top sets mid's W to 16, so child is reached at 16 through the chain.
         let topLdc =
-            makeComp "mi" 0 0 (customOf midLdc [] [] (bindingOf 16)) "MI"
+            makeComp 1 0 0 (customOf midLdc [] [] (bindingOf 16)) "MI"
             |> fun mi -> makeLdc "top" None ([mi], [])
 
-        let instancePortsOn (ldcs: LoadedComponent list) (sheet: string) (cid: string) =
+        let instancePortsOn (ldcs: LoadedComponent list) (sheet: string) (cid: int) =
             ldcs
             |> List.find (fun ldc -> ldc.Name = sheet)
             |> fun ldc -> fst ldc.CanvasState |> List.find (fun comp -> comp.Id = cid)
@@ -338,7 +338,7 @@ let tests =
             let cc =
                 propagated
                 |> List.find (fun ldc -> ldc.Name = "mid")
-                |> fun ldc -> fst ldc.CanvasState |> List.find (fun comp -> comp.Id = "ci")
+                |> fun ldc -> fst ldc.CanvasState |> List.find (fun comp -> comp.Id = 1)
                 |> fun comp -> match comp.Type with | Custom cc -> cc | t -> failtest $"got {t}"
             Expect.equal cc.ParameterBindings (bindingOf 16) "the slot carried W = 16 into the binding"
             Expect.equal (cc.InputLabels, cc.OutputLabels) (["A", 4], ["S", 4])
@@ -349,7 +349,7 @@ let tests =
             let synced =
                 ParameterAnalysis.propagateParameterValues [topLdc; midLdc; childLdc]
                 |> CanvasExtractor.syncInstancePorts
-            Expect.equal (instancePortsOn synced "mid" "ci") (["A", 16], ["S", 16])
+            Expect.equal (instancePortsOn synced "mid" 1) (["A", 16], ["S", 16])
                 "the instance is sized at what its own bindings give it"
         }
 
@@ -373,7 +373,7 @@ let tests =
         }
 
         test "an instance already at its own widths is left alone" {
-            let settled = instanceOf "ok" 4 (bindingOf 4)
+            let settled = instanceOf 1 "OK" 4 (bindingOf 4)
             let parent = makeLdc "parent" None ([settled], [])
             let synced = CanvasExtractor.syncInstancePorts [childLdc; parent]
             Expect.isFalse (synced |> List.find (fun ldc -> ldc.Name = "parent")).LoadedComponentIsOutOfDate
@@ -413,7 +413,7 @@ let tests =
         test "a width-only difference produces no port change to confirm" {
             // widths are a fact about each instance; listing one instance's numbers as the
             // sheet's is what made the dialog describe a parameterised design wrongly
-            let stale = instanceOf "stale" 4 (bindingOf 8)
+            let stale = instanceOf 1 "STALE" 4 (bindingOf 8)
             let parent = makeLdc "parent" None ([stale], [])
             let structural, widthOnly =
                 CustomCompPorts.reportedChanges [instanceUnderTest [childLdc; parent] parent stale]
@@ -424,15 +424,15 @@ let tests =
 
         test "a renamed port is reported once however many instances there are" {
             let renamedChild =
-                let a = {makeComp "a" 0 1 (Input1 (4, None)) "AA" with Y = 0.}
-                let s = {makeComp "s" 1 0 (Output 4) "S" with Y = 100.}
+                let a = {makeComp 1 0 1 (Input1 (4, None)) "AA" with Y = 0.}
+                let s = {makeComp 2 1 0 (Output 4) "S" with Y = 100.}
                 makeLdc "child"
                     (Some (paramDefs [declares "W" (PInt 4I)]
-                                     [{CompId = "a"; CompSlot = IO "A"}, wExpr
-                                      {CompId = "s"; CompSlot = IO "S"}, wExpr]))
+                                     [{CompId = 1; CompSlot = IO "A"}, wExpr
+                                      {CompId = 2; CompSlot = IO "S"}, wExpr]))
                     ([a; s], [conn a 0 s 0])
-            let i8 = instanceOf "i8" 8 (bindingOf 8)
-            let i16 = instanceOf "i16" 16 (bindingOf 16)
+            let i8 = instanceOf 1 "I8" 8 (bindingOf 8)
+            let i16 = instanceOf 2 "I16" 16 (bindingOf 16)
             let parent = makeLdc "parent" None ([i8; i16], [])
             let ldcs = [renamedChild; parent]
             let structural, _ =
@@ -472,20 +472,20 @@ let tests =
         // --- a slot survives its component being renamed ---
 
         test "an IO slot is the same slot after its component is renamed" {
-            let stored = {CompId = "a"; CompSlot = IO "A"}
-            let asked = {CompId = "a"; CompSlot = IO "RENAMED"}
+            let stored = {CompId = 1; CompSlot = IO "A"}
+            let asked = {CompId = 1; CompSlot = IO "RENAMED"}
             Expect.isTrue (ParameterTypes.sameSlot stored asked) "the label is not part of a slot's identity"
-            Expect.isFalse (ParameterTypes.sameSlot stored {CompId = "b"; CompSlot = IO "A"})
+            Expect.isFalse (ParameterTypes.sameSlot stored {CompId = 2; CompSlot = IO "A"})
                 "but the component is"
             Expect.isFalse
-                (ParameterTypes.sameSlot {CompId = "a"; CompSlot = Buswidth} {CompId = "a"; CompSlot = InputDefault})
+                (ParameterTypes.sameSlot {CompId = 1; CompSlot = Buswidth} {CompId = 1; CompSlot = InputDefault})
                 "and so is which field of it"
         }
 
         test "a slot is found under the component's old label" {
-            let slots = Map [{CompId = "a"; CompSlot = IO "A"}, wExpr]
+            let slots = Map [{CompId = 1; CompSlot = IO "A"}, wExpr]
             Expect.equal
-                (ParameterTypes.tryFindSlot {CompId = "a"; CompSlot = IO "RENAMED"} slots)
+                (ParameterTypes.tryFindSlot {CompId = 1; CompSlot = IO "RENAMED"} slots)
                 (Some wExpr)
                 "the expression is still this field's, so the properties pane still shows it"
         }
@@ -494,28 +494,28 @@ let tests =
             // two slots for one field left them to fight over the component's width in Map key order
             let newExpr = {Expression = PParameter (ParamName "N"); Constraints = []}
             let slots =
-                Map [{CompId = "a"; CompSlot = IO "A"}, wExpr]
-                |> ParameterTypes.addSlot {CompId = "a"; CompSlot = IO "RENAMED"} newExpr
+                Map [{CompId = 1; CompSlot = IO "A"}, wExpr]
+                |> ParameterTypes.addSlot {CompId = 1; CompSlot = IO "RENAMED"} newExpr
             Expect.equal (Map.count slots) 1 "one slot for one field"
             Expect.equal (Map.toList slots |> List.head |> snd) newExpr "and it is the new expression"
         }
 
         test "clearing a renamed component's slot clears the one stored under the old label" {
             let slots =
-                Map [{CompId = "a"; CompSlot = IO "A"}, wExpr]
-                |> ParameterTypes.removeSlot {CompId = "a"; CompSlot = IO "RENAMED"}
+                Map [{CompId = 1; CompSlot = IO "A"}, wExpr]
+                |> ParameterTypes.removeSlot {CompId = 1; CompSlot = IO "RENAMED"}
             Expect.isEmpty slots "the field goes back to being an ordinary number"
         }
 
         test "a renamed component's slot still sizes the instance's port" {
             // the slot was created as IO "A"; the sheet now calls that input RENAMED
-            let a = {makeComp "a" 0 1 (Input1 (4, None)) "RENAMED" with Y = 0.}
-            let s = {makeComp "s" 1 0 (Output 4) "S" with Y = 100.}
+            let a = {makeComp 1 0 1 (Input1 (4, None)) "RENAMED" with Y = 0.}
+            let s = {makeComp 2 1 0 (Output 4) "S" with Y = 100.}
             let ldc =
                 makeLdc "child"
                     (Some (paramDefs [declares "W" (PInt 4I)]
-                                     [{CompId = "a"; CompSlot = IO "A"}, wExpr
-                                      {CompId = "s"; CompSlot = IO "S"}, wExpr]))
+                                     [{CompId = 1; CompSlot = IO "A"}, wExpr
+                                      {CompId = 2; CompSlot = IO "S"}, wExpr]))
                     ([a; s], [conn a 0 s 0])
             let widths = CanvasExtractor.signatureOfInstance [ldc] Map.empty "child" (Map [ParamName "W", PInt 16I])
             Expect.equal widths (Some (["RENAMED", 16], ["S", 16]))
@@ -523,16 +523,16 @@ let tests =
         }
 
         test "saving repoints a slot at its component's current label and drops dead ones" {
-            let a = {makeComp "a" 0 1 (Input1 (4, None)) "RENAMED" with Y = 0.}
+            let a = {makeComp 1 0 1 (Input1 (4, None)) "RENAMED" with Y = 0.}
             let defs =
                 paramDefs [declares "W" (PInt 4I)]
-                          [{CompId = "a"; CompSlot = IO "A"}, wExpr
-                           {CompId = "gone"; CompSlot = IO "GONE"}, wExpr]
+                          [{CompId = 1; CompSlot = IO "A"}, wExpr
+                           {CompId = 99; CompSlot = IO "GONE"}, wExpr]
             let tidied =
                 CanvasExtractor.tidyParamSlots ([a], []) (Some defs)
                 |> Option.defaultWith (fun () -> failtest "no definitions")
             Expect.equal (Map.toList tidied.ParamSlots |> List.map fst)
-                [{CompId = "a"; CompSlot = IO "RENAMED"}]
+                [{CompId = 1; CompSlot = IO "RENAMED"}]
                 "the live slot is repointed and the slot of a deleted component is gone"
         }
 
@@ -566,12 +566,12 @@ let tests =
             // so these two - which simulate differently - compared equal, and the simulation cache
             // handed back the one built from the old names.
             let build (sinkLabel: string) : CanvasState =
-                let in0 = makeComp "in0" 0 1 (Input1(1, None)) "I0"
-                let in1 = makeComp "in1" 0 1 (Input1(1, None)) "I1"
-                let sourceA = makeComp "la" 1 1 IOLabel "A"
-                let sourceB = makeComp "lb" 1 1 IOLabel "B"
-                let sink = makeComp "lx" 1 1 IOLabel sinkLabel
-                let out = makeComp "out0" 1 0 (Output 1) "O0"
+                let in0 = makeComp 1 0 1 (Input1(1, None)) "I0"
+                let in1 = makeComp 2 0 1 (Input1(1, None)) "I1"
+                let sourceA = makeComp 3 1 1 IOLabel "A"
+                let sourceB = makeComp 4 1 1 IOLabel "B"
+                let sink = makeComp 5 1 1 IOLabel sinkLabel
+                let out = makeComp 6 1 0 (Output 1) "O0"
                 [ in0; in1; sourceA; sourceB; sink; out ],
                 [ conn in0 0 sourceA 0; conn in1 0 sourceB 0; conn sink 0 out 0 ]
             Expect.isFalse (CanvasExtractor.stateIsEqual (build "A") (build "B"))

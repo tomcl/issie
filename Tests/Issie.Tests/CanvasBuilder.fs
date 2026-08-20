@@ -4,11 +4,14 @@ module CanvasBuilder
 
 open CommonTypes
 
-/// A component with explicit input/output port counts
-let makeComp (id: string) (nInputs: int) (nOutputs: int) (compType: ComponentType) (label: string) : Component =
+/// A component with explicit input/output port counts. Port ids are derived from the component
+/// id (inputs at id*1000, outputs offset by 500), unique within any sheet whose component ids
+/// stay below 1000 - which test sheets always do.
+let makeComp (id: int) (nInputs: int) (nOutputs: int) (compType: ComponentType) (label: string) : Component =
     let makePorts n portType =
+        let offset = match portType with | PortType.Input -> 0 | PortType.Output -> 500
         [ for i in 0 .. n - 1 ->
-            { Id = $"{id}-{portType}-{i}"
+            { Id = id * 1000 + offset + i
               PortNumber = Some i
               PortType = portType
               HostId = id } ]
@@ -25,9 +28,10 @@ let makeComp (id: string) (nInputs: int) (nOutputs: int) (compType: ComponentTyp
       SlotInfo = None }
 
 /// Connect output port `srcPort` of `src` to input port `tgtPort` of `tgt`.
-/// Connection-end ports carry no port number, as in saved .dgm files.
+/// Connection-end ports carry no port number, as in saved .dgm files. The id pairs the two
+/// port ids, so it is deterministic and unique for distinct endpoint pairs.
 let conn (src: Component) (srcPort: int) (tgt: Component) (tgtPort: int) : Connection =
-    { Id = $"conn-{src.Id}.{srcPort}-{tgt.Id}.{tgtPort}"
+    { Id = src.OutputPorts[srcPort].Id * 1000 + tgt.InputPorts[tgtPort].Id % 1000
       Source = { src.OutputPorts[srcPort] with PortNumber = None }
       Target = { tgt.InputPorts[tgtPort] with PortNumber = None }
       Vertices = [] }

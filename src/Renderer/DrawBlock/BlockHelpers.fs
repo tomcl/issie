@@ -334,14 +334,14 @@ let getCopiedSymbols (symModel: SymbolT.Model) : (ComponentId list) =
 
 
 /// Returns the port object associated with a given portId
-let inline getPort (symModel: SymbolT.Model) (portId: string) =
+let inline getPort (symModel: SymbolT.Model) (portId: int) =
     symModel.Ports.[portId]
 
-let inline getSymbol (model: SymbolT.Model) (portId: string) =
+let inline getSymbol (model: SymbolT.Model) (portId: int) =
     let port = getPort model portId
     model.Symbols.[ComponentId port.HostId]
 
-let inline getCompId (model: SymbolT.Model) (portId: string) =
+let inline getCompId (model: SymbolT.Model) (portId: int) =
     let symbol = getSymbol model portId
     symbol.Id
 
@@ -360,7 +360,7 @@ let inline getOutputPortIdStr (portId: OutputPortId) =
     | OutputPortId s -> s
 
 /// HLP23: AUTHOR dgs119
-let inline getPortOrientationFrmPortIdStr (model: SymbolT.Model) (portIdStr: string) : Edge = 
+let inline getPortOrientationFrmPortIdStr (model: SymbolT.Model) (portIdStr: int) : Edge = 
     let port = model.Ports[portIdStr]
     let sId = ComponentId port.HostId
     model.Symbols[sId].PortMaps.Orientation[portIdStr]
@@ -421,7 +421,7 @@ let isWireInNet (model: Model) (wire: Wire) : (OutputPortId * (ConnectionId * Wi
 
 /// Checks if a port is part of a Symbol.
 /// HLP23: AUTHOR dgs119
-let isPortInSymbol (portId: string) (symbol: Symbol) : bool =
+let isPortInSymbol (portId: int) (symbol: Symbol) : bool =
     symbol.PortMaps.Orientation |> Map.containsKey portId
 
 /// Get pairs of unique symbols that are connected to each other.

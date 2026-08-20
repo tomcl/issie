@@ -35,6 +35,7 @@ this is about module-level state.
 | Where | What |
 |---|---|
 | `Simulator.fs` | `simCache`, `simCacheWS` |
+| `Common/Helpers.fs` | `IdAllocator`'s three design-lifetime allocators (`components`, `ports`, `connections`) — the uuid generator's replacement. Global rather than model state because minting happens in leaf draw-block functions (`Symbol.portLists`, paste, new wires) that have no Model in scope; encapsulated behind `newComponentId`/`newPortId`/`newConnectionId`, and reset + re-seeded by `RegenerateIds.admitDesign` at every project open so nothing leaks between projects |
 | `UI/ModelHelpers.fs` | `waveSimCostMemo` — the waveform configuration dialog reads the design's per-cycle cost on every render |
 | `FastSim/FastCreate.fs` | `stepArrayIndex`, `stepArena` — build-scoped allocation state, reset by every build; threading either through the build would put plumbing in a dozen signatures for two leaf call sites |
 | `UI/TruthTable/TruthTableView.fs` | `selCache` |

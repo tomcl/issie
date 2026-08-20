@@ -262,7 +262,7 @@ let appendUndoList (undoList: Model List) (model_in: Model): Model List =
 
 /// True when this port belongs to the symbol whose ports the user has asked to move.
 /// Ports of every other symbol keep their normal behaviour of starting a wire.
-let portIsEditable (model: Model) (portIdStr: string) =
+let portIsEditable (model: Model) (portIdStr: int) =
     match model.SymbolEdit with
     | Some (compId, EditPorts) ->
         Map.tryFind portIdStr model.Wire.Symbol.Ports
@@ -632,7 +632,7 @@ let mDragUpdate
         let targetPort, drawLineTarget =
             match mouseOnPort nearbyOutputPorts mMsg.Pos 12.5 with
             | Some (OutputPortId portId, portLoc) -> (portId, portLoc) // If found target, snap target of the line to the port
-            | None -> ("", mMsg.Pos)
+            | None -> (0, mMsg.Pos)
 
         { model with
                     NearbyComponents = nearbyComponents
@@ -648,7 +648,7 @@ let mDragUpdate
         let targetPort, drawLineTarget =
             match mouseOnPort nearbyInputPorts mMsg.Pos 12.5 with
             | Some (InputPortId portId, portLoc) -> (portId, portLoc) // If found target, snap target of the line to the port
-            | None -> ("", mMsg.Pos)
+            | None -> (0, mMsg.Pos)
 
         { model with
                     NearbyComponents = nearbyComponents
@@ -787,19 +787,19 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
 
     | ConnectingInput inputPortId ->
         let cmd, undoList ,redoList =
-            if model.TargetPortId <> "" // If a target has been found, connect a wire\
+            if model.TargetPortId <> 0 // If a target has been found, connect a wire\
             then wireCmd (BusWireT.AddWire (inputPortId, (OutputPortId model.TargetPortId))),
                             appendUndoList model.UndoList newModel, newModel.RedoList
             else Cmd.none , newModel.UndoList, newModel.RedoList
-        {model with Action = Idle; TargetPortId = ""; UndoList = undoList ; RedoList = redoList ; AutomaticScrolling = false }, cmd
+        {model with Action = Idle; TargetPortId = 0; UndoList = undoList ; RedoList = redoList ; AutomaticScrolling = false }, cmd
 
     | ConnectingOutput outputPortId ->
         let cmd , undoList , redoList =
-            if model.TargetPortId <> "" // If a target has been found, connect a wire
+            if model.TargetPortId <> 0 // If a target has been found, connect a wire
             then  wireCmd (BusWireT.AddWire (InputPortId model.TargetPortId, outputPortId)),
                             appendUndoList model.UndoList newModel, newModel.RedoList
             else Cmd.none , newModel.UndoList, newModel.RedoList
-        { model with Action = Idle; TargetPortId = ""; UndoList = undoList ; RedoList = redoList ; AutomaticScrolling = false  }, cmd
+        { model with Action = Idle; TargetPortId = 0; UndoList = undoList ; RedoList = redoList ; AutomaticScrolling = false  }, cmd
 
     | MovingPort portId ->
         let symbol = getCompId model.Wire.Symbol portId

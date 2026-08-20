@@ -824,7 +824,7 @@ let deleteWiresWithPort (delPorts: Port option list) (model: Model) =
                     |Some port ->
                         let localConns = 
                             wires
-                            |> List.filter (fun (connId,wire) -> ((wire.InputPort.ToString() = port.Id) || (wire.OutputPort.ToString() = port.Id)))
+                            |> List.filter (fun (connId,wire) -> wire.InputPort = InputPortId port.Id || wire.OutputPort = OutputPortId port.Id)
                             |> List.map fst
                         let symbols =
                             Map.tryFind (ComponentId port.HostId) symbols 

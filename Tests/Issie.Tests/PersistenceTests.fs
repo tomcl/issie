@@ -29,8 +29,8 @@ let tests =
         // saving or backing up. Rerouting a wire changes how many segments it has, so comparing
         // vertex lists of different lengths is the ordinary case.
         test "a rerouted wire compares as a change rather than raising" {
-            let a = makeComp "a" 0 1 (Input1(1, None)) "A"
-            let b = makeComp "b" 1 0 (Output 1) "B"
+            let a = makeComp 1 0 1 (Input1(1, None)) "A"
+            let b = makeComp 2 1 0 (Output 1) "B"
             let routedAs (vs: (float * float * bool) list) : CanvasState =
                 [ a; b ], [ { conn a 0 b 0 with Vertices = vs } ]
             let threeSegments = routedAs [ 0., 0., false; 10., 0., false; 10., 10., false ]
@@ -200,9 +200,9 @@ let tests =
         }
 
         test "stateToJsonString round-trips a canvas through jsonStringToState" {
-            let inComp = makeComp "in0" 0 1 (Input1(3, None)) "I0"
-            let dut = makeComp "not" 1 1 (NbitsNot 3) "N1"
-            let outComp = makeComp "out0" 1 0 (Output 3) "O0"
+            let inComp = makeComp 1 0 1 (Input1(3, None)) "I0"
+            let dut = makeComp 2 1 1 (NbitsNot 3) "N1"
+            let outComp = makeComp 3 1 0 (Output 3) "O0"
             let canvas: CanvasState =
                 [ inComp; dut; outComp ], [ conn inComp 0 dut 0; conn dut 0 outComp 0 ]
             match stateToJsonString (canvas, None, Some sheetInfo) with
@@ -212,11 +212,13 @@ let tests =
                 | Error e -> failtest $"parse of freshly saved JSON failed: {e}"
                 | Ok saved ->
                     let jsonComps, conns = saved.getCanvas
-                    let comps = List.map convertFromJSONComponent jsonComps
+                    // the freshly saved ids are decimal strings of the int ids, so plain
+                    // parsing is the whole mapping back
+                    let comps = List.map (convertFromJSONComponent int int) jsonComps
                     Expect.equal (List.length conns) 2 "connection count"
                     Expect.equal
                         (comps |> List.map (fun c -> c.Id, c.Type) |> List.sort)
-                        ([ "in0", Input1(3, None); "not", NbitsNot 3; "out0", Output 3 ] |> List.sort)
+                        ([ 1, Input1(3, None); 2, NbitsNot 3; 3, Output 3 ] |> List.sort)
                         "component ids and types survive the round trip"
         }
     ]

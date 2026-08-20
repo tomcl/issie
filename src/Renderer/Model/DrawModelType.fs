@@ -72,9 +72,9 @@ module SymbolT =
     type PortMaps =
         {     
             /// Maps edge to list of ports on that edge, in correct order
-            Order: Map<Edge, string list>
+            Order: Map<Edge, int list>
             /// Maps the port ids to which side of the component the port is on
-            Orientation: Map<string, Edge>
+            Orientation: Map<int, Edge>
         }
 
     let order_ = Lens.create (fun a -> a.Order) (fun s a -> {a with Order = s})
@@ -195,7 +195,7 @@ module SymbolT =
 
             /// Option to represent a port that is being moved, if it's some, it contains the moving port's Id and its current position.
             /// dynamic info used in port move operation.
-            MovingPort: Option<{|PortId:string; CurrPos: XYPos|}>
+            MovingPort: Option<{|PortId:int; CurrPos: XYPos|}>
             /// dynamic info used in port move operation
             MovingPortTarget: (XYPos*XYPos) option
 
@@ -223,7 +223,7 @@ module SymbolT =
         CopiedSymbols: Map<ComponentId, Symbol>
 
         /// Contains all the input and output ports in the model (currently rendered)
-        Ports: Map<string, Port>
+        Ports: Map<int, Port>
 
         /// Contains all the inputports that have a wire connected to them.
         /// If a port is in the set, it is connected, otherwise it is not
@@ -275,8 +275,8 @@ module SymbolT =
         | RotateAntiClockAng of compList : ComponentId list * Rotation
         | Flip of compList: ComponentId list * orientation: FlipType
         /// Taking the input and..
-        | MovePort of portId: string * move: XYPos
-        | MovePortDone of portId: string * move: XYPos
+        | MovePort of portId: int * move: XYPos
+        | MovePortDone of portId: int * move: XYPos
         // HLP23 AUTHOR: BRYAN TAN
         | ShowCustomCorners of compList: ComponentId list
         | HideCustomCorners of compList: ComponentId list
@@ -414,7 +414,7 @@ module BusWireT =
         | ResetModel // For Issie Integration
         | LoadConnections of list<Connection> // For Issie Integration
         | UpdateConnectedWires of list<ComponentId> // rotate each symbol separately. TODO - rotate as group? Custom comps do not rotate
-        | RerouteWire of string
+        | RerouteWire of int
         | ToggleSnapToNet
 
     let symbol_ = Lens.create (fun m -> m.Symbol) (fun w m -> {m with Symbol = w})
@@ -485,7 +485,7 @@ module SheetT =
         // ------------------------------ Issie Actions ---------------------------- //
         // (ComponentId -> Unit) is function used to add created component to parameter slots
         | InitialisedCreateComponent of LoadedComponent list * ComponentType * string * (ComponentId -> Unit) option
-        | MovingPort of portId: string//?? should it have the port id?
+        | MovingPort of portId: int//?? should it have the port id?
         | ResizingSymbol of CommonTypes.ComponentId * XYPos
 
     type UndoAction =
@@ -648,7 +648,7 @@ module SheetT =
         ErrorComponents: CommonTypes.ComponentId list
         DragToSelectBox: BoundingBox
         ConnectPortsLine: XYPos * XYPos // Visual indicator for connecting ports, defines two vertices to draw a line in-between.
-        TargetPortId: string // Keeps track of if a target port has been found for connecting two wires in-between.
+        TargetPortId: int // 0 = none. Keeps track of if a target port has been found for connecting two wires in-between.
         Action: CurrentAction
         ShowGrid: bool // Always true at the moment, kept in-case we want an optional grid
         //Theme: ThemeType

@@ -569,7 +569,9 @@ let private recorded =
       { Sheet = "staggeredFanout"; Ink = 4089.; Bends = 36; Crossings = 9; FannedNetInk = 1725.; Settle = Some 0 }
       { Sheet = "longFanout"; Ink = 8965.; Bends = 34; Crossings = 10; FannedNetInk = 2835.; Settle = Some 0 }
       { Sheet = "reg16x8"; Ink = 19676.; Bends = 147; Crossings = 81; FannedNetInk = 12762.; Settle = Some 0 }
-      { Sheet = "tangle"; Ink = 11004.; Bends = 82; Crossings = 60; FannedNetInk = 8004.; Settle = Some 0 } ]
+      // tangle re-pinned when canvas ids became integers: the DSL now numbers components 1..n,
+      // which changes separation's tie-breaking order on this deliberately pathological sheet
+      { Sheet = "tangle"; Ink = 11004.; Bends = 82; Crossings = 66; FannedNetInk = 8004.; Settle = Some 0 } ]
 
 /// A settling result is no worse than what was recorded if it needs no more passes than before.
 /// Not settling at all is the worst outcome, and only matches itself.

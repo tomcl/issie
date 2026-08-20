@@ -48,15 +48,14 @@ module Constants =
 //---------------------------------- Components and ports ----------------------------------------//
 //------------------------------------------------------------------------------------------------//
 
-/// The id a component gets in the generated canvas.
-///
-/// Component ids are normally uuids. These are readable and derived from the names instead, which
-/// is a deliberate deviation: a generated sheet is far easier to debug when its ids say what they
-/// are, the same description always produces the same file so fixtures can be diffed, and minting
-/// a uuid goes through a Fable-only import that does not work under .NET. Nothing in Issie parses
-/// a component id - they are opaque strings - but they must be unique across a PROJECT, not just
-/// a sheet, which is why the sheet name is part of it.
-let componentId (sheetName: string) (compName: string) = $"{sheetName}-{compName}"
+/// The id a component gets in the generated canvas: one more than its position in the
+/// description's component list. Deterministic, so the same description always produces the
+/// same file and fixtures can be diffed. Only per-sheet uniqueness matters at generation time -
+/// the ids are renumbered into a project's namespace when the sheet is admitted to one.
+let componentIdIn (sheet: SheetDescription) (compName: string) : int =
+    match sheet.Comps |> List.tryFindIndex (fun c -> c.Name = compName) with
+    | Some i -> i + 1
+    | None -> 0
 
 let private labelOf (spec: CompSpec) = spec.Label |> Option.defaultValue spec.Name
 
@@ -75,11 +74,13 @@ let private labelOf (spec: CompSpec) = spec.Label |> Option.defaultValue spec.Na
 /// to fit its port labels. Measuring those labels used to need a browser, so this had to guess at
 /// a Custom component's width and always guessed the minimum; blocks around a wide one were then
 /// spaced as though it were narrow.
-let private buildComponent (sheetName: string) (spec: CompSpec) : Result<Component, string> =
-    let id = componentId sheetName spec.Name
+let private buildComponent (id: int) (spec: CompSpec) : Result<Component, string> =
+    // port ids only need uniqueness within the sheet: derive them from the component id, inputs
+    // below the 500 offset and outputs above it (no component has anywhere near 500 ports)
     let makePorts n portType =
+        let offset = match portType with PortType.Input -> 0 | PortType.Output -> 500
         [ for i in 0 .. n - 1 ->
-            { Id = $"{id}-{portType}-{i}"
+            { Id = id * 1000 + offset + i
               PortNumber = Some i
               PortType = portType
               HostId = id } ]
@@ -149,7 +150,7 @@ let private resolvePort
 /// Connection ends carry no port number, as in a saved .dgm, and no vertices - Issie routes the
 /// wire when the sheet is loaded.
 let private buildConnection (index: int) (source: Port) (target: Port) : Connection =
-    { Id = $"conn-{index}-{source.HostId}-{target.HostId}"
+    { Id = index + 1
       Source = { source with PortNumber = None }
       Target = { target with PortNumber = None }
       Vertices = [] }
@@ -159,7 +160,7 @@ let private buildConnection (index: int) (source: Port) (target: Port) : Connect
 //------------------------------------------------------------------------------------------------//
 
 /// How many connections run between each pair of components.
-let private weights (conns: Connection list) : Map<string * string, int> =
+let private weights (conns: Connection list) : Map<int * int, int> =
     (Map.empty, conns)
     ||> List.fold (fun acc conn ->
         let a, b = conn.Source.HostId, conn.Target.HostId
@@ -169,15 +170,15 @@ let private weights (conns: Connection list) : Map<string * string, int> =
             let key = if a < b then a, b else b, a
             Map.add key (1 + (Map.tryFind key acc |> Option.defaultValue 0)) acc)
 
-let private weightBetween (w: Map<string * string, int>) a b =
+let private weightBetween (w: Map<int * int, int>) a b =
     let key = if a < b then a, b else b, a
     Map.tryFind key w |> Option.defaultValue 0
 
 /// Components ordered so that connected ones sit near each other: breadth-first from the most
 /// connected component, which gives a starting partition whose cut is already small.
-let private connectedOrder (w: Map<string * string, int>) (names: string list) : string list =
+let private connectedOrder (w: Map<int * int, int>) (names: int list) : int list =
     let degree name = names |> List.sumBy (weightBetween w name)
-    let rec walk (ordered: string list) (queue: string list) (remaining: string list) =
+    let rec walk (ordered: int list) (queue: int list) (remaining: int list) =
         match queue, remaining with
         // both empty, and only then: an earlier version stopped as soon as `remaining` emptied,
         // which threw away everything still queued. Those components got no position and stacked
@@ -206,19 +207,19 @@ let private connectedOrder (w: Map<string * string, int>) (names: string list) :
 /// A breadth-first ordering gives the starting split; repeated best-swap passes improve it. Both
 /// are heuristics - an exact minimum cut is NP-hard and would buy nothing here, where the point is
 /// only that related components end up near each other.
-let private bisect (w: Map<string * string, int>) (names: string list) : string list * string list =
+let private bisect (w: Map<int * int, int>) (names: int list) : int list * int list =
     let ordered = connectedOrder w names
     let half = List.length ordered / 2
     let initialA = ordered |> List.take half
     let initialB = ordered |> List.skip half
 
     /// how much the cut would fall if this component moved to the other side
-    let gain (side: string list) (other: string list) name =
+    let gain (side: int list) (other: int list) name =
         let external' = other |> List.sumBy (weightBetween w name)
         let internal' = side |> List.sumBy (weightBetween w name)
         external' - internal'
 
-    let rec improve pass (a: string list) (b: string list) =
+    let rec improve pass (a: int list) (b: int list) =
         match pass >= Constants.maxSwapPasses with
         | true -> a, b
         | false ->
@@ -256,7 +257,7 @@ let private verticalAffinity
         (isOutput: Component -> bool)
         (comps: Component list)
         (conns: Connection list)
-        : Map<string, float> =
+        : Map<int, float> =
     let positionsIn (column: Component list) =
         let n = max 1 (List.length column)
         column |> List.mapi (fun i c -> c.Id, (float i + 0.5) / float n)
@@ -267,11 +268,11 @@ let private verticalAffinity
         (Map.empty, conns)
         ||> List.fold (fun acc conn ->
             let a, b = conn.Source.HostId, conn.Target.HostId
-            let add k v (m: Map<string, string list>) =
+            let add k v (m: Map<int, int list>) =
                 Map.add k (v :: (Map.tryFind k m |> Option.defaultValue [])) m
             acc |> add a b |> add b a)
     /// enough rounds for the pull to reach across any sheet this is meant for
-    let rec relax rounds (values: Map<string, float>) =
+    let rec relax rounds (values: Map<int, float>) =
         match rounds with
         | 0 -> values
         | _ ->
@@ -295,13 +296,13 @@ let private depthFromInputs
         (isInput: Component -> bool)
         (comps: Component list)
         (conns: Connection list)
-        : Map<string, int> =
+        : Map<int, int> =
     let forward =
         (Map.empty, conns)
         ||> List.fold (fun acc conn ->
             let key = conn.Source.HostId
             Map.add key (conn.Target.HostId :: (Map.tryFind key acc |> Option.defaultValue [])) acc)
-    let rec walk depth (frontier: string list) (found: Map<string, int>) =
+    let rec walk depth (frontier: int list) (found: Map<int, int>) =
         match frontier with
         | [] -> found
         | _ ->
@@ -318,10 +319,10 @@ let private depthFromInputs
 /// Build the floorplan by bisecting recursively, alternating the split axis with depth so blocks
 /// stay roughly square rather than growing into a strip.
 /// The two metrics that decide which sibling block is placed first.
-type private Ordering = { Vertical: Map<string, float>; Depth: Map<string, int> }
+type private Ordering = { Vertical: Map<int, float>; Depth: Map<int, int> }
 
 let rec private floorplan
-        (w: Map<string * string, int>)
+        (w: Map<int * int, int>)
         (ordering: Ordering)
         (depth: int)
         (comps: Component list)
@@ -382,7 +383,7 @@ let rec private blockSize (block: Block) : float * float =
 let private snap (v: float) = System.Math.Round(v / Constants.grid) * Constants.grid
 
 /// Assign each component a top-left position within the rectangle its block occupies.
-let rec private placeBlock (originX: float) (originY: float) (block: Block) : (string * float * float) list =
+let rec private placeBlock (originX: float) (originY: float) (block: Block) : (int * float * float) list =
     match block with
     | Leaf comp ->
         [ comp.Id, snap (originX + Constants.componentGap / 2.), snap (originY + Constants.componentGap / 2.) ]
@@ -398,7 +399,7 @@ let rec private placeBlock (originX: float) (originY: float) (block: Block) : (s
 
 /// A column of components down the left or right edge, in the order given - which is the order
 /// they were declared, and therefore the order of the sheet's own ports.
-let private placeColumn (x: float) (startY: float) (comps: Component list) : (string * float * float) list =
+let private placeColumn (x: float) (startY: float) (comps: Component list) : (int * float * float) list =
     comps
     |> List.mapFold
         (fun y comp -> (comp.Id, snap x, snap y), y + comp.H + Constants.componentGap)
@@ -499,7 +500,7 @@ let paramDefsOf (sheet: SheetDescription) : Result<ParameterDefs option, string>
                 match ParameterTypes.paramNamesOfExpr expr
                       |> List.filter (fun n -> not (Map.containsKey n declarations)) with
                 | [] ->
-                    Ok ({ CompId = componentId sheet.Name spec.Comp; CompSlot = spec.Slot },
+                    Ok ({ CompId = componentIdIn sheet spec.Comp; CompSlot = spec.Slot },
                         { Expression = expr; Constraints = [] })
                 | (ParamName missing) :: _ ->
                     // every parameter used on a sheet must be declared on it
@@ -556,7 +557,8 @@ let toCanvasState (sheet: SheetDescription) : Result<CanvasState, string> =
     | _ :: _ -> Error $"""these component names are used more than once: {String.concat ", " duplicates}"""
     | [] ->
         sheet.Comps
-        |> Helpers.ResultList.traverse (buildComponent sheet.Name)
+        |> List.mapi (fun i spec -> i + 1, spec)
+        |> Helpers.ResultList.traverse (fun (id, spec) -> buildComponent id spec)
         |> Result.bind (fun comps ->
             // keyed by the name the description uses, which is the id minus the sheet prefix
             let byName =

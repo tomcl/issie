@@ -18,16 +18,19 @@ open System.Text.RegularExpressions
         open Thoth.Json.Net
         #endif
 
-        type JSONCanvasState = JSONComponent.Component list * Connection list
+        type JSONCanvasState = JSONComponent.Component list * JSONComponent.Connection list
 
-        type SavedCanvasUnknownWaveInfo<'T> = | NewCanvasWithFileWaveSheetInfoAndNewConns of JSONCanvasState * 'T option * SheetInfo option * System.DateTime
+        type SavedCanvasUnknownWaveInfo<'T> = | NewCanvasWithFileWaveSheetInfoAndNewConns of JSONCanvasState * 'T option * JSONWave.SheetInfo option * System.DateTime
 
+        // Every type below is the FILE form: ids are strings there (uuids in old files, integers
+        // written as strings in new ones), and become the in-memory integer ids only through
+        // sheetOfJson at the end of this file - which is where a uuid gets its integer.
         type SavedInfo =
             | CanvasOnly of LegacyCanvasState
-            | CanvasWithFileWaveInfo of LegacyCanvasState * SavedWaveInfo option * System.DateTime
-            | CanvasWithFileWaveInfoAndNewConns of LegacyCanvasState * SavedWaveInfo option * System.DateTime
-            | NewCanvasWithFileWaveInfoAndNewConns of JSONCanvasState * SavedWaveInfo option * System.DateTime
-            | NewCanvasWithFileWaveSheetInfoAndNewConns of JSONCanvasState * SavedWaveInfo option * SheetInfo option * System.DateTime
+            | CanvasWithFileWaveInfo of LegacyCanvasState * JSONWave.SavedWaveInfo option * System.DateTime
+            | CanvasWithFileWaveInfoAndNewConns of LegacyCanvasState * JSONWave.SavedWaveInfo option * System.DateTime
+            | NewCanvasWithFileWaveInfoAndNewConns of JSONCanvasState * JSONWave.SavedWaveInfo option * System.DateTime
+            | NewCanvasWithFileWaveSheetInfoAndNewConns of JSONCanvasState * JSONWave.SavedWaveInfo option * JSONWave.SheetInfo option * System.DateTime
             
             member self.getCanvas = 
                 match self with
@@ -68,9 +71,10 @@ open System.Text.RegularExpressions
             |> Extra.withBigInt
             |> Extra.withCustom CommonTypes.componentIdEncoder CommonTypes.componentIdDecoder
 
-        /// converts Component to JSONComponent.Component for saving as JSON.
-        /// this conversion does not affect the JSON generated.
-        let convStateToJC ( compL, connL) = (List.map convertToJSONComponent compL, connL)
+        /// converts a live CanvasState to its file form: legacy-compatible component types, and
+        /// every integer id written as a decimal string.
+        let convStateToJC (compL, connL) : JSONCanvasState =
+            List.map convertToJSONComponent compL, List.map convertToJSONConnection connL
 
         /// Code to convert a CanvasState to a JSON string, does not work for bigints (I think).
         /// A serialisation failure is an Error: it must never be written to the sheet's
@@ -78,7 +82,12 @@ open System.Text.RegularExpressions
         let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : Result<string,string> =
             let time = System.DateTime.Now
             try
-                 let savedInfo = NewCanvasWithFileWaveSheetInfoAndNewConns (convStateToJC cState, waveInfo, sheetInfo, time)
+                 let savedInfo =
+                     NewCanvasWithFileWaveSheetInfoAndNewConns (
+                         convStateToJC cState,
+                         Option.map waveInfoToJson waveInfo,
+                         Option.map sheetInfoToJson sheetInfo,
+                         time)
                  #if FABLE_COMPILER
                  Json.serialize<SavedInfo> savedInfo
                  #else
@@ -94,7 +103,7 @@ open System.Text.RegularExpressions
         let stateToJsonStringExperimental (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : Result<string,string> =
             let time = System.DateTime.Now
             try
-                Encode.Auto.toString(space = 0, value = (NewCanvasWithFileWaveSheetInfoAndNewConns (convStateToJC cState, waveInfo, sheetInfo, time)), extra = extraCoder)
+                Encode.Auto.toString(space = 0, value = (NewCanvasWithFileWaveSheetInfoAndNewConns (convStateToJC cState, Option.map waveInfoToJson waveInfo, Option.map sheetInfoToJson sheetInfo, time)), extra = extraCoder)
                 |> Ok
             with
             | e ->
@@ -386,15 +395,15 @@ module PrintSimple =
     let pComponent (comp: Component) =
         let inPorts =
             comp.InputPorts
-            |> List.map (fun p -> crop p.Id)
+            |> List.map (fun p -> string p.Id)
         let outPorts =
             comp.OutputPorts
-            |> List.map (fun p -> crop p.Id)
+            |> List.map (fun p -> string p.Id)
         $"|{comp.Label}:{comp.Type} PIN={inPorts} POut={outPorts}|"
 
     /// Print a connection simply
     let pConnection (conn: Connection) =
-        $"{crop conn.Source.Id}->{crop conn.Target.Id}"
+        $"{conn.Source.Id}->{conn.Target.Id}"
 
     /// human-readable print of CanvasState.
     let pState ((comps, conns): CanvasState) =
@@ -408,135 +417,28 @@ module PrintSimple =
         |> String.concat "\n") +
         "\n"
 
-/// Give every component, port and connection on one sheet a fresh uuid, rewriting every
-/// reference to the old ones. Used when a sheet is copied (Import / Duplicate Sheet), and to
-/// repair projects in which two sheets were given the same ids by an earlier copy.
-/// Ids are unique within a sheet only, but a few places (waveform sheet labels, wire
-/// highlighting) assume they are unique across the whole project.
-module RegenerateIds =
-    open Optics
-    open ParameterTypes
+// ---------------------------------------------------------------------------------------------
+// Integer canvas ids: allocation, admission, remapping, and the file boundary.
+//
+// Component ids are unique across the whole DESIGN, allocated densely from 1 - the one id
+// namespace with a global invariant, and the density is what lets a design's components index
+// arrays directly. Port and connection ids need only be unique WITHIN their sheet: nothing
+// resolves either outside the sheet it belongs to. They are minted from design-lifetime
+// allocators all the same - over-uniqueness is harmless and saves threading sheet context into
+// the draw block - but admission enforces only the per-sheet invariant for them.
+// Ids 0 and below are sentinels and are never allocated.
+// ---------------------------------------------------------------------------------------------
 
-    /// Every id a canvas holds directly: component ids, port ids, connection ids - deduplicated,
-    /// in canvas order. One list serves all three kinds because they share a namespace: uuids
-    /// cannot collide by construction, reduced integer ids because the allocator below is one
-    /// per design.
-    let private allIds ((comps, conns): CanvasState) : string list =
-        let compIds = comps |> List.map (fun comp -> comp.Id)
-        let portIds = comps |> List.collect (fun comp -> comp.InputPorts @ comp.OutputPorts) |> List.map (fun port -> port.Id)
-        let connIds = conns |> List.map (fun conn -> conn.Id)
-        compIds @ portIds @ connIds |> List.distinct
+/// The uuid generator's replacement: integer id allocation, lowest unallocated first.
+module IdAllocator =
 
-    /// old id -> fresh uuid, for every component id, port id and connection id on the sheet.
-    let makeIdMap (canvas: CanvasState) : Map<string,string> =
-        allIds canvas
-        |> List.map (fun id -> id, DrawHelpers.uuid ())
-        |> Map.ofList
+    /// Which integers are taken, one flag per value: assignment is a first-zero scan from a
+    /// cursor that only advances, so ids come out dense and seeding is one pass.
+    type Allocator = { mutable Used: uint32[]; mutable Cursor: int }
 
-    /// Ids not in the map are left alone: saved sheets can reference ports that no longer exist,
-    /// and waveform access paths reference components on other sheets.
-    let private sub (idMap: Map<string,string>) (id: string) =
-        Map.tryFind id idMap
-        |> Option.defaultValue id
-
-    let private remapPort idMap (port: Port) =
-        {port with Id = sub idMap port.Id; HostId = sub idMap port.HostId}
-
-    /// PortOrientation is keyed by port id, PortOrder holds port ids in its values.
-    let private remapSymbolInfo idMap (info: SymbolInfo) =
-        info
-        |> Optic.map portOrientation_ (Map.toList >> List.map (fun (id, edge) -> sub idMap id, edge) >> Map.ofList)
-        |> Optic.map portOrder_ (Map.map (fun _ ids -> List.map (sub idMap) ids))
-
-    /// ComponentSlotExpr is keyed by ParamSlot, which holds the component id as a string.
-    let private remapSlots idMap (slots: ComponentSlotExpr) =
-        slots
-        |> Map.toList
-        |> List.map (fun (slot, expr) -> Optic.map compId_ (sub idMap) slot, expr)
-        |> Map.ofList
-
-    let private remapComp idMap (comp: Component) =
-        {comp with
-            Id = sub idMap comp.Id
-            InputPorts = List.map (remapPort idMap) comp.InputPorts
-            OutputPorts = List.map (remapPort idMap) comp.OutputPorts
-            SymbolInfo = Option.map (remapSymbolInfo idMap) comp.SymbolInfo
-            SlotInfo = Option.map (remapSlots idMap) comp.SlotInfo}
-
-    let private remapConn idMap (conn: Connection) =
-        {conn with
-            Id = sub idMap conn.Id
-            Source = remapPort idMap conn.Source
-            Target = remapPort idMap conn.Target}
-
-    /// Apply an id map to a canvas: component ids, port ids and host ids, symbol layout maps,
-    /// parameter slots, connection ids and endpoints. Geometry and labels are untouched.
-    let remapCanvasState (idMap: Map<string,string>) ((comps, conns): CanvasState) : CanvasState =
-        List.map (remapComp idMap) comps, List.map (remapConn idMap) conns
-
-    /// An FComponentId is a component id plus the access path of custom components containing it.
-    /// Path entries belong to other sheets, so they fall through sub unchanged.
-    let private remapFCompId idMap ((ComponentId cid, ap): FComponentId) : FComponentId =
-        ComponentId(sub idMap cid), List.map (fun (ComponentId id) -> ComponentId(sub idMap id)) ap
-
-    let private remapWaveInfo idMap (wi: SavedWaveInfo) =
-        let remapKeys map = map |> Map.toList |> List.map (fun (k, v) -> remapFCompId idMap k, v) |> Map.ofList
-        {wi with
-            SelectedWaves = wi.SelectedWaves |> Option.map (List.map (fun wave -> {wave with Id = remapFCompId idMap wave.Id}))
-            SelectedFRams = wi.SelectedFRams |> Option.map remapKeys
-            SelectedRams =
-                wi.SelectedRams
-                |> Option.map (Map.toList >> List.map (fun (ComponentId cid, v) -> ComponentId(sub idMap cid), v) >> Map.ofList)
-            DisplayedPortIds = wi.DisplayedPortIds |> Option.map (Array.map (sub idMap))}
-
-    /// Apply an id map to everything a LoadedComponent holds: the canvas, the parameter slots
-    /// and the saved waveform selection, which live on the LoadedComponent rather than in its
-    /// CanvasState.
-    let remapLoadedComponent (idMap: Map<string,string>) (ldc: LoadedComponent) : LoadedComponent =
-        {ldc with
-            CanvasState = remapCanvasState idMap ldc.CanvasState
-            LCParameterSlots = ldc.LCParameterSlots |> Option.map (Optic.map paramSlots_ (remapSlots idMap))
-            WaveInfo = ldc.WaveInfo |> Option.map (remapWaveInfo idMap)}
-
-    /// Regenerate every id on a sheet, including the parameter slots and saved waveform selection
-    /// which live on the LoadedComponent rather than in its CanvasState.
-    let regenerateSheetIds (ldc: LoadedComponent) : LoadedComponent =
-        remapLoadedComponent (makeIdMap ldc.CanvasState) ldc
-
-    /// Scan sheets in order. Any sheet reusing a component or connection id already seen on an
-    /// earlier sheet has all of its ids regenerated and is marked as needing saving.
-    /// Returns the sheets, and the names of those that were changed.
-    let correctDuplicateIds (ldcs: LoadedComponent list) : LoadedComponent list * string list =
-        let idsOf (ldc: LoadedComponent) =
-            let comps, conns = ldc.CanvasState
-            List.map (fun (comp: Component) -> comp.Id) comps, List.map (fun (conn: Connection) -> conn.Id) conns
-        let step (seenComps, seenConns, sheets, changed) (ldc: LoadedComponent) =
-            let compIds, connIds = idsOf ldc
-            let clashes =
-                List.exists (fun id -> Set.contains id seenComps) compIds ||
-                List.exists (fun id -> Set.contains id seenConns) connIds
-            let ldc' =
-                if clashes then regenerateSheetIds ldc |> Optic.set loadedComponentIsOutOfDate_ true
-                else ldc
-            let compIds', connIds' = idsOf ldc'
-            let changed' = if clashes then ldc'.Name :: changed else changed
-            Set.union seenComps (Set.ofList compIds'), Set.union seenConns (Set.ofList connIds'), ldc' :: sheets, changed'
-        let _, _, sheets, changed = List.fold step (Set.empty, Set.empty, [], []) ldcs
-        List.rev sheets, List.rev changed
-
-    // ---- id reduction: uuids -> dense small-integer strings, one namespace per design ----
-
-    /// True for an id the reducer produces: a positive integer of fewer than 7 digits with no
-    /// leading zero. Everything else - uuids, and anything ambiguous such as "042" (which would
-    /// alias "42" once parsed to an int) - is treated as needing replacement.
-    let private isReducedId (s: string) =
-        s.Length >= 1 && s.Length <= 6 && s[0] <> '0' && String.forall System.Char.IsDigit s
-
-    /// Which integers are taken, as one flag per value so that assignment is a first-zero scan -
-    /// which is what makes the ids DENSE, the property that lets the sidecar use them as array
-    /// indices. Mutable by design and confined to one reduceLoadedComponents call, so callers
-    /// see a pure function (the exception docs/mutableState.md allows for measured local state).
-    type private Allocator = { mutable Used: uint32[]; mutable Cursor: int }
+    /// Allocators are cheap: sheet-scoped ones are made, seeded and dropped per operation.
+    let makeAllocator (initialSize: int) : Allocator =
+        { Used = Array.zeroCreate (max 16 initialSize); Cursor = 1 }
 
     let private ensureSize (alloc: Allocator) (index: int) =
         if index >= alloc.Used.Length then
@@ -544,45 +446,271 @@ module RegenerateIds =
             Array.blit alloc.Used 0 bigger 0 alloc.Used.Length
             alloc.Used <- bigger
 
-    let private reserve (alloc: Allocator) (index: int) =
-        ensureSize alloc index
-        alloc.Used[index] <- 1u
+    /// Mark an id as taken. Sentinels (0 and below) are ignored.
+    let reserve (alloc: Allocator) (id: int) =
+        if id > 0 then
+            ensureSize alloc id
+            alloc.Used[id] <- 1u
 
-    /// The smallest unused positive integer. The cursor only advances: everything below it is
-    /// known taken, so a whole-design reduction is one left-to-right scan however many ids ask.
-    let private next (alloc: Allocator) =
+    let isUsed (alloc: Allocator) (id: int) =
+        id > 0 && id < alloc.Used.Length && alloc.Used[id] <> 0u
+
+    /// The smallest unused positive integer, marked taken as it is handed out.
+    let next (alloc: Allocator) : int =
         let mutable i = max 1 alloc.Cursor
+
         while i < alloc.Used.Length && alloc.Used[i] <> 0u do
             i <- i + 1
+
         ensureSize alloc i
         alloc.Used[i] <- 1u
         alloc.Cursor <- i + 1
         i
 
-    /// Replace every uuid-style id across a whole design with a dense small-integer string,
-    /// keeping ids already in that form. PROJECT-scoped on purpose: one namespace covers every
-    /// sheet, and component, port and connection ids share it - project-wide uniqueness is what
-    /// correctDuplicateIds enforces and what wire highlighting and the waveform simulator
-    /// assume. Ids stay strings here and in saved files; they become actual integers only in
-    /// the Simple wire types sent to the sidecar.
-    ///
-    /// One merged map remaps all sheets, which is what keeps a sheet's saved waveform selections
-    /// - whose access paths name components on OTHER sheets - consistent with those sheets.
-    /// On an already-reduced design the map is empty and the input is returned as is, so calling
-    /// this again before every send costs one parse per id.
-    let reduceLoadedComponents (ldcs: LoadedComponent list) : LoadedComponent list =
-        let alloc = { Used = Array.zeroCreate 10_000; Cursor = 1 }
-        let ids = ldcs |> List.collect (fun ldc -> allIds ldc.CanvasState) |> List.distinct
-        ids |> List.iter (fun id -> if isReducedId id then reserve alloc (int id))
+    let reset (alloc: Allocator) =
+        Array.fill alloc.Used 0 alloc.Used.Length 0u
+        alloc.Cursor <- 1
 
-        let idMap =
+    // The three design-lifetime allocators, one per id kind. Global mutable state encapsulated
+    // behind the functions below (docs/mutableState.md): RegenerateIds.admitDesign resets and
+    // re-seeds them when a project opens, so nothing leaks from one project to the next.
+    let private components = makeAllocator 10_000
+    let private ports = makeAllocator 40_000
+    let private connections = makeAllocator 20_000
+
+    let resetAll () =
+        reset components
+        reset ports
+        reset connections
+
+    /// A fresh component id, unique across the open design.
+    let newComponentId () = next components
+
+    /// A fresh port id. Unique across the design in practice (one allocator serves every
+    /// sheet), though only uniqueness within a sheet is required of it.
+    let newPortId () = next ports
+
+    /// A fresh connection id; as newPortId, over-unique by construction.
+    let newConnectionId () = next connections
+
+    let reserveComponentId (id: int) = reserve components id
+    let reservePortId (id: int) = reserve ports id
+    let reserveConnectionId (id: int) = reserve connections id
+    let componentIdUsed (id: int) = isUsed components id
+
+/// Rewriting the ids a sheet holds - when a sheet is copied into a project, and when a loaded
+/// sheet breaks an id invariant.
+module RegenerateIds =
+    open Optics
+    open ParameterTypes
+
+    /// Ids not in a map are left alone: saved sheets can reference ports that no longer exist,
+    /// and waveform access paths reference components on other sheets.
+    let private sub (idMap: Map<int, int>) (id: int) =
+        Map.tryFind id idMap |> Option.defaultValue id
+
+    let private remapPort compMap portMap (port: Port) =
+        { port with Id = sub portMap port.Id; HostId = sub compMap port.HostId }
+
+    /// PortOrientation is keyed by port id, PortOrder holds port ids in its values.
+    let private remapSymbolInfo portMap (info: SymbolInfo) =
+        info
+        |> Optic.map portOrientation_ (Map.toList >> List.map (fun (id, edge) -> sub portMap id, edge) >> Map.ofList)
+        |> Optic.map portOrder_ (Map.map (fun _ ids -> List.map (sub portMap) ids))
+
+    /// ComponentSlotExpr is keyed by ParamSlot, which holds the component id.
+    let private remapSlots compMap (slots: ComponentSlotExpr) =
+        slots
+        |> Map.toList
+        |> List.map (fun (slot, expr) -> Optic.map compId_ (sub compMap) slot, expr)
+        |> Map.ofList
+
+    let private remapComp compMap portMap (comp: Component) =
+        { comp with
+            Id = sub compMap comp.Id
+            InputPorts = List.map (remapPort compMap portMap) comp.InputPorts
+            OutputPorts = List.map (remapPort compMap portMap) comp.OutputPorts
+            SymbolInfo = Option.map (remapSymbolInfo portMap) comp.SymbolInfo
+            SlotInfo = Option.map (remapSlots compMap) comp.SlotInfo }
+
+    let private remapConn compMap portMap connMap (conn: Connection) =
+        { conn with
+            Id = sub connMap conn.Id
+            Source = remapPort compMap portMap conn.Source
+            Target = remapPort compMap portMap conn.Target }
+
+    /// Apply id maps - component, port and connection ids are separate namespaces, so separate
+    /// maps - to a canvas: ids, host ids, symbol layout maps, parameter slots, endpoints.
+    let remapCanvasState compMap portMap connMap ((comps, conns): CanvasState) : CanvasState =
+        List.map (remapComp compMap portMap) comps, List.map (remapConn compMap portMap connMap) conns
+
+    /// An FComponentId is a component id plus the access path of custom components containing
+    /// it. Only the FIRST path entry lives on the sheet being remapped - deeper entries, and the
+    /// component itself when there is a path, belong to descendant sheets and must not be
+    /// touched: with per-sheet integer ids their values can coincide with this sheet's ids, so
+    /// an indiscriminate map (safe when ids were globally-unique uuids) would corrupt them.
+    /// A ref into a sheet that is later renumbered dangles, exactly as it always did.
+    let private remapFCompId compMap ((ComponentId cid, ap): FComponentId) : FComponentId =
+        match ap with
+        | [] -> ComponentId(sub compMap cid), []
+        | (ComponentId first) :: rest -> ComponentId cid, ComponentId(sub compMap first) :: rest
+
+    let private remapWaveInfo compMap (wi: SavedWaveInfo) =
+        let remapKeys map =
+            map |> Map.toList |> List.map (fun (k, v) -> remapFCompId compMap k, v) |> Map.ofList
+
+        { wi with
+            SelectedWaves =
+                wi.SelectedWaves
+                |> Option.map (List.map (fun wave -> { wave with Id = remapFCompId compMap wave.Id }))
+            SelectedFRams = wi.SelectedFRams |> Option.map remapKeys
+            SelectedRams =
+                wi.SelectedRams
+                |> Option.map (Map.toList >> List.map (fun (ComponentId cid, v) -> ComponentId(sub compMap cid), v) >> Map.ofList) }
+
+    /// Apply id maps to everything a LoadedComponent holds: the canvas, the parameter slots and
+    /// the saved waveform selection, which live on the LoadedComponent rather than in its
+    /// CanvasState.
+    let remapLoadedComponent compMap portMap connMap (ldc: LoadedComponent) : LoadedComponent =
+        { ldc with
+            CanvasState = remapCanvasState compMap portMap connMap ldc.CanvasState
+            LCParameterSlots = ldc.LCParameterSlots |> Option.map (Optic.map paramSlots_ (remapSlots compMap))
+            WaveInfo = ldc.WaveInfo |> Option.map (remapWaveInfo compMap) }
+
+    /// Give every component, port and connection on a sheet fresh ids from the design's
+    /// allocators, rewriting every reference. Used when a sheet is copied into a project:
+    /// Import / Duplicate Sheet, and library component materialisation.
+    let regenerateSheetIds (ldc: LoadedComponent) : LoadedComponent =
+        let comps, conns = ldc.CanvasState
+
+        let freshFor mint ids =
+            ids |> List.distinct |> List.map (fun id -> id, mint ()) |> Map.ofList
+
+        let compMap = comps |> List.map (fun comp -> comp.Id) |> freshFor IdAllocator.newComponentId
+
+        let portMap =
+            comps
+            |> List.collect (fun comp -> comp.InputPorts @ comp.OutputPorts)
+            |> List.map (fun port -> port.Id)
+            |> freshFor IdAllocator.newPortId
+
+        let connMap = conns |> List.map (fun conn -> conn.Id) |> freshFor IdAllocator.newConnectionId
+        remapLoadedComponent compMap portMap connMap ldc
+
+    /// Admit a sheet into the open design, re-minting what breaks an invariant: a component id
+    /// already used elsewhere in the design (component ids are design-unique), or any id that
+    /// is a sentinel or duplicated within the sheet (per-sheet uniqueness is every kind's
+    /// floor). Clean ids are reserved so later minting cannot collide with them. Returns the
+    /// sheet and whether anything had to change.
+    let admitSheet (ldc: LoadedComponent) : LoadedComponent * bool =
+        let comps, conns = ldc.CanvasState
+        let compIds = comps |> List.map (fun comp -> comp.Id)
+
+        let portIds =
+            comps
+            |> List.collect (fun comp -> comp.InputPorts @ comp.OutputPorts)
+            |> List.map (fun port -> port.Id)
+
+        let connIds = conns |> List.map (fun conn -> conn.Id)
+
+        let broken ids =
+            List.exists (fun id -> id <= 0) ids
+            || List.length (List.distinct ids) <> List.length ids
+
+        if broken compIds || broken portIds || broken connIds then
+            // a sentinel or an internal duplicate: a malformed sheet - renumber it wholesale
+            regenerateSheetIds ldc, true
+        else
+            portIds |> List.iter IdAllocator.reservePortId
+            connIds |> List.iter IdAllocator.reserveConnectionId
+
+            let compMap =
+                compIds
+                |> List.choose (fun id ->
+                    if IdAllocator.componentIdUsed id then
+                        Some(id, IdAllocator.newComponentId ())
+                    else
+                        IdAllocator.reserveComponentId id
+                        None)
+                |> Map.ofList
+
+            if Map.isEmpty compMap then
+                ldc, false
+            else
+                remapLoadedComponent compMap Map.empty Map.empty ldc, true
+
+    /// Open a design: reset the allocators and admit every sheet in read order, so the same
+    /// design gets the same ids each time it is opened. Returns the sheets and the names of any
+    /// whose ids had to change.
+    let admitDesign (ldcs: LoadedComponent list) : LoadedComponent list * string list =
+        IdAllocator.resetAll ()
+        let admitted = ldcs |> List.map admitSheet
+
+        admitted |> List.map fst,
+        admitted |> List.choose (fun (ldc, changed) -> if changed then Some ldc.Name else None)
+
+// ---------------------------------------------------------------------------------------------
+// The file boundary: string ids in saved .dgm JSON become the integer ids everything in memory
+// uses. An id already written as an integer keeps its value; anything else - a uuid, in files
+// from before ids were integers - is allocated the first free integer in its namespace, per
+// kind, per sheet. Design-wide component uniqueness is not settled here: admitDesign does that
+// when the sheets join a project.
+// ---------------------------------------------------------------------------------------------
+
+/// The integer a saved id string stands for, if it is one our saves write: a positive decimal
+/// of at most 9 digits with no leading zero ("042" would alias "42" once parsed, so it does
+/// not count as an integer id and is re-allocated instead).
+let private tryIdInt (s: string) : int option =
+    if s.Length >= 1 && s.Length <= 9 && s[0] <> '0' && String.forall System.Char.IsDigit s then
+        Some(int s)
+    else
+        None
+
+/// Convert one parsed sheet to in-memory form. The returned wave info may hold component ids of
+/// OTHER sheets (access paths): integer ones survive as they are, uuid ones from very old files
+/// become 0 - a dangling reference the wave viewer already tolerates by lookup-miss, exactly as
+/// a stale uuid was.
+let sheetOfJson
+    (canvas: JSONCanvasState)
+    (waveInfo: JSONWave.SavedWaveInfo option)
+    (sheetInfo: JSONWave.SheetInfo option)
+    : CanvasState * SavedWaveInfo option * SheetInfo option =
+    let jsonComps, jsonConns = canvas
+
+    // one namespace's mapping: parseable ids keep their values and are reserved; the rest get
+    // the first free integers; a string not on the sheet at all maps to the 0 sentinel
+    let makeMapping (ids: string list) : string -> int =
+        let ids = List.distinct ids
+        let alloc = IdAllocator.makeAllocator (List.length ids + 1)
+        ids |> List.iter (fun id -> tryIdInt id |> Option.iter (IdAllocator.reserve alloc))
+
+        let assigned =
             ids
-            |> List.filter (isReducedId >> not)
-            |> List.map (fun id -> id, string (next alloc))
+            |> List.choose (fun id ->
+                match tryIdInt id with
+                | Some _ -> None
+                | None -> Some(id, IdAllocator.next alloc))
             |> Map.ofList
 
-        if Map.isEmpty idMap then ldcs
-        else List.map (remapLoadedComponent idMap) ldcs
+        fun id ->
+            match tryIdInt id with
+            | Some n -> n
+            | None -> Map.tryFind id assigned |> Option.defaultValue 0
+
+    let mapCompId = jsonComps |> List.map (fun comp -> comp.Id) |> makeMapping
+
+    let mapPortId =
+        jsonComps
+        |> List.collect (fun comp -> comp.InputPorts @ comp.OutputPorts)
+        |> List.map (fun port -> port.Id)
+        |> makeMapping
+
+    let mapConnId = jsonConns |> List.map (fun conn -> conn.Id) |> makeMapping
+
+    let comps = jsonComps |> List.map (convertFromJSONComponent mapCompId mapPortId)
+    let conns = jsonConns |> List.map (convertFromJSONConnection mapConnId mapCompId mapPortId)
+
+    (comps, conns), waveInfo |> Option.map (waveInfoOfJson mapCompId), sheetInfo |> Option.map (sheetInfoOfJson mapCompId)
 
 //------------------------------------------------------------------------------------//
 //---------------------------Low Level Component Helpers------------------------------//

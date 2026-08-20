@@ -72,7 +72,7 @@ let createComponent' id compType (name:string) inputPorts outputPorts =
 /// Create a port (type: Port) based on the parameters given
 let createPort hostId portType portNumber =
     {
-        Id = DrawHelpers.uuid()
+        Id = Helpers.IdAllocator.newPortId()
         PortNumber = portNumber
         PortType = portType
         HostId = hostId
@@ -83,13 +83,13 @@ let createConnection (source:Port) (target:Port) =
     let source' = {source with PortNumber=None}
     let target' = {target with PortNumber=None}
     {
-        Id = DrawHelpers.uuid()
+        Id = Helpers.IdAllocator.newConnectionId()
         Source = source'
         Target = target'
         Vertices = []
     }
 
-let createPortList (ofType:PortType) (number:int) (hostId:string) =
+let createPortList (ofType:PortType) (number:int) (hostId:int) =
     [0..(number-1)] |> List.collect (fun i -> [createPort hostId ofType (Some i)] )
 
 
@@ -121,7 +121,7 @@ let createComponent (compType:ComponentType) (name:string) : Component =
         | Custom custom -> List.length custom.InputLabels, List.length custom.OutputLabels
         |_ -> failwithf $"Undefined component properties {compType}"
     
-    let id = DrawHelpers.uuid()
+    let id = Helpers.IdAllocator.newComponentId()
     let inputPorts = createPortList PortType.Input inputPortNo id
     let outputPorts = createPortList PortType.Output outputPortNo id
     
@@ -358,8 +358,8 @@ let concatenateCanvasStates (mainCS: CanvasState) (newCS:CanvasState) : CanvasSt
     ((fst mainCS)@(fst newCS) |> List.distinct,(snd mainCS)@(snd newCS) |> List.distinct)
     
 
-let dfsTraversal (graph: Map<string, List<string>>) (componentMap: Map<string, Component>) (connections: List<Connection>) (parents: Set<string> )=
-    let rec dfsHelper name (visited, (compMap: Map<string, Component>), conns) currentNode =
+let dfsTraversal (graph: Map<int, List<int>>) (componentMap: Map<int, Component>) (connections: List<Connection>) (parents: Set<int> )=
+    let rec dfsHelper name (visited, (compMap: Map<int, Component>), conns) currentNode =
         if Set.contains currentNode visited then
             visited, compMap, conns // Node has already been visited, skip it
         else
@@ -427,7 +427,7 @@ let fixConsecutiveWires (oldCanvasState: CanvasState) =
     // build dependency graph + find root nodes
     let graph, parents =
         ((Map.empty, wires), wireConns)
-        ||> List.fold (fun ((graph:Map<string,List<string>>), parents) conn ->
+        ||> List.fold (fun ((graph:Map<int,List<int>>), parents) conn ->
             let currDeps = (Option.defaultValue [] (Map.tryFind conn.Source.HostId graph))
             let graph' = Map.add conn.Source.HostId (currDeps@[conn.Target.HostId]) graph
             let parents' = Set.remove conn.Target.HostId parents

@@ -183,7 +183,7 @@ let private buildSimulationComponent
         |> List.collect (fun port ->
             match sourceToTargetPort.TryFind <| OutputPortId port.Id with
             | None when comp.Type = IOLabel -> [] // IOLabels are allowed to be connected to nothing
-            | None -> failwithf "what? Unconnected output port %s in comp %s" port.Id comp.Id
+            | None -> failwithf "what? Unconnected output port %d in comp %d" port.Id comp.Id
             | Some targets ->
                 [ OutputPortNumber
                   <| getPortNumberOrFail port.PortNumber,
@@ -237,9 +237,12 @@ let getLabelConnections (comps: Component list) (conns: Connection list) =
     let getConnection (compTarget: Component) = targetMap[ComponentId compTarget.Id]
 
     let copyConnection (conn: Connection) (compTarget: Component) (tagNum: int) =
+        // a synthetic id for the duplicated connection, unique among the copies and negative so
+        // it can never collide with a real (allocated, positive) connection id; these copies
+        // live only inside the simulation graph being built and are never saved
         { conn with
             Target = compTarget.InputPorts[0]
-            Id = sprintf "iolab%d" tagNum + conn.Id }
+            Id = -(conn.Id * 1000 + tagNum + 1) }
 
     let getDriverConnection (comps: Component list) =
         comps
@@ -302,7 +305,7 @@ let private findOutputWidths (canvasState: CanvasState) (connsWidth: Connections
         |> Map.toList
         |> List.map (fun (ConnectionId k, w) -> k, (w |> Option.get))
 
-    let inline findComp (id: string) =
+    let inline findComp (id: int) =
         comps
         |> List.tryFind (fun c -> c.Id = id)
         |> Option.get

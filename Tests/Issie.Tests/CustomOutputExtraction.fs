@@ -21,19 +21,19 @@ let private maxArraySize = 10
 
 /// A sheet that inverts: IN -> NOT -> OUT.
 let private notSheet =
-    let i = makeComp "ns-in" 0 1 (Input1(1, None)) "A"
-    let n = makeComp "ns-not" 1 1 Not "N"
-    let o = makeComp "ns-out" 1 0 (Output 1) "Y"
+    let i = makeComp 1 0 1 (Input1(1, None)) "A"
+    let n = makeComp 2 1 1 Not "N"
+    let o = makeComp 3 1 0 (Output 1) "Y"
     makeLdc "notsheet" None ([ i; n; o ], [ conn i 0 n 0; conn n 0 o 0 ])
 
 /// Top sheet: IN drives two instances of notSheet in series, so that the two instances hold
 /// opposite values and an answer from the wrong one is visible rather than a coincidence.
 ///   IN -> INV1 -> INV2 -> OUT      (INV1 = not IN, INV2 = IN)
 let private top =
-    let inp = makeComp "top-in" 0 1 (Input1(1, None)) "IN"
-    let inv1 = makeComp "top-inv1" 1 1 (customOf notSheet [ "A", 1 ] [ "Y", 1 ] None) "INV1"
-    let inv2 = makeComp "top-inv2" 1 1 (customOf notSheet [ "A", 1 ] [ "Y", 1 ] None) "INV2"
-    let out = makeComp "top-out" 1 0 (Output 1) "OUT"
+    let inp = makeComp 1 0 1 (Input1(1, None)) "IN"
+    let inv1 = makeComp 2 1 1 (customOf notSheet [ "A", 1 ] [ "Y", 1 ] None) "INV1"
+    let inv2 = makeComp 3 1 1 (customOf notSheet [ "A", 1 ] [ "Y", 1 ] None) "INV2"
+    let out = makeComp 4 1 0 (Output 1) "OUT"
     makeLdc "top" None
         ([ inp; inv1; inv2; out ],
          [ conn inp 0 inv1 0; conn inv1 0 inv2 0; conn inv2 0 out 0 ])
@@ -49,7 +49,7 @@ let private simulateWith (inValue: bigint) =
         simData.FastSim
 
 /// The value on output port 0 of the component with the given id, at the top level of the design.
-let private outputOf (fs: FastSimulation) (compId: string) =
+let private outputOf (fs: FastSimulation) (compId: int) =
     match FastExtract.extractFastSimulationOutput fs 0 (ComponentId compId, []) (OutputPortNumber 0) with
     | IData fd -> fd.GetBigInt
     | IAlg _ -> failtest "algebraic value from a non-algebraic simulation"
@@ -58,14 +58,14 @@ let tests =
     testList "CustomOutputExtraction" [
         test "a custom component's output port reads as the sheet inside it drives it" {
             let fs = simulateWith 0I
-            Expect.equal (outputOf fs "top-inv1") 1I "INV1 inverts its input, so IN=0 gives 1"
-            Expect.equal (outputOf fs "top-inv2") 0I "INV2 inverts INV1, so IN=0 gives 0"
+            Expect.equal (outputOf fs 2) 1I "INV1 inverts its input, so IN=0 gives 1"
+            Expect.equal (outputOf fs 3) 0I "INV2 inverts INV1, so IN=0 gives 0"
         }
 
         test "and follows the input rather than reporting a constant" {
             let fs = simulateWith 1I
-            Expect.equal (outputOf fs "top-inv1") 0I "INV1 inverts its input, so IN=1 gives 0"
-            Expect.equal (outputOf fs "top-inv2") 1I "INV2 inverts INV1, so IN=1 gives 1"
+            Expect.equal (outputOf fs 2) 0I "INV1 inverts its input, so IN=1 gives 0"
+            Expect.equal (outputOf fs 3) 1I "INV2 inverts INV1, so IN=1 gives 1"
         }
 
         test "each instance of a sheet answers with its own Output component" {
@@ -73,8 +73,8 @@ let tests =
             // rather than by instance would have to give one of them the other's value.
             let fs = simulateWith 0I
             Expect.notEqual
-                (outputOf fs "top-inv1")
-                (outputOf fs "top-inv2")
+                (outputOf fs 2)
+                (outputOf fs 3)
                 "two instances of one sheet, chained, must not report the same value"
         }
 
@@ -83,8 +83,8 @@ let tests =
             // top-out is an ordinary component found in FComps, so this reads by the other path:
             // the two paths must meet at the same value.
             Expect.equal
-                (outputOf fs "top-inv2")
-                (outputOf fs "top-out")
+                (outputOf fs 3)
+                (outputOf fs 4)
                 "OUT is wired straight from INV2, so the two ways of reading it must agree"
         }
     ]

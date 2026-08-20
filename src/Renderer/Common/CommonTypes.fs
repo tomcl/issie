@@ -120,16 +120,16 @@ Because a design sheet can be instantiated as a component they can also represen
 /// HostId is the unique Id of the component where the port is. For example,
 /// all three ports on the same And component will have the same HostId.
 type Port = {
-    Id : string
+    Id : int
     // For example, an And would have input ports 0 and 1, and output port 0.
     // If the port is used in a Connection record as Source or Target, the Number is None. 
     PortNumber : int option
     PortType : PortType 
-    HostId : string
+    HostId : int
 }
 
     
-type PortId = | PortId of string
+type PortId = | PortId of int
 
 // NB - this.Text() is not currently used.
 
@@ -402,8 +402,8 @@ type SymbolInfo = {
     LabelRotation: Rotation option
     STransform: STransform
     ReversedInputPorts: bool option
-    PortOrientation: Map<string, Edge>
-    PortOrder: Map<Edge, string list>
+    PortOrientation: Map<int, Edge>
+    PortOrder: Map<Edge, int list>
     HScale: float option
     VScale: float option
 }
@@ -480,7 +480,7 @@ type SimpleDesign = {
 /// Id uniquely identifies the component within a sheet.
 /// Label is optional descriptor displayed on schematic.
 type Component = {
-    Id : string
+    Id : int
     Type : ComponentType
     /// All components have a label that may be empty: label is not unique
     Label : string 
@@ -539,7 +539,7 @@ let slotInfo_ = Lens.create (fun c -> c.SlotInfo) (fun n c -> {c with SlotInfo =
 /// JSConnection mapped to F# record.
 /// Id uniquely identifies connection globally and is used by library.
 type Connection = {
-    Id : string
+    Id : int
     Source : Port
     Target : Port
     Vertices : (float * float * bool) list
@@ -610,6 +610,29 @@ module JSONComponent =
 
 
 
+    /// The FILE form of a Port. Saved .dgm files hold ids as strings - uuids in old files,
+    /// integers written as strings in new ones - while the in-memory types hold integers; the
+    /// converters below are where one becomes the other. Field names match the in-memory type
+    /// exactly, so the on-disk JSON is unchanged by the int move.
+    type Port = {
+        Id : string
+        PortNumber : int option
+        PortType : PortType
+        HostId : string
+    }
+
+    /// The FILE form of SymbolInfo: port ids (map keys and PortOrder values) as strings.
+    type SymbolInfo = {
+        LabelBoundingBox: BoundingBox option
+        LabelRotation: Rotation option
+        STransform: STransform
+        ReversedInputPorts: bool option
+        PortOrientation: Map<string, Edge>
+        PortOrder: Map<Edge, string list>
+        HScale: float option
+        VScale: float option
+    }
+
     /// Like Component, but with legacy cases added to ComponentType
     /// Used only to read/write JSON versions of circuits
     type Component = {
@@ -618,7 +641,7 @@ module JSONComponent =
         Label : string // All components have a label that may be empty.
         InputPorts : Port list // position on this list determines inputPortNumber
         OutputPorts : Port list // position in this lits determines OutputPortNumber
-        SlotInfo : ParameterTypes.ComponentSlotExpr option
+        SlotInfo : ParameterTypes.JSONParams.ComponentSlotExpr option
         X : float
         Y : float
         H : float
@@ -626,12 +649,18 @@ module JSONComponent =
         SymbolInfo : SymbolInfo option
     }
 
-/// Transforms JSON components (parsed from JSON)  to current components
-/// Normally this means converting legacy JSON component types into new ones.
-/// However it could in principle be more radical.
-/// The default transform unboxes the value which works when there is no change in the JS value
-/// representation
-let convertFromJSONComponent (comp: JSONComponent.Component) : Component =
+    /// The FILE form of a Connection: ids as strings.
+    type Connection = {
+        Id : string
+        Source : Port
+        Target : Port
+        Vertices : (float * float * bool) list
+    }
+
+/// Transforms JSON components (parsed from JSON) to current components: legacy ComponentType
+/// cases are upgraded, and the file's string ids become integers through the mapping functions
+/// the loader supplies - which is where a uuid in an old file gets its integer allocated.
+let convertFromJSONComponent (mapCompId: string -> int) (mapPortId: string -> int) (comp: JSONComponent.Component) : Component =
     let newType (ct: JSONComponent.ComponentType) : ComponentType = 
         match ct with
         | JSONComponent.ComponentType.Input1 (a,b) -> Input1 (a,b)
@@ -692,19 +721,54 @@ let convertFromJSONComponent (comp: JSONComponent.Component) : Component =
         | JSONComponent.Constant(w,v) -> Constant1(w,v,sprintf "%A" v)
         | JSONComponent.Input n -> Input1(n, None)
         | JSONComponent.BusCompare(w,v) -> BusCompare1(w,v, sprintf "%A" v)
+    let newPort (port: JSONComponent.Port) : Port =
+        { Id = mapPortId port.Id
+          PortNumber = port.PortNumber
+          PortType = port.PortType
+          HostId = mapCompId port.HostId }
+
+    let newSymbolInfo (info: JSONComponent.SymbolInfo) : SymbolInfo =
+        { LabelBoundingBox = info.LabelBoundingBox
+          LabelRotation = info.LabelRotation
+          STransform = info.STransform
+          ReversedInputPorts = info.ReversedInputPorts
+          PortOrientation =
+            info.PortOrientation |> Map.toList |> List.map (fun (id, edge) -> mapPortId id, edge) |> Map.ofList
+          PortOrder = info.PortOrder |> Map.map (fun _ ids -> List.map mapPortId ids)
+          HScale = info.HScale
+          VScale = info.VScale }
+
     // explicit construction, not unbox: the records only share a JS runtime representation,
     // and this code also runs under dotnet where unboxing between them is an invalid cast
-    { Id = comp.Id
+    { Id = mapCompId comp.Id
       Type = newType comp.Type
       Label = comp.Label
-      InputPorts = comp.InputPorts
-      OutputPorts = comp.OutputPorts
-      SlotInfo = comp.SlotInfo
+      InputPorts = List.map newPort comp.InputPorts
+      OutputPorts = List.map newPort comp.OutputPorts
+      SlotInfo = comp.SlotInfo |> Option.map (ParameterTypes.slotsOfJson mapCompId)
       X = comp.X
       Y = comp.Y
       H = comp.H
       W = comp.W
-      SymbolInfo = comp.SymbolInfo }
+      SymbolInfo = Option.map newSymbolInfo comp.SymbolInfo }
+
+/// A file connection to a live one, through the same id mappings.
+let convertFromJSONConnection
+    (mapConnId: string -> int)
+    (mapCompId: string -> int)
+    (mapPortId: string -> int)
+    (conn: JSONComponent.Connection)
+    : Connection =
+    let newPort (port: JSONComponent.Port) : Port =
+        { Id = mapPortId port.Id
+          PortNumber = port.PortNumber
+          PortType = port.PortType
+          HostId = mapCompId port.HostId }
+
+    { Id = mapConnId conn.Id
+      Source = newPort conn.Source
+      Target = newPort conn.Target
+      Vertices = conn.Vertices }
 
 /// Transforms normal Components into JSON Components which can be saved.
 /// This is always an identity transformation since the normal ComponentType
@@ -767,19 +831,49 @@ let convertToJSONComponent (comp: Component) : JSONComponent.Component =
         | BusCompare (w, v) -> JSONComponent.ComponentType.BusCompare (w, v)
         | Input w -> JSONComponent.ComponentType.Input w
         | Constant (w, v) -> JSONComponent.ComponentType.Constant (w, v)
+    let jsonPort (port: Port) : JSONComponent.Port =
+        { Id = string port.Id
+          PortNumber = port.PortNumber
+          PortType = port.PortType
+          HostId = string port.HostId }
+
+    let jsonSymbolInfo (info: SymbolInfo) : JSONComponent.SymbolInfo =
+        { LabelBoundingBox = info.LabelBoundingBox
+          LabelRotation = info.LabelRotation
+          STransform = info.STransform
+          ReversedInputPorts = info.ReversedInputPorts
+          PortOrientation =
+            info.PortOrientation |> Map.toList |> List.map (fun (id, edge) -> string id, edge) |> Map.ofList
+          PortOrder = info.PortOrder |> Map.map (fun _ ids -> List.map string ids)
+          HScale = info.HScale
+          VScale = info.VScale }
+
     // explicit construction, not unbox: the records only share a JS runtime representation,
     // and this code also runs under dotnet where unboxing between them is an invalid cast
-    { Id = comp.Id
+    { Id = string comp.Id
       Type = newType
       Label = comp.Label
-      InputPorts = comp.InputPorts
-      OutputPorts = comp.OutputPorts
-      SlotInfo = comp.SlotInfo
+      InputPorts = List.map jsonPort comp.InputPorts
+      OutputPorts = List.map jsonPort comp.OutputPorts
+      SlotInfo = comp.SlotInfo |> Option.map ParameterTypes.slotsToJson
       X = comp.X
       Y = comp.Y
       H = comp.H
       W = comp.W
-      SymbolInfo = comp.SymbolInfo }
+      SymbolInfo = Option.map jsonSymbolInfo comp.SymbolInfo }
+
+/// A live connection to its file form, ids written as decimal strings.
+let convertToJSONConnection (conn: Connection) : JSONComponent.Connection =
+    let jsonPort (port: Port) : JSONComponent.Port =
+        { Id = string port.Id
+          PortNumber = port.PortNumber
+          PortType = port.PortType
+          HostId = string port.HostId }
+
+    { Id = string conn.Id
+      Source = jsonPort conn.Source
+      Target = jsonPort conn.Target
+      Vertices = conn.Vertices }
 
 //---------------------------------------------------------------------------------------------------------------//
 //--------------------------END OF ComponentType CONVERSION - used when upgarding Component definitions----------//
@@ -797,8 +891,8 @@ module LegacyCanvas =
         Id : string
         Type : JSONComponent.ComponentType
         Label : string // All components have a label that may be empty.
-        InputPorts : Port list // position on this list determines inputPortNumber
-        OutputPorts : Port list // position in this lits determines OutputPortNumber
+        InputPorts : JSONComponent.Port list // position on this list determines inputPortNumber
+        OutputPorts : JSONComponent.Port list // position in this lits determines OutputPortNumber
         X : float
         Y : float
         H : float
@@ -809,8 +903,8 @@ module LegacyCanvas =
     /// Id uniquely identifies connection globally and is used by library.
     type LegacyConnection = {
         Id : string
-        Source : Port
-        Target : Port
+        Source : JSONComponent.Port
+        Target : JSONComponent.Port
         Vertices : (float * float) list
     }
 
@@ -825,7 +919,7 @@ module LegacyCanvas =
             
 // This code is for VERY OLD circuits...
 let legacyTypesConvert (lComps, lConns) =
-    let convertConnection (c:LegacyCanvas.LegacyConnection) : Connection =
+    let convertConnection (c:LegacyCanvas.LegacyConnection) : JSONComponent.Connection =
         {
             Id=c.Id; 
             Source=c.Source;
@@ -892,31 +986,28 @@ with
 // The next types are not strictly necessary, but help in understanding what is what.
 // Used consistently they provide type protection that greatly reduces coding errors
 
-/// SHA hash unique to a component - common between JS and F#
+/// Unique integer id of a component. Unique across the whole DESIGN - the one id namespace
+/// with a global invariant, allocated densely from 1 by Helpers.IdAllocator so a design's
+/// components can index arrays directly. 0 and negatives are sentinels, never allocated.
 [<Erase>]
-type ComponentId = | ComponentId of string
+type ComponentId = | ComponentId of int
 
 let componentIdEncoder (cid: ComponentId) =
     match cid with
-    | ComponentId s -> Encode.string s
+    | ComponentId n -> Encode.int n
 
 let componentIdDecoder: Decoder<ComponentId> =
-    Decode.index 0 Decode.string
-    |> Decode.andThen (fun caseName ->
-        match caseName with
-        | "ComponentId" ->
-            Decode.index 1 Decode.string
-            |> Decode.andThen (fun id -> Decode.succeed (ComponentId id))
-        | invalid -> Decode.fail (sprintf "Invalid case name: %s" invalid))
+    Decode.int |> Decode.map ComponentId
 
 /// Unique identifier for a fast component.
 /// The list is the access path, a list of all the containing custom components 
 /// from the top sheet of the simulation (root first)
 type FComponentId = ComponentId * ComponentId list
 
-/// SHA hash unique to a connection - common between JS and F#
+/// Unique integer id of a connection, unique within its SHEET only - nothing resolves a
+/// connection id outside the sheet it belongs to (error highlighting is sheet-guarded).
 [<Erase>]
-type ConnectionId     = | ConnectionId of string
+type ConnectionId     = | ConnectionId of int
 
 /// type to uniquely identify a segment
 type SegmentId      = int * ConnectionId
@@ -927,19 +1018,19 @@ type SegmentId      = int * ConnectionId
 [<Erase>]
 type ComponentLabel   = | ComponentLabel of string
 
-/// SHA hash unique to a component port - common between JS and F#.
+/// Integer id of a component port, unique within its SHEET.
 /// Connection ports and connected component ports have the same port Id
-/// InputPortId and OutputPortID wrap the hash to distinguish component
+/// InputPortId and OutputPortID wrap the id to distinguish component
 /// inputs and outputs some times (e.g. in simulation)
 [<Erase>]
-type InputPortId      = | InputPortId of string
+type InputPortId      = | InputPortId of int
 
-/// SHA hash unique to a component port - common between JS and F#.
+/// Integer id of a component port, unique within its SHEET.
 /// Connection ports and connected component ports have the same port Id
-/// InputPortId and OutputPortID wrap the hash to distinguish component
+/// InputPortId and OutputPortID wrap the id to distinguish component
 /// inputs and outputs some times (e.g. in simulation)
 [<Erase>]
-type OutputPortId     = | OutputPortId of string
+type OutputPortId     = | OutputPortId of int
 
 /// Port numbers are sequential unique with port lists.
 /// Inputs and Outputs are both numberd from 0 up.
@@ -1031,6 +1122,107 @@ type SheetInfo = {
     /// anything means. Optional so files saved by older Issie versions load unchanged.
     IsTopSheet: bool option
 }
+
+// ---------------------------------------------------------------------------------------------
+// The FILE forms of the wave-viewer selection and the sheet info. Saved .dgm files hold every
+// id as a string (uuids in old files, integers written as strings in new ones); the in-memory
+// types above hold integers. Field names match the in-memory types exactly, so the on-disk
+// JSON is unchanged. The converters take the loader's id mapping; a wave selection can name
+// components on OTHER sheets (its access path), so the mapping the loader passes must cover
+// the whole design - an id it cannot map becomes 0, a dangling reference the wave simulator
+// already tolerates by lookup-miss, exactly as a stale uuid was.
+// ---------------------------------------------------------------------------------------------
+
+module JSONWave =
+
+    type WaveIndexT = {
+        SimArrayIndex: int
+        Id: string * string list
+        PortType: PortType
+        PortNumber: int
+    }
+
+    type SavedWaveInfo = {
+        SelectedWaves: WaveIndexT list option
+        Radix: NumberBase option
+        WaveformColumnWidth: float option
+        SelectedRams: Map<string, string> option
+        SelectedFRams: Map<string * string list, string> option
+        WSConfig: WSConfig option
+        ClkWidth: float option
+        Cursor: uint32 option
+        LastClk: uint32 option
+        DisplayedPortIds: string array option
+    }
+
+    type SheetInfo = {
+        Form: CCForm option
+        Description: string option
+        ParameterDefinitions: ParameterTypes.JSONParams.ParameterDefs option
+        IsTopSheet: bool option
+    }
+
+let private fCompIdToJson ((ComponentId cid, path): FComponentId) : string * string list =
+    string cid, path |> List.map (fun (ComponentId id) -> string id)
+
+let private fCompIdOfJson (mapCompId: string -> int) ((cid, path): string * string list) : FComponentId =
+    ComponentId(mapCompId cid), path |> List.map (mapCompId >> ComponentId)
+
+let waveInfoToJson (wi: SavedWaveInfo) : JSONWave.SavedWaveInfo =
+    { SelectedWaves =
+        wi.SelectedWaves
+        |> Option.map (List.map (fun w ->
+            ({ SimArrayIndex = w.SimArrayIndex
+               Id = fCompIdToJson w.Id
+               PortType = w.PortType
+               PortNumber = w.PortNumber }: JSONWave.WaveIndexT)))
+      Radix = wi.Radix
+      WaveformColumnWidth = wi.WaveformColumnWidth
+      SelectedRams =
+        wi.SelectedRams
+        |> Option.map (Map.toList >> List.map (fun (ComponentId cid, v) -> string cid, v) >> Map.ofList)
+      SelectedFRams =
+        wi.SelectedFRams
+        |> Option.map (Map.toList >> List.map (fun (fid, v) -> fCompIdToJson fid, v) >> Map.ofList)
+      WSConfig = wi.WSConfig
+      ClkWidth = wi.ClkWidth
+      Cursor = wi.Cursor
+      LastClk = wi.LastClk
+      DisplayedPortIds = wi.DisplayedPortIds }
+
+let waveInfoOfJson (mapCompId: string -> int) (wi: JSONWave.SavedWaveInfo) : SavedWaveInfo =
+    { SelectedWaves =
+        wi.SelectedWaves
+        |> Option.map (List.map (fun (w: JSONWave.WaveIndexT) ->
+            { SimArrayIndex = w.SimArrayIndex
+              Id = fCompIdOfJson mapCompId w.Id
+              PortType = w.PortType
+              PortNumber = w.PortNumber }))
+      Radix = wi.Radix
+      WaveformColumnWidth = wi.WaveformColumnWidth
+      SelectedRams =
+        wi.SelectedRams
+        |> Option.map (Map.toList >> List.map (fun (cid, v) -> ComponentId(mapCompId cid), v) >> Map.ofList)
+      SelectedFRams =
+        wi.SelectedFRams
+        |> Option.map (Map.toList >> List.map (fun (fid, v) -> fCompIdOfJson mapCompId fid, v) >> Map.ofList)
+      WSConfig = wi.WSConfig
+      ClkWidth = wi.ClkWidth
+      Cursor = wi.Cursor
+      LastClk = wi.LastClk
+      DisplayedPortIds = wi.DisplayedPortIds }
+
+let sheetInfoToJson (si: SheetInfo) : JSONWave.SheetInfo =
+    { Form = si.Form
+      Description = si.Description
+      ParameterDefinitions = si.ParameterDefinitions |> Option.map ParameterTypes.paramDefsToJson
+      IsTopSheet = si.IsTopSheet }
+
+let sheetInfoOfJson (mapCompId: string -> int) (si: JSONWave.SheetInfo) : SheetInfo =
+    { Form = si.Form
+      Description = si.Description
+      ParameterDefinitions = si.ParameterDefinitions |> Option.map (ParameterTypes.paramDefsOfJson mapCompId)
+      IsTopSheet = si.IsTopSheet }
 
 (*--------------------------------------------------------------------------------------------------*)
 

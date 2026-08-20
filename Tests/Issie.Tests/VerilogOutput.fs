@@ -20,9 +20,9 @@ open CanvasBuilder
 
 /// One component with an Input1 per input width and an Output per output width
 let private dutCanvas (compType: ComponentType) (inWidths: int list) (outWidths: int list) : CanvasState =
-    let dut = makeComp "dut" (List.length inWidths) (List.length outWidths) compType "DUT"
-    let ins = inWidths |> List.mapi (fun i w -> makeComp $"in{i}" 0 1 (Input1(w, None)) $"I{i}")
-    let outs = outWidths |> List.mapi (fun i w -> makeComp $"out{i}" 1 0 (Output w) $"O{i}")
+    let dut = makeComp 1 (List.length inWidths) (List.length outWidths) compType "DUT"
+    let ins = inWidths |> List.mapi (fun i w -> makeComp (2 + i) 0 1 (Input1(w, None)) $"I{i}")
+    let outs = outWidths |> List.mapi (fun i w -> makeComp (2 + List.length inWidths + i) 1 0 (Output w) $"O{i}")
     let conns =
         (ins |> List.mapi (fun i c -> conn c 0 dut i))
         @ (outs |> List.mapi (fun i c -> conn dut i c 0))
@@ -162,22 +162,22 @@ let private gateRef (gateType: GateComponentType) (bits: int list) =
 /// A sheet using a spread of component types at once, for the whole-file structural checks.
 /// Deliberately has no memory: memory modules bring their own scope, and are tested separately.
 let private mixedCanvas () : CanvasState =
-    let i0 = makeComp "i0" 0 1 (Input1(8, None)) "I0"
-    let i1 = makeComp "i1" 0 1 (Input1(8, None)) "I1"
-    let i2 = makeComp "i2" 0 1 (Input1(1, None)) "I2"
-    let k = makeComp "k" 0 1 (Constant1(8, 200I, "200")) "K"
-    let add = makeComp "add" 3 2 (NbitsAdder 8) "ADD"
-    let nt = makeComp "nt" 1 1 (NbitsNot 8) "NT"
-    let mux = makeComp "mux" 3 1 Mux2 "MUX"
-    let rg = makeComp "rg" 2 1 (RegisterE 8) "RG"
-    let sel = makeComp "sel" 1 1 (BusSelection(3, 0)) "SEL"
-    let sh = makeComp "sh" 2 1 (Shift(8, 3, ASR)) "SH"
-    let nand3 = makeComp "nand3" 3 1 (GateN(Nand, 3)) "NAND3"
-    let cmp = makeComp "cmp" 1 1 (BusCompare1(8, 200I, "200")) "CMP"
-    let o0 = makeComp "o0" 1 0 (Output 8) "O0"
-    let o1 = makeComp "o1" 1 0 (Output 1) "O1"
-    let o2 = makeComp "o2" 1 0 (Output 8) "O2"
-    let o3 = makeComp "o3" 1 0 (Output 1) "O3"
+    let i0 = makeComp 1 0 1 (Input1(8, None)) "I0"
+    let i1 = makeComp 2 0 1 (Input1(8, None)) "I1"
+    let i2 = makeComp 3 0 1 (Input1(1, None)) "I2"
+    let k = makeComp 4 0 1 (Constant1(8, 200I, "200")) "K"
+    let add = makeComp 5 3 2 (NbitsAdder 8) "ADD"
+    let nt = makeComp 6 1 1 (NbitsNot 8) "NT"
+    let mux = makeComp 7 3 1 Mux2 "MUX"
+    let rg = makeComp 8 2 1 (RegisterE 8) "RG"
+    let sel = makeComp 9 1 1 (BusSelection(3, 0)) "SEL"
+    let sh = makeComp 10 2 1 (Shift(8, 3, ASR)) "SH"
+    let nand3 = makeComp 11 3 1 (GateN(Nand, 3)) "NAND3"
+    let cmp = makeComp 12 1 1 (BusCompare1(8, 200I, "200")) "CMP"
+    let o0 = makeComp 13 1 0 (Output 8) "O0"
+    let o1 = makeComp 14 1 0 (Output 1) "O1"
+    let o2 = makeComp 15 1 0 (Output 8) "O2"
+    let o3 = makeComp 16 1 0 (Output 1) "O3"
     let comps = [ i0; i1; i2; k; add; nt; mux; rg; sel; sh; nand3; cmp; o0; o1; o2; o3 ]
     let conns =
         [ conn i2 0 add 0; conn i0 0 add 1; conn i1 0 add 2
@@ -188,8 +188,7 @@ let private mixedCanvas () : CanvasState =
           conn add 1 nand3 0; conn i2 0 nand3 1; conn add 1 nand3 2
           conn k 0 cmp 0
           conn rg 0 o0 0; conn nand3 0 o1 0; conn sh 0 o2 0; conn cmp 0 o3 0 ]
-        // conn builds ids from endpoints, and add.1 drives nand3 twice, so make them unique
-        |> List.mapi (fun i c -> { c with Id = $"{c.Id}-{i}" })
+        // conn pairs the two port ids, so even add.1 driving nand3 twice gets distinct ids
     comps, conns
 
 /// A memory of the given shape holding the given (address, data) pairs
@@ -419,8 +418,8 @@ let tests =
 
             test "a sheet with no ports has no port list" {
                 // Input -> NotConnected, written for simulation: no module port survives
-                let i = makeComp "i" 0 1 (Input1(4, None)) "I"
-                let nc = makeComp "nc" 1 0 NotConnected "NC"
+                let i = makeComp 1 0 1 (Input1(4, None)) "I"
+                let nc = makeComp 2 1 0 NotConnected "NC"
                 let v = verilogOf Verilog.ForSimulation Verilog.Release ([ i; nc ], [ conn i 0 nc 0 ])
                 Expect.isFalse (Regex.IsMatch(v, @"module main\s*\(\s*\)")) "no empty port list"
                 Expect.stringContains v "module main;" "bare module header"

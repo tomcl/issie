@@ -172,7 +172,7 @@ let getNewSymbolSnapInfo
         let portMap = model.Wire.Symbol.Ports
         let symbolMap = model.Wire.Symbol.Symbols
                     
-        let getAllConnectedPorts (pId:string) =
+        let getAllConnectedPorts (pId:int) =
             wires
             |> Map.toArray 
             |> Array.collect (fun (_,wire) -> 

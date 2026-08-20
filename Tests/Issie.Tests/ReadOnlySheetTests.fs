@@ -95,7 +95,7 @@ let tests =
             let loaded = loadedSheet ()
             let pinned = pinnedCanvasOf loaded
             let cid = someSymbolId loaded
-            let extra = ComponentId "an-id-that-was-not-there"
+            let extra = ComponentId 999 // an id that was not there
             let added =
                 { loaded with
                     Wire =

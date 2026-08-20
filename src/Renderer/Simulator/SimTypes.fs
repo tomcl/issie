@@ -172,7 +172,7 @@ type FastComponent =
     /// for debugging - get a short usually unique truncation of the fId
     member this.ShortId =
         let (ComponentId sid, ap) = this.fId
-        (EEExtensions.String.substringLength 0 5 sid)
+        string sid
     /// write data to the Unint32Step output array for the given time step (epoch) and output (n)
     member inline this.PutOutputUInt32 (epoch) (OutputPortNumber n) dat =
         this.Outputs[n].UInt32Step[ epoch ] <- dat

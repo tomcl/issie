@@ -237,7 +237,7 @@ let guessAtRenamedPorts (matches: PortChange seq)  : PortChange array =
 type Instance = {
     /// the sheet the instance sits on
     Sheet: string
-    CompId: string
+    CompId: int
     Label: string
     Old: Signature
     Expected: Signature
@@ -378,7 +378,7 @@ let changeInstance (comp:Component) (change: PortChange) =
             let labels = labels @ [name,width]
             let newPort:Port = 
                 {
-                    Id = JSHelpers.uuid ()
+                    Id = Helpers.IdAllocator.newPortId ()
                     PortNumber = Some ports.Length // next available number
                     HostId = comp.Id
                     PortType = match dir with | InputIO -> PortType.Input | OutputIO -> PortType.Output

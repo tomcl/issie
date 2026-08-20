@@ -211,7 +211,6 @@ let sendDesignToSidecar (model: Model) (_dispatch: Msg -> unit) =
 
         let design =
             ModelHelpers.designOf project canvas
-            |> Helpers.RegenerateIds.reduceLoadedComponents
             |> CanvasExtractor.simpleDesignOfLoadedComponents
 
         let t1 = TimeHelpers.getTimeMs ()

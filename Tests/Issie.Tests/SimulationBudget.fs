@@ -25,10 +25,10 @@ open CanvasBuilder
 /// A + B -> S, all three at the given bus width. Combinational, so nothing here allocates the
 /// per-step state array and the heap cost is the bigint arrays alone.
 let private adderSheet (name: string) (w: int) =
-    let a = makeComp "a" 0 1 (Input1(w, None)) "A"
-    let b = makeComp "b" 0 1 (Input1(w, None)) "B"
-    let add = makeComp "add" 2 1 (NbitsAdderNoCinCout w) "ADD"
-    let s = makeComp "s" 1 0 (Output w) "S"
+    let a = makeComp 1 0 1 (Input1(w, None)) "A"
+    let b = makeComp 2 0 1 (Input1(w, None)) "B"
+    let add = makeComp 3 2 1 (NbitsAdderNoCinCout w) "ADD"
+    let s = makeComp 4 1 0 (Output w) "S"
     makeLdc name None ([ a; b; add; s ], [ conn a 0 add 0; conn b 0 add 1; conn add 0 s 0 ])
 
 let private simulate (cycles: int) (ldc: LoadedComponent) =
@@ -36,19 +36,19 @@ let private simulate (cycles: int) (ldc: LoadedComponent) =
 
 /// IN -> NOT -> OUT. Three components, and the bottom of every hierarchy below.
 let private leaf =
-    let i = makeComp "leaf-in" 0 1 (Input1(1, None)) "IN"
-    let n = makeComp "leaf-not" 1 1 Not "N"
-    let o = makeComp "leaf-out" 1 0 (Output 1) "OUT"
+    let i = makeComp 1 0 1 (Input1(1, None)) "IN"
+    let n = makeComp 2 1 1 Not "N"
+    let o = makeComp 3 1 0 (Output 1) "OUT"
     makeLdc "leaf" None ([ i; n; o ], [ conn i 0 n 0; conn n 0 o 0 ])
 
 /// A sheet holding `copies` instances of `child` in a chain from IN to OUT, so that every instance
 /// is properly driven and the sheet passes the checks that run before the size is looked at.
 let private chainSheet (name: string) (child: LoadedComponent) (copies: int) =
-    let inp = makeComp $"{name}-in" 0 1 (Input1(1, None)) "IN"
-    let out = makeComp $"{name}-out" 1 0 (Output 1) "OUT"
+    let inp = makeComp 1 0 1 (Input1(1, None)) "IN"
+    let out = makeComp 2 1 0 (Output 1) "OUT"
     let instances =
         [ for i in 1..copies ->
-            makeComp $"{name}-c{i}" 1 1 (customOf child [ "IN", 1 ] [ "OUT", 1 ] None) $"C{i}" ]
+            makeComp (2 + i) 1 1 (customOf child [ "IN", 1 ] [ "OUT", 1 ] None) $"C{i}" ]
     let chain = (inp :: instances) @ [ out ]
     let conns = chain |> List.pairwise |> List.map (fun (a, b) -> conn a 0 b 0)
     makeLdc name None (chain, conns)
@@ -233,9 +233,9 @@ let tests =
             // link, a driver and an output array per port - so a sheet of wide gates must be
             // charged more than a sheet of the same number of narrow ones.
             let gateSheet (name: string) (fanIn: int) =
-                let inp = makeComp $"{name}-in" 0 1 (Input1(1, None)) "IN"
-                let g = makeComp $"{name}-g" fanIn 1 (GateN(And, fanIn)) "G"
-                let out = makeComp $"{name}-out" 1 0 (Output 1) "OUT"
+                let inp = makeComp 1 0 1 (Input1(1, None)) "IN"
+                let g = makeComp 3 fanIn 1 (GateN(And, fanIn)) "G"
+                let out = makeComp 2 1 0 (Output 1) "OUT"
                 let feed = [ for i in 0 .. fanIn - 1 -> conn inp 0 g i ]
                 makeLdc name None ([ inp; g; out ], feed @ [ conn g 0 out 0 ])
 

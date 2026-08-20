@@ -1261,7 +1261,7 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
             | Custom {Form = Some (Library _)} -> "Name"
             | Custom _ -> "Instance name"
             | _ -> "Name"
-        div [Key comp.Id] [
+        div [Key (string comp.Id)] [
             makeComponentHeader comp
             textFormField
                 required

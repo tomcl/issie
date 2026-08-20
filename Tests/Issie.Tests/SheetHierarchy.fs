@@ -26,8 +26,8 @@ let private ldc (name: string) (canvas: CanvasState) : LoadedComponent =
       IsTopSheet = false }
 
 /// an instance of sheet `name`, as a Custom component
-let private instanceOf (name: string) (label: string) =
-    { makeComp label 0 0 (Input1(1, None)) label with
+let private instanceOf (id: int) (name: string) (label: string) =
+    { makeComp id 0 0 (Input1(1, None)) label with
         Type =
             Custom
                 { Name = name; InputLabels = []; OutputLabels = []
@@ -42,7 +42,7 @@ let private nested (levels: int) (instances: int) : Project =
         [ for i in 0 .. levels - 1 ->
             let contents =
                 if i = levels - 1 then []
-                else [ for j in 1 .. instances -> instanceOf (sheetName (i + 1)) $"U{i}_{j}" ]
+                else [ for j in 1 .. instances -> instanceOf j (sheetName (i + 1)) $"U{i}_{j}" ]
             ldc (sheetName i) (contents, []) ]
     { ProjectPath = "."
       OpenFileName = sheetName 0
@@ -57,7 +57,7 @@ let private diamond (levels: int) : Project =
     let sheets =
         [ for i in 0 .. levels - 1 ->
             let contents =
-                [ for j in i + 1 .. min (i + 2) (levels - 1) -> instanceOf (sheetName j) $"U{i}_{j}" ]
+                [ for j in i + 1 .. min (i + 2) (levels - 1) -> instanceOf j (sheetName j) $"U{i}_{j}" ]
             ldc (sheetName i) (contents, []) ]
     { ProjectPath = "."
       OpenFileName = sheetName 0
@@ -69,7 +69,7 @@ let private selfContaining =
     { ProjectPath = "."
       OpenFileName = "top"
       WorkingFileName = Some "top"
-      LoadedComponents = [ ldc "top" ([ instanceOf "top" "SELF" ], []) ] }
+      LoadedComponents = [ ldc "top" ([ instanceOf 1 "top" "SELF" ], []) ] }
 
 let private nodeCount (tree: SheetTree) =
     let rec count (t: SheetTree) = 1 + List.sumBy count t.SubSheets
@@ -141,8 +141,8 @@ let tests =
                   OpenFileName = "top"
                   WorkingFileName = Some "top"
                   LoadedComponents =
-                    [ ldc "top" ([ instanceOf "leaf" "L1"; instanceOf "mid" "M1" ], [])
-                      ldc "mid" ([ instanceOf "leaf" "L2" ], [])
+                    [ ldc "top" ([ instanceOf 1 "leaf" "L1"; instanceOf 2 "mid" "M1" ], [])
+                      ldc "mid" ([ instanceOf 1 "leaf" "L2" ], [])
                       ldc "leaf" ([], []) ] }
             let tree = treeOf false project
             Expect.equal (nodeCount tree) 4 "top, its leaf, mid, and mid's leaf"

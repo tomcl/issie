@@ -455,9 +455,9 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
                                 DBWire(wire, segs)
 
         | SheetT.MouseOn.InputPort (InputPortId s, _),_ , _ ->
-            DBInputPort s
+            DBInputPort (string s)
         | SheetT.MouseOn.OutputPort (OutputPortId s, _),_ , _ ->
-            DBOutputPort s
+            DBOutputPort (string s)
         | _ -> NoMenu
             
     // return the desired menu

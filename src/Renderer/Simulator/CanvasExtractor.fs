@@ -14,10 +14,7 @@ let sortQBy (byFun: 'a -> 'b) (ids: 'a list) =
     if isSorted then ids else List.sortBy byFun ids
 
 /// Formats a ConnectionId for logging purposes
-let logConnId (id: ConnectionId) =
-    id
-    |> (fun (ConnectionId str) -> str)
-    |> (fun str -> str[0..2])
+let logConnId (ConnectionId id) = string id
 
 /// Transform the CanvasState into an f# data structure, with layout data removed (for checking electrically significant changes).
 /// Components and connections are sorted to make them order-invariant - selecting components alters order.
@@ -521,16 +518,9 @@ let getStateAndDependencies
 
 // ---------------------------------------------------------------------------------------------
 // Conversion to the Simple wire types (CommonTypes.SimpleDesign), the minimal electrical form a
-// design crosses to the dotnet sidecar in. Precondition: ids already reduced
-// (Helpers.RegenerateIds.reduceLoadedComponents) so that every id parses as a positive integer -
-// the converter fails loudly on any other id rather than invent one.
+// design crosses to the dotnet sidecar in. Now that canvas ids ARE integers this is a straight
+// projection: geometry dropped, endpoints resolved to (component, port number).
 // ---------------------------------------------------------------------------------------------
-
-/// Parse a reduced id, naming what held it when it is not one.
-let private intOfReducedId (context: string) (id: string) =
-    match System.Int32.TryParse id with
-    | true, n when n > 0 -> n
-    | _ -> failwithf "simpleSheet: %s id '%s' is not a reduced integer id - reduce the design first" context id
 
 let simpleSheetOfLoadedComponent (ldc: LoadedComponent) : SimpleSheet =
     let comps, conns = ldc.CanvasState
@@ -540,13 +530,11 @@ let simpleSheetOfLoadedComponent (ldc: LoadedComponent) : SimpleSheet =
     let portInfo =
         comps
         |> List.collect (fun comp ->
-            let host = intOfReducedId $"component (sheet {ldc.Name})" comp.Id
-
             let entry (port: Port) =
                 match port.PortNumber with
-                | Some n -> port.Id, (host, n)
+                | Some n -> port.Id, (comp.Id, n)
                 | None ->
-                    failwithf "simpleSheet: port %s on component %s of %s has no port number" port.Id comp.Id ldc.Name
+                    failwithf "simpleSheet: port %d on component %d of %s has no port number" port.Id comp.Id ldc.Name
 
             List.map entry comp.InputPorts @ List.map entry comp.OutputPorts)
         |> Map.ofList
@@ -555,10 +543,10 @@ let simpleSheetOfLoadedComponent (ldc: LoadedComponent) : SimpleSheet =
         match Map.tryFind port.Id portInfo with
         | Some found -> found
         | None ->
-            failwithf "simpleSheet: the %s of a connection on %s names port %s, which no component has" which ldc.Name port.Id
+            failwithf "simpleSheet: the %s of a connection on %s names port %d, which no component has" which ldc.Name port.Id
 
     let simpleComp (comp: Component) : SimpleComponent =
-        { CompId = intOfReducedId $"component (sheet {ldc.Name})" comp.Id
+        { CompId = comp.Id
           TypeS = comp.Type
           Label = comp.Label }
 
@@ -566,7 +554,7 @@ let simpleSheetOfLoadedComponent (ldc: LoadedComponent) : SimpleSheet =
         let srcComp, srcPort = endpoint "source" conn.Source
         let destComp, destPort = endpoint "target" conn.Target
 
-        { ConnId = intOfReducedId $"connection (sheet {ldc.Name})" conn.Id
+        { ConnId = conn.Id
           SrcComp = srcComp
           SrcPort = srcPort
           DestComp = destComp

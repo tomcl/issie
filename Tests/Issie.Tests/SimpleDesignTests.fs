@@ -332,6 +332,98 @@ let tests =
                 "no run record in SimLog"
         }
 
+        test "sidecar SimSetInputs and SimRead agree with a local simulation, via wire payloads" {
+            let admitted, design, shimmed = convertProject "3cpu"
+            let ticks = 30
+
+            // the session, driven through the exact wire-format payloads
+            let buildReply = Issie.Sidecar.SimSession.build design 250
+            Expect.isFalse (buildReply.Contains "error") $"build failed: {buildReply}"
+
+            // a local simulation of the same shimmed design, driven identically
+            let top = shimmed |> List.find (fun ldc -> ldc.Name = design.TopSheet)
+            let localSim =
+                match Simulator.startCircuitSimulation 250 design.TopSheet top.CanvasState shimmed with
+                | Ok simData -> simData
+                | Error e -> failtest $"local build failed: %A{e.ErrType}"
+            let localFs = localSim.FastSim
+
+            let u32s (values: int list) =
+                values |> List.collect (System.BitConverter.GetBytes >> Array.toList) |> Array.ofList
+
+            // drive both with the digest stimulus, tick by tick: run to the tick, set inputs at it
+            for tick in 0 .. ticks - 1 do
+                if tick > 0 then
+                    Issie.Sidecar.SimSession.run tick 0 |> ignore
+                    FastRun.runFastSimulation None tick localFs |> ignore
+
+                let inputs = localSim.Inputs |> List.sortBy (fun (_, ComponentLabel l, _) -> l)
+
+                let setPayload =
+                    [ tick; List.length inputs ]
+                    @ (inputs
+                       |> List.mapi (fun i (ComponentId cid, _, width) ->
+                           let value = SimDigest.stimulus i tick width
+                           [ cid; int (uint32 (value &&& 4294967295I)); int (uint32 (value >>> 32)) ])
+                       |> List.concat)
+                    |> u32s
+
+                let setReply = Issie.Sidecar.SimSession.setInputs setPayload
+                Expect.isFalse (setReply.Contains "error") $"setInputs failed: {setReply}"
+
+                inputs
+                |> List.iteri (fun i (cid, _, width) ->
+                    let fd = NumberHelpers.convertBigintToFastData width (SimDigest.stimulus i tick width)
+                    FastExtract.changeInput cid (SimGraphTypes.IData fd) tick localFs)
+
+            Issie.Sidecar.SimSession.run (ticks - 1) 0 |> ignore
+            FastRun.runFastSimulation None (ticks - 1) localFs |> ignore
+
+            // read a window of every top-level clocked component plus one nested one (path in
+            // the payload), and compare word for word with local extraction
+            let itemsWanted =
+                localFs.FClockedComps
+                |> Array.filter (fun fc ->
+                    (match fc.FType with ROM1 _ -> false | _ -> true)
+                    && (FastExtract.extractFastSimulationOutput localFs 0 fc.fId (OutputPortNumber 0)
+                        |> function SimGraphTypes.IData fd -> fd.Width <= 32 | _ -> false))
+                |> Array.truncate 6
+                |> Array.toList
+                |> List.map (fun fc -> fc.fId)
+
+            Expect.isTrue (itemsWanted |> List.exists (fun (_, path) -> not (List.isEmpty path)))
+                "expected at least one nested item so access-path parsing is exercised"
+
+            let startCycle, cycles = ticks - 10, 10
+
+            let readPayload =
+                [ startCycle; cycles; List.length itemsWanted ]
+                @ (itemsWanted
+                   |> List.collect (fun (ComponentId cid, path) ->
+                       [ cid; 0; List.length path ] @ (path |> List.map (fun (ComponentId p) -> p))))
+                |> u32s
+
+            match Issie.Sidecar.SimSession.read readPayload with
+            | Error e -> failtest $"SimRead failed: {e}"
+            | Ok reply ->
+                Expect.equal (int (System.BitConverter.ToUInt32(reply, 0))) (List.length itemsWanted) "item count"
+                Expect.equal (int (System.BitConverter.ToUInt32(reply, 4))) cycles "cycle count"
+
+                itemsWanted
+                |> List.iteri (fun itemIndex fid ->
+                    for c in 0 .. cycles - 1 do
+                        let wire = System.BitConverter.ToUInt32(reply, 8 + 4 * (itemIndex * cycles + c))
+
+                        let local =
+                            match FastExtract.extractFastSimulationOutput localFs (startCycle + c) fid (OutputPortNumber 0) with
+                            | SimGraphTypes.IData fd -> uint32 fd.GetBigInt
+                            | _ -> failtest "algebraic value in local read"
+
+                        Expect.equal wire local $"item {itemIndex} cycle {startCycle + c} differs")
+
+            Issie.Sidecar.SimSession.endSession () |> ignore
+        }
+
         test "integer ids survive a save and reload round trip" {
             let admitted = loadProject "3cpu"
             let ldc = admitted |> List.find (fun l -> l.Name = "eep1")

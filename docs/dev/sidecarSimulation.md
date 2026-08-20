@@ -34,9 +34,9 @@ free (`SendAsync` awaits on the .NET side; `bufferedAmount` is the renderer's si
 happy-path traffic (commands up, results down) the fast direction carries the weight, which is
 the right way round.
 
-One design note before building binary formats on this: the skeleton's 5-byte header leaves the
-payload misaligned. Pad the header to 8 bytes and the renderer can overlay
-`Uint32Array`/`Float64Array` views on a received buffer directly — zero parse, zero copy.
+The frame header is 8 bytes (command, uint32 correlation id, 3 bytes of padding), so a binary
+response payload starts 8-aligned and the renderer overlays `Uint32Array`/`Float64Array` views
+on the received buffer directly — zero parse, zero copy. `SimRead` is the first user.
 
 ## Getting the design across
 
@@ -151,9 +151,15 @@ the Electron simulator itself - are checked against:
   single-cycle chunks, both dominated by per-chunk fixed cost - the log exists precisely so
   that real workloads can be compared instead of extrapolating from this.
 
-The algebraic (FData) path stays Electron-only, as agreed. Not yet done: `SimRead` /
-`SimSetInputs` (binary step-data transfer for the waveform phase, which want the 8-byte header
-padding first), and progress-bar UI integration of chunked sidecar runs.
+`SimSetInputs` sets top-level input values at a cycle (component id + 64-bit value pairs), and
+`SimRead` returns a window of output step data — any components by id and access path — as
+binary that the renderer views zero-copy (`SidecarClient.viewSimReadData`). Both are pinned by
+a wire-payload parity test against a locally driven simulation, and live by the DevHarness
+`sidecarProbe` command (measured word-identical on 3cpu). Signals wider than 32 bits are
+refused for now — the wide-bus read format belongs to the waveform phase.
+
+The algebraic (FData) path stays Electron-only, as agreed. Not yet done: wide-bus `SimRead`,
+and progress-bar UI integration of chunked sidecar runs.
 
 ## What the skeleton does not yet do
 

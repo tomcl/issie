@@ -4,7 +4,9 @@
 ///
 ///     byte 0        command; a response carries the request's command with bit 7 set
 ///     bytes 1..4    correlation id, uint32 little-endian, echoed back by the sidecar
-///     bytes 5..     payload
+///     bytes 5..7    padding, always zero: an 8-byte header means a binary response payload
+///                   starts 8-aligned, so Uint32Array/Float64Array views need no copy
+///     bytes 8..     payload
 ///
 /// The socket is the browser WebSocket global: the renderer is sandboxed and a browser API is
 /// what it has - which is also why no npm package is involved. Where the socket points comes
@@ -48,9 +50,16 @@ module Constants =
     [<Literal>]
     let simLogCmd = 9
 
-    /// Command byte plus the four bytes of correlation id.
     [<Literal>]
-    let headerSize = 5
+    let simSetInputsCmd = 10
+
+    [<Literal>]
+    let simReadCmd = 11
+
+    /// Command byte, uint32 correlation id, three bytes of padding - 8, so binary response
+    /// payloads start 8-aligned for zero-copy typed-array views.
+    [<Literal>]
+    let headerSize = 8
 
 // ---- the WebSocket API, by Emit: this project has no Fable.Browser.WebSocket binding ----
 
@@ -99,7 +108,7 @@ let private setCommand (frame: obj) (cmd: int) : unit = jsNative
 [<Emit("$0[0]")>]
 let private commandOf (frame: obj) : int = jsNative
 
-[<Emit("$0.set($1, 5)")>]
+[<Emit("$0.set($1, 8)")>]
 let private blitPayload (frame: obj) (payload: obj) : unit = jsNative
 
 [<Emit("new DataView($0.buffer, $0.byteOffset).getUint32(1, true)")>]
@@ -171,8 +180,8 @@ let disconnect () =
 [<Emit("new TextEncoder().encode($0)")>]
 let private encodeText (text: string) : obj = jsNative
 
-// the subarray skips the 5-byte header (Constants.headerSize, which an Emit cannot name)
-[<Emit("new TextDecoder().decode($0.subarray(5))")>]
+// the subarray skips the 8-byte header (Constants.headerSize, which an Emit cannot name)
+[<Emit("new TextDecoder().decode($0.subarray(8))")>]
 let private decodeTextPayload (frame: obj) : string = jsNative
 
 [<Emit("$0.set($1, $2)")>]
@@ -223,3 +232,48 @@ let simEnd () = requestArgs Constants.simEndCmd []
 
 /// The sidecar's SimLog ring as JSON - the .NET half of a cross-runtime cost comparison.
 let simLog () = requestArgs Constants.simLogCmd []
+
+// ---- binary step data: the point of the 8-byte header ----
+
+/// Read a uint32 little-endian at a byte offset of a frame.
+[<Emit("new DataView($0.buffer, $0.byteOffset).getUint32($1, true)")>]
+let readUint32At (bytes: obj) (offset: int) : float = jsNative
+
+/// A zero-copy Uint32Array view over `count` values starting at byte 16 of a SimRead response
+/// frame (8-byte header + the two uint32 counts) - which is 8-aligned by construction.
+[<Emit("new Uint32Array($0.buffer, $0.byteOffset + 16, $1)")>]
+let viewSimReadData (frame: obj) (count: int) : obj = jsNative
+
+/// Read an element of a Uint32Array view.
+[<Emit("$0[$1]")>]
+let uint32At (view: obj) (index: int) : float = jsNative
+
+/// Set top-level input values at a cycle: (component id, value) pairs, values up to 2^53
+/// (split into low and high words on the wire). Reply is JSON.
+let simSetInputs (cycle: int) (values: (int * float) list) : JS.Promise<string> =
+    let args =
+        [ cycle; List.length values ]
+        @ (values
+           |> List.collect (fun (compId, value) ->
+               let hi = System.Math.Floor(value / 4294967296.0)
+               let lo = value - hi * 4294967296.0
+               [ compId; int lo; int hi ]))
+
+    requestArgs Constants.simSetInputsCmd args
+
+/// Read `cycles` cycles of output data starting at `startCycle` for each requested item -
+/// (component id, output port number, access path root-first) - resolving with the raw response
+/// frame. On success the values are `viewSimReadData frame (items * cycles)`, item-major; an
+/// error response is JSON text (`decodeText frame` starts with '{').
+let simRead (startCycle: int) (cycles: int) (items: (int * int * int list) list) : JS.Promise<obj> =
+    let args =
+        [ startCycle; cycles; List.length items ]
+        @ (items
+           |> List.collect (fun (compId, outPort, path) -> [ compId; outPort; List.length path ] @ path))
+
+    let payload = makeBytes (4 * List.length args)
+    args |> List.iteri (fun i value -> writeUint32At payload (4 * i) (float value))
+    request Constants.simReadCmd payload
+
+/// The response payload as text, for reading an error reply from a binary command.
+let decodeText (frame: obj) : string = decodeTextPayload frame

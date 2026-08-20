@@ -5,7 +5,10 @@
 ///     byte 0        command; a response carries the request's command with ResponseFlag set
 ///     bytes 1..4    correlation id, uint32 little-endian - chosen by the renderer, echoed
 ///                   back unchanged, and how the renderer matches a response to its request
-///     bytes 5..     payload
+///     bytes 5..7    padding, always zero - the header is 8 bytes so that a BINARY response
+///                   payload starts 8-aligned and the renderer can overlay Uint32Array or
+///                   Float64Array views on the received buffer with no copy
+///     bytes 8..     payload
 ///
 /// There is no length field: a WebSocket message is self-delimiting. The renderer's half of
 /// this contract is src/Renderer/Interface/SidecarClient.fs - the two files change together.
@@ -64,12 +67,29 @@ let SimEnd = 0x08uy
 [<Literal>]
 let SimLog = 0x09uy
 
+/// Set top-level input values on the built simulation at a cycle. Payload: uint32 LE cycle,
+/// uint32 LE count, then per input uint32 LE component id, uint32 LE value low word, uint32 LE
+/// value high word. Reply: JSON.
+[<Literal>]
+let SimSetInputs = 0x0Auy
+
+/// Read a window of output step data from the built simulation, as binary. Payload: uint32 LE
+/// start cycle, uint32 LE cycle count, uint32 LE item count, then per item uint32 LE component
+/// id, uint32 LE output port number, uint32 LE access-path length, then that many uint32 LE
+/// path component ids (root first). Reply payload on success: uint32 LE item count, uint32 LE
+/// cycle count, then item-major uint32 LE values - so values start at byte 16 of the frame,
+/// 8-aligned for a zero-copy Uint32Array view. Signals wider than 32 bits are refused for now.
+/// An error reply is JSON text (starts with '{').
+[<Literal>]
+let SimRead = 0x0Buy
+
 [<Literal>]
 let ResponseFlag = 0x80uy
 
-/// Command byte plus the four bytes of correlation id.
+/// Command byte, four bytes of correlation id, three bytes of padding: 8, so that binary
+/// response payloads start 8-aligned for zero-copy typed-array views on the renderer side.
 [<Literal>]
-let HeaderSize = 5
+let HeaderSize = 8
 
 /// 64MB. Nothing the latency test sends is near it; anything larger is a protocol error.
 [<Literal>]

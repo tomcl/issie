@@ -257,6 +257,8 @@ let devMenu (dispatch) =
                 (fun _ -> Playground.WebWorker.testWorkers Playground.WebWorker.Constants.workerTestConfig)
             makeDebugItem "Test Sidecar Latency" None
                 (fun _ -> Playground.Sidecar.testLatency Playground.Sidecar.Constants.latencyTestConfig)
+            makeDebugItem "Send Design To Sidecar" None
+                (fun _ -> dispatch <| Msg.ExecFuncInMessage(DevHarness.sendDesignToSidecar, dispatch))
 
         ]
         makeMenuGen (debugLevel > 0) false "Verilog" [

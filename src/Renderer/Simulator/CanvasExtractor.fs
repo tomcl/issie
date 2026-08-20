@@ -518,3 +518,92 @@ let getStateAndDependencies
             Ok (diagramName, ldc.CanvasState, List.filter (fun ldc -> ldc.Name <> diagramName) ldcs)
         | None ->
             Error $"Error - can't find {diagramName} in dependencies"
+
+// ---------------------------------------------------------------------------------------------
+// Conversion to the Simple wire types (CommonTypes.SimpleDesign), the minimal electrical form a
+// design crosses to the dotnet sidecar in. Precondition: ids already reduced
+// (Helpers.RegenerateIds.reduceLoadedComponents) so that every id parses as a positive integer -
+// the converter fails loudly on any other id rather than invent one.
+// ---------------------------------------------------------------------------------------------
+
+/// Parse a reduced id, naming what held it when it is not one.
+let private intOfReducedId (context: string) (id: string) =
+    match System.Int32.TryParse id with
+    | true, n when n > 0 -> n
+    | _ -> failwithf "simpleSheet: %s id '%s' is not a reduced integer id - reduce the design first" context id
+
+let simpleSheetOfLoadedComponent (ldc: LoadedComponent) : SimpleSheet =
+    let comps, conns = ldc.CanvasState
+
+    // Connection endpoints usually carry PortNumber = None; the components' own port lists
+    // always carry Some, so endpoints resolve through a lookup built from those.
+    let portInfo =
+        comps
+        |> List.collect (fun comp ->
+            let host = intOfReducedId $"component (sheet {ldc.Name})" comp.Id
+
+            let entry (port: Port) =
+                match port.PortNumber with
+                | Some n -> port.Id, (host, n)
+                | None ->
+                    failwithf "simpleSheet: port %s on component %s of %s has no port number" port.Id comp.Id ldc.Name
+
+            List.map entry comp.InputPorts @ List.map entry comp.OutputPorts)
+        |> Map.ofList
+
+    let endpoint (which: string) (port: Port) =
+        match Map.tryFind port.Id portInfo with
+        | Some found -> found
+        | None ->
+            failwithf "simpleSheet: the %s of a connection on %s names port %s, which no component has" which ldc.Name port.Id
+
+    let simpleComp (comp: Component) : SimpleComponent =
+        { CompId = intOfReducedId $"component (sheet {ldc.Name})" comp.Id
+          TypeS = comp.Type
+          Label = comp.Label }
+
+    let simpleConn (conn: Connection) : SimpleConnection =
+        let srcComp, srcPort = endpoint "source" conn.Source
+        let destComp, destPort = endpoint "target" conn.Target
+
+        { ConnId = intOfReducedId $"connection (sheet {ldc.Name})" conn.Id
+          SrcComp = srcComp
+          SrcPort = srcPort
+          DestComp = destComp
+          DestPort = destPort }
+
+    let defaultBindings, paramSlots =
+        match ldc.LCParameterSlots with
+        | Some defs -> defs.DefaultBindings, defs.ParamSlots
+        | None -> Map.empty, Map.empty
+
+    { SheetName = ldc.Name
+      Components = List.map simpleComp comps
+      Connections = List.map simpleConn conns
+      DefaultBindings = defaultBindings
+      ParamSlots = paramSlots }
+
+/// The whole design. TopSheet is the flagged top sheet when there is one; otherwise a root of
+/// the instantiation forest (a sheet no other sheet instantiates), otherwise the first sheet -
+/// the fallback order parameter propagation also uses.
+let simpleDesignOfLoadedComponents (ldcs: LoadedComponent list) : SimpleDesign =
+    let instantiated =
+        ldcs
+        |> List.collect (fun ldc ->
+            fst ldc.CanvasState
+            |> List.choose (fun comp ->
+                match comp.Type with
+                | Custom custom -> Some custom.Name
+                | _ -> None))
+        |> Set.ofList
+
+    let top =
+        ldcs
+        |> List.tryFind (fun ldc -> ldc.IsTopSheet)
+        |> Option.orElseWith (fun () -> ldcs |> List.tryFind (fun ldc -> not (Set.contains ldc.Name instantiated)))
+        |> Option.orElseWith (fun () -> List.tryHead ldcs)
+        |> Option.map (fun ldc -> ldc.Name)
+        |> Option.defaultValue ""
+
+    { TopSheet = top
+      Sheets = List.map simpleSheetOfLoadedComponent ldcs }

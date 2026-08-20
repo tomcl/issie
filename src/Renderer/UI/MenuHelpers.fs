@@ -1069,8 +1069,14 @@ let rec resolveComponentOpenPopup
     match resolves with
     | [] ->
         // components is accumulated in reverse of the order files were read: scan in read order so
-        // that the same sheet keeps its ids each time the project is opened
-        let ldcs, corrected = RegenerateIds.correctDuplicateIds (List.rev components)
+        // that the same sheet keeps its ids each time the project is opened.
+        // Reduction first: uuids become dense small-integer id strings, project-scoped, so the
+        // duplicate check behind it is a safety net that reduction can never trip (an in-memory
+        // change only - files pick it up as the user saves them normally).
+        let ldcs, corrected =
+            List.rev components
+            |> RegenerateIds.reduceLoadedComponents
+            |> RegenerateIds.correctDuplicateIds
         setupProjectFromComponents false (chooseWhichToOpen ldcs) ldcs model dispatch
         match ldcs |> List.filter (fun ldc -> List.contains ldc.Name corrected) with
         | [] -> ()

@@ -649,7 +649,40 @@ module Convert =
     let fromJson<'t> json typeInfo =
         unbox<'t> (fromJsonAs json typeInfo)
 
+#if FABLE_COMPILER
     let quoteText (inputText: string) : string = importDefault "./quote.js"
+#else
+    /// What quote.js does, for the .NET compilation of this vendored library: JSON string
+    /// quoting per the spec - the two mandatory escapes plus control characters, everything
+    /// else (non-ASCII included) left as it is, which is also what the JS side emits. This is
+    /// the one JS import Convert.serialize reached for, so with it the serializer runs under
+    /// .NET too and a test can pin the exact renderer-side encoding without running Fable.
+    let quoteText (inputText: string) : string =
+        let sb = System.Text.StringBuilder(inputText.Length + 2)
+        sb.Append '"' |> ignore
+
+        for ch in inputText do
+            match ch with
+            | '"' -> sb.Append "\\\"" |> ignore
+            | '\\' -> sb.Append "\\\\" |> ignore
+            | '\b' -> sb.Append "\\b" |> ignore
+            | '\f' -> sb.Append "\\f" |> ignore
+            | '\n' -> sb.Append "\\n" |> ignore
+            | '\r' -> sb.Append "\\r" |> ignore
+            | '\t' -> sb.Append "\\t" |> ignore
+            | c when c < ' ' -> sb.AppendFormat("\\u{0:x4}", int c) |> ignore
+            | c -> sb.Append c |> ignore
+
+        sb.Append '"' |> ignore
+        sb.ToString()
+
+    /// .NET-side enumeration of any collection as boxed elements. The erased unbox casts the
+    /// Fable branches of serialize use (obj list, obj [], Map<IComparable,obj>) are identity
+    /// under Fable but invalid casts under .NET generics, so the .NET branches enumerate
+    /// non-generically instead.
+    let private boxedItems (value: obj) : obj seq =
+        (value :?> System.Collections.IEnumerable) |> Seq.cast<obj>
+#endif
 
     let rec serialize value (typeInfo: TypeInfo) =
         match typeInfo with
@@ -721,8 +754,13 @@ module Convert =
             let elementType = getElementType()
             let values =
                 value
+#if FABLE_COMPILER
                 |> unbox<Set<IComparable>>
                 |> Seq.map (fun element -> serialize element elementType)
+#else
+                |> boxedItems
+                |> Seq.map (fun element -> serialize element elementType)
+#endif
                 |> String.concat ", "
 
             "[" + values + "]"
@@ -731,8 +769,13 @@ module Convert =
             let elementType = getElementType()
             let values =
                 value
+#if FABLE_COMPILER
                 |> unbox<obj []>
                 |> Array.map (fun element -> serialize element elementType)
+#else
+                |> boxedItems
+                |> Seq.map (fun element -> serialize element elementType)
+#endif
                 |> String.concat ", "
 
             "[" + values + "]"
@@ -741,8 +784,13 @@ module Convert =
             let elementType = getElementType()
             let values =
                 value
+#if FABLE_COMPILER
                 |> unbox<obj list>
                 |> List.map (fun element -> serialize element elementType)
+#else
+                |> boxedItems
+                |> Seq.map (fun element -> serialize element elementType)
+#endif
                 |> String.concat ", "
 
             "[" + values + "]"
@@ -751,17 +799,28 @@ module Convert =
             let elementType = getElementType()
             let values =
                 value
+#if FABLE_COMPILER
                 |> unbox<obj seq>
                 |> Seq.toArray
                 |> Array.map (fun element -> serialize element elementType)
+#else
+                |> boxedItems
+                |> Seq.map (fun element -> serialize element elementType)
+#endif
                 |> String.concat ", "
 
             "[" + values + "]"
 
         | TypeInfo.Option getElementType ->
+#if FABLE_COMPILER
             match unbox<obj option> value with
             | None -> "null"
             | Some existingValue -> serialize existingValue (getElementType())
+#else
+            // a boxed None is null under .NET; a boxed Some carries its payload in Value
+            if isNull value then "null"
+            else serialize (value.GetType().GetProperty("Value").GetValue value) (getElementType())
+#endif
 
         | TypeInfo.Union getCases ->
             let (unionCases, unionType) = getCases()
@@ -788,8 +847,16 @@ module Convert =
 
             let serializedValues =
                 value
+#if FABLE_COMPILER
                 |> unbox<Map<IComparable, obj>>
                 |> Map.toArray
+#else
+                |> boxedItems
+                |> Seq.map (fun pair ->
+                    let pairType = pair.GetType()
+                    pairType.GetProperty("Key").GetValue pair, pairType.GetProperty("Value").GetValue pair)
+                |> Seq.toArray
+#endif
                 |> Array.map (fun (key, value) ->
                     let serializedKey = serialize key keyType
                     let serializedValue = serialize value valueType
@@ -838,7 +905,11 @@ module Convert =
             else
                 let serializedValues =
                     value
+#if FABLE_COMPILER
                     |> unbox<obj array>
+#else
+                    |> FSharpValue.GetTupleFields
+#endif
                     |> Array.mapi (fun index element -> serialize element tupleTypes.[index])
                     |> String.concat ", "
 

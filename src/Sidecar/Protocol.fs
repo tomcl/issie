@@ -15,6 +15,14 @@
 ///   Upload    payload discarded, header-only response  - renderer-to-sidecar
 ///   Download  payload is a 4-byte LE byte count N,
 ///             response carries N bytes                 - sidecar-to-renderer
+///
+/// SendDesign carries real cargo rather than measuring. Its payload is length-prefixed UTF-8
+/// strings (uint32 LE byte count, then the bytes, repeated): first the top sheet name, then one
+/// CommonTypes.SimpleSheet JSON per sheet - per-sheet rather than one design JSON so the
+/// receiver can cache decoded sheets and skip unchanged ones (DesignCache.fs). The renderer
+/// encodes with the vendored SimpleJson serializer, this side decodes with SimpleJsonDotNet.
+/// The response payload is a small JSON object with what was received, how many sheets needed
+/// decoding, and how long that took.
 module Issie.Sidecar.Protocol
 
 [<Literal>]
@@ -25,6 +33,9 @@ let Upload = 0x02uy
 
 [<Literal>]
 let Download = 0x03uy
+
+[<Literal>]
+let SendDesign = 0x04uy
 
 [<Literal>]
 let ResponseFlag = 0x80uy

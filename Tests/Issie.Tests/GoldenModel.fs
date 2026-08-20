@@ -23,13 +23,12 @@ let private toBigint (i: FSInterface) =
     | IData fd -> fd.GetBigInt
     | IAlg _ -> failwith "Algebraic value in golden simulation"
 
-/// Simulate `ticks` clock cycles of `topSheet`, driving all top-level inputs with the
-/// deterministic stimulus, and render the observable behaviour as text
-let runGolden (projectName: string) (topSheet: string) (ticks: int) : string =
-    let ldcs = loadProject projectName
+/// As runGolden, but on an already-loaded (or synthesised) design, so that a test can compare
+/// two designs that must behave identically - e.g. the SimpleDesign shim against its original.
+let runGoldenLdcs (ldcs: LoadedComponent list) (topSheet: string) (ticks: int) : string =
     let top = ldcs |> List.find (fun ldc -> ldc.Name = topSheet)
     match Simulator.startCircuitSimulation maxArraySize topSheet top.CanvasState ldcs with
-    | Error e -> failwith $"Simulation of {projectName}/{topSheet} failed: %A{e}"
+    | Error e -> failwith $"Simulation of {topSheet} failed: %A{e}"
     | Ok simData ->
         let fs = simData.FastSim
         let byLabel ios =
@@ -85,6 +84,11 @@ let runGolden (projectName: string) (topSheet: string) (ticks: int) : string =
                         | _ -> "?"
                 sb.AppendLine $"ram,{fc.FullName},{data}" |> ignore
         sb.ToString().Replace("\r\n", "\n")
+
+/// Simulate `ticks` clock cycles of `topSheet`, driving all top-level inputs with the
+/// deterministic stimulus, and render the observable behaviour as text
+let runGolden (projectName: string) (topSheet: string) (ticks: int) : string =
+    runGoldenLdcs (loadProject projectName) topSheet ticks
 
 let private goldenPath (projectName: string) (topSheet: string) =
     Path.Combine(fixturesDir, projectName, topSheet + ".golden")

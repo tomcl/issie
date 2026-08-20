@@ -9,7 +9,13 @@
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
   <ItemGroup>
+    <!-- The renderer compiles under plain .NET too (the test suite proves it daily), which is
+         what lets this process share CommonTypes, the JSON codecs and, in time, the simulator. -->
+    <ProjectReference Include="..\Renderer\Renderer.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="Protocol.fs" />
+    <Compile Include="DesignCache.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

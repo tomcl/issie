@@ -18,6 +18,7 @@ let main argv =
         ListPairsTests.tests
         WidthInferenceTests.tests
         PersistenceTests.tests
+        SimpleDesignTests.tests
         SheetDescriptionTests.tests
         DrawBlockTests.tests
         WireQuality.tests

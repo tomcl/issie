@@ -408,169 +408,6 @@ module PrintSimple =
         |> String.concat "\n") +
         "\n"
 
-/// Take a project and compress all of the IDs.
-module ReduceKeys =
-    open Optics
-    /// make ComponentID, PortID, ConnectionID keys all short:
-    /// ComponentID -> Cxxx
-    /// PortID -> Pxxx
-    /// ConnectionId -> Wxxx
-    /// xxx = base 36 alphanumeric number
-    let a36ToD (ch: char) = int ch - int 'a'
-    let dToA36 (d: int) = char d
-
-    let toA36 (n:int) =
-        let rec toA36' (alphas: char list) = function
-            | 0 when alphas = [] -> [dToA36 0]
-            | 0 -> alphas
-            | n  -> toA36' (dToA36 (n % 36) :: alphas) (n / 36)
-        toA36' [] n
-        |> string
-        
-
-    let toD alphas =
-        let rec toD' res = function
-            | [] -> res
-            | x :: chs -> toD' (a36ToD x + res*36) chs
-        alphas
-        |> Seq.toList
-        |> toD' 0
-
-    let getIndexFromReduced (s: string) =
-        match s.Length with
-        | 0 | 1 -> failwithf "Can't convert A36 string ids of less than 2 chars to decimal (first char muts be C|W|P)"
-        | n ->
-            match s[0] with
-            | 'C' | 'P' | 'W' -> toD s[1..n-1]
-            | x -> failwithf $"{s} does not start with C|P|W and so is not an A36 ID for Component, Wire, or Port"
-
-    let getReducedFromIndex (typ:string) (index:int) =
-        match typ with
-        | "W" | "C" | "P" -> typ + toA36 index
-        | s -> failwithf $"Can't recognise {s} as W or P or C."
-        
-    type Reducer =
-        {
-        mutable NextID: int
-        mutable KeyMap: Map<string, int>
-        }
-
-    with
-        static member Init() = {NextID = 0; KeyMap = Map.empty}
-
-        member this.Scan (id:string) =
-                if id.Length < 10 then
-                    this.NextID <- max this.NextID (getIndexFromReduced id + 1)
-
-        member this.ScanPort (p: Port) = this.Scan p.Id
-                   
-        member this.ScanComp (comp:Component) =
-            this.Scan comp.Id
-            List.iter this.ScanPort comp.InputPorts
-            List.iter this.ScanPort comp.OutputPorts
-
-        member this.ScanConn (conn:Connection) =
-            this.Scan conn.Id
-
-        member this.ScanCanvas ((compL,connL):CanvasState) =
-            List.iter this.ScanComp compL
-            List.iter this.ScanConn connL
-
-        member this.ScanProject (p: Project) =
-            p.LoadedComponents
-            |> List.iter (fun ldc -> this.ScanCanvas ldc.CanvasState)
-
-        member this.ReduceID (typ: string) (longId:string) =
-            match typ with
-            | "C" | "W" | "P" when longId.Length > 10 -> 
-                match Map.tryFind longId this.KeyMap with
-                | Some index -> index
-                | None ->
-                    let index = this.NextID
-                    this.NextID <- index + 1
-                    this.KeyMap <- Map.add longId index this.KeyMap
-                    index
-                |> getReducedFromIndex typ
-                |> Some
-            | "C" | "W" | "P" when longId[0] = typ[0] ->
-                None                
-            | s -> failwithf $"{s} is not a valid key type: 'C','W','P' are required for Component, Wire, or Port"
-
-        member this.Reduce (typ: string) (longId:string) =
-            this.ReduceID typ longId
-            |> Option.defaultValue longId
-            
-
-        member this.ReduceSymInfo (si: SymbolInfo) =
-            si
-            |> Optic.map portOrder_ (Map.map (fun _ lis -> List.map (this.Reduce "P") lis))
-            |> Optic.map portOrientation_ (Map.toList >> List.map (fun (s,e) -> this.Reduce "P" s,e) >> Map.ofList)
-
-                
-
-        member this.ReduceComp (comp:Component) =
-            let rId = this.ReduceID "C" comp.Id
-            let iPOK, iPortL = this.ReducePortL comp.InputPorts
-            let oPOK, oPortL = this.ReducePortL comp.OutputPorts
-            // if symInfo reduction causes change then either input or output port list will also do this,
-            // so we do not need to add symInfo to the match
-            let symInfo = Option.map this.ReduceSymInfo comp.SymbolInfo 
-            match rId,iPOK,oPOK with
-            | None, true, true -> comp
-            | _ ->
-                { comp with
-                    Id = Option.defaultValue comp.Id rId
-                    InputPorts = iPortL
-                    OutputPorts = oPortL
-                    SymbolInfo = symInfo }
-
-        member this.ReducePortOpt (port:Port) =
-            let pId = this.ReduceID "P" port.Id
-            let hId = this.ReduceID "C" port.HostId
-            match pId, hId with
-            | None, None -> None
-            | None, Some h -> Some {port with HostId = h}
-            | Some p, None -> Some {port with Id = p}
-            | Some p, Some h -> Some {port with Id=p; HostId = h}
-
-        member this.ReducePort(port:Port) = Option.defaultValue port (this.ReducePortOpt port)
-
-        member this.ReducePortL (portL:Port list) =
-                ((true,[]), portL)
-                ||> List.fold (fun (noChange, rPortL) port ->
-                    match this.ReducePortOpt port with
-                    | None -> noChange, (port :: portL)
-                    | Some port -> false, (port :: portL))
- 
-        member this.ReduceConn (conn:Connection) =
-            let wId = this.ReduceID "W" conn.Id
-            let sPort = this.ReducePortOpt conn.Source
-            let tPort = this.ReducePortOpt conn.Target
-            match wId, sPort, tPort with
-            | None, None, None -> conn
-            | _ ->
-                let wId' = Option.defaultValue conn.Id wId
-                let sPort' = Option.defaultValue conn.Source sPort
-                let tPort' = Option.defaultValue conn.Target tPort
-                { conn with
-                    Id = wId'
-                    Source = sPort'
-                    Target = tPort'}
-
-        member this.ReduceCanvasState ((comps,conns): CanvasState) =
-            List.map this.ReduceComp comps,
-            List.map this.ReduceConn conns
-
-        member this.ReduceLDC (ldc:LoadedComponent) = {ldc with CanvasState = this.ReduceCanvasState ldc.CanvasState}
-
-    let compressLDC (name: string) (p:Project) =
-        let r = Reducer.Init()
-        let updateLdc (ldcs: LoadedComponent list) =
-            let n = List.findIndex (fun ldc -> ldc.Name = name) ldcs
-            List.updateAt n (r.ReduceLDC ldcs[n]) ldcs
-        r.ScanProject p
-        Optic.map loadedComponents_ updateLdc p
-
 /// Give every component, port and connection on one sheet a fresh uuid, rewriting every
 /// reference to the old ones. Used when a sheet is copied (Import / Duplicate Sheet), and to
 /// repair projects in which two sheets were given the same ids by an earlier copy.
@@ -580,14 +417,19 @@ module RegenerateIds =
     open Optics
     open ParameterTypes
 
-    /// old id -> fresh uuid, for every component id, port id and connection id on the sheet.
-    /// One map serves all three: uuids are globally unique so the kinds cannot collide.
-    let makeIdMap ((comps, conns): CanvasState) : Map<string,string> =
+    /// Every id a canvas holds directly: component ids, port ids, connection ids - deduplicated,
+    /// in canvas order. One list serves all three kinds because they share a namespace: uuids
+    /// cannot collide by construction, reduced integer ids because the allocator below is one
+    /// per design.
+    let private allIds ((comps, conns): CanvasState) : string list =
         let compIds = comps |> List.map (fun comp -> comp.Id)
         let portIds = comps |> List.collect (fun comp -> comp.InputPorts @ comp.OutputPorts) |> List.map (fun port -> port.Id)
         let connIds = conns |> List.map (fun conn -> conn.Id)
-        compIds @ portIds @ connIds
-        |> List.distinct
+        compIds @ portIds @ connIds |> List.distinct
+
+    /// old id -> fresh uuid, for every component id, port id and connection id on the sheet.
+    let makeIdMap (canvas: CanvasState) : Map<string,string> =
+        allIds canvas
         |> List.map (fun id -> id, DrawHelpers.uuid ())
         |> Map.ofList
 
@@ -647,14 +489,19 @@ module RegenerateIds =
                 |> Option.map (Map.toList >> List.map (fun (ComponentId cid, v) -> ComponentId(sub idMap cid), v) >> Map.ofList)
             DisplayedPortIds = wi.DisplayedPortIds |> Option.map (Array.map (sub idMap))}
 
-    /// Regenerate every id on a sheet, including the parameter slots and saved waveform selection
-    /// which live on the LoadedComponent rather than in its CanvasState.
-    let regenerateSheetIds (ldc: LoadedComponent) : LoadedComponent =
-        let idMap = makeIdMap ldc.CanvasState
+    /// Apply an id map to everything a LoadedComponent holds: the canvas, the parameter slots
+    /// and the saved waveform selection, which live on the LoadedComponent rather than in its
+    /// CanvasState.
+    let remapLoadedComponent (idMap: Map<string,string>) (ldc: LoadedComponent) : LoadedComponent =
         {ldc with
             CanvasState = remapCanvasState idMap ldc.CanvasState
             LCParameterSlots = ldc.LCParameterSlots |> Option.map (Optic.map paramSlots_ (remapSlots idMap))
             WaveInfo = ldc.WaveInfo |> Option.map (remapWaveInfo idMap)}
+
+    /// Regenerate every id on a sheet, including the parameter slots and saved waveform selection
+    /// which live on the LoadedComponent rather than in its CanvasState.
+    let regenerateSheetIds (ldc: LoadedComponent) : LoadedComponent =
+        remapLoadedComponent (makeIdMap ldc.CanvasState) ldc
 
     /// Scan sheets in order. Any sheet reusing a component or connection id already seen on an
     /// earlier sheet has all of its ids regenerated and is marked as needing saving.
@@ -676,6 +523,66 @@ module RegenerateIds =
             Set.union seenComps (Set.ofList compIds'), Set.union seenConns (Set.ofList connIds'), ldc' :: sheets, changed'
         let _, _, sheets, changed = List.fold step (Set.empty, Set.empty, [], []) ldcs
         List.rev sheets, List.rev changed
+
+    // ---- id reduction: uuids -> dense small-integer strings, one namespace per design ----
+
+    /// True for an id the reducer produces: a positive integer of fewer than 7 digits with no
+    /// leading zero. Everything else - uuids, and anything ambiguous such as "042" (which would
+    /// alias "42" once parsed to an int) - is treated as needing replacement.
+    let private isReducedId (s: string) =
+        s.Length >= 1 && s.Length <= 6 && s[0] <> '0' && String.forall System.Char.IsDigit s
+
+    /// Which integers are taken, as one flag per value so that assignment is a first-zero scan -
+    /// which is what makes the ids DENSE, the property that lets the sidecar use them as array
+    /// indices. Mutable by design and confined to one reduceLoadedComponents call, so callers
+    /// see a pure function (the exception docs/mutableState.md allows for measured local state).
+    type private Allocator = { mutable Used: uint32[]; mutable Cursor: int }
+
+    let private ensureSize (alloc: Allocator) (index: int) =
+        if index >= alloc.Used.Length then
+            let bigger = Array.zeroCreate (max (2 * alloc.Used.Length) (index + 1))
+            Array.blit alloc.Used 0 bigger 0 alloc.Used.Length
+            alloc.Used <- bigger
+
+    let private reserve (alloc: Allocator) (index: int) =
+        ensureSize alloc index
+        alloc.Used[index] <- 1u
+
+    /// The smallest unused positive integer. The cursor only advances: everything below it is
+    /// known taken, so a whole-design reduction is one left-to-right scan however many ids ask.
+    let private next (alloc: Allocator) =
+        let mutable i = max 1 alloc.Cursor
+        while i < alloc.Used.Length && alloc.Used[i] <> 0u do
+            i <- i + 1
+        ensureSize alloc i
+        alloc.Used[i] <- 1u
+        alloc.Cursor <- i + 1
+        i
+
+    /// Replace every uuid-style id across a whole design with a dense small-integer string,
+    /// keeping ids already in that form. PROJECT-scoped on purpose: one namespace covers every
+    /// sheet, and component, port and connection ids share it - project-wide uniqueness is what
+    /// correctDuplicateIds enforces and what wire highlighting and the waveform simulator
+    /// assume. Ids stay strings here and in saved files; they become actual integers only in
+    /// the Simple wire types sent to the sidecar.
+    ///
+    /// One merged map remaps all sheets, which is what keeps a sheet's saved waveform selections
+    /// - whose access paths name components on OTHER sheets - consistent with those sheets.
+    /// On an already-reduced design the map is empty and the input is returned as is, so calling
+    /// this again before every send costs one parse per id.
+    let reduceLoadedComponents (ldcs: LoadedComponent list) : LoadedComponent list =
+        let alloc = { Used = Array.zeroCreate 10_000; Cursor = 1 }
+        let ids = ldcs |> List.collect (fun ldc -> allIds ldc.CanvasState) |> List.distinct
+        ids |> List.iter (fun id -> if isReducedId id then reserve alloc (int id))
+
+        let idMap =
+            ids
+            |> List.filter (isReducedId >> not)
+            |> List.map (fun id -> id, string (next alloc))
+            |> Map.ofList
+
+        if Map.isEmpty idMap then ldcs
+        else List.map (remapLoadedComponent idMap) ldcs
 
 //------------------------------------------------------------------------------------//
 //---------------------------Low Level Component Helpers------------------------------//

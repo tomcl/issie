@@ -26,6 +26,7 @@ open ModelType
 open ModelHelpers
 open Sheet.SheetInterface
 open DrawModelType
+open Fable.SimpleJson // Json.serialize, the renderer's wire encoder (an extension member, so the open is required)
 
 /// The most recent model and dispatch, kept so that the harness can answer questions and send
 /// messages between renders. Not model state - this is the outside world's handle on the app, in
@@ -193,6 +194,54 @@ let private timeRuns (fs: SimTypes.FastSimulation) (steps: int) =
     + $""""steps": {steps}, "medianMs": %.2f{median}, "compStepPerMs": %.0f{float (comps * steps) / median}, """
     + $""""seriesMs": [{series}]}}"""
 
+/// Send the whole current design to the dotnet sidecar as SimpleSheets, timing every stage: the
+/// journey a design will make when the sidecar simulates - fresh canvas for the open sheet, id
+/// reduction (on the copy; the model is untouched), conversion to the Simple wire types, one
+/// JSON per sheet so the sidecar can reuse unchanged ones from its cache, the wire, and the
+/// sidecar's own deserialisation. Asynchronous, so the timings land in the log rather than in
+/// any reply. Reached from Development > Play > Send Design To Sidecar and from the harness's
+/// `sendDesign` command; it lives here rather than in Playground because Playground compiles
+/// after this file.
+let sendDesignToSidecar (model: Model) (_dispatch: Msg -> unit) =
+    match model.CurrentProj with
+    | None -> Log.error "sidecar design test: open a project first"
+    | Some project ->
+        let canvas = model.Sheet.GetCanvasState()
+        let t0 = TimeHelpers.getTimeMs ()
+
+        let design =
+            ModelHelpers.designOf project canvas
+            |> Helpers.RegenerateIds.reduceLoadedComponents
+            |> CanvasExtractor.simpleDesignOfLoadedComponents
+
+        let t1 = TimeHelpers.getTimeMs ()
+
+        // one JSON per sheet: an unchanged sheet serialises to the identical string, which is
+        // what lets the sidecar answer it from cache instead of decoding it again
+        let sheetJsons =
+            design.Sheets |> List.map Json.serialize<SimpleSheet>
+
+        let totalChars = sheetJsons |> List.sumBy String.length
+        let t2 = TimeHelpers.getTimeMs ()
+
+        promise {
+            do! SidecarClient.connect ()
+            let! reply = SidecarClient.sendDesign design.TopSheet sheetJsons
+            let t3 = TimeHelpers.getTimeMs ()
+
+            Log.out (
+                $"design -> sidecar ({design.Sheets.Length} sheets): "
+                + $"reduce+convert %.2f{t1 - t0}ms, "
+                + $"serialise %.2f{t2 - t1}ms ({totalChars} chars), "
+                + $"round trip incl dotnet deserialise %.2f{t3 - t2}ms, "
+                + $"total %.2f{t3 - t0}ms"
+            )
+
+            Log.out $"sidecar replied: {reply}"
+        }
+        |> Promise.catch (fun e -> Log.error $"sidecar design test: {e.Message}")
+        |> ignore
+
 /// The commands `send` accepts. Each takes the argument string - "" when there is none - and the
 /// model and dispatch it is being sent into, and returns what to report back.
 ///
@@ -350,7 +399,15 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
               | _ -> 100
           match lastBenchmarkSim with
           | None -> """{"error": "nothing built yet - send benchmark first"}"""
-          | Some fs -> timeRuns fs steps ]
+          | Some fs -> timeRuns fs steps
+
+      "sendDesign",
+      // Send the current design to the dotnet sidecar, per-sheet with caching. Asynchronous -
+      // the reply cannot wait on the round trip - so the timings and the sidecar's report land
+      // in the log: node scripts/inspect-canvas.js log
+      fun _ model dispatch ->
+          sendDesignToSidecar model dispatch
+          """{"status": "sending - timings appear in the log"}""" ]
 
 let private send (name: string) (arg: string) =
     match latestModel, latestDispatch with

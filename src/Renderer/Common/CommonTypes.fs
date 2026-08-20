@@ -419,6 +419,62 @@ let getSTransformWithDefault (infoOpt: SymbolInfo option) =
     | None ->{Rotation=Degree0; flipped=false}
     | Some inf -> inf.STransform
 
+// ---------------------------------------------------------------------------------------------
+// The Simple design types: the wire format for sending a design to the dotnet sidecar, before
+// parameter resolution and simulation-graph expansion. Deliberately minimal and electrical-only:
+// geometry is gone, ports exist only as numbers on connection endpoints, and ids are the dense
+// whole-design integers the id reducer (Helpers.RegenerateIds.reduceLoadedComponents) produces -
+// so the receiving side can use them as array indices. These types are the CONTRACT, not the
+// .NET simulator's working types: that side derives whatever richer structures it wants.
+//
+// Everything here must stay within what SimpleJsonDotNet.tryDeserialise can read back from the
+// vendored SimpleJson encoding: records, DU cases, option, list, bigint, Map (structural keys
+// included). No tuples, no floats, no int64/Guid/Set - SimpleDesignTests pins this.
+// ---------------------------------------------------------------------------------------------
+
+/// Reduced version of Component: id, type and label are all a simulation needs. A custom
+/// component's port names and instance parameter bindings ride inside TypeS
+/// (CustomComponentType.InputLabels/OutputLabels/ParameterBindings), where port number n is by
+/// definition index n of the label list - so port names are never duplicated here.
+type SimpleComponent = {
+    /// the reduced id, parsed to int
+    CompId : int
+    TypeS : ComponentType
+    Label : string
+}
+
+/// Reduced version of Connection: two endpoints, each a component id and a port NUMBER
+/// (output-side number at the source, input-side number at the destination).
+type SimpleConnection = {
+    /// reduced connection id, kept so results and errors can be mapped back
+    ConnId : int
+    SrcComp : int
+    SrcPort : int
+    DestComp : int
+    DestPort : int
+}
+
+/// One sheet of a design. Sheet IO *order* is not carried (in Issie it derives from component
+/// geometry, which is gone): the receiving side recovers ordering from any instance's TypeS
+/// labels, and the top sheet needs none.
+type SimpleSheet = {
+    /// how Custom instances on other sheets name this one
+    SheetName: string
+    Components : SimpleComponent list
+    Connections : SimpleConnection list
+    /// the sheet's parameter declarations - LCParameterSlots.DefaultBindings
+    DefaultBindings : ParameterTypes.ParamDefinitions
+    /// the sheet's parameterised slots - LCParameterSlots.ParamSlots, with every
+    /// ParamSlot.CompId being a reduced-int string, so int slot.CompId matches CompId above
+    ParamSlots : ParameterTypes.ComponentSlotExpr
+}
+
+/// A whole design: the sheets and which one is the top.
+type SimpleDesign = {
+    TopSheet : string
+    Sheets : SimpleSheet list
+}
+
 
 /// JSComponent mapped to F# record.
 /// Id uniquely identifies the component within a sheet.

@@ -763,7 +763,7 @@ let simulateModel (isWaveSim: bool) (simulatedSheet: string option) (simulationA
 /// canvasState is passed in rather than taken from model.Sheet: extracting it walks every symbol
 /// and wire on the sheet, and the caller that runs per render already holds the one MainView
 /// extracted for this frame.
-let private designOf (project: Project) (canvasState: CanvasState) =
+let designOf (project: Project) (canvasState: CanvasState) =
     project.LoadedComponents
     |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
     |> CanvasExtractor.addStateToLoadedComponents project.OpenFileName canvasState

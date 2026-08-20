@@ -21,6 +21,7 @@
     <Compile Include="NumberHelpersTests.fs" />
     <Compile Include="TruthTableSimTests.fs" />
     <Compile Include="PersistenceTests.fs" />
+    <Compile Include="SimpleDesignTests.fs" />
     <Compile Include="SheetDescriptionTests.fs" />
     <Compile Include="DrawBlockTests.fs" />
     <Compile Include="WireQuality.fs" />
@@ -48,6 +49,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Renderer\Renderer.fsproj" />
+    <ProjectReference Include="..\..\src\Sidecar\Issie.Sidecar.fsproj" />
   </ItemGroup>
 
   <Import Project="..\..\.paket\Paket.Restore.targets" />

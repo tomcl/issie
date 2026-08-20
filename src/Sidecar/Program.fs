@@ -106,6 +106,11 @@ let private responseHeader (header: byte array) =
     response[0] <- response[0] ||| Protocol.ResponseFlag
     response
 
+/// Decoded sheets of the last design received, keyed by the exact JSON each came from - see
+/// DesignCache. Process state rather than anything modelled, replaced wholesale per request, so
+/// it never holds more than one design's worth.
+let mutable private sheetCache: Map<string, CommonTypes.SimpleSheet> = Map.empty
+
 /// Serve one connection until it closes or misbehaves.
 let private serve (ws: WebSocket) (ct: CancellationToken) =
     task {
@@ -141,6 +146,49 @@ let private serve (ws: WebSocket) (ct: CancellationToken) =
                     let frame = Array.zeroCreate (Protocol.HeaderSize + n)
                     Array.blit (responseHeader header) 0 frame 0 Protocol.HeaderSize
                     Random.Shared.NextBytes(Span(frame, Protocol.HeaderSize, n))
+                    do! send ws frame ct
+                | Protocol.SendDesign ->
+                    // per-sheet framing so an unchanged sheet costs a lookup, not a decode -
+                    // see DesignCache; the reply says how much work was actually done, as a
+                    // little JSON built by hand since nothing here warrants an encoder
+                    let stopwatch = Diagnostics.Stopwatch.StartNew()
+
+                    let outcome =
+                        DesignCache.parsePayload body
+                        |> Result.bind (fun (topSheet, sheetJsons) ->
+                            DesignCache.decodeSheets sheetCache sheetJsons
+                            |> Result.map (fun (sheets, decoded, newCache) ->
+                                sheetCache <- newCache
+
+                                let design: CommonTypes.SimpleDesign =
+                                    { TopSheet = topSheet; Sheets = sheets }
+
+                                design, decoded))
+
+                    stopwatch.Stop()
+
+                    let reply =
+                        match outcome with
+                        | Ok(design, decoded) ->
+                            let comps = design.Sheets |> List.sumBy (fun sheet -> sheet.Components.Length)
+                            let conns = design.Sheets |> List.sumBy (fun sheet -> sheet.Connections.Length)
+
+                            sprintf
+                                """{"sheets":%d,"decoded":%d,"cached":%d,"components":%d,"connections":%d,"deserialiseMs":%.2f}"""
+                                design.Sheets.Length
+                                decoded
+                                (design.Sheets.Length - decoded)
+                                comps
+                                conns
+                                stopwatch.Elapsed.TotalMilliseconds
+                        | Error e ->
+                            let safe = e.Replace("\\", "/").Replace("\"", "'").Replace("\n", " ").Replace("\r", " ")
+                            sprintf """{"error":"%s"}""" safe
+
+                    let payload = Text.Encoding.UTF8.GetBytes reply
+                    let frame = Array.zeroCreate (Protocol.HeaderSize + payload.Length)
+                    Array.blit (responseHeader header) 0 frame 0 Protocol.HeaderSize
+                    Array.blit payload 0 frame Protocol.HeaderSize payload.Length
                     do! send ws frame ct
                 | other ->
                     do! ws.CloseAsync(WebSocketCloseStatus.ProtocolError, $"unknown command {other}", ct)

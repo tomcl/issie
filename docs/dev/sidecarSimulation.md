@@ -50,11 +50,20 @@ Measured on the 3cpu demo project (18 sheets, 378 components, 528 connections):
 | Feasible floor (ports derived from `Type`, connections as 4 ints) | ~40–60 KB |
 
 Even unstripped, the whole project is single-digit milliseconds in either direction, and JSON is
-fine — no binary design format is warranted. Latency hiding is still free: sync the full design
-while Issie loads a project (when nobody is waiting on the channel), then send only deltas.
-A transient edit touches one sheet, and the largest 3cpu sheet (dpdecode) is 28 KB stripped —
-well under a millisecond. Serialise/deserialise CPU cost on each end is then also per-sheet, not
-per-project.
+fine — no binary design format is warranted. Transfer is not the cost that matters, though:
+JSON *decode* on the .NET side is. The compatibility decoder (`SimpleJsonDotNet`, a reflection
+walker) measures ~300 ms warm for the whole design as `SimpleDesign` JSON (72 KB — the Simple
+wire types beat every stripped-`.dgm` estimate above), ~25 ms for the largest single sheet, and
+core type is irrelevant (P-cores vs E-cores measured within ~10%).
+
+This is why the sidecar protocol sends a design as **one JSON string per sheet** and the sidecar
+caches decoded sheets keyed by the exact JSON string (`src/Sidecar/DesignCache.fs`): an
+unchanged sheet serialises to the identical string and costs a string comparison instead of a
+decode. Measured in the app on 3cpu: first send 18 sheets decoded, ~1.3 s (cold JIT included);
+every send after it 0 decoded, **0.26 ms** on the .NET side, ~77 ms total — nearly all of which
+is now renderer-side conversion and serialisation. An edit re-decodes exactly the touched sheet.
+A hand-written decoder for the Simple types (no reflection) is the known next step if the cold
+first send ever matters.
 
 ## Simulation under .NET
 

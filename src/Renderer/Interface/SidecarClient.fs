@@ -28,6 +28,10 @@ module Constants =
     [<Literal>]
     let downloadCmd = 3
 
+    /// payload: UTF-8 JSON of a CommonTypes.SimpleDesign; response payload: a small JSON report
+    [<Literal>]
+    let sendDesignCmd = 4
+
     /// Command byte plus the four bytes of correlation id.
     [<Literal>]
     let headerSize = 5
@@ -145,3 +149,38 @@ let request (cmd: int) (payload: obj) : JS.Promise<obj> =
 let disconnect () =
     socket |> Option.iter wsClose
     socket <- None
+
+// ---- text payloads: UTF-8 strings over the same binary frames ----
+
+[<Emit("new TextEncoder().encode($0)")>]
+let private encodeText (text: string) : obj = jsNative
+
+// the subarray skips the 5-byte header (Constants.headerSize, which an Emit cannot name)
+[<Emit("new TextDecoder().decode($0.subarray(5))")>]
+let private decodeTextPayload (frame: obj) : string = jsNative
+
+[<Emit("$0.set($1, $2)")>]
+let private blitAt (target: obj) (source: obj) (offset: int) : unit = jsNative
+
+/// Strings packed as SendDesign wants them: for each, a uint32 LE byte length then its UTF-8
+/// bytes. The sidecar's parsing half is DesignCache.parsePayload; the two change together.
+/// Local mutation only - the offset cursor never escapes.
+let private packStrings (strings: string list) : obj =
+    let encoded = strings |> List.map encodeText
+    let total = encoded |> List.sumBy (fun bytes -> 4 + int (byteLength bytes))
+    let payload = makeBytes total
+    let mutable offset = 0
+
+    for bytes in encoded do
+        writeUint32At payload offset (byteLength bytes)
+        blitAt payload bytes (offset + 4)
+        offset <- offset + 4 + int (byteLength bytes)
+
+    payload
+
+/// Send a design as its top sheet name plus one JSON string per sheet - per-sheet rather than
+/// one design JSON so the sidecar can reuse sheets it has already decoded (an unchanged sheet
+/// serialises to the identical string). Resolves with the sidecar's JSON report.
+let sendDesign (topSheet: string) (sheetJsons: string list) : JS.Promise<string> =
+    request Constants.sendDesignCmd (packStrings (topSheet :: sheetJsons))
+    |> Promise.map decodeTextPayload

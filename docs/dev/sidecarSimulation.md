@@ -56,6 +56,11 @@ walker) measures ~300 ms warm for the whole design as `SimpleDesign` JSON (72 KB
 wire types beat every stripped-`.dgm` estimate above), ~25 ms for the largest single sheet, and
 core type is irrelevant (P-cores vs E-cores measured within ~10%).
 
+(Since these measurements, canvas ids became native integers throughout Issie -
+`Helpers.IdAllocator` mints them, `RegenerateIds.admitDesign` keeps component ids design-unique
+and dense at project open - so the "reduce before send" step has dissolved: SimpleDesign
+conversion is now a straight projection costing ~3 ms for the whole 3cpu design.)
+
 This is why the sidecar protocol sends a design as **one JSON string per sheet** and the sidecar
 caches decoded sheets keyed by the exact JSON string (`src/Sidecar/DesignCache.fs`): an
 unchanged sheet serialises to the identical string and costs a string comparison instead of a

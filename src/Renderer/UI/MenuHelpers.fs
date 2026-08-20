@@ -1007,55 +1007,6 @@ let private saveCorrectedSheets (corrected: LoadedComponent list) (model: Model)
             | true -> {ldc with LoadedComponentIsOutOfDate = false; TimeStamp = DateTime.Now}
             | false -> ldc)
         |> fun ldcs -> dispatch <| SetProject {project with LoadedComponents = ldcs}
-
-/// Tell the user that sheets sharing ids with other sheets have been given fresh ids in memory,
-/// and offer to write them out so that the repair is permanent.
-/// Sheet KeyPress messages are dropped while a popup is open (Update.fs), which swallows the
-/// fit-to-window done at the end of a project load, so redo it however this popup is dismissed.
-let private idsCorrectedPopup (corrected: LoadedComponent list) dispatch =
-    let sheets =
-        match corrected |> List.map (fun ldc -> ldc.Name) with
-        | [name] -> sprintf "Design sheet %s used" name
-        | names -> sprintf "Design sheets %s used" (String.concat ", " names)
-    let body =
-        div []
-            [ str <| sprintf "%s the same component or connection ids as other sheets in this project. \
-                              This normally happens when a sheet has been copied or imported by an older \
-                              version of Issie." sheets
-              br []; br []
-              str "Ids have been made unique. The change has been made in memory only, so those sheets \
-                   now have unsaved changes. Save them to make the repair permanent, otherwise it will \
-                   be redone every time the project is opened."
-              br []; br []
-              str "Nothing else about the sheets has changed." ]
-    let close () =
-        dispatch ClosePopup
-        dispatch <| Sheet (SheetT.KeyPress SheetT.KeyboardMsg.CtrlW)
-    let foot =
-        Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
-            Level.left [] []
-            Level.right [] [
-                Level.item [] [
-                    Button.button [
-                        Button.Color IsLight
-                        Button.OnClick (fun _ -> close ())
-                    ] [ str "Cancel" ]
-                ]
-                Level.item [] [
-                    Button.button [
-                        Button.Color IsPrimary
-                        Button.OnClick (fun _ ->
-                            dispatch <| ExecFuncInMessage(saveCorrectedSheets corrected, dispatch)
-                            close ())
-                    ] [ str "Save corrected sheets" ]
-                ]
-            ]
-        ]
-    buildPopup "Duplicate sheet ids corrected" (fun _ _ -> body) (fun _ _ -> foot) (fun _ _ -> close ()) []
-    |> ShowPopup
-    |> dispatch
-
-/// work out what to do opening a file
 let rec resolveComponentOpenPopup
         (pPath:string)
         (components: LoadedComponent list)
@@ -1070,17 +1021,21 @@ let rec resolveComponentOpenPopup
     | [] ->
         // components is accumulated in reverse of the order files were read: scan in read order so
         // that the same sheet keeps its ids each time the project is opened.
-        // Reduction first: uuids become dense small-integer id strings, project-scoped, so the
-        // duplicate check behind it is a safety net that reduction can never trip (an in-memory
-        // change only - files pick it up as the user saves them normally).
-        let ldcs, corrected =
-            List.rev components
-            |> RegenerateIds.reduceLoadedComponents
-            |> RegenerateIds.correctDuplicateIds
-        setupProjectFromComponents false (chooseWhichToOpen ldcs) ldcs model dispatch
-        match ldcs |> List.filter (fun ldc -> List.contains ldc.Name corrected) with
+        // admitDesign seeds the id allocators from the loaded sheets and re-mints anything that
+        // breaks an invariant - a component id used twice across the design, or any id that is
+        // duplicated within its sheet. An in-memory change only: files pick the corrected ids
+        // up as the user saves them normally.
+        // Renumbering is ROUTINE here, not a defect to report: every sheet of a project saved
+        // before ids were integers converts to per-sheet 1..n and is renumbered into the
+        // design's namespace on its way in, silently - the old duplicate-uuid popup would have
+        // greeted every legacy project. Files pick the new ids up as they are saved.
+        let ldcs, corrected = RegenerateIds.admitDesign (List.rev components)
+
+        match corrected with
         | [] -> ()
-        | correctedLdcs -> idsCorrectedPopup correctedLdcs dispatch
+        | names -> Log.dbg Log.Files ("project open renumbered ids on: " + String.concat ", " names)
+
+        setupProjectFromComponents false (chooseWhichToOpen ldcs) ldcs model dispatch
     | Resolve (ldComp,autoComp) :: rLst ->
         // ldComp, autocomp are from attemps to load saved file and its autosave version.
         let compChanges, connChanges = quantifyChanges ldComp autoComp

@@ -59,7 +59,7 @@ let dragSegment wire index (mMsg: MouseT) model =
             model
 
 let newWire inputId outputId model =
-    let wireId = ConnectionId(JSHelpers.uuid())
+    let wireId = ConnectionId(Helpers.IdAllocator.newConnectionId())
     let nWire =
         {
             WId = wireId
@@ -433,7 +433,7 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
             |> Seq.map (Cmd.map (fun cmd -> ModelType.Msg.Sheet (DrawModelType.SheetT.Msg.Wire cmd)))
         issieModel, Cmd.batch updatePortIdMessages
 
-    | RerouteWire (portId: string) ->
+    | RerouteWire (portId: int) ->
         // parially or fully autoroutes wires connected to port
         // typically used after port has moved
         // NB if direction of port has changed wire must be autorouted.
@@ -501,7 +501,7 @@ let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list
     let oldCompIds = getCopiedSymbols wModel.Symbol
     let pastedWires =
         let createNewWire (oldWire : Wire) : list<Wire> =
-            let newId = ConnectionId(JSHelpers.uuid())
+            let newId = ConnectionId(Helpers.IdAllocator.newConnectionId())
             let oldPorts = (oldWire.InputPort, oldWire.OutputPort)
             match SymbolUpdate.getEquivalentCopiedPorts wModel.Symbol oldCompIds newCompIds  oldPorts with
             | Some (newInputPort, newOutputPort) ->

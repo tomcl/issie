@@ -242,7 +242,7 @@ let private checkPortTypesAreConsistent (canvasState: CanvasState) : SimulationE
             | _, Some err -> Some err
             | None, None -> checkComponentsPorts components' // Check next.
 
-    let checkConnectionPort (port: Port) (correctType: PortType) (connId: string) =
+    let checkConnectionPort (port: Port) (correctType: PortType) (connId: int) =
         match port.PortType = correctType, port.PortNumber with
         | false, _ ->
             Some
@@ -281,9 +281,9 @@ let private checkPortTypesAreConsistent (canvasState: CanvasState) : SimulationE
 /// Apply condition on every element of the map (tailored to this specific
 /// problem).
 let private checkEvery
-    (counts: Map<string, (Connection list * int)>) // 'a is either InputPortId or OutputPortId.
+    (counts: Map<'b, (Connection list * int)>) // keyed by port id, or by label name
     (cond: int -> bool)
-    : (string * ConnectionId list * int) option
+    : ('b * ConnectionId list * int) option
     =
     (None, Map.toList counts)
     ||> List.fold (fun maybeErr (idStr, (conns, count)) ->
@@ -349,7 +349,7 @@ let getRmInfoData m port =
     let portName = getPortName parentComp {port with PortNumber = portNum}
     (parentComp, portName)
 
-let private getInPortRmInfo (m: MapData) (counts: Map<string,Connection list * int>) (port: Port) : PortRmInfo =
+let private getInPortRmInfo (m: MapData) (counts: Map<int,Connection list * int>) (port: Port) : PortRmInfo =
     let parentComp, portName = getRmInfoData m port
     let checkAllPorts (cond: int -> Port -> bool) (ports: Port list) =
         ports
@@ -392,7 +392,7 @@ let private getInPortRmInfo (m: MapData) (counts: Map<string,Connection list * i
     | _ -> Unremovable
 
 
-let private getOutPortRmInfo (m: MapData) (counts: Map<string,Connection list * int>) (port: Port) : PortRmInfo =
+let private getOutPortRmInfo (m: MapData) (counts: Map<int,Connection list * int>) (port: Port) : PortRmInfo =
     let parentComp, portName = getRmInfoData m port
     match parentComp.Type with
     | NbitsAdder w ->
@@ -412,7 +412,7 @@ let getOutErrType count port rmInfo =
 
 let private checkPortConnections
     (m: MapData)
-    (connMap: Connection -> string)
+    (connMap: Connection -> int)
     (bins: Port list)
     (cond: int -> bool)
     pidMap
@@ -506,7 +506,7 @@ let private checkPortsAreConnectedProperly (canvasState: CanvasState) =
 
 /// Input/Output components in a simulationgraph all have unique labels.
 let private checkIOLabels (canvasState: CanvasState) : SimulationError option =
-    let rec checkDuplicate (comps: Component list) (map: Map<string, string>) (ioType: string) =
+    let rec checkDuplicate (comps: Component list) (map: Map<string, int>) (ioType: string) =
         match comps with
         | [] -> None
         | comp :: comps' ->

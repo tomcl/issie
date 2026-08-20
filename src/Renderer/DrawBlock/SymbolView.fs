@@ -601,7 +601,7 @@ let view (model : Model) (dispatch : Msg -> unit) =
             {
                 Symbol = symbol
                 Dispatch = dispatch
-                key = id
+                key = string id
                 Theme = model.Theme
             }
     )

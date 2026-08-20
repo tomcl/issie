@@ -42,7 +42,7 @@ let verilogNameConvert (maxChars:int) (s: string) =
 let writeVerilogNames (fs: FastSimulation) =
     let getShortPath (path: ComponentId list) : string =
         path
-        |> List.map (fun (ComponentId cid) -> cid)
+        |> List.map (fun (ComponentId cid) -> string cid)
         |> (function | (t) -> t)
         |> List.map (verilogNameConvert 1)
         |> String.concat ""
@@ -50,7 +50,7 @@ let writeVerilogNames (fs: FastSimulation) =
     /// generate from a component a maybe non-unique name made from its Label and abbreviated path
     let getBaseVerilogName fc =
         let sc = fc.SimComponent
-        let fakeName s = $"%s{s}{String.substringLength 0 2 (match sc.Id with | ComponentId s -> s)}"
+        let fakeName s = $"%s{s}{match sc.Id with | ComponentId n -> n}"
         let cLabel =
             match sc.Label , sc.Type with
             | ComponentLabel "", SplitWire _ -> fakeName "Split"

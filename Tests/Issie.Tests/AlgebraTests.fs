@@ -11,8 +11,16 @@ open CanvasBuilder
 
 // --- expression building helpers ---
 
+/// Symbolic terms need distinct ComponentIds; the label is what expressions display.
 let private io (name: string) (w: int) : SimulationIO =
-    ComponentId name, ComponentLabel name, w
+    let id =
+        match name with
+        | "A" -> 1
+        | "B" -> 2
+        | "CIN" -> 3
+        | "W" -> 4
+        | _ -> failwith $"unknown test io name {name}"
+    ComponentId id, ComponentLabel name, w
 
 let private term name w : FastAlgExp = SingleTerm(io name w)
 let private wordLit (w: int) (v: uint32) = DataLiteral { Dat = Word v; Width = w }
@@ -143,9 +151,9 @@ let private appendTests =
 let private maxArraySize = 4
 
 let private dutCanvas (compType: ComponentType) (inWidths: int list) (outWidths: int list) : CanvasState =
-    let dut = makeComp "dut" (List.length inWidths) (List.length outWidths) compType "DUT"
-    let ins = inWidths |> List.mapi (fun i w -> makeComp $"in{i}" 0 1 (Input1(w, None)) $"I{i}")
-    let outs = outWidths |> List.mapi (fun i w -> makeComp $"out{i}" 1 0 (Output w) $"O{i}")
+    let dut = makeComp 1 (List.length inWidths) (List.length outWidths) compType "DUT"
+    let ins = inWidths |> List.mapi (fun i w -> makeComp (2 + i) 0 1 (Input1(w, None)) $"I{i}")
+    let outs = outWidths |> List.mapi (fun i w -> makeComp (2 + List.length inWidths + i) 1 0 (Output w) $"O{i}")
     let conns =
         (ins |> List.mapi (fun i c -> conn c 0 dut i))
         @ (outs |> List.mapi (fun i c -> conn dut i c 0))
@@ -210,10 +218,10 @@ let private e2eTests =
         }
         test "split then merge reconstructs a contiguous slice" {
             // A -> SplitWire 2 -> MergeWires, straight through: out0->in0, out1->in1
-            let a = makeComp "a" 0 1 (Input1(4, None)) "I0"
-            let split = makeComp "split" 1 2 (SplitWire 2) "SPLIT"
-            let merge = makeComp "merge" 2 1 MergeWires "MERGE"
-            let out = makeComp "out" 1 0 (Output 4) "O0"
+            let a = makeComp 1 0 1 (Input1(4, None)) "I0"
+            let split = makeComp 2 1 2 (SplitWire 2) "SPLIT"
+            let merge = makeComp 3 2 1 MergeWires "MERGE"
+            let out = makeComp 4 1 0 (Output 4) "O0"
             let canvas =
                 [ a; split; merge; out ],
                 [ conn a 0 split 0; conn split 0 merge 0; conn split 1 merge 1; conn merge 0 out 0 ]
@@ -224,10 +232,10 @@ let private e2eTests =
         }
         test "swapped split halves do not merge" {
             // cross the wires: out0 (LSBs) -> merge MSB port, out1 -> merge LSB port
-            let a = makeComp "a" 0 1 (Input1(4, None)) "I0"
-            let split = makeComp "split" 1 2 (SplitWire 2) "SPLIT"
-            let merge = makeComp "merge" 2 1 MergeWires "MERGE"
-            let out = makeComp "out" 1 0 (Output 4) "O0"
+            let a = makeComp 1 0 1 (Input1(4, None)) "I0"
+            let split = makeComp 2 1 2 (SplitWire 2) "SPLIT"
+            let merge = makeComp 3 2 1 MergeWires "MERGE"
+            let out = makeComp 4 1 0 (Output 4) "O0"
             let canvas =
                 [ a; split; merge; out ],
                 [ conn a 0 split 0; conn split 0 merge 1; conn split 1 merge 0; conn merge 0 out 0 ]

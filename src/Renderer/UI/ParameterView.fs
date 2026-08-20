@@ -234,7 +234,7 @@ let instanceBindingProblem
 /// bindings - and are built here from `model`, which is a snapshot: issued one slot at a time
 /// they would overwrite each other, leaving all but the last slot at its old value.
 /// (ChangeWidth and ChangeInputValue read the live symbol and so do not have this problem.)
-let updateComponentSlots dispatch (model: Model) (compIdStr: string) (slotValues: (CompSlotName * ParamInt) list) =
+let updateComponentSlots dispatch (model: Model) (compIdStr: int) (slotValues: (CompSlotName * ParamInt) list) =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
 
     let comp = model.Sheet.GetComponentById <| ComponentId compIdStr
@@ -698,7 +698,7 @@ let propagateParameters (model: Model) (dispatch: Msg -> unit) : unit =
 /// A slot is only copied when every parameter it refers to is declared on this sheet: pasting
 /// into a sheet that does not declare them would otherwise leave a slot referring to nothing,
 /// which breaks the invariant that every parameter used on a sheet is defined on it.
-let copyParamSlotsToPastedComponents (pairs: (string * string) list) (model: Model) : Model =
+let copyParamSlotsToPastedComponents (pairs: (int * int) list) (model: Model) : Model =
     let slots = model |> get paramSlotsOfModel_ |> Option.defaultValue Map.empty
     let declared = model |> get defaultBindingsOfModel_ |> Option.defaultValue Map.empty
     let isDeclaredHere name = Map.containsKey name declared

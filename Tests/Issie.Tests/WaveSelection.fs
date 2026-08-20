@@ -15,23 +15,23 @@ let private maxArraySize = 100
 
 /// A sheet holding an input, a NOT gate and an output, so that it has both a component with waves
 /// of its own and I/O whose waves are on the instance above.
-let private notSheet (name: string) (inLabel: string) (outLabel: string) =
-    let i = makeComp $"{name}-in" 0 1 (Input1(1, None)) inLabel
-    let n = makeComp $"{name}-not" 1 1 Not "N"
-    let o = makeComp $"{name}-out" 1 0 (Output 1) outLabel
+let private notSheet (idBase: int) (name: string) (inLabel: string) (outLabel: string) =
+    let i = makeComp (idBase + 1) 0 1 (Input1(1, None)) inLabel
+    let n = makeComp (idBase + 2) 1 1 Not "N"
+    let o = makeComp (idBase + 3) 1 0 (Output 1) outLabel
     makeLdc name None ([ i; n; o ], [ conn i 0 n 0; conn n 0 o 0 ])
 
-let private solo = notSheet "solo" "A" "Y"
-let private twin = notSheet "twin" "B" "Z"
+let private solo = notSheet 10 "solo" "A" "Y"
+let private twin = notSheet 20 "twin" "B" "Z"
 
 /// Top sheet: solo instantiated once and twin instantiated twice, chained from IN to OUT.
 let private top =
-    let inp = makeComp "top-in" 0 1 (Input1(1, None)) "IN"
-    let topNot = makeComp "top-not" 1 1 Not "TOPNOT"
-    let solo1 = makeComp "top-solo1" 1 1 (customOf solo [ "A", 1 ] [ "Y", 1 ] None) "SOLO1"
-    let twin1 = makeComp "top-twin1" 1 1 (customOf twin [ "B", 1 ] [ "Z", 1 ] None) "TWIN1"
-    let twin2 = makeComp "top-twin2" 1 1 (customOf twin [ "B", 1 ] [ "Z", 1 ] None) "TWIN2"
-    let out = makeComp "top-out" 1 0 (Output 1) "OUT"
+    let inp = makeComp 1 0 1 (Input1(1, None)) "IN"
+    let topNot = makeComp 2 1 1 Not "TOPNOT"
+    let solo1 = makeComp 3 1 1 (customOf solo [ "A", 1 ] [ "Y", 1 ] None) "SOLO1"
+    let twin1 = makeComp 4 1 1 (customOf twin [ "B", 1 ] [ "Z", 1 ] None) "TWIN1"
+    let twin2 = makeComp 5 1 1 (customOf twin [ "B", 1 ] [ "Z", 1 ] None) "TWIN2"
+    let out = makeComp 6 1 0 (Output 1) "OUT"
     makeLdc "top" None
         ([ inp; topNot; solo1; twin1; twin2; out ],
          [ conn inp 0 topNot 0
@@ -51,18 +51,18 @@ let private top =
 /// A subsheet with a Viewer on the net inside it, so the design has a signal somebody has said is
 /// worth watching, and it is not on the top sheet.
 let private probed =
-    let i = makeComp "probed-in" 0 1 (Input1(1, None)) "A"
-    let n = makeComp "probed-not" 1 1 Not "N"
-    let v = makeComp "probed-view" 1 0 (Viewer 1) "PROBE"
-    let o = makeComp "probed-out" 1 0 (Output 1) "Y"
+    let i = makeComp 11 0 1 (Input1(1, None)) "A"
+    let n = makeComp 12 1 1 Not "N"
+    let v = makeComp 13 1 0 (Viewer 1) "PROBE"
+    let o = makeComp 14 1 0 (Output 1) "Y"
     makeLdc "probed" None ([ i; n; v; o ], [ conn i 0 n 0; conn n 0 v 0; conn n 0 o 0 ])
 
 /// Top sheet with no Input, Output or Viewer on it: a constant drives an instance, whose output is
 /// terminated rather than brought out.
 let private closed =
-    let c = makeComp "closed-const" 0 1 (Constant1(1, 1I, "1")) "C1"
-    let inst = makeComp "closed-inst" 1 1 (customOf probed [ "A", 1 ] [ "Y", 1 ] None) "PROBED1"
-    let nc = makeComp "closed-nc" 1 0 NotConnected "NC1"
+    let c = makeComp 1 0 1 (Constant1(1, 1I, "1")) "C1"
+    let inst = makeComp 2 1 1 (customOf probed [ "A", 1 ] [ "Y", 1 ] None) "PROBED1"
+    let nc = makeComp 3 1 0 NotConnected "NC1"
     makeLdc "closed" None ([ c; inst; nc ], [ conn c 0 inst 0; conn inst 0 nc 0 ])
 
 let private closedSimulation =
@@ -81,7 +81,7 @@ let private simulation =
          | Ok simData -> simData.FastSim, WaveSimSVGs.getWaves Set.empty ModelHelpers.initWSModel simData.FastSim)
 
 /// The waves offered for a canvas component, and the number of copies of it in the simulation
-let private offered (compId: string) =
+let private offered (compId: int) =
     let fs, allWaves = simulation.Force()
     WaveSimSelect.wavesOfComponent fs allWaves (ComponentId compId)
 
@@ -94,20 +94,20 @@ let private offered (compId: string) =
 // of `mid` currently chosen.
 //-------------------------------------------------------------------------------------------//
 
-let private leafSheet = notSheet "leaf" "A" "Y"
+let private leafSheet = notSheet 10 "leaf" "A" "Y"
 
 let private midSheet =
-    let i = makeComp "mid-in" 0 1 (Input1(1, None)) "B"
-    let l1 = makeComp "mid-leaf1" 1 1 (customOf leafSheet [ "A", 1 ] [ "Y", 1 ] None) "LEAF1"
-    let l2 = makeComp "mid-leaf2" 1 1 (customOf leafSheet [ "A", 1 ] [ "Y", 1 ] None) "LEAF2"
-    let o = makeComp "mid-out" 1 0 (Output 1) "Z"
+    let i = makeComp 21 0 1 (Input1(1, None)) "B"
+    let l1 = makeComp 22 1 1 (customOf leafSheet [ "A", 1 ] [ "Y", 1 ] None) "LEAF1"
+    let l2 = makeComp 23 1 1 (customOf leafSheet [ "A", 1 ] [ "Y", 1 ] None) "LEAF2"
+    let o = makeComp 24 1 0 (Output 1) "Z"
     makeLdc "mid" None ([ i; l1; l2; o ], [ conn i 0 l1 0; conn l1 0 l2 0; conn l2 0 o 0 ])
 
 let private deepSheet =
-    let i = makeComp "deep-in" 0 1 (Input1(1, None)) "IN"
-    let m1 = makeComp "deep-mid1" 1 1 (customOf midSheet [ "B", 1 ] [ "Z", 1 ] None) "MID1"
-    let m2 = makeComp "deep-mid2" 1 1 (customOf midSheet [ "B", 1 ] [ "Z", 1 ] None) "MID2"
-    let o = makeComp "deep-out" 1 0 (Output 1) "OUT"
+    let i = makeComp 1 0 1 (Input1(1, None)) "IN"
+    let m1 = makeComp 2 1 1 (customOf midSheet [ "B", 1 ] [ "Z", 1 ] None) "MID1"
+    let m2 = makeComp 3 1 1 (customOf midSheet [ "B", 1 ] [ "Z", 1 ] None) "MID2"
+    let o = makeComp 4 1 0 (Output 1) "OUT"
     makeLdc "deep" None ([ i; m1; m2; o ], [ conn i 0 m1 0; conn m1 0 m2 0; conn m2 0 o 0 ])
 
 let private deepProject: Project =
@@ -144,23 +144,23 @@ let private leafKey = [ "deep"; "mid"; "leaf" ]
 // way, so it is drawn inside its parents, but it has nothing inside it to open.
 //-------------------------------------------------------------------------------------------//
 
-let private sharedSheet = notSheet "shared" "A" "Y"
+let private sharedSheet = notSheet 30 "shared" "A" "Y"
 
 /// A sheet whose whole content is one instance of `shared`.
-let private wrapperSheet name label =
-    let i = makeComp $"{name}-in" 0 1 (Input1(1, None)) "B"
-    let s = makeComp $"{name}-shared" 1 1 (customOf sharedSheet [ "A", 1 ] [ "Y", 1 ] None) label
-    let o = makeComp $"{name}-out" 1 0 (Output 1) "Z"
+let private wrapperSheet idBase name label =
+    let i = makeComp (idBase + 1) 0 1 (Input1(1, None)) "B"
+    let s = makeComp (idBase + 2) 1 1 (customOf sharedSheet [ "A", 1 ] [ "Y", 1 ] None) label
+    let o = makeComp (idBase + 3) 1 0 (Output 1) "Z"
     makeLdc name None ([ i; s; o ], [ conn i 0 s 0; conn s 0 o 0 ])
 
-let private leftSheet = wrapperSheet "left" "S1"
-let private rightSheet = wrapperSheet "right" "S2"
+let private leftSheet = wrapperSheet 10 "left" "S1"
+let private rightSheet = wrapperSheet 20 "right" "S2"
 
 let private forkSheet =
-    let i = makeComp "fork-in" 0 1 (Input1(1, None)) "IN"
-    let l = makeComp "fork-left" 1 1 (customOf leftSheet [ "B", 1 ] [ "Z", 1 ] None) "LEFT"
-    let r = makeComp "fork-right" 1 1 (customOf rightSheet [ "B", 1 ] [ "Z", 1 ] None) "RIGHT"
-    let o = makeComp "fork-out" 1 0 (Output 1) "OUT"
+    let i = makeComp 1 0 1 (Input1(1, None)) "IN"
+    let l = makeComp 2 1 1 (customOf leftSheet [ "B", 1 ] [ "Z", 1 ] None) "LEFT"
+    let r = makeComp 3 1 1 (customOf rightSheet [ "B", 1 ] [ "Z", 1 ] None) "RIGHT"
+    let o = makeComp 4 1 0 (Output 1) "OUT"
     makeLdc "fork" None ([ i; l; r; o ], [ conn i 0 l 0; conn l 0 r 0; conn r 0 o 0 ])
 
 let private forkProject: Project =
@@ -188,14 +188,14 @@ let private forkHierarchy =
 // survives the trip into the simulation.
 //-------------------------------------------------------------------------------------------//
 
-let private plainInnerSheet = notSheet "lib" "A" "Y"
+let private plainInnerSheet = notSheet 10 "lib" "A" "Y"
 let private libSheet = { plainInnerSheet with Form = Some(Library("arithmetic", "lib")) }
 
 /// A top sheet with one instance of `inner`, which differs between the two runs only in its Form.
 let private usesSheet (inner: LoadedComponent) =
-    let i = makeComp "useslib-in" 0 1 (Input1(1, None)) "IN"
-    let l = makeComp "useslib-lib" 1 1 (customOf inner [ "A", 1 ] [ "Y", 1 ] None) "LIB1"
-    let o = makeComp "useslib-out" 1 0 (Output 1) "OUT"
+    let i = makeComp 1 0 1 (Input1(1, None)) "IN"
+    let l = makeComp 2 1 1 (customOf inner [ "A", 1 ] [ "Y", 1 ] None) "LIB1"
+    let o = makeComp 3 1 0 (Output 1) "OUT"
     makeLdc "useslib" None ([ i; l; o ], [ conn i 0 l 0; conn l 0 o 0 ])
 
 /// The nodes the selector would draw for a design whose one subsheet is `inner`.
@@ -216,14 +216,14 @@ let private nodesUsing (inner: LoadedComponent) =
 // likes, including that sheet's name.
 //-------------------------------------------------------------------------------------------//
 
-let private innerSheet = notSheet "inner" "A" "Y"
+let private innerSheet = notSheet 10 "inner" "A" "Y"
 
 /// A top sheet named `clash` holding an instance of another sheet labelled CLASH. Both the top
 /// sheet and that instance would be identified by "CLASH".
 let private clashSheet =
-    let i = makeComp "clash-in" 0 1 (Input1(1, None)) "IN"
-    let s = makeComp "clash-inner" 1 1 (customOf innerSheet [ "A", 1 ] [ "Y", 1 ] None) "CLASH"
-    let o = makeComp "clash-out" 1 0 (Output 1) "OUT"
+    let i = makeComp 1 0 1 (Input1(1, None)) "IN"
+    let s = makeComp 2 1 1 (customOf innerSheet [ "A", 1 ] [ "Y", 1 ] None) "CLASH"
+    let o = makeComp 3 1 0 (Output 1) "OUT"
     makeLdc "clash" None ([ i; s; o ], [ conn i 0 s 0; conn s 0 o 0 ])
 
 let private clashSimulation =
@@ -241,38 +241,38 @@ let tests =
         "WaveSelection"
         [ testCase "a component on the top sheet is offered its own ports"
           <| fun () ->
-              let waves, copies = offered "top-not"
+              let waves, copies = offered 2
               Expect.equal copies 1 "one copy of a component on the simulated top sheet"
               Expect.isNonEmpty waves "the gate's ports are offered"
               Expect.all
                   waves
-                  (fun w -> w.WaveId.Id = (ComponentId "top-not", []))
+                  (fun w -> w.WaveId.Id = (ComponentId 2, []))
                   "the waves are the component's own, at the root of the simulation"
 
           testCase "a component in a sheet instantiated once is offered its own ports"
           <| fun () ->
-              let waves, copies = offered "solo-not"
+              let waves, copies = offered 12
               Expect.equal copies 1 "one copy of a component in a singly instantiated sheet"
               Expect.all
                   waves
-                  (fun w -> snd w.WaveId.Id = [ ComponentId "top-solo1" ])
+                  (fun w -> snd w.WaveId.Id = [ ComponentId 3 ])
                   "the waves are inside the one instance"
 
           testCase "a component in a sheet instantiated twice is offered nothing"
           <| fun () ->
-              let waves, copies = offered "twin-not"
+              let waves, copies = offered 22
               Expect.equal copies 2 "one copy per instantiation of the sheet"
               Expect.isEmpty waves "nothing offered: the canvas symbol is neither copy"
 
           testCase "an Input in a subsheet is offered the instance port carrying its signal"
           <| fun () ->
-              let waves, copies = offered "solo-in"
+              let waves, copies = offered 11
               Expect.equal copies 1 "one copy of the Input itself"
               match waves with
               | [ wave ] ->
                   Expect.equal
                       wave.WaveId.Id
-                      (ComponentId "top-solo1", [])
+                      (ComponentId 3, [])
                       "the wave is on the instance the sheet sits in, not on the Input"
                   Expect.equal wave.WaveId.PortType PortType.Input "an Input maps to an input port"
                   Expect.equal wave.WaveId.PortNumber 0 "the port A is the instance's first input"
@@ -281,23 +281,23 @@ let tests =
 
           testCase "an Output in a subsheet is offered the instance port carrying its signal"
           <| fun () ->
-              let waves, _ = offered "solo-out"
+              let waves, _ = offered 13
               match waves with
               | [ wave ] ->
-                  Expect.equal wave.WaveId.Id (ComponentId "top-solo1", []) "the wave is on the instance"
+                  Expect.equal wave.WaveId.Id (ComponentId 3, []) "the wave is on the instance"
                   Expect.equal wave.WaveId.PortType PortType.Output "an Output maps to an output port"
                   Expect.equal wave.PortLabel "Y" "named after the Output"
               | waves -> failtestf "expected one wave for the subsheet Output, got %d" waves.Length
 
           testCase "an Input in a sheet instantiated twice is offered nothing"
           <| fun () ->
-              let waves, copies = offered "twin-in"
+              let waves, copies = offered 21
               Expect.equal copies 2 "one copy per instantiation"
               Expect.isEmpty waves "the redirect is not reached: there is no single instance to redirect to"
 
           testCase "a component outside the simulated design is offered nothing"
           <| fun () ->
-              let waves, copies = offered "not-in-this-simulation"
+              let waves, copies = offered 999
               Expect.equal copies 0 "no copies of a component the simulation does not hold"
               Expect.isEmpty waves "and so nothing to offer"
 
@@ -308,7 +308,7 @@ let tests =
           testCase "a wave in a subsheet knows its sheet by the instance's type, not its label"
           <| fun () ->
               let fs, allWaves = simulation.Force()
-              match fst (WaveSimSelect.wavesOfComponent fs allWaves (ComponentId "solo-not")) with
+              match fst (WaveSimSelect.wavesOfComponent fs allWaves (ComponentId 12)) with
               | wave :: _ ->
                   Expect.equal
                       (WaveSimHelpers.sheetOfWave fs wave)
@@ -322,7 +322,7 @@ let tests =
           testCase "a wave on the top sheet knows its sheet"
           <| fun () ->
               let fs, allWaves = simulation.Force()
-              match fst (WaveSimSelect.wavesOfComponent fs allWaves (ComponentId "top-not")) with
+              match fst (WaveSimSelect.wavesOfComponent fs allWaves (ComponentId 2)) with
               | wave :: _ ->
                   Expect.equal (WaveSimHelpers.sheetOfWave fs wave) (Some "top") "the simulated top sheet"
                   Expect.isNonEmpty (WaveSimHelpers.connsOfWave fs wave) "and its connections are found"
@@ -354,7 +354,7 @@ let tests =
               let fs, allWaves = simulation.Force()
               Expect.all
                   (WaveSimSelect.defaultSelectedWaves fs allWaves)
-                  (fun wi -> fst wi.Id <> ComponentId "top-not")
+                  (fun wi -> fst wi.Id <> ComponentId 2)
                   "TOPNOT is on the top sheet but is not one of its ports"
 
           testCase "a selection the user already has is left alone"
@@ -376,7 +376,7 @@ let tests =
                   { ModelHelpers.initWSModel with
                       AllWaves = allWaves
                       SelectedWaves = []
-                      SelectedRams = Map [ (ComponentId "someRam", []), "RAM1" ] }
+                      SelectedRams = Map [ (ComponentId 999, []), "RAM1" ] }
               Expect.isEmpty
                   (WaveSimSelect.withDefaultSelectionIfEmpty fs ws).SelectedWaves
                   "nothing is added when the user has selected a RAM"

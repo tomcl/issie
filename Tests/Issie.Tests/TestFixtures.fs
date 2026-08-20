@@ -18,7 +18,8 @@ let loadLoadedComponent (filePath: string) : LoadedComponent =
     | Ok ldc -> ldc
     | Error msg -> failwith msg
 
-/// Load every sheet of a fixture project directory
+/// Load every sheet of a fixture project directory, admitted exactly as the app admits a
+/// design at project open: allocators seeded, component ids made design-unique.
 let loadProject (projectName: string) : LoadedComponent list =
     match FilesIO.loadAllComponentFiles (Path.Combine(fixturesDir, projectName)) with
     | Error msg -> failwith msg
@@ -28,3 +29,5 @@ let loadProject (projectName: string) : LoadedComponent list =
             | FilesIO.OkComp ldc
             | FilesIO.OkAuto ldc
             | FilesIO.Resolve(ldc, _) -> ldc)
+        |> Helpers.RegenerateIds.admitDesign
+        |> fst

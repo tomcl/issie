@@ -19,9 +19,9 @@ open CanvasBuilder
 /// One component under test, fed by an Input per input width and feeding an Output per output
 /// width - the same shape ComponentSemantics uses, so a case here reads like a case there.
 let private canvasOf (compType: ComponentType) (inWidths: int list) (outWidths: int list) : CanvasState =
-    let dut = makeComp "dut" (List.length inWidths) (List.length outWidths) compType "DUT"
-    let ins = inWidths |> List.mapi (fun i w -> makeComp $"in{i}" 0 1 (Input1(w, None)) $"I{i}")
-    let outs = outWidths |> List.mapi (fun i w -> makeComp $"out{i}" 1 0 (Output w) $"O{i}")
+    let dut = makeComp 1 (List.length inWidths) (List.length outWidths) compType "DUT"
+    let ins = inWidths |> List.mapi (fun i w -> makeComp (2 + i) 0 1 (Input1(w, None)) $"I{i}")
+    let outs = outWidths |> List.mapi (fun i w -> makeComp (2 + List.length inWidths + i) 1 0 (Output w) $"O{i}")
 
     let conns =
         (ins |> List.mapi (fun i c -> conn c 0 dut i))

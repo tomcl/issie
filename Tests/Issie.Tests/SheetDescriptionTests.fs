@@ -46,11 +46,12 @@ let private customWith inLabels outLabels =
 
 /// the laid-out Component for one custom instance, alone on a sheet
 let private customComponent compType =
-    describeSheet "host" [ comp "C" compType; comp "O" (Output 1) ] []
+    let description = describeSheet "host" [ comp "C" compType; comp "O" (Output 1) ] []
+    description
     |> SheetLayout.toCanvasState
     |> expectOk
     |> fst
-    |> List.find (fun c -> c.Id = SheetLayout.componentId "host" "C")
+    |> List.find (fun c -> c.Id = SheetLayout.componentIdIn description "C")
 
 let tests =
     testList "SheetDescription" [
@@ -76,7 +77,7 @@ let tests =
             Expect.equal (List.length conns) 3 "named ports resolved"
             let addInputs =
                 comps
-                |> List.find (fun c -> c.Id = SheetLayout.componentId "adder" "ADD")
+                |> List.find (fun c -> c.Id = SheetLayout.componentIdIn adderSheet "ADD")
                 |> fun c -> c.InputPorts
             let pPort = addInputs |> List.item 0
             Expect.isTrue
@@ -176,7 +177,7 @@ let tests =
             let centreY (c: Component) = c.Y + c.H / 2.
             let byId =
                 comps |> List.map (fun c -> c.Id, c) |> Map.ofList
-            let at name = byId[SheetLayout.componentId "slices" name]
+            let at name = byId[SheetLayout.componentIdIn sheet name]
             let height =
                 (comps |> List.map (fun c -> c.Y + c.H) |> List.max)
                 - (comps |> List.map (fun c -> c.Y) |> List.min)
@@ -193,7 +194,7 @@ let tests =
 
         test "inputs go left, outputs go right, in declaration order" {
             let comps, _ = SheetLayout.toCanvasState adderSheet |> expectOk
-            let at name = comps |> List.find (fun c -> c.Id = SheetLayout.componentId "adder" name)
+            let at name = comps |> List.find (fun c -> c.Id = SheetLayout.componentIdIn adderSheet name)
             Expect.isLessThan ((at "A").X) ((at "ADD").X) "inputs are left of the body"
             Expect.isLessThan ((at "ADD").X) ((at "S").X) "outputs are right of the body"
             Expect.isLessThan ((at "A").Y) ((at "B").Y) "inputs keep declaration order top to bottom"
@@ -244,7 +245,7 @@ let tests =
                 |> withSlot "A" (IO "A") "W-4"
             let comps, _ = SheetLayout.toCanvasState sheet |> expectOk
             let typeOf name =
-                comps |> List.find (fun c -> c.Id = SheetLayout.componentId "param" name) |> fun c -> c.Type
+                comps |> List.find (fun c -> c.Id = SheetLayout.componentIdIn sheet name) |> fun c -> c.Type
             // the canvas carries the RESOLVED value, with the expression kept beside it
             Expect.equal (typeOf "V") (Viewer 8) "Buswidth slot resolved to the parameter default"
             Expect.equal (typeOf "A") (Input1(4, None)) "W-4 evaluated by the properties-pane parser"

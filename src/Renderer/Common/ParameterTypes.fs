@@ -183,14 +183,10 @@ type CompSlotName =
     /// How many bits a memory holds at each location.
     | MemoryWordWidth
 
-/// A slot in a component instance that can be bound to a parameter expression
-/// CompId should be a ComponentId but then we would need these types to be defined after CommonTypes.
-/// That is not possible, because we will wnat to modify CommonTypes types to use these!
-/// eventually these types can be folded into CommonTypes, and that could if need be be made recursive so
-/// solving the problem.
-/// In practice this is OK because ParamSlot is strongly typed and we will not be likely to confused CompID with any
-/// other string.
-type ParamSlot = {CompId: string; CompSlot: CompSlotName}
+/// A slot in a component instance that can be bound to a parameter expression.
+/// CompId is the integer id of the component (it would be a ComponentId, but these types compile
+/// before CommonTypes); 0 is the sentinel for "no component" - a popup's dialog box.
+type ParamSlot = {CompId: int; CompSlot: CompSlotName}
 
 /// Lenses for ParamSlot
 let compId_ = Optics.Lens.create (fun s -> s.CompId) (fun v s -> {s with CompId = v})
@@ -261,13 +257,14 @@ type ParamBoxState = {
 /// Slot names are shared by construction - every component with a width has `Buswidth`, every
 /// instance of one sheet has `CustomCompParam "w"` - so keying on the name alone meant one
 /// component's box read another's entry, and selecting a second component showed the first's error
-/// on it in red. A popup has no component and uses an empty CompId; its entries are cleared
+/// on it in red. A popup has no component and uses CompId 0; its entries are cleared
 /// wholesale when the popup closes.
 type ParamBoxDialogState = Map<ParamSlot, ParamBoxState>
 
 /// The dialog-state key for a box belonging to a component, or to a popup where there is none.
-let paramBoxKey (compId: string option) (slot: CompSlotName) : ParamSlot =
-    {CompId = Option.defaultValue "" compId; CompSlot = slot}
+/// 0 is never a real component id - the allocator hands out ids from 1 - so it means "popup".
+let paramBoxKey (compId: int option) (slot: CompSlotName) : ParamSlot =
+    {CompId = Option.defaultValue 0 compId; CompSlot = slot}
 
 /// Map from name to expression for each parameter.
 /// This is what an INSTANCE binds: a custom component binding carries no description, because the
@@ -334,6 +331,44 @@ type ParameterDefs = {
 /// Lenses for ParamDefs
 let defaultBindings_ = Optics.Lens.create (fun s -> s.DefaultBindings) (fun v s -> {s with DefaultBindings = v})
 let paramSlots_ = Optics.Lens.create (fun s -> s.ParamSlots) (fun v s -> {s with ParamSlots = v})
+
+/// JSON twins of the slot types, for .dgm files - which store component ids as STRINGS (old
+/// files hold uuids, new files hold integers written as strings), while the in-memory types
+/// above hold integers. Field names match the in-memory types exactly so the on-disk JSON is
+/// unchanged. Conversion is by the id-mapping functions the loader supplies: the loader decides
+/// what an id string becomes (parse, or allocate a fresh integer for a uuid).
+module JSONParams =
+
+    type ParamSlot = {CompId: string; CompSlot: CompSlotName}
+
+    type ComponentSlotExpr = Map<ParamSlot, ConstrainedExpr>
+
+    type ParameterDefs = {
+        DefaultBindings: ParamDefinitions
+        ParamSlots: ComponentSlotExpr
+    }
+
+/// The saved form of a slot map, component ids written as decimal strings.
+let slotsToJson (slots: ComponentSlotExpr) : JSONParams.ComponentSlotExpr =
+    slots
+    |> Map.toList
+    |> List.map (fun (slot, expr) -> ({CompId = string slot.CompId; CompSlot = slot.CompSlot}: JSONParams.ParamSlot), expr)
+    |> Map.ofList
+
+/// A saved slot map read back, id strings mapped by the loader's rule.
+let slotsOfJson (mapCompId: string -> int) (slots: JSONParams.ComponentSlotExpr) : ComponentSlotExpr =
+    slots
+    |> Map.toList
+    |> List.map (fun (slot: JSONParams.ParamSlot, expr) -> {CompId = mapCompId slot.CompId; CompSlot = slot.CompSlot}, expr)
+    |> Map.ofList
+
+let paramDefsToJson (defs: ParameterDefs) : JSONParams.ParameterDefs =
+    { DefaultBindings = defs.DefaultBindings
+      ParamSlots = slotsToJson defs.ParamSlots }
+
+let paramDefsOfJson (mapCompId: string -> int) (defs: JSONParams.ParameterDefs) : ParameterDefs =
+    { DefaultBindings = defs.DefaultBindings
+      ParamSlots = slotsOfJson mapCompId defs.ParamSlots }
 
 /// <summary>
 /// Evaluates a parameter expression given a set of parameter bindings.

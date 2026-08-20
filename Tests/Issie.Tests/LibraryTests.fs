@@ -21,8 +21,8 @@ let private ldc (name: string) (form: CCForm) (canvas: CanvasState) : LoadedComp
       IsTopSheet = false }
 
 /// an instance of sheet `name`, as a Custom component
-let private instanceOf (name: string) (label: string) =
-    { makeComp label 0 0 (Input1(1, None)) label with
+let private instanceOf (id: int) (name: string) (label: string) =
+    { makeComp id 0 0 (Input1(1, None)) label with
         Type =
             Custom
                 { Name = name; InputLabels = []; OutputLabels = []
@@ -34,8 +34,8 @@ let private project : Project =
       OpenFileName = "top"
       WorkingFileName = Some "top"
       LoadedComponents = [
-          ldc "top" User ([ instanceOf "L1_fullAdd" "FA1" ], [])
-          ldc "L1_fullAdd" (Library ("arithmetic", "fullAdd")) ([ instanceOf "L1_halfAdd" "HA1" ], [])
+          ldc "top" User ([ instanceOf 1 "L1_fullAdd" "FA1" ], [])
+          ldc "L1_fullAdd" (Library ("arithmetic", "fullAdd")) ([ instanceOf 1 "L1_halfAdd" "HA1" ], [])
           ldc "L1_halfAdd" (Library ("arithmetic", "halfAdd")) ([], [])
       ] }
 
@@ -136,7 +136,7 @@ let tests =
                     Expect.equal shape.OutputLabels placed.OutputLabels $"{name} outputs"
                     // the question createNewSymbol asks of the project once the sheet is in it
                     let instance =
-                        { makeComp "I1" 0 0 (Input1(1, None)) "I1" with
+                        { makeComp 1 0 0 (Input1(1, None)) "I1" with
                             Type =
                                 Custom
                                     { Name = placed.Name

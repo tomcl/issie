@@ -843,7 +843,8 @@ let getLatestComp (comp: Component) =
 /// Interface function that can read old-style circuits (without wire vertices)
 /// as well as new circuits with vertices. Old circuits have an expansion parameter
 /// since new symbols are larger (in units) than old ones.
-let getLatestCanvas state =
+/// The file's canvas in its FILE form - legacy formats upgraded, ids still strings.
+let private getLatestJsonCanvas state : JSONCanvasState =
     let oldCircuitMagnification = 1.25
     let stripConns (canvas: LegacyCanvas.LegacyCanvasState) =
         let (comps,conns) = canvas
@@ -851,14 +852,16 @@ let getLatestCanvas state =
         let expandedComps = List.map (magnifySheet oldCircuitMagnification) comps
         (expandedComps, noVertexConns)
         |> legacyTypesConvert
-    let comps,conns =
-        match state  with
-        | CanvasOnly canvas -> stripConns canvas
-        | CanvasWithFileWaveInfo(canvas, _, _) -> stripConns canvas
-        | CanvasWithFileWaveInfoAndNewConns(canvas, _, _) -> legacyTypesConvert canvas
-        | NewCanvasWithFileWaveInfoAndNewConns(canvas,_,_) -> canvas
-        | NewCanvasWithFileWaveSheetInfoAndNewConns (canvas,_,_,_) -> canvas
-    let comps = List.map convertFromJSONComponent comps
+    match state  with
+    | CanvasOnly canvas -> stripConns canvas
+    | CanvasWithFileWaveInfo(canvas, _, _) -> stripConns canvas
+    | CanvasWithFileWaveInfoAndNewConns(canvas, _, _) -> legacyTypesConvert canvas
+    | NewCanvasWithFileWaveInfoAndNewConns(canvas,_,_) -> canvas
+    | NewCanvasWithFileWaveSheetInfoAndNewConns (canvas,_,_,_) -> canvas
+
+/// The file's canvas as in-memory types: ids become integers here (Helpers.sheetOfJson).
+let getLatestCanvas state =
+    let (comps, conns), _, _ = Helpers.sheetOfJson (getLatestJsonCanvas state) None None
     List.map getLatestComp comps, conns
 
 /// If the component is a RAM update its contents based on its initialiser
@@ -922,13 +925,18 @@ let tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
     | Ok (Result.Error msg) ->
         Error <| sprintf "Can't load component %s because of Error: %s" (getBaseNameNoExtension filePath)  msg
     | Ok (Ok state) ->
-        let canvas = getLatestCanvas state
-        makeLoadedComponentFromCanvasData 
+        // one conversion for canvas, wave info and sheet info together, so all three see the
+        // same id mapping - wave selections reference canvas components
+        let (comps, conns), waveInfo, sheetInfo =
+            Helpers.sheetOfJson (getLatestJsonCanvas state) state.getWaveInfo state.getSheetInfo
+
+        let canvas = List.map getLatestComp comps, conns
+        makeLoadedComponentFromCanvasData
             canvas
-            filePath 
-            state.getTimeStamp 
-            state.getWaveInfo
-            state.getSheetInfo
+            filePath
+            state.getTimeStamp
+            waveInfo
+            sheetInfo
         |> fst // ignore ram change info, they will always be loaded
         |> Result.Ok
 

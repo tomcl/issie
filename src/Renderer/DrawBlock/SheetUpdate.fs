@@ -579,7 +579,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             ErrorComponents = []
             DragToSelectBox = {TopLeft={X=0.0; Y=0.0}; H=0.0; W=0.0}
             ConnectPortsLine = {X=0.0; Y=0.0}, {X=0.0; Y=0.0}
-            TargetPortId = ""
+            TargetPortId = 0
             Action = Idle
             LastMousePos = { X = 0.0; Y = 0.0 }
             SnapSymbols = emptySnap
@@ -927,7 +927,7 @@ let init () =
         ErrorComponents = []
         DragToSelectBox = {TopLeft = {X=0.0; Y=0.0}; H=0.0; W=0.0}
         ConnectPortsLine = {X=0.0; Y=0.0}, {X=0.0; Y=0.0}
-        TargetPortId = ""
+        TargetPortId = 0
         Action = Idle
         ShowGrid = false
         LastMousePos = { X = 0.0; Y = 0.0 }

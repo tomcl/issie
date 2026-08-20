@@ -846,7 +846,7 @@ type CircuitCheck = {
 /// the user had copied before they looked inside survives, which is what they would expect.
 type PinnedCanvas = {
     Symbols: Map<ComponentId, DrawModelType.SymbolT.Symbol>
-    Ports: Map<string, Port>
+    Ports: Map<int, Port>
     InputPortsConnected: Set<InputPortId>
     OutputPortsConnected: Map<OutputPortId, int>
     CopiedSymbols: Map<ComponentId, DrawModelType.SymbolT.Symbol>

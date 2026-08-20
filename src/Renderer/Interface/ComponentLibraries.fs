@@ -249,7 +249,7 @@ type ComponentShape = {
 let private tryCanvasOfBody (name: string) (body: string) : Result<CanvasState, string> =
     match Helpers.JsonHelpers.jsonStringToState body with
     | Error msg -> Error $"{name} does not hold a readable sheet ({msg})"
-    | Ok state -> Ok (getLatestCanvas state)
+    | Ok state -> Ok (FilesIO.getLatestCanvas state)
 
 /// Whether a sheet is clocked, which for a sheet that uses other sheets is a question about all of
 /// them. CommonTypes.isClocked answers it from a project's LoadedComponents; a library component

@@ -148,7 +148,7 @@ let pasteSymbols (model: Model) (wireMap:Map<ConnectionId,DrawModelType.BusWireT
 
     let addNewSymbol (basePos: XYPos) ((currSymbolModel, pastedIdsList) : Model * ComponentId List) (oldSymbol: Symbol): Model * ComponentId List =
         
-        let newId = JSHelpers.uuid()
+        let newId = Helpers.IdAllocator.newComponentId()
         let newPos = oldSymbol.Pos - basePos + newBasePos
         let compType = oldSymbol.Component.Type
         let newLabel = 
@@ -226,7 +226,7 @@ let tryGetPastedEl copiedIds pastedIds target =
     | _ -> None
 
 /// Returns a tuple of the list of input ports of a given input symbol, and list of output ports of a given output symbol
-let getPortIds (input: Symbol) (output: Symbol) : (string list * string list)=
+let getPortIds (input: Symbol) (output: Symbol) : (int list * int list)=
     let inPortIds = 
         input.Component.InputPorts
         |> List.map (fun port -> port.Id)
@@ -501,7 +501,7 @@ let createDummyComponent (pos: XYPos) (h: float) (w:float) : Component =
         Y = pos.Y - h / 2.
         Type = ComponentType.GateN (And, 2)
         SlotInfo = None
-        Id = uuid()
+        Id = Helpers.IdAllocator.newComponentId()
         Label = ""
         InputPorts = []
         OutputPorts = []

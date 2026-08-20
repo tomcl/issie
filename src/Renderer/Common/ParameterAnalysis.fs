@@ -22,7 +22,7 @@ open CommonTypes
 type InstancePathLink = {
     ParentSheet: string
     /// Component.Id of the custom component instance
-    InstanceId: string
+    InstanceId: int
     InstanceLabel: string
     ChildSheet: string
 }
@@ -344,7 +344,7 @@ let bindingEnvironmentsOf (ldcs: LoadedComponent list) (sheetName: string) : Par
 let memoryWidthsInDesign
         (ldcs: LoadedComponent list)
         (sheetName: string)
-        (compId: string)
+        (compId: int)
         (mem: Memory1)
         : (int * int) list =
     let slots =
@@ -624,7 +624,7 @@ type ChainAction =
     | AddSheetParam of Sheet: string * Param: ParamName * Default: ParamInt * Description: string
     /// Bind parameter Param of the instance InstanceId (of sheet ChildSheet, labelled
     /// InstanceLabel) on Sheet to the expression `Param`, i.e. to Sheet's own parameter.
-    | BindInstance of Sheet: string * InstanceId: string * InstanceLabel: string * ChildSheet: string * Param: ParamName
+    | BindInstance of Sheet: string * InstanceId: int * InstanceLabel: string * ChildSheet: string * Param: ParamName
 
 /// An offer to bind one unbound instance parameter to a same-named parameter on an ancestor
 /// sheet, by materialising parameters and bindings along every instance path from the ancestor
@@ -633,7 +633,7 @@ type BindOffer = {
     /// The sheet the unbound instance sits on.
     OnSheet: string
     /// The unbound instance.
-    InstanceId: string
+    InstanceId: int
     InstanceLabel: string
     /// The sheet inside the instance, which declares the parameter.
     ChildSheet: string

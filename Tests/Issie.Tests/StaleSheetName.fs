@@ -25,9 +25,9 @@ open CanvasBuilder
 /// IN -> NOT -> OUT, under whatever name is asked for. Two projects' worth of these stand in for
 /// the real thing: what matters is only that a name from one is absent from the other.
 let private sheet (name: string) =
-    let i = makeComp $"{name}-in" 0 1 (Input1(1, None)) "IN"
-    let n = makeComp $"{name}-not" 1 1 Not "N"
-    let o = makeComp $"{name}-out" 1 0 (Output 1) "OUT"
+    let i = makeComp 1 0 1 (Input1(1, None)) "IN"
+    let n = makeComp 2 1 1 Not "N"
+    let o = makeComp 3 1 0 (Output 1) "OUT"
     makeLdc name None ([ i; n; o ], [ conn i 0 n 0; conn n 0 o 0 ])
 
 /// The project being left, and the one opened over it. No name is shared.

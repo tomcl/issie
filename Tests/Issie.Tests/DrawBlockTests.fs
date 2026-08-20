@@ -312,7 +312,7 @@ let tests =
             [ 1, 0; 4, 0; 8, 0; 1, 31; 16, 16; 32, 0; 8, 1024 ]
             |> List.iter (fun (nBits, lsb) ->
                 let ct = BusSelection (nBits, lsb)
-                let comp = Symbol.makeComponent { X = 0.; Y = 0. } ct $"id{nBits}_{lsb}" "SEL"
+                let comp = Symbol.makeComponent { X = 0.; Y = 0. } ct 1 "SEL"
                 Expect.equal (Symbol.getComponentLegend ct Degree0) ""
                     "nothing is drawn inside the body, so no rotation of it can clip anything"
                 Expect.equal comp.H (float Symbol.Constants.gridSize / 2.)
@@ -327,7 +327,7 @@ let tests =
         // the usual size with a name on each port, and the wire shape it used to be drawn as is
         // gone. What matters is that the ports still exist and still say which is which.
         test "the bus spreader is a body with a named port on each side" {
-            let comp = Symbol.makeComponent { X = 0.; Y = 0. } (NbitSpreader 8) "id" "S1"
+            let comp = Symbol.makeComponent { X = 0.; Y = 0. } (NbitSpreader 8) 1 "S1"
             let inNames, outNames = CanvasStateAnalyser.portNames (NbitSpreader 8)
             Expect.equal inNames [ "IN" ] "the input is named"
             Expect.equal outNames [ "OUT" ] "and so is the output"
@@ -372,8 +372,8 @@ let tests =
                   Seg1 = None
                   LType = BusWireRoutingHelpers.BARRIERPOS
                   SameNetLink = []
-                  Wid = ConnectionId ""
-                  PortId = OutputPortId ""
+                  Wid = ConnectionId 0
+                  PortId = OutputPortId 0
                   Lid = BusWireRoutingHelpers.LineId 0 }
             let lines = [| 10.; 20.; 30. |] |> Array.map lineAt
             let at p = BusWireSeparate.findInterval lines p
@@ -388,12 +388,12 @@ let tests =
             // between. Removing one shortens the segment list, so the scan for the next has to be
             // on the shortened list.
             let seg i len : BusWireT.Segment =
-                { Index = i; Length = len; WireId = ConnectionId "w"
+                { Index = i; Length = len; WireId = ConnectionId 1
                   IntersectOrJumpList = []; Mode = BusWireT.Auto; Draggable = i <> 0 }
             let wire: BusWireT.Wire =
-                { WId = ConnectionId "w"
-                  InputPort = InputPortId "in"
-                  OutputPort = OutputPortId "out"
+                { WId = ConnectionId 1
+                  InputPort = InputPortId 1
+                  OutputPort = OutputPortId 2
                   Color = HighLightColor.Red
                   Width = 1
                   StartPos = { X = 0.; Y = 0. }

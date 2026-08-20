@@ -58,8 +58,8 @@ let tests =
         // the twelve places pairing those two lists do so without asking.
         test "a SplitN whose widths and LSBs disagree is rejected with the numbers in the message" {
             let splitWith n widths lsbs =
-                let comp = makeComp "s" 1 (List.length widths) (SplitN(n, widths, lsbs)) "S"
-                let src = makeComp "i" 0 1 (Input1(8, None)) "I"
+                let comp = makeComp 1 1 (List.length widths) (SplitN(n, widths, lsbs)) "S"
+                let src = makeComp 2 0 1 (Input1(8, None)) "I"
                 let canvas = [ src; comp ], [ conn src 0 comp 0 ]
                 BusWidthInferer.inferConnectionsWidth canvas
 

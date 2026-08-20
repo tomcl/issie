@@ -25,7 +25,7 @@ type PortInfo =
     { port: Port
       sym: Symbol
       side: Edge
-      ports: string list
+      ports: int list
       gap: float
       topBottomGap: float
       portDimension: float

@@ -114,13 +114,16 @@ let mutable private sheetCache: Map<string, CommonTypes.SimpleSheet> = Map.empty
 /// The last design assembled from a SendDesign, which is what the Sim* commands operate on.
 let mutable private lastDesign: CommonTypes.SimpleDesign option = None
 
-/// A response frame whose payload is UTF-8 text.
-let private textResponse (header: byte array) (text: string) =
-    let payload = Text.Encoding.UTF8.GetBytes(text: string)
+/// A response frame carrying a binary payload.
+let private bytesResponse (header: byte array) (payload: byte array) =
     let frame = Array.zeroCreate (Protocol.HeaderSize + payload.Length)
     Array.blit (responseHeader header) 0 frame 0 Protocol.HeaderSize
     Array.blit payload 0 frame Protocol.HeaderSize payload.Length
     frame
+
+/// A response frame whose payload is UTF-8 text.
+let private textResponse (header: byte array) (text: string) =
+    bytesResponse header (Text.Encoding.UTF8.GetBytes(text: string))
 
 /// The uint32 at a byte offset of a command payload, 0 when the payload is too short.
 let private argAt (body: byte array) (offset: int) =
@@ -222,6 +225,15 @@ let private serve (ws: WebSocket) (ct: CancellationToken) =
                     do! send ws (textResponse header (SimSession.endSession ())) ct
                 | Protocol.SimLog ->
                     do! send ws (textResponse header (SimLog.recentJson ())) ct
+                | Protocol.SimSetInputs ->
+                    do! send ws (textResponse header (SimSession.setInputs body)) ct
+                | Protocol.SimRead ->
+                    let frame =
+                        match SimSession.read body with
+                        | Ok payload -> bytesResponse header payload
+                        | Error e -> textResponse header (sprintf """{"error":"%s"}""" (e.Replace("\"", "'")))
+
+                    do! send ws frame ct
                 | other ->
                     do! ws.CloseAsync(WebSocketCloseStatus.ProtocolError, $"unknown command {other}", ct)
                     running <- false

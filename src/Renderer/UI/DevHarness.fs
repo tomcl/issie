@@ -433,6 +433,86 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
 
           """{"status": "fetching - records appear in the log"}"""
 
+      "sidecarProbe",
+      // The binary read path, end to end: build the open design on BOTH sides, run N cycles
+      // (argument, default 20), SimRead a window of the first few top-sheet outputs from the
+      // sidecar - values arriving as a zero-copy Uint32Array view over the response frame, the
+      // point of the 8-byte header - and compare word-for-word with local extraction.
+      // Asynchronous: the verdict lands in the log.
+      fun arg model _ ->
+          let cycles =
+              match System.Int32.TryParse arg with
+              | true, n when n > 1 -> n
+              | _ -> 20
+
+          match currentDesign model with
+          | None -> """{"error": "no project open"}"""
+          | Some (ldcs, design) ->
+              let top = ldcs |> List.find (fun ldc -> ldc.Name = design.TopSheet)
+
+              match Simulator.startCircuitSimulation 250 design.TopSheet top.CanvasState ldcs with
+              | Error e -> sprintf """{"error": "local build failed: %A"}""" e.ErrType
+              | Ok simData ->
+                  let localFs = simData.FastSim
+                  FastRun.runFastSimulation None (cycles - 1) localFs |> ignore
+
+                  // the first few top-level components with a ≤32-bit output
+                  let items =
+                      localFs.FComps
+                      |> Map.toList
+                      |> List.choose (fun ((ComponentId cid, path), fc) ->
+                          if List.isEmpty path && fc.Outputs.Length > 0 && fc.Outputs[0].Width <= 32 then
+                              Some(cid, 0, [])
+                          else
+                              None)
+                      |> List.truncate 4
+
+                  let sheetJsons = design.Sheets |> List.map Json.serialize<SimpleSheet>
+
+                  promise {
+                      do! SidecarClient.connect ()
+                      let! _ = SidecarClient.sendDesign design.TopSheet sheetJsons
+                      let! built = SidecarClient.simBuild 250
+                      let! _ = SidecarClient.simRun (cycles - 1) 0
+                      let! frame = SidecarClient.simRead 0 cycles items
+
+                      let asText = SidecarClient.decodeText frame
+
+                      if asText.StartsWith "{" then
+                          Log.error $"sidecarProbe: SimRead failed: {asText} (build: {built})"
+                      else
+                          let count = List.length items * cycles
+                          let view = SidecarClient.viewSimReadData frame count
+
+                          let mismatches =
+                              [ for itemIndex in 0 .. List.length items - 1 do
+                                  let cid, _, _ = items[itemIndex]
+
+                                  for c in 0 .. cycles - 1 do
+                                      let wire = SidecarClient.uint32At view (itemIndex * cycles + c)
+
+                                      let local =
+                                          match FastExtract.extractFastSimulationOutput localFs c (ComponentId cid, []) (OutputPortNumber 0) with
+                                          | SimGraphTypes.IData fd -> float (uint32 fd.GetBigInt)
+                                          | _ -> -1.0
+
+                                      if wire <> local then
+                                          yield $"comp {cid} cycle {c}: dotnet {wire} vs electron {local}" ]
+
+                          match mismatches with
+                          | [] ->
+                              Log.out (
+                                  $"sidecarProbe: IDENTICAL step data - {List.length items} signals x {cycles} cycles "
+                                  + "read through a zero-copy Uint32Array view over the 8-aligned frame"
+                              )
+                          | first :: _ ->
+                              Log.error $"sidecarProbe: {List.length mismatches} mismatches, first: {first}"
+                  }
+                  |> Promise.catch (fun e -> Log.error $"sidecarProbe: {e.Message}")
+                  |> ignore
+
+                  """{"status": "probing - verdict appears in the log"}"""
+
       "simCompare",
       // The cross-runtime correctness check: compute the deterministic-stimulus digest of the
       // open design locally, send the design to the sidecar and ask for ITS digest of the same

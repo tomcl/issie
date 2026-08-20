@@ -22,46 +22,10 @@ open CanvasBuilder
 
 module DesignCache = Issie.Sidecar.DesignCache
 
-// ---------------------------------------------------------------------------------------------
-// The shim: SimpleDesign back to skeleton LoadedComponents that the existing (dual-compiled)
-// simulation creation accepts. Test scaffolding only - the real .NET simulator will have its
-// own types; this exists to prove the wire format is sufficient, not to prescribe anything.
-// ---------------------------------------------------------------------------------------------
-
-/// Port counts for a component type: custom components from their own label lists, everything
-/// else from the same table symbol creation uses.
-let private portCounts (typeS: ComponentType) (label: string) =
-    match typeS with
-    | Custom custom -> custom.InputLabels.Length, custom.OutputLabels.Length
-    | t ->
-        let nIn, nOut, _, _ = Symbol.getComponentProperties t label
-        nIn, nOut
-
-let private shimSheet (sheet: SimpleSheet) : LoadedComponent =
-    let comps =
-        sheet.Components
-        |> List.map (fun sc ->
-            let nIn, nOut = portCounts sc.TypeS sc.Label
-            makeComp sc.CompId nIn nOut sc.TypeS sc.Label)
-
-    let compById = comps |> List.map (fun comp -> comp.Id, comp) |> Map.ofList
-
-    let conns =
-        sheet.Connections
-        |> List.map (fun sc ->
-            { conn compById[sc.SrcComp] sc.SrcPort compById[sc.DestComp] sc.DestPort with
-                Id = sc.ConnId })
-
-    let paramDefs =
-        if Map.isEmpty sheet.DefaultBindings && Map.isEmpty sheet.ParamSlots then
-            None
-        else
-            Some { DefaultBindings = sheet.DefaultBindings; ParamSlots = sheet.ParamSlots }
-
-    makeLdc sheet.SheetName paramDefs (comps, conns)
-
-let private shimDesign (design: SimpleDesign) : LoadedComponent list =
-    List.map shimSheet design.Sheets
+// The shim lives in production now (SimpleDesignShim): the sidecar's baseline path uses it,
+// and these tests exercise that same code rather than a private copy.
+let private portCounts = SimpleDesignShim.portCounts
+let private shimDesign = SimpleDesignShim.designToLoadedComponents
 
 /// Load (which admits, as the app does), convert, shim - the whole journey a design makes,
 /// minus the JSON.
@@ -324,6 +288,48 @@ let tests =
                     | Error e -> failtest e
                     | Ok(_, decodedAfterEdit, _) ->
                         Expect.equal decodedAfterEdit 1 "an edit to one sheet decodes one sheet"
+        }
+
+        test "sidecar sim session: build, chunked run, digest identical to local render" {
+            let admitted, design, _ = convertProject "3cpu"
+
+            // build the baseline simulation from the wire-form design
+            let buildReply = Issie.Sidecar.SimSession.build design 250
+            Expect.isFalse (buildReply.Contains "error") $"build failed: {buildReply}"
+
+            // chunked run with a 1ms budget per chunk: the client-driven progress contract -
+            // repeat until done, each chunk one SimLog record
+            let mutable chunks = 0
+            let mutable finished = false
+
+            while not finished && chunks < 10_000 do
+                let reply = Issie.Sidecar.SimSession.run 2_000 1
+                chunks <- chunks + 1
+                Expect.isFalse (reply.Contains "error") $"run failed: {reply}"
+                finished <- reply.Contains "\"done\":true"
+
+            Expect.isTrue finished "the chunked run never reached its target cycle"
+
+            // the digest of the design that crossed the wire equals this runtime's own render
+            // of the original - correctness of the whole baseline path in one string
+            let viaSession = Issie.Sidecar.SimSession.digest design 30
+
+            let local =
+                match SimDigest.render admitted design.TopSheet 30 with
+                | Ok text -> text
+                | Error e -> failtest e
+
+            Expect.equal viaSession local "session digest differs from the local render"
+            Issie.Sidecar.SimSession.endSession () |> ignore
+
+            // both kinds of invocation were recorded, in the same log both runtimes share
+            let log = SimLog.recent ()
+            Expect.isTrue
+                (log |> List.exists (fun r -> r.Kind = SimLog.SimBuild && r.Sheet = design.TopSheet))
+                "no build record in SimLog"
+            Expect.isTrue
+                (log |> List.exists (fun r -> r.Kind = SimLog.SimRun && r.Sheet = design.TopSheet))
+                "no run record in SimLog"
         }
 
         test "integer ids survive a save and reload round trip" {

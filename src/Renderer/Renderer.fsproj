@@ -65,6 +65,7 @@
 
 	  <!-- simulator -->
     <Compile Include="Simulator\RamStore.fs" />
+    <Compile Include="Simulator\SimLog.fs" />
     <Compile Include="Simulator\SimGraphTypes.fs" />
     <Compile Include="Simulator\SimTypes.fs" />
     <Compile Include="Simulator\TruthTableTypes.fs" />
@@ -86,6 +87,7 @@
     <Compile Include="Simulator\FastSim\FastRun.fs" />
     <Compile Include="Simulator\FastSim\FastExtract.fs" />
     <Compile Include="Simulator\Simulator.fs" />
+    <Compile Include="Simulator\SimDigest.fs" />
     <Compile Include="VerilogComponent\Verilog.fs" />
 
     <!-- JS and File interface -->
@@ -179,6 +181,7 @@
 
     <Compile Include="VerilogComponent\TestParser.fs" />
     <Compile Include="TestWorker.fs" />
+    <Compile Include="SimpleDesignShim.fs" />
     <Compile Include="UI\DevHarness.fs" />
     <Compile Include="Playground.fs" />
 

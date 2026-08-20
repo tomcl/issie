@@ -11,79 +11,16 @@ open SimGraphTypes
 open SimTypes
 open TestFixtures
 
-let private maxArraySize = 250
-
-/// Deterministic per-input stimulus, stable across runs and runtimes
-let stimulus (inputIndex: int) (tick: int) (width: int) : bigint =
-    let raw = bigint (tick + 1) * 2654435761I + bigint (inputIndex + 1) * 40503I
-    raw % (1I <<< width)
-
-let private toBigint (i: FSInterface) =
-    match i with
-    | IData fd -> fd.GetBigInt
-    | IAlg _ -> failwith "Algebraic value in golden simulation"
+/// The digest render moved into the app (SimDigest.render) so the dotnet sidecar can produce
+/// the identical text; these are kept as the test suite's names for it.
+let stimulus = SimDigest.stimulus
 
 /// As runGolden, but on an already-loaded (or synthesised) design, so that a test can compare
 /// two designs that must behave identically - e.g. the SimpleDesign shim against its original.
 let runGoldenLdcs (ldcs: LoadedComponent list) (topSheet: string) (ticks: int) : string =
-    let top = ldcs |> List.find (fun ldc -> ldc.Name = topSheet)
-    match Simulator.startCircuitSimulation maxArraySize topSheet top.CanvasState ldcs with
-    | Error e -> failwith $"Simulation of {topSheet} failed: %A{e}"
-    | Ok simData ->
-        let fs = simData.FastSim
-        let byLabel ios =
-            ios |> List.sortBy (fun (_, ComponentLabel label, _) -> label)
-        let inputs = byLabel simData.Inputs
-        let outputs = byLabel simData.Outputs
-        // watch every clocked component and viewer at every level of the hierarchy: designs
-        // like CPUs have no top-level outputs, so their registers are the observable state
-        let clocked =
-            fs.FClockedComps
-            |> Array.filter (fun fc -> match fc.FType with ROM1 _ -> false | _ -> true)
-            |> Array.sortBy (fun fc -> fc.FullName)
-        let viewers =
-            fs.FComps
-            |> Map.toList
-            |> List.choose (fun (_, fc) -> match fc.FType with Viewer _ -> Some fc | _ -> None)
-            |> List.sortBy (fun fc -> fc.FullName)
-        let isRam (fc: FastComponent) =
-            match fc.FType with
-            | RAM1 _ | AsyncRAM1 _ -> true
-            | _ -> false
-        let sb = Text.StringBuilder()
-        for tick in 0 .. ticks - 1 do
-            if tick > 0 then
-                FastRun.runFastSimulation None tick fs |> ignore
-            inputs
-            |> List.iteri (fun i (cid, _, width) ->
-                let fd = NumberHelpers.convertBigintToFastData width (stimulus i tick width)
-                FastExtract.changeInput cid (IData fd) tick fs)
-            let index = tick % fs.MaxArraySize
-            for cid, ComponentLabel label, _ in outputs do
-                let value =
-                    FastExtract.extractFastSimulationOutput fs tick (cid, []) (OutputPortNumber 0)
-                    |> toBigint
-                sb.AppendLine $"{tick},{label},{value}" |> ignore
-            for fc in viewers do
-                sb.AppendLine $"{tick},{fc.FullName},{FastExtract.getFastComponentOutput fc 0 index}" |> ignore
-            for fc in clocked do
-                if not (isRam fc) then
-                    sb.AppendLine $"{tick},{fc.FullName},{FastExtract.getFastComponentOutput fc 0 index}" |> ignore
-        // memory contents only at the end: they are bulky and cumulative
-        for fc in clocked do
-            if isRam fc then
-                let data =
-                    fc.State
-                    |> Option.map (fun st -> st.Step[(ticks - 1) % fs.MaxArraySize])
-                    |> function
-                        | Some (RamState ram) ->
-                            (RamStore.toMemory ram (ticks - 1)).Data
-                            |> Map.toList
-                            |> List.map (fun (addr, value) -> $"{addr}:{value}")
-                            |> String.concat " "
-                        | _ -> "?"
-                sb.AppendLine $"ram,{fc.FullName},{data}" |> ignore
-        sb.ToString().Replace("\r\n", "\n")
+    match SimDigest.render ldcs topSheet ticks with
+    | Ok text -> text
+    | Error e -> failwith e
 
 /// Simulate `ticks` clock cycles of `topSheet`, driving all top-level inputs with the
 /// deterministic stimulus, and render the observable behaviour as text
@@ -130,7 +67,7 @@ let reducerAgreementTest (projectName: string) (topSheet: string) (ticks: int) =
         let ldcs = loadProject projectName
         let top = ldcs |> List.find (fun ldc -> ldc.Name = topSheet)
         let build () =
-            match Simulator.startCircuitSimulation maxArraySize topSheet top.CanvasState ldcs with
+            match Simulator.startCircuitSimulation SimDigest.Constants.maxArraySize topSheet top.CanvasState ldcs with
             | Error e -> failwith $"Simulation of {projectName}/{topSheet} failed: %A{e}"
             | Ok simData -> simData.FastSim
 

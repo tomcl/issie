@@ -202,17 +202,20 @@ let private timeRuns (fs: SimTypes.FastSimulation) (steps: int) =
 /// any reply. Reached from Development > Play > Send Design To Sidecar and from the harness's
 /// `sendDesign` command; it lives here rather than in Playground because Playground compiles
 /// after this file.
+/// The open design, fresh: the draw block's canvas for the open sheet, the project's for the
+/// rest, and its Simple form. None when no project is open.
+let private currentDesign (model: Model) =
+    model.CurrentProj
+    |> Option.map (fun project ->
+        let ldcs = ModelHelpers.designOf project (model.Sheet.GetCanvasState())
+        ldcs, CanvasExtractor.simpleDesignOfLoadedComponents ldcs)
+
 let sendDesignToSidecar (model: Model) (_dispatch: Msg -> unit) =
-    match model.CurrentProj with
+    let t0 = TimeHelpers.getTimeMs ()
+
+    match currentDesign model with
     | None -> Log.error "sidecar design test: open a project first"
-    | Some project ->
-        let canvas = model.Sheet.GetCanvasState()
-        let t0 = TimeHelpers.getTimeMs ()
-
-        let design =
-            ModelHelpers.designOf project canvas
-            |> CanvasExtractor.simpleDesignOfLoadedComponents
-
+    | Some (_, design) ->
         let t1 = TimeHelpers.getTimeMs ()
 
         // one JSON per sheet: an unchanged sheet serialises to the identical string, which is
@@ -406,7 +409,83 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
       // in the log: node scripts/inspect-canvas.js log
       fun _ model dispatch ->
           sendDesignToSidecar model dispatch
-          """{"status": "sending - timings appear in the log"}""" ]
+          """{"status": "sending - timings appear in the log"}"""
+
+      "simLog",
+      // This runtime's simulation invocation records - one per build, one per run chunk (which
+      // in the app means one per progress-bar update) - as JSON. The sidecar answers its own
+      // SimLog protocol command with the identical shape, which is what makes any user-driven
+      // session's costs directly comparable across the two runtimes.
+      fun _ _ _ -> SimLog.recentJson ()
+
+      "sidecarSimLog",
+      // The SIDECAR's simulation invocation records, fetched over the renderer's own connection
+      // (the sidecar serves one client at a time, so a second socket would queue behind the
+      // app's). Asynchronous: the JSON lands in the log.
+      fun _ _ _ ->
+          promise {
+              do! SidecarClient.connect ()
+              let! log = SidecarClient.simLog ()
+              Log.out $"sidecar simLog: {log}"
+          }
+          |> Promise.catch (fun e -> Log.error $"sidecarSimLog: {e.Message}")
+          |> ignore
+
+          """{"status": "fetching - records appear in the log"}"""
+
+      "simCompare",
+      // The cross-runtime correctness check: compute the deterministic-stimulus digest of the
+      // open design locally, send the design to the sidecar and ask for ITS digest of the same
+      // thing, and diff. The argument is the cycle count, default 30. Asynchronous: the verdict
+      // lands in the log.
+      fun arg model _ ->
+          let ticks =
+              match System.Int32.TryParse arg with
+              | true, n when n > 0 -> n
+              | _ -> 30
+
+          match currentDesign model with
+          | None -> """{"error": "no project open"}"""
+          | Some (ldcs, design) ->
+              match SimDigest.render ldcs design.TopSheet ticks with
+              | Error e -> sprintf """{"error": "local digest failed: %s"}""" e
+              | Ok localText ->
+                  let sheetJsons = design.Sheets |> List.map Json.serialize<SimpleSheet>
+
+                  promise {
+                      do! SidecarClient.connect ()
+                      let! sent = SidecarClient.sendDesign design.TopSheet sheetJsons
+                      let t0 = TimeHelpers.getTimeMs ()
+                      let! remote = SidecarClient.simDigest ticks
+                      let ms = TimeHelpers.getTimeMs () - t0
+
+                      if remote.StartsWith "{" then
+                          Log.error $"simCompare: sidecar digest failed: {remote} (design sent: {sent})"
+                      elif remote = localText then
+                          Log.out (
+                              $"simCompare: IDENTICAL behaviour over {ticks} cycles "
+                              + $"({localText.Length} chars of digest; sidecar build+run+render %.1f{ms}ms)"
+                          )
+                      else
+                          let localLines = localText.Split '\n'
+                          let remoteLines = remote.Split '\n'
+
+                          let firstDiff =
+                              Seq.append (Seq.zip localLines remoteLines |> Seq.indexed |> Seq.filter (fun (_, (a, b)) -> a <> b) |> Seq.map fst)
+                                         (Seq.singleton (min localLines.Length remoteLines.Length))
+                              |> Seq.head
+
+                          let at (lines: string array) i = if i < lines.Length then lines[i] else "<missing>"
+
+                          Log.error (
+                              $"simCompare: DIVERGED over {ticks} cycles at digest line {firstDiff}: "
+                              + $"electron '{at localLines firstDiff}' vs dotnet '{at remoteLines firstDiff}'"
+                          )
+                  }
+                  |> Promise.catch (fun e -> Log.error $"simCompare: {e.Message}")
+                  |> ignore
+
+                  """{"status": "comparing - verdict appears in the log"}""" ]
 
 let private send (name: string) (arg: string) =
     match latestModel, latestDispatch with

@@ -127,6 +127,34 @@ renderer-side mutable cache disappears. The lookup turns asynchronous: discard s
 Per-message round-trip latency, not bandwidth, is the number that shapes a design here: anything
 chatty should batch, and anything bulky is cheap if it flows .NET → renderer.
 
+## The baseline: today's simulator under .NET (implemented)
+
+The existing simulator now runs in the sidecar, unchanged, as the BASELINE that rewrites - and
+the Electron simulator itself - are checked against:
+
+- `SimpleDesignShim` rebuilds skeleton LoadedComponents from the wire-form design (ports
+  synthesized from component arity; port ids never cross the wire), and
+  `Simulator.startCircuitSimulation` takes it from there - the whole of FastSim, untouched.
+- Protocol commands `SimBuild` / `SimRun` / `SimDigest` / `SimEnd` / `SimLog` drive a session
+  on the last-sent design. `SimRun` takes a target cycle and a millisecond budget and reports
+  where the clock got to - the same contract the renderer's own progress loop uses, so the
+  client chunks, shows progress from replies, and cancels by not sending the next chunk.
+- **Correctness**: `SimDigest.render` (the golden-model text, moved into the app so both
+  runtimes produce it) rendered by each side and diffed by the DevHarness `simCompare` command.
+  Measured on 3cpu: **byte-identical over 50 cycles** (30,821 chars of digest), electron vs
+  dotnet, via `node scripts/drive.js send simCompare 50`.
+- **Cost**: `SimLog` records every simulation invocation identically in both runtimes - one
+  record per build, one per run chunk, which in the app means one per progress-bar update - so
+  ANY user-driven session yields directly comparable per-chunk numbers, pulled with
+  `drive.js send simLog` (electron) and `drive.js send sidecarSimLog` (dotnet). First numbers:
+  3cpu digest runs at ~0.05 ms/cycle under Electron and ~0.02 ms/cycle under .NET in
+  single-cycle chunks, both dominated by per-chunk fixed cost - the log exists precisely so
+  that real workloads can be compared instead of extrapolating from this.
+
+The algebraic (FData) path stays Electron-only, as agreed. Not yet done: `SimRead` /
+`SimSetInputs` (binary step-data transfer for the waveform phase, which want the 8-byte header
+padding first), and progress-bar UI integration of chunked sidecar runs.
+
 ## What the skeleton does not yet do
 
 Single client, no respawn on crash, no reconnect in `SidecarClient`; the header needs the 8-byte

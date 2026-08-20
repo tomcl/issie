@@ -96,7 +96,7 @@ let runCombinationalLogicFData (step: int) (fastSim: FastSimulation) =
 /// TimeOut if not None is the cutoff time after which the simulation terminates execution unfinished.
 /// Use fs.ClockTick to determine whether simulation has completed.
 /// returns speed, in clock cycles per ms, or None if complete
-let runFastSimulation (timeOut: float option) (lastStepNeeded: int) (fs: FastSimulation) : float option =
+let private runFastSimulationCore (timeOut: float option) (lastStepNeeded: int) (fs: FastSimulation) : float option =
     if fs.MaxArraySize = 0 then
         failwithf "ERROR: can't run a fast simulation with 0 length arrays!"
     let simStartTime = getTimeMs ()
@@ -148,4 +148,22 @@ let runFastSimulation (timeOut: float option) (lastStepNeeded: int) (fs: FastSim
         |> Some
 
 
+/// runFastSimulationCore with its invocation recorded: one SimLog entry per call that advances
+/// the clock. The renderer's progress loop is repeated timed calls to this, so each progress
+/// update is one record; calls that find nothing to do (the wave viewer re-asking for a tick it
+/// already has, on every render) are not recorded, or they would flood the ring.
+let runFastSimulation (timeOut: float option) (lastStepNeeded: int) (fs: FastSimulation) : float option =
+    let fromTick = fs.ClockTick
+    let start = getTimeMs ()
+    let result = runFastSimulationCore timeOut lastStepNeeded fs
 
+    if fs.ClockTick <> fromTick then
+        SimLog.record
+            SimLog.SimRun
+            fs.SimulatedTopSheet
+            (fs.FComps.Count + fs.FCustomComps.Count)
+            fromTick
+            fs.ClockTick
+            (getTimeMs () - start)
+
+    result

@@ -244,6 +244,95 @@ let sendDesignToSidecar (model: Model) (_dispatch: Msg -> unit) =
         |> Promise.catch (fun e -> Log.error $"sidecar design test: {e.Message}")
         |> ignore
 
+/// The name the sidecar run's progress bar carries. Also its ownership tag: the run loop keeps
+/// going only while Model.SpinnerPayload holds a payload with this name, so the progress bar's
+/// own Cancel button - which clears SpinnerPayload via CancelWaveSimulation, exactly as for a
+/// local run - is what stops it. Cancellation by not sending the next chunk, as designed.
+let private sidecarRunName = "Running simulation on the .NET sidecar..."
+
+/// A long simulation run ON THE SIDECAR, reported through the same progress bar as a local run.
+/// The loop is chunked SimRun requests with a time budget each; after every reply it updates
+/// the bar and re-checks ownership on the model, so Cancel takes effect within one chunk.
+/// The wave-cursor nudge in CancelWaveSimulation touches only the LOCAL simulation and is a
+/// no-op when none exists.
+let runOnSidecarWithProgress (cycles: int) (model: Model) (dispatch: Msg -> unit) =
+    match currentDesign model with
+    | None -> Log.error "sidecarRun: open a project first"
+    | Some (_, design) ->
+        let sheetJsons = design.Sheets |> List.map Json.serialize<SimpleSheet>
+        let started = TimeHelpers.getTimeMs ()
+
+        let setBar (toDo: int) =
+            dispatch
+            <| UpdateModel (fun m ->
+                { m with
+                    SpinnerPayload =
+                        Some { UseProgressBar = true; Name = sidecarRunName; ToDo = max 0 toDo; Total = cycles } })
+
+        let clearBarIfOurs () =
+            dispatch
+            <| UpdateModel (fun m ->
+                match m.SpinnerPayload with
+                | Some p when p.Name = sidecarRunName -> { m with SpinnerPayload = None }
+                | _ -> m)
+
+        let finishSession () =
+            SidecarClient.simEnd () |> Promise.map ignore |> ignore
+
+        let rec chunk (chunkCount: int) : unit =
+            SidecarClient.simRun cycles 100
+            |> Promise.map (fun reply ->
+                if reply.StartsWith "{\"error" then
+                    clearBarIfOurs ()
+                    Log.error $"sidecarRun: {reply}"
+                else
+                    let tick = int (unbox<float> ((Fable.Core.JS.JSON.parse reply)?clockTick))
+                    let finished = reply.Contains "\"done\":true"
+
+                    // decide on the MODEL, where cancellation is visible
+                    dispatch
+                    <| ExecFuncInMessage(
+                        (fun model _ ->
+                            match model.SpinnerPayload with
+                            | Some p when p.Name = sidecarRunName ->
+                                if finished then
+                                    clearBarIfOurs ()
+                                    let ms = TimeHelpers.getTimeMs () - started
+
+                                    Log.out (
+                                        $"sidecarRun: {cycles} cycles in %.0f{ms}ms over {chunkCount} chunks "
+                                        + $"(%.2f{float cycles / ms} cycles/ms) - see simLog/sidecarSimLog for the per-chunk records"
+                                    )
+
+                                    finishSession ()
+                                else
+                                    setBar (cycles - tick)
+                                    chunk (chunkCount + 1)
+                            | _ ->
+                                // the progress bar's Cancel fired: stop by sending no more chunks
+                                Log.out $"sidecarRun: cancelled at cycle {tick} after {chunkCount} chunks"
+                                finishSession ()),
+                        dispatch
+                    ))
+            |> Promise.catch (fun e ->
+                clearBarIfOurs ()
+                Log.error $"sidecarRun: {e.Message}")
+            |> ignore
+
+        promise {
+            do! SidecarClient.connect ()
+            let! _ = SidecarClient.sendDesign design.TopSheet sheetJsons
+            let! built = SidecarClient.simBuild 250
+
+            if built.Contains "error" then
+                Log.error $"sidecarRun: {built}"
+            else
+                setBar cycles
+                chunk 1
+        }
+        |> Promise.catch (fun e -> Log.error $"sidecarRun: {e.Message}")
+        |> ignore
+
 /// The commands `send` accepts. Each takes the argument string - "" when there is none - and the
 /// model and dispatch it is being sent into, and returns what to report back.
 ///
@@ -432,6 +521,19 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
           |> ignore
 
           """{"status": "fetching - records appear in the log"}"""
+
+      "sidecarRun",
+      // A long run on the sidecar behind the app's own progress bar, Cancel included. The
+      // argument is the cycle count, default one million. The completion (or cancellation)
+      // report lands in the log.
+      fun arg model dispatch ->
+          let cycles =
+              match System.Int32.TryParse arg with
+              | true, n when n > 0 -> n
+              | _ -> 1_000_000
+
+          runOnSidecarWithProgress cycles model dispatch
+          """{"status": "running - progress bar up, report lands in the log"}"""
 
       "sidecarProbe",
       // The binary read path, end to end: build the open design on BOTH sides, run N cycles

@@ -158,8 +158,16 @@ a wire-payload parity test against a locally driven simulation, and live by the 
 `sidecarProbe` command (measured word-identical on 3cpu). Signals wider than 32 bits are
 refused for now — the wide-bus read format belongs to the waveform phase.
 
-The algebraic (FData) path stays Electron-only, as agreed. Not yet done: wide-bus `SimRead`,
-and progress-bar UI integration of chunked sidecar runs.
+The app's own progress bar drives chunked sidecar runs: `DevHarness.runOnSidecarWithProgress`
+(Development > Play > Run Design On Sidecar, or `drive.js send sidecarRun <cycles>`) loops
+100 ms `SimRun` chunks, updating `Model.SpinnerPayload` after each - the same popup, and the
+same Cancel button, as a local long run. Cancellation is exactly the designed contract: Cancel
+clears the payload, the loop notices on its next reply and simply sends no more chunks (then
+frees the sidecar session). Measured: 3M cycles of 3cpu in 6.4 s over 52 chunks (~470
+cycles/ms continuous - the first real sustained .NET rate); a 60M-cycle run cancelled within
+one chunk of the click.
+
+The algebraic (FData) path stays Electron-only, as agreed. Not yet done: wide-bus `SimRead`.
 
 ## What the skeleton does not yet do
 

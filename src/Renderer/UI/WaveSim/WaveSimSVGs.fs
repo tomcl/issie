@@ -43,6 +43,10 @@ module Constants =
 let subSamp (arr: 'T array) (start:int) (count: int) (mult:int)  =
     Array.init count (fun n -> arr[start*mult + n*mult])
 
+/// subSamp over a slab region: element i of the region is slab[regionBase + i] - see IOArray.
+let subSampR (slab: 'T array) (regionBase: int) (start:int) (count: int) (mult:int)  =
+    Array.init count (fun n -> slab[regionBase + start*mult + n*mult])
+
 /// Determines whether a clock cycle is generated with a vertical bar at the beginning,
 /// denoting that a waveform changes value at the start of that clock cycle. NB this
 /// does not determine whether a waveform changes value at the end of that clock cycle.
@@ -94,7 +98,7 @@ let getWaveValue (clkCycleDetail: int) (wave: Wave) (width: int) : FastData =
 
     match width with
     | w when w > 32 ->
-        Array.tryItem clkCycleDetail waveData.DriverData.BigIntStep
+        waveData.DriverData.TryBig clkCycleDetail
         |> function
             | Some (fData) -> 
                 { Dat = BigWord fData; Width = width}            
@@ -103,7 +107,7 @@ let getWaveValue (clkCycleDetail: int) (wave: Wave) (width: int) : FastData =
                 // TODO: Should probably make it so that you can't call this function in the first place.
                 {Dat = Word 0u; Width = width}
     | _ ->      
-        Array.tryItem clkCycleDetail waveData.DriverData.UInt32Step
+        waveData.DriverData.TryU32 clkCycleDetail
         |> function
             | Some (fData) -> 
                 { Dat = Word fData; Width = width}
@@ -183,20 +187,21 @@ let nonBinaryFillPoints (startCycle: int) (clkCycleWidth: float) (gap: Gap): arr
 
 
 /// <summary>Find transitions for each clock cycle of a binary waveform.</summary>
-let calculateBinaryTransitionsUInt32 (waveValues: array<uint32>) (startCycle: int) (shownCycles: int) (multiplier: int)
+let calculateBinaryTransitionsUInt32 (io: IOArray) (startCycle: int) (shownCycles: int) (multiplier: int)
     : array<BinaryTransition> =
     let getBit bit = int32 bit
+    let waveValues, regionBase, regionLength = io.UInt32Slab, io.StepBase, io.StepLength
     match startCycle, startCycle + shownCycles - 1 with
-    | startCyc, endCyc when startCyc = 0 && startCyc <= endCyc && endCyc*multiplier < Array.length waveValues ->
+    | startCyc, endCyc when startCyc = 0 && startCyc <= endCyc && endCyc*multiplier < regionLength ->
         // in this case, we need to add a 0 value to the start of the array
         // we start on the first sample, end one after the last sample.
-        subSamp waveValues startCyc (endCyc-startCyc+1) multiplier
-        |> Array.append [| waveValues[0] |]
-    | startCyc, endCyc when 0 < startCyc && startCyc <= endCyc && endCyc*multiplier < Array.length waveValues ->
+        subSampR waveValues regionBase startCyc (endCyc-startCyc+1) multiplier
+        |> Array.append [| waveValues[regionBase] |]
+    | startCyc, endCyc when 0 < startCyc && startCyc <= endCyc && endCyc*multiplier < regionLength ->
         // in this case we can start one before the first data sample, end one after the last sample, to work out the first transition
-        subSamp waveValues (startCyc-1) (endCyc-startCyc+2) multiplier
+        subSampR waveValues regionBase (startCyc-1) (endCyc-startCyc+2) multiplier
     | _ ->
-        Log.error $"binary transitions beyond the array: {waveValues.Length} values, start {startCycle}, shown {shownCycles}, multiplier {multiplier}"
+        Log.error $"binary transitions beyond the array: {regionLength} values, start {startCycle}, shown {shownCycles}, multiplier {multiplier}"
         failwithf $"Shown cycles is beyond array bounds: startCyc={startCycle}, shown={shownCycles}, mult={multiplier}"
     |> Array.pairwise
     |> Array.map (fun (x, y) ->
@@ -209,15 +214,15 @@ let calculateBinaryTransitionsUInt32 (waveValues: array<uint32>) (startCycle: in
 
 
 /// <summary>Find transitions for each clock cycle of a non-binary waveform.</summary>
-let calculateNonBinaryTransitions (waveValues: array<'a>) (startCycle: int) (shownCycles: int) (multiplier: int)
+let calculateNonBinaryTransitions (waveValues: array<'a>) (regionBase: int) (regionLength: int) (startCycle: int) (shownCycles: int) (multiplier: int)
     : array<NonBinaryTransition> * array<'a>=
     let sampledWaveValues =
         match startCycle, startCycle + shownCycles - 1 with
-        | startCyc, endCyc when (0 <= startCyc && startCyc <= endCyc && endCyc*multiplier < Array.length waveValues) ->
-            subSamp waveValues (startCyc) (endCyc-startCyc+1) multiplier 
+        | startCyc, endCyc when (0 <= startCyc && startCyc <= endCyc && endCyc*multiplier < regionLength) ->
+            subSampR waveValues regionBase (startCyc) (endCyc-startCyc+1) multiplier
         | _ ->
-            Log.error $"non-binary transitions beyond the array: {waveValues.Length} values, start {startCycle}, shown {shownCycles}, multiplier {multiplier}"
-            failwithf $"Shown cycles is beyond array bounds: start={startCycle} shown={shownCycles} mult={multiplier} length = {waveValues.Length}"
+            Log.error $"non-binary transitions beyond the array: {regionLength} values, start {startCycle}, shown {shownCycles}, multiplier {multiplier}"
+            failwithf $"Shown cycles is beyond array bounds: start={startCycle} shown={shownCycles} mult={multiplier} length = {regionLength}"
     sampledWaveValues
     |> Array.pairwise
     |> Array.map (fun (x, y) -> if x = y then Const else Change)
@@ -497,7 +502,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
 
         | 1 -> // binary waveform
             
-            let transitions = calculateBinaryTransitionsUInt32 waveData.DriverData.UInt32Step ws.StartCycle ws.ShownCycles ws.SamplingZoom
+            let transitions = calculateBinaryTransitionsUInt32 waveData.DriverData ws.StartCycle ws.ShownCycles ws.SamplingZoom
             let wavePoints =
                 let waveWidth = singleWaveWidth ws
                 Array.mapi (binaryWavePoints waveWidth ws.StartCycle) transitions
@@ -507,7 +512,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
             svg (waveRowProps ws) [ polyline (wavePolylineStyle wavePoints) [] ], initGapStore 0
 
         | w when w <= 32 -> // non-binary waveform
-            let transitions,waveValues = calculateNonBinaryTransitions waveData.DriverData.UInt32Step ws.StartCycle ws.ShownCycles ws.SamplingZoom
+            let transitions,waveValues = calculateNonBinaryTransitions waveData.DriverData.UInt32Slab waveData.DriverData.StepBase waveData.DriverData.StepLength ws.StartCycle ws.ShownCycles ws.SamplingZoom
             let fstPoints, sndPoints =
                 let waveWidth = singleWaveWidth ws
                 Array.mapi (nonBinaryWavePoints waveWidth 0) transitions |> Array.unzip
@@ -519,7 +524,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
             svg (waveRowProps ws) (List.append polyLines valuesSVG), gapStore
 
         | _ -> // non-binary waveform with width greather than 32
-            let transitions, sampledWaveValues = calculateNonBinaryTransitions waveData.DriverData.BigIntStep ws.StartCycle ws.ShownCycles ws.SamplingZoom
+            let transitions, sampledWaveValues = calculateNonBinaryTransitions waveData.DriverData.BigIntSlab waveData.DriverData.StepBase waveData.DriverData.StepLength ws.StartCycle ws.ShownCycles ws.SamplingZoom
 
             let fstPoints, sndPoints =
                 Array.mapi (nonBinaryWavePoints (singleWaveWidth ws) 0) transitions |> Array.unzip

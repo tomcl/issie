@@ -35,7 +35,7 @@ open Fable.Core.JsInterop
 /// Under Fable an ordinary arr[i] on a local binding compiles to fable-library's item/setItem,
 /// which compare the index twice and can throw. Profiling the app found those two functions
 /// taking 70% of all simulation time - more than the component logic and the dispatch put
-/// together. (fastReduce escapes them by accident: it writes through comp.Outputs[n].UInt32Step[s],
+/// together. (fastReduce escapes them by accident: it writes through comp.Outputs[n].SetU32, a member on the record,
 /// a property chain, which Fable emits as a raw index.)
 ///
 /// Every index here is either a step index, which is < MaxArraySize by construction and so
@@ -53,17 +53,33 @@ let inline private getA (arr: 'a array) (i: int) : 'a = arr[i]
 let inline private setA (arr: 'a array) (i: int) (v: 'a) : unit = arr[i] <- v
 #endif
 
-/// The uint32 step array of input i / output i. Read once, when the reducer is built.
-let inline private inU (fc: FastComponent) (i: int) = fc.InputLinks[i].UInt32Step
-let inline private outU (fc: FastComponent) (i: int) = fc.Outputs[i].UInt32Step
+/// A uint32 step region: the slab it lives in and where in the slab its step 0 is. What a
+/// reducer captures per port, resolved once when the reducer is built - the struct is two
+/// fields in the closure, and every access is slab[base + step] through getA/setA.
+[<Struct>]
+type private U32Region = { A: uint32 array; B: int }
+
+/// The uint32 step region of input i / output i. Read once, when the reducer is built.
+let inline private inU (fc: FastComponent) (i: int) =
+    { A = fc.InputLinks[i].UInt32Slab; B = fc.InputLinks[i].StepBase }
+
+let inline private outU (fc: FastComponent) (i: int) =
+    { A = fc.Outputs[i].UInt32Slab; B = fc.Outputs[i].StepBase }
+
+/// A region for a port a component does not have, never indexed.
+let private noRegion: U32Region = { A = Array.empty; B = 0 }
+
+/// Region access without a bounds check - see getA/setA above.
+let inline private getR (r: U32Region) (step: int) : uint32 = getA r.A (r.B + step)
+let inline private setR (r: U32Region) (step: int) (v: uint32) : unit = setA r.A (r.B + step) v
 
 /// A clocked component reads its inputs and its own output as they were on the previous step.
 /// Before the first clock edge there is no previous step, and it reads 0.
-let inline private oldU (arr: uint32 array) (step: StepIndex) =
+let inline private oldU (r: U32Region) (step: StepIndex) =
     if step.NumStep = 0 then
         0u
     else
-        getA arr step.SimStepOld
+        getR r step.SimStepOld
 
 /// Mask of the low w bits, for w up to and including 32
 let inline private maskOf (w: int) =
@@ -109,9 +125,9 @@ let private split2U (fc: FastComponent) (struct (shift0, mask0)) (struct (shift1
 
     Some(fun (step: StepIndex) ->
         let s = step.SimStep
-        let bits = getA src s
-        setA out0 s ((bits >>> shift0) &&& mask0)
-        setA out1 s ((bits >>> shift1) &&& mask1))
+        let bits = getR src s
+        setR out0 s ((bits >>> shift0) &&& mask0)
+        setR out1 s ((bits >>> shift1) &&& mask1))
 
 /// Two inputs concatenated, little endian: input 0 holds the least significant bits.
 ///
@@ -125,7 +141,7 @@ let private merge2U (fc: FastComponent) (shift: int) =
 
     Some(fun (step: StepIndex) ->
         let s = step.SimStep
-        setA dst s (((getA b s) <<< shift) ||| (getA a s)))
+        setR dst s (((getR b s) <<< shift) ||| (getR a s)))
 
 /// n outputs of a demultiplexer: the selected one gets the input, the rest 0
 let private demuxU (fc: FastComponent) (n: int) =
@@ -135,20 +151,20 @@ let private demuxU (fc: FastComponent) (n: int) =
 
     Some(fun (step: StepIndex) ->
         let s = step.SimStep
-        let selected = int (getA sel s)
-        let bits = (getA src s)
+        let selected = int (getR sel s)
+        let bits = (getR src s)
 
         for i = 0 to n - 1 do
-            setA (getA outs i) s (if i = selected then bits else 0u))
+            setR (getA outs i) s (if i = selected then bits else 0u))
 
 /// The four adder variants differ only in whether there is a carry in and a carry out
 let private adderU (fc: FastComponent) (hasCin: bool) (hasCout: bool) =
     let firstOperand = if hasCin then 1 else 0
-    let cin = if hasCin then inU fc 0 else Array.empty
+    let cin = if hasCin then inU fc 0 else noRegion
     let a = inU fc firstOperand
     let b = inU fc (firstOperand + 1)
     let sumOut = outU fc 0
-    let coutOut = if hasCout then outU fc 1 else Array.empty
+    let coutOut = if hasCout then outU fc 1 else noRegion
     let w = fc.InputWidth (firstOperand + 1)
     let mask = maskOf w
 
@@ -156,39 +172,39 @@ let private adderU (fc: FastComponent) (hasCin: bool) (hasCout: bool) =
         // 32 bit addition can carry out of a uint32, so it is done in 64 bits
         Some(fun (step: StepIndex) ->
             let s = step.SimStep
-            let carryIn = if hasCin then uint64 ((getA cin s) &&& 1u) else 0UL
-            let total = uint64 (getA a s) + uint64 (getA b s) + carryIn
-            setA sumOut s (uint32 total)
+            let carryIn = if hasCin then uint64 ((getR cin s) &&& 1u) else 0UL
+            let total = uint64 (getR a s) + uint64 (getR b s) + carryIn
+            setR sumOut s (uint32 total)
 
             if hasCout then
-                setA coutOut s (uint32 (total >>> 32) &&& 1u))
+                setR coutOut s (uint32 (total >>> 32) &&& 1u))
     else
         Some(fun (step: StepIndex) ->
             let s = step.SimStep
-            let carryIn = if hasCin then (getA cin s) &&& 1u else 0u
-            let total = (getA a s) + (getA b s) + carryIn
-            setA sumOut s (total &&& mask)
+            let carryIn = if hasCin then (getR cin s) &&& 1u else 0u
+            let total = (getR a s) + (getR b s) + carryIn
+            setR sumOut s (total &&& mask)
 
             if hasCout then
-                setA coutOut s ((total >>> w) &&& 1u))
+                setR coutOut s ((total >>> w) &&& 1u))
 
 /// A counter's next value, given whether it has load and enable inputs. The inputs are read as
 /// they were on the previous step, as for any clocked component.
 let private counterU (fc: FastComponent) (width: int) (hasLoad: bool) (hasEnable: bool) =
     // input order is load data, load, enable - each present only if the variant has it
-    let loadData = if hasLoad then inU fc 0 else Array.empty
-    let load = if hasLoad then inU fc 1 else Array.empty
+    let loadData = if hasLoad then inU fc 0 else noRegion
+    let load = if hasLoad then inU fc 1 else noRegion
     let enable =
         if hasEnable then
             inU fc (if hasLoad then 2 else 0)
         else
-            Array.empty
+            noRegion
     let dst = outU fc 0
 
     Some(fun (step: StepIndex) ->
         let lastOut = oldU dst step
 
-        setA dst step.SimStep (
+        setR dst step.SimStep (
             if hasEnable && oldU enable step <> 1u then lastOut
             elif hasLoad && oldU load step = 1u then oldU loadData step
             else incrementWithinWidth width lastOut))
@@ -210,7 +226,7 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
     | Viewer _, false ->
         let src = inU fc 0
         let dst = outU fc 0
-        Some(fun step -> setA dst step.SimStep ((getA src step.SimStep)))
+        Some(fun step -> setR dst step.SimStep ((getR src step.SimStep)))
 
     | Input1 _, false ->
         // Active is mutable and read per step, not captured
@@ -219,7 +235,7 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
 
         Some(fun step ->
             if fc.Active then
-                setA dst step.SimStep ((getA src step.SimStep)))
+                setR dst step.SimStep ((getR src step.SimStep)))
 
     | NotConnected, _ -> Some(fun _ -> ())
 
@@ -230,14 +246,14 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
         let dst = outU fc 0
         // a negative constant is stored as its width-wide two's complement bit pattern
         let value = uint32 (twosComp width cVal)
-        Some(fun step -> setA dst step.SimStep (value))
+        Some(fun step -> setR dst step.SimStep (value))
 
     // --- gates -----------------------------------------------------------------------
 
     | Not, false ->
         let src = inU fc 0
         let dst = outU fc 0
-        Some(fun step -> setA dst step.SimStep ((getA src step.SimStep) ^^^ 1u))
+        Some(fun step -> setR dst step.SimStep ((getR src step.SimStep) ^^^ 1u))
 
     | GateN(gateType, 2), false ->
         let a = inU fc 0
@@ -246,12 +262,12 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
 
         // one closure per gate type, so that the operation is not dispatched per step
         match gateType with
-        | And -> Some(fun step -> setA dst step.SimStep ((getA a step.SimStep) &&& (getA b step.SimStep)))
-        | Or -> Some(fun step -> setA dst step.SimStep ((getA a step.SimStep) ||| (getA b step.SimStep)))
-        | Xor -> Some(fun step -> setA dst step.SimStep ((getA a step.SimStep) ^^^ (getA b step.SimStep)))
-        | Nand -> Some(fun step -> setA dst step.SimStep (((getA a step.SimStep) &&& (getA b step.SimStep)) ^^^ 1u))
-        | Nor -> Some(fun step -> setA dst step.SimStep (((getA a step.SimStep) ||| (getA b step.SimStep)) ^^^ 1u))
-        | Xnor -> Some(fun step -> setA dst step.SimStep (((getA a step.SimStep) ^^^ (getA b step.SimStep)) ^^^ 1u))
+        | And -> Some(fun step -> setR dst step.SimStep ((getR a step.SimStep) &&& (getR b step.SimStep)))
+        | Or -> Some(fun step -> setR dst step.SimStep ((getR a step.SimStep) ||| (getR b step.SimStep)))
+        | Xor -> Some(fun step -> setR dst step.SimStep ((getR a step.SimStep) ^^^ (getR b step.SimStep)))
+        | Nand -> Some(fun step -> setR dst step.SimStep (((getR a step.SimStep) &&& (getR b step.SimStep)) ^^^ 1u))
+        | Nor -> Some(fun step -> setR dst step.SimStep (((getR a step.SimStep) ||| (getR b step.SimStep)) ^^^ 1u))
+        | Xnor -> Some(fun step -> setR dst step.SimStep (((getR a step.SimStep) ^^^ (getR b step.SimStep)) ^^^ 1u))
 
     | GateN(gateType, n), false ->
         let ins = Array.init n (inU fc)
@@ -269,12 +285,12 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
 
         Some(fun step ->
             let s = step.SimStep
-            let mutable acc = getA (getA ins 0) s
+            let mutable acc = getR (getA ins 0) s
 
             for i = 1 to n - 1 do
-                acc <- combine acc (getA (getA ins i) s)
+                acc <- combine acc (getR (getA ins i) s)
 
-            setA dst s (if negated then acc ^^^ 1u else acc))
+            setR dst s (if negated then acc ^^^ 1u else acc))
 
     // --- multiplexers ----------------------------------------------------------------
 
@@ -286,7 +302,7 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
 
         Some(fun step ->
             let s = step.SimStep
-            setA dst s (if (getA sel s) = 0u then (getA a s) else (getA b s)))
+            setR dst s (if (getR sel s) = 0u then (getR a s) else (getR b s)))
 
     | Mux4, false
     | Mux8, false ->
@@ -301,7 +317,7 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
         // always indexes an input
         Some(fun step ->
             let s = step.SimStep
-            setA dst s (getA (getA ins (int (getA sel s))) s))
+            setR dst s (getR (getA ins (int (getR sel s))) s))
 
     | Demux2, false -> demuxU fc 2
     | Demux4, false -> demuxU fc 4
@@ -313,7 +329,7 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
         let src = inU fc 0
         let dst = outU fc 0
         let struct (shift, mask) = sliceOf (lsb + width - 1) lsb
-        Some(fun step -> setA dst step.SimStep (((getA src step.SimStep) >>> shift) &&& mask))
+        Some(fun step -> setR dst step.SimStep (((getR src step.SimStep) >>> shift) &&& mask))
 
     | BusCompare(width, compareVal), false
     | BusCompare1(width, compareVal, _), false ->
@@ -324,9 +340,9 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
         // spends a heap bigint per step discovering.
         if compareVal >= 0I && compareVal <= 4294967295I then
             let target = uint32 compareVal
-            Some(fun step -> setA dst step.SimStep ((if (getA src step.SimStep) = target then 1u else 0u)))
+            Some(fun step -> setR dst step.SimStep ((if (getR src step.SimStep) = target then 1u else 0u)))
         else
-            Some(fun step -> setA dst step.SimStep (0u))
+            Some(fun step -> setR dst step.SimStep (0u))
 
     // little endian throughout: the top wire, and input 0, hold the least significant bits
     | MergeWires, false -> merge2U fc (fc.InputWidth 0)
@@ -351,9 +367,9 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
             let mutable acc = 0u
 
             for i = n - 1 downto 0 do
-                acc <- (acc <<< (getA widths i)) ||| getA (getA ins i) s
+                acc <- (acc <<< (getA widths i)) ||| getR (getA ins i) s
 
-            setA dst s (acc))
+            setR dst s (acc))
 
     | SplitN(n, outputWidths, lsBits), false ->
         let src = inU fc 0
@@ -364,17 +380,17 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
 
         Some(fun step ->
             let s = step.SimStep
-            let bits = (getA src s)
+            let bits = (getR src s)
 
             for i = 0 to n - 1 do
                 let struct (shift, mask) = (getA slices i)
-                setA (getA outs i) s ((bits >>> shift) &&& mask))
+                setR (getA outs i) s ((bits >>> shift) &&& mask))
 
     | NbitSpreader numberOfBits, false ->
         let src = inU fc 0
         let dst = outU fc 0
         let allOnes = maskOf numberOfBits
-        Some(fun step -> setA dst step.SimStep ((if (getA src step.SimStep) = 0u then 0u else allOnes)))
+        Some(fun step -> setR dst step.SimStep ((if (getR src step.SimStep) = 0u then 0u else allOnes)))
 
     // --- n-bit arithmetic and logic ---------------------------------------------------
 
@@ -382,19 +398,19 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
         let a = inU fc 0
         let b = inU fc 1
         let dst = outU fc 0
-        Some(fun step -> setA dst step.SimStep ((getA a step.SimStep) &&& (getA b step.SimStep)))
+        Some(fun step -> setR dst step.SimStep ((getR a step.SimStep) &&& (getR b step.SimStep)))
 
     | NbitsOr _, false ->
         let a = inU fc 0
         let b = inU fc 1
         let dst = outU fc 0
-        Some(fun step -> setA dst step.SimStep ((getA a step.SimStep) ||| (getA b step.SimStep)))
+        Some(fun step -> setR dst step.SimStep ((getR a step.SimStep) ||| (getR b step.SimStep)))
 
     | NbitsXor(_, None), false ->
         let a = inU fc 0
         let b = inU fc 1
         let dst = outU fc 0
-        Some(fun step -> setA dst step.SimStep ((getA a step.SimStep) ^^^ (getA b step.SimStep)))
+        Some(fun step -> setR dst step.SimStep ((getR a step.SimStep) ^^^ (getR b step.SimStep)))
 
     | NbitsXor(_, Some Multiply), false ->
         let a = inU fc 0
@@ -404,10 +420,10 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
 
         if w = 32 then
             // uint32 multiplication wraps at 2^32, which is the masking wanted at width 32
-            Some(fun step -> setA dst step.SimStep ((getA a step.SimStep) * (getA b step.SimStep)))
+            Some(fun step -> setR dst step.SimStep ((getR a step.SimStep) * (getR b step.SimStep)))
         else
             let mask = maskOf w
-            Some(fun step -> setA dst step.SimStep (((getA a step.SimStep) * (getA b step.SimStep)) &&& mask))
+            Some(fun step -> setR dst step.SimStep (((getR a step.SimStep) * (getR b step.SimStep)) &&& mask))
 
     | NbitsNot _, false ->
         let src = inU fc 0
@@ -415,10 +431,10 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
         let w = fc.InputWidth 0
 
         if w = 32 then
-            Some(fun step -> setA dst step.SimStep (~~~(getA src step.SimStep)))
+            Some(fun step -> setR dst step.SimStep (~~~(getR src step.SimStep)))
         else
             let mask = maskOf w
-            Some(fun step -> setA dst step.SimStep (mask &&& (~~~(getA src step.SimStep))))
+            Some(fun step -> setR dst step.SimStep (mask &&& (~~~(getR src step.SimStep))))
 
     | NbitsAdder _, false -> adderU fc true true
     | NbitsAdderNoCout _, false -> adderU fc true false
@@ -431,7 +447,7 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
     | Register _, false ->
         let src = inU fc 0
         let dst = outU fc 0
-        Some(fun step -> setA dst step.SimStep (oldU src step))
+        Some(fun step -> setR dst step.SimStep (oldU src step))
 
     | DFFE, false
     | RegisterE _, false ->
@@ -440,7 +456,7 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
         let dst = outU fc 0
 
         Some(fun step ->
-            setA dst step.SimStep (
+            setR dst step.SimStep (
                 if oldU enable step = 1u then
                     oldU src step
                 else
@@ -467,10 +483,10 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
         | LSL ->
             Some(fun step ->
                 let s = step.SimStep
-                let bits = getA src s &&& mask
-                let amt = getA amtIn s
+                let bits = getR src s &&& mask
+                let amt = getR amtIn s
 
-                setA dst s (
+                setR dst s (
                     if amt >= uint32 width then
                         0u
                     else
@@ -478,10 +494,10 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
         | LSR ->
             Some(fun step ->
                 let s = step.SimStep
-                let bits = getA src s &&& mask
-                let amt = getA amtIn s
+                let bits = getR src s &&& mask
+                let amt = getR amtIn s
 
-                setA dst s (
+                setR dst s (
                     if amt >= uint32 width then
                         0u
                     else
@@ -489,11 +505,11 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
         | ASR ->
             Some(fun step ->
                 let s = step.SimStep
-                let bits = getA src s &&& mask
-                let amt = getA amtIn s
+                let bits = getR src s &&& mask
+                let amt = getR amtIn s
                 let signSet = (bits >>> signBit) &&& 1u = 1u
 
-                setA dst s (
+                setR dst s (
                     if amt = 0u then
                         bits
                     elif amt >= uint32 width then
@@ -514,14 +530,14 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
         // it always indexes the table
         Some(fun step ->
             let s = step.SimStep
-            setA dst s (getA table (int (getA src s))))
+            setR dst s (getA table (int (getR src s))))
 
     | ROM1 mem, false when mem.AddressWidth <= maxRomTableAddressWidth ->
         // synchronous: the address is the one presented on the previous clock edge
         let src = inU fc 0
         let dst = outU fc 0
         let table = romTable mem
-        Some(fun step -> setA dst step.SimStep (getA table (int (oldU src step))))
+        Some(fun step -> setR dst step.SimStep (getA table (int (oldU src step))))
 
     // Everything else is left to fastReduce: the bigint paths, the read/write memories, and
     // ROMs too wide to tabulate. RAM needs its state representation changed before it can have

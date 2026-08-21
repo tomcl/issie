@@ -19,8 +19,8 @@ open NumberHelpers
 /// sets the mutable simulation data for a given input at a given time step
 let private setSimulationInput (cid: ComponentId) (fd: FastData) (step: int) (fs: FastSimulation) =
     match Map.tryFind (cid, []) fs.FComps, fd.Width with
-    | Some fc, w when w > 32 -> fc.Outputs[0].BigIntStep[ step % fs.MaxArraySize ] <- fd.GetBigInt
-    | Some fc, w -> fc.Outputs[0].UInt32Step[ step % fs.MaxArraySize ] <- fd.GetQUint32
+    | Some fc, w when w > 32 -> fc.Outputs[0].SetBig (step % fs.MaxArraySize) fd.GetBigInt
+    | Some fc, w -> fc.Outputs[0].SetU32 (step % fs.MaxArraySize) fd.GetQUint32
     | None, _ -> failwithf "Can't find %A in FastSim" cid
 
 let private setSimulationInputFData (cid: ComponentId) (fd: FData) (step: int) (fs: FastSimulation) =
@@ -77,18 +77,18 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
             | CounterNoEnableLoad w when w > 32 ->
                 [| fc,
                    RegisterState
-                       { Dat = BigWord(fc.Outputs[0].BigIntStep[step % fastSim.MaxArraySize])
+                       { Dat = BigWord(fc.Outputs[0].Big (step % fastSim.MaxArraySize))
                          Width = w } |]
             | DFF
             | DFFE ->
-                [| fc, RegisterState { Dat = Word(fc.Outputs[0].UInt32Step[step % fastSim.MaxArraySize]); Width = 1 } |]
+                [| fc, RegisterState { Dat = Word(fc.Outputs[0].U32 (step % fastSim.MaxArraySize)); Width = 1 } |]
             | Register w
             | RegisterE w
             | Counter w
             | CounterNoEnable w
             | CounterNoLoad w
             | CounterNoEnableLoad w ->
-                [| fc, RegisterState { Dat = Word(fc.Outputs[0].UInt32Step[step % fastSim.MaxArraySize]); Width = w } |]
+                [| fc, RegisterState { Dat = Word(fc.Outputs[0].U32 (step % fastSim.MaxArraySize)); Width = w } |]
             // a ROM's contents are part of its type and never change, so it gets a read-only
             // store built here rather than one carried through the simulation
             | ROM1 state -> [| fc, RamState(RamStore.fixedOf state) |]
@@ -122,13 +122,13 @@ let rec extractFastSimulationOutput
             failwithf
                 $"Can't find valid data in step {step}:index{step % fs.MaxArraySize} from {fc.FullName} with clockTick={fs.ClockTick}"
         | w when w > 32 ->
-            match Array.tryItem (step % fs.MaxArraySize) fc.Outputs[n].BigIntStep with
+            match fc.Outputs[n].TryBig (step % fs.MaxArraySize) with
             | None ->
                 failwithf
                     $"What? extracting output {n}- in step {step} from {fc.FullName} failed with clockTick={fs.ClockTick}"
             | Some d -> { Dat = BigWord d; Width = w } |> IData
         | w ->
-            match Array.tryItem (step % fs.MaxArraySize) fc.Outputs[n].UInt32Step with
+            match fc.Outputs[n].TryU32 (step % fs.MaxArraySize) with
             | None ->
                 failwithf
                     $"What? extracting output {n}- in step {step} from {fc.FullName} failed with clockTick={fs.ClockTick}"
@@ -270,8 +270,8 @@ let inline getFastComponentInput (fc: FastComponent) (inputNum: int) (step:int) 
     let a = fc.InputLinks[inputNum]
     let w = a.Width
     match w with
-    | w when w > 32 -> a.BigIntStep[step]
-    | _ -> a.UInt32Step[step] |> bigint
+    | w when w > 32 -> a.Big step
+    | _ -> a.U32 step |> bigint
 
 
 /// Get the output value of a fast component as a bigint.
@@ -281,9 +281,9 @@ let inline getFastComponentInput (fc: FastComponent) (inputNum: int) (step:int) 
 /// used by waveSimSVGs, maybe this function could be moved there and optimised as code there at cost of modularity.
 let inline getFastComponentOutput (fc:FastComponent) (outputNum: int) (step:int) =
     if fc.OutputWidth 0 > 32 then
-        fc.Outputs[outputNum].BigIntStep[step]
+        fc.Outputs[outputNum].Big step
     else
-        bigint fc.Outputs[outputNum].UInt32Step[step]
+        bigint (fc.Outputs[outputNum].U32 step)
 
 /// Check if a fastComponent output is the same as the default value for all time steps.
 /// Used by simulationView.
@@ -292,9 +292,9 @@ let inline getFastComponentOutput (fc:FastComponent) (outputNum: int) (step:int)
 let outputsAreTheSameAsDefault (fs: FastSimulation) (fc: FastComponent) (tick: int) (currdefault: bigint) =
     let outputarray =
         if fc.OutputWidth 0 > 32 then
-            fc.Outputs[0].BigIntStep
+            fc.Outputs[0].BigContents
         else
-            Array.map (fun (x: uint32) -> twosComp (fc.OutputWidth 0) (bigint x)) fc.Outputs[0].UInt32Step
+            Array.map (fun (x: uint32) -> twosComp (fc.OutputWidth 0) (bigint x)) fc.Outputs[0].U32Contents
     let slicedArray = Array.sub outputarray 0 ((tick+1) % fs.MaxArraySize)
     let areAllElementsSame (arr: bigint array) =
         match tick with
@@ -308,11 +308,11 @@ let outputsAreTheSameAsDefault (fs: FastSimulation) (fc: FastComponent) (tick: i
 /// Values are returned from steos 0 to (tick - 1).
 /// Used by testParsser. Only works if tick < maxArraySize.
 let getArrayOfOutputs (fc: FastComponent) (outputNum: int) (ticks: int) : bigint array =
-    (if fc.Outputs[outputNum].UInt32Step.Length > 0
+    (if fc.Outputs[outputNum].UInt32Slab.Length > 0
     then 
-        Array.map (fun (d:uint32) -> bigint d) fc.Outputs[outputNum].UInt32Step
+        Array.map (fun (d:uint32) -> bigint d) fc.Outputs[outputNum].U32Contents
     else
-        fc.Outputs[0].BigIntStep)
+        fc.Outputs[0].BigContents)
     |> (fun a -> Array.sub a 0 (ticks - 1))
 
 

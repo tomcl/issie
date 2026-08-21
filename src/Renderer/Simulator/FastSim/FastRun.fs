@@ -35,9 +35,9 @@ let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
     |> Array.iter (fun fc ->
         let vec = fc.Outputs[0]
         if vec.Width > 32 then
-            vec.BigIntStep[step] <- vec.BigIntStep[stepsim - 1]
+            vec.SetBig step (vec.Big (stepsim - 1))
         else
-            vec.UInt32Step[step] <- vec.UInt32Step[stepsim - 1])
+            vec.SetU32 step (vec.U32 (stepsim - 1)))
 
 
 let private setInputstoDefault (fastSim: FastSimulation) =
@@ -49,9 +49,9 @@ let private setInputstoDefault (fastSim: FastSimulation) =
             | Some defaultVal -> 
                 let vec = fc.Outputs[0]
                 if vec.Width > 32 then
-                    vec.BigIntStep[0] <- defaultVal
+                    vec.SetBig 0 defaultVal
                 else
-                    vec.UInt32Step[0] <- uint32 defaultVal
+                    vec.SetU32 0 (uint32 defaultVal)
             | None -> ()
         | _ -> ()
     )

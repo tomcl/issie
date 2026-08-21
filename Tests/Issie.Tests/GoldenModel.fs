@@ -87,7 +87,7 @@ let reducerAgreementTest (projectName: string) (topSheet: string) (ticks: int) =
             Array.append fs.FClockedComps fs.FOrderedComps
             |> Array.collect (fun fc ->
                 fc.Outputs
-                |> Array.mapi (fun i o -> $"{fc.FullName}:{i}", o.UInt32Step, o.BigIntStep))
+                |> Array.mapi (fun i o -> $"{fc.FullName}:{i}", o.U32Contents, o.BigContents))
 
         let disagreeing =
             Array.zip (outputsOf viaGeneral) (outputsOf viaInstalled)

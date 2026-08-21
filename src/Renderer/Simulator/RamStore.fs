@@ -86,7 +86,7 @@ type Ram =
     { AddressWidth: int
       WordWidth: int
       /// `WordWidth > 32`, so values live in the bigint arrays rather than the uint32 ones. The
-      /// same split `IOArray` makes between `UInt32Step` and `BigIntStep`, and for the same reason.
+      /// same split `IOArray` makes between its UInt32 and BigInt stores, and for the same reason.
       BigVals: bool
       Init: InitMemData
       Comments: Map<bigint, string> option

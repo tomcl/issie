@@ -42,18 +42,84 @@ type StepArray<'T> = { Step: 'T array; Index: int }
 
 // [<Struct>] // TODO - check whether fable optimzed Struct
 
+/// Step-store access without a Fable bounds check.
+///
+/// Under Fable an ordinary arr[i] on a local binding compiles to fable-library's item/setItem,
+/// which profiling once found taking 70% of all simulation time (see EvalCompiled's getA/setA,
+/// the same shim for the same reason). The old per-IO step arrays escaped it by accident -
+/// property-chain access emits a raw index - but the members below bind `this` to a local, so
+/// without this shim every read on the simulator's hot path became an item() call, measured at
+/// 3x whole-simulation cost. Every index is StepBase + a step below StepLength, in range by
+/// construction; under .NET these stay ordinary checked accesses.
+#if FABLE_COMPILER
+[<Emit("$0[$1]")>]
+let stepGet (arr: 'a array) (i: int) : 'a = Fable.Core.Util.jsNative
+
+[<Emit("$0[$1] = $2")>]
+let stepSet (arr: 'a array) (i: int) (v: 'a) : unit = Fable.Core.Util.jsNative
+#else
+let inline stepGet (arr: 'a array) (i: int) : 'a = arr[i]
+let inline stepSet (arr: 'a array) (i: int) (v: 'a) : unit = arr[i] <- v
+#endif
+
 /// This type represents an array of time steps of simulation data.
-/// In any simulation, for a given IOArray, only one of the three 'Step' arrays will be used.
+/// In any simulation, for a given IOArray, only one of the three step stores will be used.
 /// For (very strong) efficiency reasons this cannot be implemented as a disjoint union:
-/// the code that reads and writes IOArray array elements will access the appropriate array.
+/// the code that reads and writes IOArray elements will access the appropriate store.
 /// Truthtable simulations use FDataStep everywhere.
-/// Normal simulations use UInt32step or BigIntStep according to the size of the relevant bus.
+/// Normal simulations use the UInt32 or BigInt store according to the size of the relevant bus.
+///
+/// The uint32 and bigint stores are REGIONS OF SHARED SLABS, not arrays of their own: step s of
+/// this IO lives at `slab[StepBase + s]`, and `StepLength` steps belong to it. FastCreate's
+/// arena packs every step region of a build into a few large slabs (under both runtimes), so a
+/// design has dozens of step allocations rather than one per output port, and a port's data is
+/// named by an integer offset. Always go through the members below - indexing a slab without
+/// adding StepBase reads another port's data, which no bounds check will ever catch.
 type IOArray =
     { FDataStep: FData array
-      UInt32Step: uint32 array
-      BigIntStep: bigint array
+      UInt32Slab: uint32 array
+      BigIntSlab: bigint array
+      StepBase: int
+      StepLength: int
       Width: int
       Index: int }
+
+    /// uint32 value at a step
+    member inline this.U32 step = stepGet this.UInt32Slab (this.StepBase + step)
+    /// write a uint32 value at a step
+    member inline this.SetU32 step dat = stepSet this.UInt32Slab (this.StepBase + step) dat
+    /// bigint value at a step
+    member inline this.Big step = stepGet this.BigIntSlab (this.StepBase + step)
+    /// write a bigint value at a step
+    member inline this.SetBig step dat = stepSet this.BigIntSlab (this.StepBase + step) dat
+    /// Array.tryItem over the uint32 region: None when this IO is not on the uint32 path or
+    /// the step is outside the region
+    member inline this.TryU32 step =
+        if this.UInt32Slab.Length = 0 || uint step >= uint this.StepLength then
+            None
+        else
+            Some(stepGet this.UInt32Slab (this.StepBase + step))
+    /// Array.tryItem over the bigint region
+    member inline this.TryBig step =
+        if this.BigIntSlab.Length = 0 || uint step >= uint this.StepLength then
+            None
+        else
+            Some(stepGet this.BigIntSlab (this.StepBase + step))
+    /// the whole uint32 region as a fresh array - a copy, for cold extraction paths only;
+    /// empty when this IO is not on the uint32 path, as the store itself once was
+    member this.U32Contents =
+        if this.UInt32Slab.Length = 0 then
+            Array.empty
+        else
+            Array.sub this.UInt32Slab this.StepBase this.StepLength
+
+    /// the whole bigint region as a fresh array - a copy, for cold extraction paths only;
+    /// empty when this IO is not on the bigint path
+    member this.BigContents =
+        if this.BigIntSlab.Length = 0 then
+            Array.empty
+        else
+            Array.sub this.BigIntSlab this.StepBase this.StepLength
 
 /// Where one clock step sits in the circular simulation arrays: the step number itself, its
 /// index into the arrays, and the index of the step before it. All three follow from the step
@@ -108,7 +174,7 @@ type FastComponent =
       State: StepArray<SimulationComponentState> option
       mutable Active: bool
       /// Most components have all bus inputs and outputs the same width. This gives the
-      /// default array field to use - BigIntStep or UInt32Step - in IOArray.
+      /// default store to use - the BigInt or UInt32 slab region - in IOArray.
       mutable UseBigInt: bool
       /// components that may have variable inputs and output widths use this instead of UseBigInt to
       /// determine the correct array.
@@ -164,9 +230,9 @@ type FastComponent =
     /// Number of component outputs
     member inline this.OutputWidth(n) = this.Outputs[n].Width
     /// Get the uint32 data array for a given input
-    member inline this.GetInputUInt32 (epoch) (InputPortNumber n) = this.InputLinks[n].UInt32Step[epoch]
+    member inline this.GetInputUInt32 (epoch) (InputPortNumber n) = this.InputLinks[n].U32 epoch
     /// Get the BigInt data array for a given input
-    member inline this.GetInputBigInt (epoch) (InputPortNumber n) = this.InputLinks[n].BigIntStep[epoch]
+    member inline this.GetInputBigInt (epoch) (InputPortNumber n) = this.InputLinks[n].Big epoch
     /// Get the FData array for a given input
     member inline this.GetInputFData (epoch) (InputPortNumber n) = this.InputLinks[n].FDataStep[epoch]
     /// for debugging - get a short usually unique truncation of the fId
@@ -175,10 +241,10 @@ type FastComponent =
         string sid
     /// write data to the Unint32Step output array for the given time step (epoch) and output (n)
     member inline this.PutOutputUInt32 (epoch) (OutputPortNumber n) dat =
-        this.Outputs[n].UInt32Step[ epoch ] <- dat
-    /// write data to the BigIntStep output array for the given time step (epoch) and output (n)
+        this.Outputs[n].SetU32 epoch dat
+    /// write data to the BigInt output store for the given time step (epoch) and output (n)
     member inline this.PutOutputBigInt (epoch) (OutputPortNumber n) dat =
-        this.Outputs[n].BigIntStep[ epoch ] <- dat
+        this.Outputs[n].SetBig epoch dat
     /// write data to the FData output array for the given time step (epoch) and output (n)
     member inline this.PutOutputFData (epoch) (OutputPortNumber n) dat =
         this.Outputs[n].FDataStep[ epoch ] <- dat

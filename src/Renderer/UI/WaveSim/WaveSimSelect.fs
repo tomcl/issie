@@ -615,10 +615,10 @@ let waveValueAt (fs: FastSimulation) (cycle: int) (radix: NumberBase) (wi: WaveI
         let index = if fs.MaxArraySize > 0 then cycle % fs.MaxArraySize else cycle
         match driver.DriverWidth with
         | w when w > 32 ->
-            Array.tryItem index driver.DriverData.BigIntStep
+            driver.DriverData.TryBig index
             |> Option.map (fun d -> { Dat = BigWord d; Width = w })
         | w ->
-            Array.tryItem index driver.DriverData.UInt32Step
+            driver.DriverData.TryU32 index
             |> Option.map (fun d -> { Dat = Word d; Width = w })
         // padded to a width nothing will be truncated at: unlike the viewer's value column, the
         // probe label sizes itself to its text rather than the text to a column

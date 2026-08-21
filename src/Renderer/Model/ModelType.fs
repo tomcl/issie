@@ -949,6 +949,20 @@ type Model = {
     /// than informative. It is worth having for anyone writing a library, who does need to see
     /// what a component brought with it. The waveform simulator ignores this: library sheets
     /// are never offered there.
+    /// Run simulation in the renderer instead of the .NET sidecar.
+    ///
+    /// DEPRECATED, and false by default: the sidecar is the simulator. It builds a simulation
+    /// against the machine's memory rather than a browser heap, so it reaches cycle counts the
+    /// renderer cannot, and it simulates roughly twice as fast on the designs that take long
+    /// enough to care (docs/dev/sidecarSimulation.md has the measurements). The renderer's own
+    /// simulator is kept for development - it is what the sidecar's results are checked against,
+    /// and the only one the algebraic (FData) path and truth tables have - and is expected to be
+    /// removed once the sidecar has been trusted for a while.
+    ///
+    /// Switchable only from Development > Simulation, and only while nothing is simulating:
+    /// changing it throws away every simulation in flight, since the two backends do not share
+    /// so much as a step array.
+    SimulateInRenderer : bool
     ShowLibrarySheets : bool
     /// The library sheets the user has asked to look inside, by name. A library component is an
     /// abstraction and its sheet is not normally reachable at all, but understanding how one
@@ -1031,6 +1045,7 @@ let projectBrowser_ = Lens.create (fun a -> a.ProjectBrowser) (fun s a -> {a wit
 let topSheetChoiceDeclined_ = Lens.create (fun a -> a.TopSheetChoiceDeclined) (fun s a -> {a with TopSheetChoiceDeclined = s})
 let openLibrary_ = Lens.create (fun a -> a.OpenLibrary) (fun s a -> {a with OpenLibrary = s})
 let catalogueSearch_ = Lens.create (fun a -> a.CatalogueSearch) (fun s a -> {a with CatalogueSearch = s})
+let simulateInRenderer_ = Lens.create (fun a -> a.SimulateInRenderer) (fun s a -> {a with SimulateInRenderer = s})
 let showLibrarySheets_ = Lens.create (fun a -> a.ShowLibrarySheets) (fun s a -> {a with ShowLibrarySheets = s})
 let openedLibrarySheets_ = Lens.create (fun a -> a.OpenedLibrarySheets) (fun s a -> {a with OpenedLibrarySheets = s})
 let readOnlyBaseline_ = Lens.create (fun a -> a.ReadOnlyBaseline) (fun s a -> {a with ReadOnlyBaseline = s})

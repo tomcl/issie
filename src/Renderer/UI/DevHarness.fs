@@ -37,6 +37,30 @@ let mutable private latestDispatch: (Msg -> unit) option = None
 /// Callbacks waiting for the next completed render.
 let mutable private waitingForRender: (unit -> unit) list = []
 
+/// Choose which simulator runs, throwing away anything currently simulating.
+///
+/// The two backends share nothing - not a step array, not a built simulation - so a switch
+/// cannot leave one running and hand it to the other. Everything that holds a simulation is
+/// therefore ended first: the step simulator, the waveform simulator and the truth table, which
+/// between them are what `ModelHelpers.simulationIsOpen` reports. The flag is then set, and the
+/// next simulation the user starts is built by whichever backend is now chosen.
+///
+/// Here rather than in the menu because both the Development menu and the `simulateIn` harness
+/// command need it, and a switch that stopped simulations in one path and not the other would be
+/// a good way to end up with a waveform viewer reading a simulation nobody is running.
+let setSimulateInRenderer (inRenderer: bool) (dispatch: Msg -> unit) =
+    dispatch EndSimulation
+    dispatch EndWaveSim
+    dispatch (TruthTableMsg CloseTruthTable)
+    dispatch <| UpdateModel(fun m -> { m with SimulateInRenderer = inRenderer })
+
+    Log.out (
+        if inRenderer then
+            "simulation will now run IN THE RENDERER (deprecated - for development only)"
+        else
+            "simulation will now run in the .NET sidecar"
+    )
+
 /// The simulation the last `benchmark` built, so that `rerun` can time the run loop on its own.
 /// Building a large design costs many times what running it does, and a profile of the two
 /// together says almost nothing about either.
@@ -359,6 +383,21 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
           // between measurements without restarting the app
           lastBenchmarkSim <- None
           "ended the step simulation"
+
+      "simulateIn",
+      // Which simulator runs: "renderer" for the deprecated in-app one, anything else for the
+      // .NET sidecar. Stops whatever is simulating, since the two share no state; with no
+      // argument it reports the current setting rather than changing it.
+      fun arg model dispatch ->
+          match arg.Trim().ToLower() with
+          | "" -> sprintf """{"simulateIn": "%s"}""" (if model.SimulateInRenderer then "renderer" else "sidecar")
+          | "renderer" ->
+              setSimulateInRenderer true dispatch
+              """{"simulateIn": "renderer"}"""
+          | "sidecar" | "dotnet" | "net" ->
+              setSimulateInRenderer false dispatch
+              """{"simulateIn": "sidecar"}"""
+          | other -> sprintf """{"error": "no simulator called '%s' - say renderer or sidecar"}""" other
 
       "endWaveSim",
       fun _ _ dispatch ->

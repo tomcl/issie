@@ -346,6 +346,41 @@ So the honest head-to-head, both runtimes on performance cores, 1.1M cycles of 3
 That is the number the backend switch should be judged on; every earlier figure in this document
 was taken before the scheduler was understood and should be read as a lower bound on both sides.
 
+### The comparison, with core occupancy controlled
+
+Every figure above this point was taken before the scheduler was understood, so the head-to-head
+was redone with both runtimes held on performance cores - the sidecar by its own QoS request
+(SimLog confirms 99-100%), Electron by pinning its processes, since it cannot report or control
+its own placement. Two further things had to be handled. Runs are **interleaved**, Electron and
+sidecar alternating on the same workload, because the machine drifts: on this 15W laptop part a
+long benchmarking session sees both runtimes fall by a third or more, so only pairwise ratios
+taken minutes apart mean anything. And **pure simulation time** is used throughout - SimLog
+chunk sums - since the wall-clock line a run prints includes build and transport.
+
+1.1M cycles of 3cpu, four interleaved pairs, wave-sim shaped (full) arrays:
+
+| | Electron | .NET | ratio |
+| --- | ---: | ---: | ---: |
+| | 217 | 709 | 3.26 |
+| | 211 | 620 | 2.95 |
+| | 227 | 665 | 2.93 |
+| | 202 | 594 | 2.94 |
+
+**.NET is 2.9x Electron** on the workload the waveform simulator actually runs. On the
+cache-resident 250-entry circular workload, three interleaved pairs give 4.4-4.7x. Both are
+larger than the 2.2x recorded further up this document, which was measured before the JIT delay
+was found.
+
+**The slab change did not cost Electron anything measurable.** The pre-slab simulator - where a
+step array was its own Uint32Array view rather than a slab plus an integer offset - was rebuilt
+and measured under the same pinning. On full arrays it went 247 against the new 242 in one
+block and 190 against 214 in another: the direction reverses, so the difference is drift rather
+than the change. On the circular workload the old form was ahead in both blocks it was measured
+(269 vs 251, then 247 vs 238), which is a plausible ~5% for the extra add per access showing up
+where the work is compute-bound and cache-resident - but it was never measured interleaved, so
+treat it as a hint rather than a result. Either way the "old simulator was faster" impression
+came from unpinned runs, where scheduling noise is larger than any of this.
+
 **Cycle count does not change the rate.** 800K against 1.1M, interleaved three times each to
 cancel drift, gave medians of 116 and 139 cycles/ms - the larger workload nominally faster, and
 both well inside the 96-180 spread of unpinned runs. A wider sweep (500K, 800K, 1.1M, 1.4M) put

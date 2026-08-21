@@ -73,13 +73,17 @@ let SimLog = 0x09uy
 [<Literal>]
 let SimSetInputs = 0x0Auy
 
-/// Read a window of output step data from the built simulation, as binary. Payload: uint32 LE
-/// start cycle, uint32 LE cycle count, uint32 LE item count, then per item uint32 LE component
-/// id, uint32 LE output port number, uint32 LE access-path length, then that many uint32 LE
-/// path component ids (root first). Reply payload on success: uint32 LE item count, uint32 LE
-/// cycle count, then item-major uint32 LE values - so values start at byte 16 of the frame,
-/// 8-aligned for a zero-copy Uint32Array view. Signals wider than 32 bits are refused for now.
-/// An error reply is JSON text (starts with '{').
+/// Read sampled output data from the built simulation, as binary: for each signal, `samples`
+/// values taken every `rep` cycles from `start` - the same (StartCycle, SamplingZoom,
+/// ShownCycles) parameters the waveform viewer's own generation uses, so a zoomed-out view is
+/// one request with rep > 1, and a tooltip is the degenerate one-signal one-sample request.
+/// Payload: uint32 LE start cycle, uint32 LE rep (cycles between samples, >= 1), uint32 LE
+/// sample count, uint32 LE signal count, then per signal uint32 LE component id, uint32 LE
+/// output port number, uint32 LE access-path length, then that many uint32 LE path component
+/// ids (root first). Reply payload on success: uint32 LE signal count, uint32 LE sample count,
+/// then signal-major uint32 LE values - so values start at byte 16 of the frame, 8-aligned for
+/// a zero-copy Uint32Array view. Signals wider than 32 bits are refused for now. An error
+/// reply is JSON text (starts with '{').
 [<Literal>]
 let SimRead = 0x0Buy
 

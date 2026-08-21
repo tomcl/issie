@@ -576,7 +576,7 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
                       let! _ = SidecarClient.sendDesign design.TopSheet sheetJsons
                       let! built = SidecarClient.simBuild 250
                       let! _ = SidecarClient.simRun (cycles - 1) 0
-                      let! frame = SidecarClient.simRead 0 cycles items
+                      let! frame = SidecarClient.simRead 0 1 cycles items
 
                       let asText = SidecarClient.decodeText frame
 

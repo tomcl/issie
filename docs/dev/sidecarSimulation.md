@@ -152,11 +152,16 @@ the Electron simulator itself - are checked against:
   that real workloads can be compared instead of extrapolating from this.
 
 `SimSetInputs` sets top-level input values at a cycle (component id + 64-bit value pairs), and
-`SimRead` returns a window of output step data — any components by id and access path — as
-binary that the renderer views zero-copy (`SidecarClient.viewSimReadData`). Both are pinned by
-a wire-payload parity test against a locally driven simulation, and live by the DevHarness
+`SimRead` is THE waveform-data interface: for each signal — component id, output port, access
+path — it returns `samples` values taken every `rep` cycles from `start`, as binary the
+renderer views zero-copy (`SidecarClient.viewSimReadData`). Those are the same (StartCycle,
+SamplingZoom, ShownCycles) parameters the waveform viewer's own generation runs on, so a view
+at any zoom is one request, and a tooltip is the degenerate one-signal one-sample case
+(`SidecarClient.simReadPoint`). Both are pinned by a wire-payload parity test against a locally
+driven simulation — dense, strided (rep 3) and single-sample — and live by the DevHarness
 `sidecarProbe` command (measured word-identical on 3cpu). Signals wider than 32 bits are
-refused for now — the wide-bus read format belongs to the waveform phase.
+refused for now. The waveform generation code itself is unchanged: the interface delivers the
+data it already consumes.
 
 The app's own progress bar drives chunked sidecar runs: `DevHarness.runOnSidecarWithProgress`
 (Development > Play > Run Design On Sidecar, or `drive.js send sidecarRun <cycles>`) loops

@@ -121,19 +121,23 @@ let setInputs (body: byte array) : string =
 
         apply 0 8
 
-/// Read a window of output step data: the reply payload is uint32 item count, uint32 cycle
-/// count, then item-major uint32 values - which the renderer views as a Uint32Array with no
+/// Read sampled output data: for each signal, `samples` values taken every `rep` cycles from
+/// `start` - the (StartCycle, SamplingZoom, ShownCycles) triple the waveform viewer's own
+/// generation runs on, so one request serves a view at any zoom, and a tooltip is the
+/// one-signal one-sample special case. The reply payload is uint32 signal count, uint32 sample
+/// count, then signal-major uint32 values - which the renderer views as a Uint32Array with no
 /// copy, the reason the frame header is 8 bytes. Errors come back as JSON text instead.
 let read (body: byte array) : Result<byte array, string> =
     match session with
     | None -> Error "no simulation built - send SimBuild first"
     | Some(fs, _) ->
         let startCycle = u32 body 0
-        let cycles = u32 body 4
-        let count = u32 body 8
+        let rep = u32 body 4
+        let samples = u32 body 8
+        let count = u32 body 12
 
-        let items =
-            (12, List.init count id)
+        let signals =
+            (16, List.init count id)
             ||> List.mapFold (fun offset _ ->
                 let compId = u32 body offset
                 let outPort = u32 body (offset + 4)
@@ -142,28 +146,30 @@ let read (body: byte array) : Result<byte array, string> =
                 (ComponentId compId, path, outPort), offset + 12 + 4 * pathLen)
             |> fst
 
-        let lastWanted = startCycle + cycles - 1
+        let lastWanted = startCycle + (samples - 1) * rep
 
-        if cycles <= 0 || count <= 0 then
-            Error "SimRead needs at least one cycle and one item"
+        if rep < 1 || samples <= 0 || count <= 0 then
+            Error "SimRead needs rep >= 1 and at least one sample and one signal"
         elif fs.ClockTick < lastWanted then
             Error $"simulation has only reached cycle {fs.ClockTick} - run to {lastWanted} first"
         elif lastWanted - startCycle >= fs.MaxArraySize || fs.ClockTick - startCycle >= fs.MaxArraySize then
             Error $"cycles {startCycle}..{lastWanted} are outside the {fs.MaxArraySize}-entry circular buffer"
         else
-            let reply = Array.zeroCreate (8 + 4 * count * cycles)
+            let reply = Array.zeroCreate (8 + 4 * count * samples)
             BitConverter.GetBytes(uint32 count).CopyTo(reply, 0)
-            BitConverter.GetBytes(uint32 cycles).CopyTo(reply, 4)
+            BitConverter.GetBytes(uint32 samples).CopyTo(reply, 4)
 
             let mutable error = None
 
-            items
-            |> List.iteri (fun itemIndex (cid, path, outPort) ->
-                for c in 0 .. cycles - 1 do
+            signals
+            |> List.iteri (fun signalIndex (cid, path, outPort) ->
+                for j in 0 .. samples - 1 do
                     if error.IsNone then
-                        match FastExtract.extractFastSimulationOutput fs (startCycle + c) (cid, path) (OutputPortNumber outPort) with
+                        let cycle = startCycle + j * rep
+
+                        match FastExtract.extractFastSimulationOutput fs cycle (cid, path) (OutputPortNumber outPort) with
                         | SimGraphTypes.IData fd when fd.Width <= 32 ->
-                            let offset = 8 + 4 * (itemIndex * cycles + c)
+                            let offset = 8 + 4 * (signalIndex * samples + j)
                             BitConverter.GetBytes(uint32 fd.GetBigInt).CopyTo(reply, offset)
                         | SimGraphTypes.IData fd ->
                             error <- Some $"signal on component %A{cid} is {fd.Width} bits wide - only widths up to 32 are readable for now"

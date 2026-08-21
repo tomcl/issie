@@ -239,10 +239,125 @@ let private serve (ws: WebSocket) (ct: CancellationToken) =
                     running <- false
     }
 
+/// Windows schedules a process it considers background onto efficiency cores, and applies EcoQoS
+/// power throttling on top. A console process with no window is background by that reckoning
+/// however hard it is working - which for this one, measured on an i7-1265U (2 P cores, 8 E
+/// cores), meant simulation running anywhere between 57% and 80% of its clock cycles on a P core
+/// with the rate tracking that residency almost exactly, 154 to 293 cycles/ms. That was the whole
+/// of the run-to-run variance the sidecar's numbers used to show; GC turned out to account for
+/// none of it (SimLog records 0 collections over a 1.1M-cycle run).
+///
+/// So this process asks not to be power-throttled, by default, at startup: a polite request that
+/// takes no core away from anyone and only says this is not background work. It is the right
+/// default for what this process is - it sits blocked on a socket using nothing at all until the
+/// app asks it to simulate, so there is no idle battery cost to trade away. With it, the same
+/// four runs go to 97-99.7% P-core residency and 390-474 cycles/ms.
+///
+/// ISSIE_SIDECAR_CPU overrides, read once at startup:
+///   unset            ask not to be power-throttled - the default described above
+///   "eco"            leave the process alone, so whatever Windows decides stands. Here to
+///                    measure the difference, and as the escape hatch if the default ever
+///                    misbehaves on a machine
+///   "pin"            confine the process to performance cores (affinity mask). Blunt, and it
+///                    hurts a machine whose P cores are wanted elsewhere - for measuring the
+///                    ceiling, not for shipping
+module private CpuQos =
+    open System.Runtime.InteropServices
+
+    [<DllImport("kernel32.dll", SetLastError = true)>]
+    extern bool private SetProcessInformation(nativeint proc, int informationClass, nativeint information, uint32 size)
+
+    [<DllImport("kernel32.dll", SetLastError = true)>]
+    extern bool private GetSystemCpuSetInformation(nativeint information, uint32 bufferLength, uint32& returnedLength, nativeint proc, uint32 flags)
+
+    /// ProcessPowerThrottling = 4; the struct is version, ControlMask, StateMask - setting the
+    /// EXECUTION_SPEED bit (1) in the mask and clearing it in the state turns EcoQoS OFF.
+    let private processPowerThrottling = 4
+    let private currentVersion = 1u
+    let private executionSpeed = 1u
+
+    let private disableThrottling () =
+        let size = 12
+        let block = Marshal.AllocHGlobal size
+
+        try
+            Marshal.WriteInt32(block, 0, int currentVersion)
+            Marshal.WriteInt32(block, 4, int executionSpeed) // ControlMask: we are setting this
+            Marshal.WriteInt32(block, 8, 0) // StateMask: ... to off
+            SetProcessInformation(Diagnostics.Process.GetCurrentProcess().Handle, processPowerThrottling, block, uint32 size)
+        finally
+            Marshal.FreeHGlobal block
+
+    /// Affinity mask over every logical processor of the top efficiency class, 0 when the CPU is
+    /// not hybrid or will not say.
+    let private performanceMask () =
+        try
+            let self = Diagnostics.Process.GetCurrentProcess().Handle
+            let mutable needed = 0u
+            GetSystemCpuSetInformation(0n, 0u, &needed, self, 0u) |> ignore
+            let buffer = Marshal.AllocHGlobal(int needed)
+
+            try
+                let mutable got = 0u
+
+                if not (GetSystemCpuSetInformation(buffer, needed, &got, self, 0u)) then
+                    0L
+                else
+                    let found = ResizeArray<int * int>()
+                    let mutable offset = 0
+                    let mutable running = true
+
+                    while running && offset + 8 <= int got do
+                        let size = Marshal.ReadInt32(buffer, offset)
+
+                        if size <= 0 then
+                            running <- false
+                        else
+                            if Marshal.ReadInt32(buffer, offset + 4) = 0 then
+                                found.Add(int (Marshal.ReadByte(buffer, offset + 14)), int (Marshal.ReadByte(buffer, offset + 18)))
+
+                            offset <- offset + size
+
+                    let classes = found |> Seq.map snd |> Seq.toList
+
+                    match classes with
+                    | [] -> 0L
+                    | _ when List.min classes = List.max classes -> 0L
+                    | _ ->
+                        let top = List.max classes
+
+                        found
+                        |> Seq.filter (fun (_, cls) -> cls = top)
+                        |> Seq.fold (fun mask (index, _) -> mask ||| (1L <<< index)) 0L
+            finally
+                Marshal.FreeHGlobal buffer
+        with _ ->
+            0L
+
+    /// Apply what ISSIE_SIDECAR_CPU asks for, and say what was done - the one line of startup
+    /// diagnostics this process has room for, on stderr so stdout stays the port handshake.
+    let apply () =
+        if not (OperatingSystem.IsWindows()) then
+            ()
+        else
+            match (Environment.GetEnvironmentVariable "ISSIE_SIDECAR_CPU" |> Option.ofObj |> Option.defaultValue "").ToLower() with
+            | "eco" -> Console.Error.WriteLine "sidecar: leaving power throttling as Windows set it"
+            | "pin" ->
+                match performanceMask () with
+                | 0L -> Console.Error.WriteLine "sidecar: no performance-core mask available"
+                | mask ->
+                    Diagnostics.Process.GetCurrentProcess().ProcessorAffinity <- nativeint mask
+                    Console.Error.WriteLine $"sidecar: pinned to performance cores (mask 0x%x{mask})"
+            | _ ->
+                let ok = disableThrottling ()
+                Console.Error.WriteLine $"sidecar: EcoQoS off = {ok}"
+
 [<EntryPoint>]
 let main _ =
     // absent when run by hand from a shell, and then any client is accepted
     let token = Environment.GetEnvironmentVariable "ISSIE_SIDECAR_TOKEN"
+
+    CpuQos.apply ()
 
     // The simulation memory budgets ship with fallbacks for a process that cannot ask its
     // machine (the test suite); this process can ask. Both budgets scale with physical memory

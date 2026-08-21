@@ -174,6 +174,67 @@ one chunk of the click.
 
 The algebraic (FData) path stays Electron-only, as agreed. Not yet done: wide-bus `SimRead`.
 
+## Measured: the wave-sim workload, Electron against .NET
+
+The comparison the backend switch waits on. `drive.js send localRun "<cycles> <arraySize>"` and
+`sidecarRun` with the same arguments run the identical chunked workload - build at that array
+size, then 100 ms `runFastSimulation` chunks to the target - on 3cpu (378 components,
+1908 B/cycle). `arraySize = cycles + 1200` is the waveform simulator's non-circular shape;
+`arraySize = 250` is the step simulator's circular one. Rates below are cycles/ms of pure
+simulation time (SimLog chunk sums, excluding build); each backend was run cold and again warm
+in the same process, several sessions apart.
+
+| workload | Electron | .NET, workstation GC | .NET, server GC |
+| --- | --- | --- | --- |
+| 1.1M cycles, full arrays (~2 GB) | 113-163 | 64-83, decaying as arrays fill | 109-153 |
+| 1.1M cycles, 250-entry circular | ~90 | ~253 | ~400 |
+| 4M cycles, full arrays (~6.6 GB) | cannot build (over budget) | - | 153, flat 146-161 across the whole run |
+| build, full arrays | ~0.4 s | ~1.7-2.2 s | ~1.7-2.7 s |
+
+What the numbers say:
+
+- **The GC strategy was the bottleneck, not the simulator - but WHY is not yet established.**
+  Under the default workstation collector the big-array rate decayed from ~160 to ~55 cycles/ms
+  as the arrays filled and a warm repeat started degraded; server GC
+  (`Issie.Sidecar.fsproj`, `<ServerGarbageCollection>`) removes the decay entirely - the 4M run
+  holds 146-161 cycles/ms from first decile to last with ~6.6 GB live, so the cost was never
+  proportional to heap size as such. What it WAS proportional to is not yet measured. Note the
+  step data is mostly not GC-visible by design: DFFs and registers keep no `State` at all
+  (previous-cycle output IS their state - EvalReference's `putState` comment), and a RAM's
+  store is `RamStore` - one mutable CSR structure shared by every step slot, allocating nothing
+  per step (docs/dev/ramRepresentation.md). What the collector does have to look at: the
+  per-RAM `State` reference array (MaxArraySize pointers, all to that one store), any
+  `BigIntStep` arrays (`bigint` is a struct with a reference field, so the array is scanned),
+  and whatever transient garbage the run loop makes. Which of those - or something else, such
+  as card-table scanning of the big reference arrays - actually cost the workstation collector
+  its throughput needs the GC counters below before it is believed.
+- **Per-cycle compute is decisively faster under .NET.** Cache-resident (circular 250) it
+  sustains 250-400 cycles/ms against Electron's ~90 - the earlier 470 cycles/ms measurement was
+  this shape. The big-array workloads converge because both runtimes are then paying memory
+  costs, not compute.
+- **On the wave-sim shape the two are within each other's variance** (Electron 113-163, .NET
+  109-153). Session-to-session swings of ~1.4x appear on BOTH sides across app/sidecar restarts
+  - consistent with P/E-core scheduling on this machine - so single runs cannot rank them;
+  overlapping ranges from repeated fresh-process runs is the honest result.
+- **Only .NET reaches past Electron's budget.** 4M cycles is unbuildable in the renderer
+  (V8-cage heap share refuses it); the sidecar builds it against machine RAM - it sizes both
+  simulation budgets from `GC.GetGCMemoryInfo().TotalAvailableMemoryBytes` at startup, there
+  being no V8 cage on that side - and runs it at full rate, undecayed. Capacity, not speed, is
+  currently the .NET side's measurable win; the rewrite (flat word storage instead of per-step
+  objects) is where the speed win is expected, and the baseline's GC profile above says exactly
+  why.
+
+Next instrumentation, so the GC account stops being conjecture: put
+`GC.CollectionCount` per generation and `GC.GetGCMemoryInfo()` pause data into each sidecar
+SimLog chunk record (and the running thread's processor number, for the P/E-core question) -
+then one workstation run and one server run say exactly where the time went, and the
+unexplained ~1.4x session-to-session variance seen on both backends gets an answer too.
+
+Benchmark hygiene, learned the hard way: `sidecarRun` sends whatever design is open, so an
+`openProject` must have finished before it fires - a 0-component build (visible in the SimLog
+record) means it did not; and the wall-clock line the command logs includes build and transport,
+so per-chunk SimLog sums are what to compare.
+
 ## What the skeleton does not yet do
 
 Single client, no respawn on crash, no reconnect in `SidecarClient`; the header needs the 8-byte

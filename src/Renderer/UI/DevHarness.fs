@@ -255,7 +255,7 @@ let private sidecarRunName = "Running simulation on the .NET sidecar..."
 /// the bar and re-checks ownership on the model, so Cancel takes effect within one chunk.
 /// The wave-cursor nudge in CancelWaveSimulation touches only the LOCAL simulation and is a
 /// no-op when none exists.
-let runOnSidecarWithProgress (cycles: int) (model: Model) (dispatch: Msg -> unit) =
+let runOnSidecarWithProgress (cycles: int) (arraySize: int) (model: Model) (dispatch: Msg -> unit) =
     match currentDesign model with
     | None -> Log.error "sidecarRun: open a project first"
     | Some (_, design) ->
@@ -322,7 +322,7 @@ let runOnSidecarWithProgress (cycles: int) (model: Model) (dispatch: Msg -> unit
         promise {
             do! SidecarClient.connect ()
             let! _ = SidecarClient.sendDesign design.TopSheet sheetJsons
-            let! built = SidecarClient.simBuild 250
+            let! built = SidecarClient.simBuild arraySize
 
             if built.Contains "error" then
                 Log.error $"sidecarRun: {built}"
@@ -523,17 +523,68 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
           """{"status": "fetching - records appear in the log"}"""
 
       "sidecarRun",
-      // A long run on the sidecar behind the app's own progress bar, Cancel included. The
-      // argument is the cycle count, default one million. The completion (or cancellation)
-      // report lands in the log.
+      // A long run on the sidecar behind the app's own progress bar, Cancel included.
+      // Arguments: cycle count (default one million) and optionally the step-array size - pass
+      // cycles+margin to reproduce the waveform simulator's non-circular full-array workload
+      // rather than the default small circular buffer. Report lands in the log.
       fun arg model dispatch ->
-          let cycles =
-              match System.Int32.TryParse arg with
-              | true, n when n > 0 -> n
-              | _ -> 1_000_000
+          let parts = arg.Split ' ' |> Array.filter (fun s -> s <> "")
 
-          runOnSidecarWithProgress cycles model dispatch
+          let intAt i dflt =
+              match Array.tryItem i parts |> Option.map System.Int32.TryParse with
+              | Some(true, n) when n > 0 -> n
+              | _ -> dflt
+
+          runOnSidecarWithProgress (intAt 0 1_000_000) (intAt 1 250) model dispatch
           """{"status": "running - progress bar up, report lands in the log"}"""
+
+      "localRun",
+      // The LOCAL half of the backend comparison: the same chunked long run as sidecarRun, on
+      // this runtime's FastSim, with the same arguments - so SimLog carries directly comparable
+      // per-chunk records for both. The simulation is standalone (not the step or wave sim) and
+      // is retained like benchmark's, freed by endSimulation.
+      fun arg model dispatch ->
+          let parts = arg.Split ' ' |> Array.filter (fun s -> s <> "")
+
+          let intAt i dflt =
+              match Array.tryItem i parts |> Option.map System.Int32.TryParse with
+              | Some(true, n) when n > 0 -> n
+              | _ -> dflt
+
+          let cycles = intAt 0 1_000_000
+          let arraySize = intAt 1 250
+
+          match currentDesign model with
+          | None -> """{"error": "no project open"}"""
+          | Some (ldcs, design) ->
+              let top = ldcs |> List.find (fun ldc -> ldc.Name = design.TopSheet)
+              let started = TimeHelpers.getTimeMs ()
+
+              match Simulator.startCircuitSimulation arraySize design.TopSheet top.CanvasState ldcs with
+              | Error e -> sprintf """{"error": "local build failed: %A"}""" e.ErrType
+              | Ok simData ->
+                  let fs = simData.FastSim
+                  lastBenchmarkSim <- Some fs
+
+                  let rec chunk (chunkCount: int) =
+                      promise {
+                          FastRun.runFastSimulation (Some 100.0) cycles fs |> ignore
+
+                          if fs.ClockTick < cycles then
+                              // yield to the event loop so renders and SimLog reads stay live
+                              do! Promise.sleep 1
+                              return! chunk (chunkCount + 1)
+                          else
+                              let ms = TimeHelpers.getTimeMs () - started
+
+                              Log.out (
+                                  $"localRun: {cycles} cycles in %.0f{ms}ms over {chunkCount} chunks "
+                                  + $"(%.2f{float cycles / ms} cycles/ms) - see simLog for the per-chunk records"
+                              )
+                      }
+
+                  chunk 1 |> Promise.catch (fun e -> Log.error $"localRun: {e.Message}") |> ignore
+                  """{"status": "running locally - report lands in the log"}"""
 
       "sidecarProbe",
       // The binary read path, end to end: build the open design on BOTH sides, run N cycles

@@ -772,7 +772,23 @@ let private randomHexToken () : string = jsNative
 /// on the machine can reach the socket just by scanning localhost ports.
 let private sidecarToken = randomHexToken ()
 
-[<Emit("Object.assign({}, process.env, { ISSIE_SIDECAR_TOKEN: $0 })")>]
+/// The sidecar's environment: the token it authenticates connections with, plus one .NET tuning
+/// knob it cannot set for itself from inside its own process.
+///
+/// TC_CallCountingDelayMs is how long tiered compilation waits before it starts counting calls
+/// towards promoting a method out of tier 0, and the wait RESTARTS whenever more new code is
+/// being compiled. Building a simulation compiles a great deal of new code, so on the default
+/// 100ms the hot reducers stayed in unoptimised tier-0 code for the first several hundred
+/// milliseconds of the first simulation of a session - measured on 3cpu at 57-87 cycles/ms
+/// against a settled 500, with the jump to full speed arriving abruptly once promotion finally
+/// happened. Setting it to zero promotes them as soon as they are hot, which took three
+/// consecutive 1.1M-cycle runs from 405/529/511 cycles/ms to 529/525/526.
+///
+/// Zero rather than turning tiering off: tier 0 still gives the process a quick start, and
+/// dynamic PGO - which needs the tiering it rides on - still gets to specialise the reducers.
+/// An environment variable rather than a runtimeconfig entry because this knob is read from the
+/// environment by the CLR and has no supported MSBuild property.
+[<Emit("Object.assign({}, process.env, { ISSIE_SIDECAR_TOKEN: $0, DOTNET_TC_CallCountingDelayMs: '0' })")>]
 let private envWithSidecarToken (token: string) : obj = jsNative
 
 /// Start the sidecar. In development that is `dotnet run`, which builds first when it must - the

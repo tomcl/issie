@@ -255,10 +255,23 @@ let private sidecarRunName = "Running simulation on the .NET sidecar..."
 /// the bar and re-checks ownership on the model, so Cancel takes effect within one chunk.
 /// The wave-cursor nudge in CancelWaveSimulation touches only the LOCAL simulation and is a
 /// no-op when none exists.
-let runOnSidecarWithProgress (cycles: int) (arraySize: int) (model: Model) (dispatch: Msg -> unit) =
+let runOnSidecarWithProgress (cycles: int) (arraySize: int) (topSheet: string option) (model: Model) (dispatch: Msg -> unit) =
     match currentDesign model with
     | None -> Log.error "sidecarRun: open a project first"
-    | Some (_, design) ->
+    | Some (_, wholeDesign) ->
+        // Which sheet to simulate. The design's own TopSheet is the one nothing instantiates,
+        // which is what a user simulating "the design" means; naming a sheet instead measures
+        // that subtree, and a hierarchy where each level instantiates several of the last is how
+        // a big expanded design is reached from small files (largeTest's main1..main6).
+        let design =
+            match topSheet with
+            | Some name when wholeDesign.Sheets |> List.exists (fun sh -> sh.SheetName = name) ->
+                { wholeDesign with TopSheet = name }
+            | Some name ->
+                Log.warn $"sidecarRun: no sheet called {name}, simulating {wholeDesign.TopSheet}"
+                wholeDesign
+            | None -> wholeDesign
+
         let sheetJsons = design.Sheets |> List.map Json.serialize<SimpleSheet>
         let started = TimeHelpers.getTimeMs ()
 
@@ -535,7 +548,7 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
               | Some(true, n) when n > 0 -> n
               | _ -> dflt
 
-          runOnSidecarWithProgress (intAt 0 1_000_000) (intAt 1 250) model dispatch
+          runOnSidecarWithProgress (intAt 0 1_000_000) (intAt 1 250) (Array.tryItem 2 parts) model dispatch
           """{"status": "running - progress bar up, report lands in the log"}"""
 
       "localRun",
@@ -556,7 +569,16 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
 
           match currentDesign model with
           | None -> """{"error": "no project open"}"""
-          | Some (ldcs, design) ->
+          | Some (ldcs, wholeDesign) ->
+              // an optional third argument names the sheet to simulate - see
+              // runOnSidecarWithProgress, which takes the same one, so the two halves of a
+              // comparison can be pointed at the same subtree
+              let design =
+                  match Array.tryItem 2 parts with
+                  | Some name when ldcs |> List.exists (fun ldc -> ldc.Name = name) ->
+                      { wholeDesign with TopSheet = name }
+                  | _ -> wholeDesign
+
               let top = ldcs |> List.find (fun ldc -> ldc.Name = design.TopSheet)
               let started = TimeHelpers.getTimeMs ()
 
@@ -578,7 +600,7 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
                               let ms = TimeHelpers.getTimeMs () - started
 
                               Log.out (
-                                  $"localRun: {cycles} cycles in %.0f{ms}ms over {chunkCount} chunks "
+                                  $"localRun: {design.TopSheet} {cycles} cycles in %.0f{ms}ms over {chunkCount} chunks "
                                   + $"(%.2f{float cycles / ms} cycles/ms) - see simLog for the per-chunk records"
                               )
                       }

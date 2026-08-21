@@ -253,6 +253,7 @@ let init() = {
     ComponentLibraries = ComponentLibraries.findLibraries ()
     OpenLibrary = None
     CatalogueSearch = ""
+    SimulateInRenderer = false
     ShowLibrarySheets = false
     OpenedLibrarySheets = Set.empty
     ReadOnlyBaseline = None

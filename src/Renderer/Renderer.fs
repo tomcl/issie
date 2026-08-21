@@ -214,6 +214,14 @@ let devMenu (dispatch) =
                               usage %.2f{heapUsage}%%")
             makeDebugItem "Initialise" None
                 (fun _ -> dispatch <| ExecFuncInMessage(softInitialise, dispatch))
+            // The simulator the app uses. The sidecar is the default and the intended one; the
+            // renderer's own simulator is kept for development - see Model.SimulateInRenderer -
+            // and this is the only way to reach it.
+            makeMenu false "Simulation" [
+                makeDebugItem "Use .NET Sidecar Simulator (default)" None
+                    (fun _ -> dispatch <| ExecFuncInMessage((fun _ d -> DevHarness.setSimulateInRenderer false d), dispatch))
+                makeDebugItem "Use Renderer Simulator (deprecated)" None
+                    (fun _ -> dispatch <| ExecFuncInMessage((fun _ d -> DevHarness.setSimulateInRenderer true d), dispatch)) ]
             // for writing libraries: normally a component's sheets are not the user's business
             makeDebugItem "Toggle Showing Library Sheets" None
                 (fun _ -> dispatch <| UpdateModel (fun m -> {m with ShowLibrarySheets = not m.ShowLibrarySheets}))

@@ -292,6 +292,39 @@ collections predicts. The override is gone rather than kept as a talisman; it co
 heaps for no measured benefit, and it is one line to restore if a future execution layer
 allocates in the run loop.
 
+### What was left after that: tiered compilation
+
+Removing the scheduler left a smaller spread - 405, 529, 511 over three runs - which the
+per-chunk records placed exactly. The first run in a process spent its first several hundred
+milliseconds at 57-87 cycles/ms *while at 94-99% P-core residency*, then jumped abruptly to
+450+. Not scheduling, not GC (still zero collections), and not a gradual ramp: a step change.
+
+That is tiered compilation. A method starts in unoptimised tier-0 code and is promoted once it
+has been called enough times, but the call counting is delayed - by default 100ms, and the
+delay RESTARTS whenever more new code is being compiled. Building a simulation compiles a great
+deal of new code, so the hot reducers stayed in tier-0 until the build's compilation activity
+finally stopped, and everything got promoted at once. Later runs in the same process pay none
+of it, which is why only the first run looked slow.
+
+`DOTNET_TC_CallCountingDelayMs=0`, set on the sidecar's environment where main spawns it
+(Bridge.fs), promotes them as soon as they are hot. Zero rather than turning tiering off
+altogether: tier 0 still gives the process a quick start, and dynamic PGO - which rides on
+tiering - still gets to specialise the reducers. Three consecutive 1.1M-cycle runs through the
+real spawn path then give **495, 500, 497 cycles/ms**, and the first run is no longer the slow
+one. For comparison, turning tiering off entirely gave 527, 488, 486 - no better, and it costs
+startup and PGO.
+
+So the variance decomposes, in the order it was found and each measured rather than argued:
+
+| | three-run spread |
+| --- | --- |
+| as first measured | 154 - 293 c/ms |
+| EcoQoS off (scheduler) | 405 - 529 |
+| plus call-counting delay 0 (JIT) | 495 - 500 |
+
+What remains is chunk-to-chunk noise of about 5% around a settled ~505 cycles/ms, which is
+where measurement of this workload should now start.
+
 **Electron is subject to the same thing**, which matters because it means earlier comparisons
 were between two throttled processes rather than two fair ones. The renderer cannot sample its
 own core, so it was tested from outside: pinning the Electron processes to performance cores

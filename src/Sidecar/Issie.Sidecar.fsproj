@@ -7,11 +7,6 @@
     <AssemblyName>issie-sidecar</AssemblyName>
     <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx-x64;osx-arm64</RuntimeIdentifiers>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <!-- The simulator's step arrays put gigabytes of live data behind an allocation-heavy
-         run loop; workstation GC measurably throttles it (docs/dev/sidecarSimulation.md has
-         the numbers), so use the throughput collector. -->
-    <ServerGarbageCollection>true</ServerGarbageCollection>
-    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
   </PropertyGroup>
   <ItemGroup>
     <!-- The renderer compiles under plain .NET too (the test suite proves it daily), which is

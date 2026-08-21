@@ -247,19 +247,77 @@ the same shim one layer down), which had silently tripled Electron's whole-simul
 until the emitted JS was checked. Correctness pinned by the full suite (652 tests, golden +
 reducers-agree) and by SimDigest byte-identity between the runtimes in the app.
 
-The largest open question is the run-to-run spread: the same 4M slab workload measured 107
-cycles/ms in a process carrying two ended sessions and 303 in a fresh one. "Heap debris" fits
-that observation but is NOT an established cause - retained slabs (one leaked IOArray pins
-256 MB), server-GC high-watermark behaviour, core scheduling and plain session variance are
-all unexcluded, and every causal statement in this section should be read as provisional until
-the instrumentation below has been run. The question matters in-app, not just in benchmarks: a
-user's second long wave simulation in one session runs in exactly the "dirty process" regime.
+## The variance was the scheduler, and the answer is one call
 
-Next instrumentation, so the GC account stops being conjecture: put
-`GC.CollectionCount` per generation and `GC.GetGCMemoryInfo()` pause data into each sidecar
-SimLog chunk record (and the running thread's processor number, for the P/E-core question) -
-then one workstation run and one server run say exactly where the time went, and the
-unexplained ~1.4x session-to-session variance seen on both backends gets an answer too.
+The run-to-run spread that made every rate above a range rather than a number - the same 1.1M
+workload measuring 154 and 293 cycles/ms in one process - is now measured rather than guessed,
+and it was neither GC nor heap debris. SimLog gained three things to settle it: the percentage
+of a run's clock cycles executed on a **performance core** (sampled from the run loop's existing
+time-check point, every hundred steps, through GetCurrentProcessorNumber and the efficiency
+classes GetSystemCpuSetInformation reports), the **GC collections and pause milliseconds** during
+each invocation, and the heap in use. Windows and .NET only: Fable can ask for none of them, so
+an Electron record carries -1 for P% and zeros for the GC fields.
+
+The first run of that instrumentation answered it outright. Four consecutive 1.1M runs on 3cpu,
+on an i7-1265U with 2 performance cores (4 threads) and 8 efficiency cores:
+
+| P-core residency | rate | GC collections | GC pause |
+| ---: | ---: | :---: | ---: |
+| 56.8% | 154 c/ms | 0/0/0 | 0.0 ms |
+| 69.5% | 229 c/ms | 0/0/0 | 1.2 ms |
+| 74.9% | 273 c/ms | 0/0/0 | 0.0 ms |
+| 80.5% | 293 c/ms | 0/0/0 | 9.9 ms |
+
+**Garbage collection is not involved at all** - zero collections of any generation across a
+1.1M-cycle run, which the step-slab layout makes sense of: the slabs are a handful of large
+long-lived arrays and the run loop allocates about a byte a cycle. The rate tracks P-core
+residency monotonically, and tracks it decile by decile *within* a run too, rate rising and
+falling with the percentage as Windows moves the thread.
+
+The cause is that Windows treats a windowless console process as background work, parks it on
+efficiency cores and applies EcoQoS power throttling. The sidecar now asks not to be
+power-throttled at startup (`CpuQos` in Program.fs, one SetProcessInformation call), which is
+the right default for a process that sits blocked on a socket using nothing until the app asks
+it to simulate - no idle battery is traded away. `ISSIE_SIDECAR_CPU=eco` restores the old
+behaviour and `=pin` confines the process to performance cores, both for measurement.
+
+With the default in place the same four runs sit at **97-99.7% P-core residency and 390-529
+cycles/ms**, and the spread that motivated all of this is gone.
+
+This also retired the sidecar's `ServerGarbageCollection` setting, which was added earlier on
+the strength of numbers that had not controlled for any of the above. Measured again with the
+scheduler settled and the step slabs in place, the default workstation collector gives 411, 490
+and 488 cycles/ms against server GC's 405, 529 and 511 - the same, which is what zero
+collections predicts. The override is gone rather than kept as a talisman; it costs per-core
+heaps for no measured benefit, and it is one line to restore if a future execution layer
+allocates in the run loop.
+
+**Electron is subject to the same thing**, which matters because it means earlier comparisons
+were between two throttled processes rather than two fair ones. The renderer cannot sample its
+own core, so it was tested from outside: pinning the Electron processes to performance cores
+took 1.1M-cycle runs from 101-182 cycles/ms (nine runs, no pattern) to **205, 214, 215** - a
+tight cluster. Making the window foreground, by contrast, changed nothing measurable, so this
+is the OS scheduler placing a long-running compute thread rather than Chromium's own
+backgrounding. Issie does not currently opt its renderer out of throttling; that is a real
+improvement available to the Electron simulator, and a separate change from this branch.
+
+So the honest head-to-head, both runtimes on performance cores, 1.1M cycles of 3cpu on full
+(wave-sim shaped) arrays, pure simulation time:
+
+| | Electron | .NET sidecar |
+| --- | ---: | ---: |
+| pure simulation | 205-215 c/ms | 390-529 c/ms |
+| build (2 GB of arrays) | ~0.4 s | ~0.4-0.6 s |
+
+**.NET is about 2.2x faster**, on top of reaching cycle counts Electron cannot build at all.
+That is the number the backend switch should be judged on; every earlier figure in this document
+was taken before the scheduler was understood and should be read as a lower bound on both sides.
+
+**Cycle count does not change the rate.** 800K against 1.1M, interleaved three times each to
+cancel drift, gave medians of 116 and 139 cycles/ms - the larger workload nominally faster, and
+both well inside the 96-180 spread of unpinned runs. A wider sweep (500K, 800K, 1.1M, 1.4M) put
+1.4M between 800K and 1.1M rather than last. There is no size cliff between those working sets;
+what looked like one was the scheduler.
 
 Benchmark hygiene, learned the hard way: `sidecarRun` sends whatever design is open, so an
 `openProject` must have finished before it fires - a 0-component build (visible in the SimLog

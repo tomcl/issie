@@ -210,6 +210,7 @@ let startCircuitSimulation
     : Result<SimulationData, SimulationError>
     =
 
+    SimLog.beginInvocation ()
     let buildStart = TimeHelpers.getTimeMs ()
 
     match validateCircuitSimulation diagramName canvasState loadedDependencies with

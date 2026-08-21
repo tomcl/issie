@@ -123,6 +123,7 @@ let private runFastSimulationCore (timeOut: float option) (lastStepNeeded: int) 
 
                     if (fs.ClockTick - startTick) % stepsBeforeCheck = 0 then
                         time <- getTimeMs ()
+                        SimLog.sampleCore ()
 
             float (fs.ClockTick - startTick) / (getTimeMs () - simStartTime)
             |> Some
@@ -143,6 +144,7 @@ let private runFastSimulationCore (timeOut: float option) (lastStepNeeded: int) 
 
                 if (fs.ClockTick - startTick) % stepsBeforeCheck = 0 then
                     time <- getTimeMs ()
+                    SimLog.sampleCore ()
 
         float (fs.ClockTick - startTick) / (getTimeMs () - simStartTime)
         |> Some
@@ -154,6 +156,7 @@ let private runFastSimulationCore (timeOut: float option) (lastStepNeeded: int) 
 /// already has, on every render) are not recorded, or they would flood the ring.
 let runFastSimulation (timeOut: float option) (lastStepNeeded: int) (fs: FastSimulation) : float option =
     let fromTick = fs.ClockTick
+    SimLog.beginInvocation ()
     let start = getTimeMs ()
     let result = runFastSimulationCore timeOut lastStepNeeded fs
 

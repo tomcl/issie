@@ -20,6 +20,7 @@ open WaveSimTypes
 open Fable.React
 open Fable.React.Props
 open Fable.Core.JsInterop
+open SimGraphTypes
 
 
 /// A gap in the wave simulator, represented by a start cycle and a length.
@@ -92,16 +93,16 @@ let getWaveToolTip (cycle:int) (wave: Wave) (ws:WaveSimModel) =
     let hiddenValue =
         if checkIfHatched wave.HatchedCycles cycle then
             match Simulator.simCacheWS.FastSim.Drivers[wave.DriverIndex] with
-            // The cursor can rest past the end of what has been simulated, so the step is asked
-            // for rather than taken: a read off the end of a JS typed array is undefined, which
-            // would be written into the tooltip as one.
-            | Some {DriverData = data} when data.Width <= 32 ->
-                data.TryU32 arrayIndex
-                |> Option.map (NumberHelpers.UInt32ToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width)
-                |> Option.defaultValue ""
+            // The cursor can rest past the end of what has been simulated, and where the sidecar
+            // is simulating it can rest outside the window fetched for this view, so the value is
+            // ASKED for rather than taken - a read off the end of a JS typed array is undefined,
+            // which would be written into the tooltip as one.
             | Some {DriverData = data} ->
-                data.TryBig arrayIndex
-                |> Option.map (NumberHelpers.BigIntToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width)
+                WaveData.valueAt data wave.DriverIndex arrayIndex data.Width
+                |> Option.map (fun fd ->
+                    match fd.Dat with
+                    | Word v -> NumberHelpers.UInt32ToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width v
+                    | BigWord v -> NumberHelpers.BigIntToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width v)
                 |> Option.defaultValue ""
             | None -> ""
         else ""

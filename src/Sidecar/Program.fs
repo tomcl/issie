@@ -244,6 +244,13 @@ let main _ =
     // absent when run by hand from a shell, and then any client is accepted
     let token = Environment.GetEnvironmentVariable "ISSIE_SIDECAR_TOKEN"
 
+    // The simulation memory budgets ship with fallbacks for a process that cannot ask its
+    // machine (the test suite); this process can ask. Both budgets scale with physical memory
+    // here: .NET has no V8-style 4GB heap cage, so the wide-bus step arrays are bounded by the
+    // machine exactly as the narrow ones are.
+    let physicalBytes = float (GC.GetGCMemoryInfo().TotalAvailableMemoryBytes)
+    SimTypes.SimulationBudget.setBudgetsFromMachine physicalBytes physicalBytes
+
     let listener, port = startListener 10
 
     // The handshake main is waiting for; the only line this process ever prints to stdout.

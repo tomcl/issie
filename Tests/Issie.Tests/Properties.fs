@@ -521,7 +521,7 @@ let tests =
             let value = (abs value) % (1I <<< width)
             NumberHelpers.strToIntCheckWidth width (NumberHelpers.hexBignum value) = Ok value
 
-        // bigint simulation paths: 40-bit components exercise the BigIntStep arrays
+        // bigint simulation paths: 40-bit components exercise the BigInt step stores
         testPropertyWithConfig { config with maxTest = 40 } "40-bit adder matches bigint addition"
         <| fun (a: bigint) (b: bigint) (cin: bool) ->
             let w = 40

@@ -220,8 +220,10 @@ let makeStepArray (arr: 'T array) : StepArray<'T> =
 let makeIOArray size =
     stepArrayIndex <- stepArrayIndex + 1
     { FDataStep = Array.create 2 (Data <| emptyFastData) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
-      UInt32Step = Array.empty
-      BigIntStep = Array.empty
+      UInt32Slab = Array.empty
+      BigIntSlab = Array.empty
+      StepBase = 0
+      StepLength = 0
       Width = 0
       Index = stepArrayIndex }
 
@@ -351,13 +353,15 @@ let checkSimulationFits (arraySize: int) (cost: StepCost) : Result<unit, Simulat
 (*
     The step-array arena.
 
-    A large flattened design allocates one Uint32Array per output port - half a million of them on
-    the designs this was built for, each a separate external allocation for V8 to account, trigger
-    collections over, and sweep. While a simulation is being built, the ≤32-bit step arrays are
-    instead Uint32Array VIEWS into 256MB ArrayBuffer slabs, handed out bump-pointer fashion: the
-    external allocation count for a whole build falls from hundreds of thousands to dozens, and a
-    view behaves identically to an ordinary Uint32Array everywhere - same indexing, same length,
-    same emitted code on every read and write, and measured simulation speed unchanged.
+    A large flattened design needs one step region per output port - half a million of them on
+    the designs this was built for. Allocated as individual arrays, each was a separate
+    allocation for the runtime to account, trigger collections over, and sweep; while a
+    simulation is being built they are instead REGIONS of large shared slabs, handed out
+    bump-pointer fashion and named by an integer base offset in the IOArray. The allocation
+    count for a whole build falls from hundreds of thousands to dozens, under BOTH runtimes -
+    this used to be Fable-only, done with Uint32Array views over ArrayBuffer slabs, and the
+    explicit StepBase offset is what made the same packing expressible under .NET, where no
+    zero-copy array view exists.
 
     Be honest about what this does and does not buy. A 480,000-component design at 2000 cycles
     (5.8GB of step arrays) used to end its build ELEVEN MINUTES in with the renderer at 10GB and
@@ -367,87 +371,98 @@ let checkSimulationFits (arraySize: int) (cost: StepCost) : Result<unit, Simulat
     AllWaves construction - see the perf-category phase table), and those are a separate fix.
 
     Two consequences to know about:
-    - A slab is retained while ANY view into it lives, so a simulation's arrays free as one unit
-      when the last reference goes - and one leaked array pins its whole slab. Keeping ended
-      simulations properly released (ModelHelpers.releaseWaveSimData and friends) is what makes
-      this safe; it went in first.
-    - The custom-component output arrays that linking replaces now occupy arena space for the
+    - A slab is retained while ANY region of it is referenced, so a simulation's arrays free as
+      one unit when the last reference goes - and one leaked IOArray pins its whole slab.
+      Keeping ended simulations properly released (ModelHelpers.releaseWaveSimData and friends)
+      is what makes this safe; it went in first.
+    - The custom-component output regions that linking replaces occupy arena space for the
       simulation's whole life instead of becoming garbage, which is the same ~quarter that
       stepCostOfDesign has always charged for. What the budget counts, the arena keeps: the
       estimate is now exact rather than a peak.
 
-    Under .NET there is no arena - makeIOArrayW falls back to ordinary arrays - so the test suite
-    exercises the same logic over plain arrays. 256MB per slab stays far below any engine's
-    ArrayBuffer ceiling, and a single array bigger than a slab (a step count no budget would ever
-    allow) falls back to an ordinary allocation rather than failing.
+    Slabs hold 64M uint32 steps (256MB) or 4M bigint steps; pages of a slab's unused tail are
+    never touched, so its cost is address space rather than memory. A single region bigger than
+    a slab (a step count no budget would ever allow for the uint32 path) gets a dedicated
+    exactly-sized slab instead of failing. Outside a build (stepArena None - odd one-off
+    allocations, some tests) every region is its own exactly-sized array with StepBase 0, which
+    is also what every IOArray looks like to code reading it: nothing downstream knows whether
+    an arena was open.
 *)
 
-#if FABLE_COMPILER
-[<Fable.Core.Emit("new ArrayBuffer($0)")>]
-let private makeArrayBuffer (bytes: float) : obj = Fable.Core.Util.jsNative
-
-[<Fable.Core.Emit("new Uint32Array($0, $1, $2)")>]
-let private uint32View (buffer: obj) (byteOffset: float) (elements: int) : uint32 array =
-    Fable.Core.Util.jsNative
-#endif
-
 type private StepArena =
-    { mutable Slab: obj
-      mutable NextByte: float }
+    { mutable U32Slab: uint32 array
+      mutable U32Next: int
+      mutable BigSlab: bigint array
+      mutable BigNext: int }
 
-let private slabBytes = 256.0 * 1024.0 * 1024.0
+let private u32SlabSize = 64 * 1024 * 1024
+let private bigSlabSize = 4 * 1024 * 1024
 
-/// The arena the build in progress is drawing step arrays from, or None outside a build (and
-/// always None under .NET). Module-level for the same reason as stepArrayIndex just above: the
-/// allocation sites are leaves of the build and threading an allocator through every layer would
-/// put plumbing in a dozen signatures for the benefit of two call sites. Reset by every build.
+/// The arena the build in progress is drawing step regions from, or None outside a build.
+/// Module-level for the same reason as stepArrayIndex just above: the allocation sites are
+/// leaves of the build and threading an allocator through every layer would put plumbing in a
+/// dozen signatures for the benefit of two call sites. Reset by every build.
 let mutable private stepArena: StepArena option = None
 
-/// Start drawing ≤32-bit step arrays from arena slabs. Callers must pair this with
-/// finishStepArena however the build ends, or the next truth-table build would draw from a slab
-/// nobody meant it to share.
+/// Start drawing step regions from arena slabs. Callers must pair this with finishStepArena
+/// however the build ends, or the next truth-table build would draw from a slab nobody meant
+/// it to share.
 let startStepArena () =
-#if FABLE_COMPILER
-    stepArena <- Some { Slab = makeArrayBuffer slabBytes; NextByte = 0.0 }
-#else
-    ()
-#endif
+    stepArena <-
+        Some
+            { U32Slab = Array.empty
+              U32Next = 0
+              BigSlab = Array.empty
+              BigNext = 0 }
 
 let finishStepArena () = stepArena <- None
 
-/// One ≤32-bit step array: from the arena when a build has one open, ordinary otherwise.
-let private makeUInt32Step (size: int) : uint32 array =
-#if FABLE_COMPILER
+/// One uint32 step region of `size` steps: (slab, base) - from the arena when a build has one
+/// open, a dedicated exactly-sized slab otherwise.
+let private makeU32Region (size: int) : uint32 array * int =
     match stepArena with
-    | Some arena ->
-        let bytes = float size * 4.0
-        if bytes > slabBytes then
-            Array.create size 0u
-        else
-            if arena.NextByte + bytes > slabBytes then
-                arena.Slab <- makeArrayBuffer slabBytes
-                arena.NextByte <- 0.0
-            let view = uint32View arena.Slab arena.NextByte size
-            arena.NextByte <- arena.NextByte + bytes
-            view
-    | None -> Array.create size 0u
-#else
-    Array.create size 0u
-#endif
+    | Some arena when size <= u32SlabSize ->
+        if arena.U32Slab.Length - arena.U32Next < size then
+            arena.U32Slab <- Array.zeroCreate u32SlabSize
+            arena.U32Next <- 0
+
+        let regionBase = arena.U32Next
+        arena.U32Next <- regionBase + size
+        arena.U32Slab, regionBase
+    | _ -> Array.zeroCreate size, 0
+
+/// One bigint step region of `size` steps, filled with 0I as bigint step stores always were.
+let private makeBigRegion (size: int) : bigint array * int =
+    match stepArena with
+    | Some arena when size <= bigSlabSize ->
+        if arena.BigSlab.Length - arena.BigNext < size then
+            arena.BigSlab <- Array.create bigSlabSize 0I
+            arena.BigNext <- 0
+
+        let regionBase = arena.BigNext
+        arena.BigNext <- regionBase + size
+        arena.BigSlab, regionBase
+    | _ -> Array.create size 0I, 0
 
 let makeIOArrayW w size =
     stepArrayIndex <- stepArrayIndex + 1
     match w with
     | w when w <= 32 ->
+        let slab, regionBase = makeU32Region size
         { FDataStep = Array.create 2 (Data <| { Width = w; Dat = Word 0u }) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
-          UInt32Step = makeUInt32Step size
-          BigIntStep = Array.empty
+          UInt32Slab = slab
+          BigIntSlab = Array.empty
+          StepBase = regionBase
+          StepLength = size
           Width = w
           Index = stepArrayIndex }
     | _ ->
+        let slab, regionBase = makeBigRegion size
         { FDataStep = Array.create 2 (Data <| { Width = w; Dat = BigWord 0I }) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
-          UInt32Step = Array.empty
-          BigIntStep = Array.create size 0I
+          UInt32Slab = Array.empty
+          BigIntSlab = slab
+          StepBase = regionBase
+          StepLength = size
           Width = w
           Index = stepArrayIndex }
 

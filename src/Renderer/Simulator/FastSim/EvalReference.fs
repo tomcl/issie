@@ -17,7 +17,7 @@ open EvalKernel
 /// Outputs and inputs are both contained as time sequences in arrays. This function will calculate
 /// simStep outputs from (previously calculated) simStep outputs and clocked (simStep-1) outputs.
 /// Memory has state separate from simStep-1 output, for this the state is recalculated.
-/// Inputs and outputs come from either UInt32Step or BigIntStep arrays in IOArray record.
+/// Inputs and outputs come from either the UInt32 or BigInt slab region of the IOArray record.
 let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent) : Unit =
     let componentType = comp.FType
     let numStep = step.NumStep
@@ -57,24 +57,24 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
     ///  get data feom input i of component
     let inline insUInt32 i =
         checkInputPortNumber i
-        comp.InputLinks[i].UInt32Step[simStep]
+        comp.InputLinks[i].U32 simStep
 
     let inline insBigInt i =
         checkInputPortNumber i
-        comp.InputLinks[i].BigIntStep[simStep]
+        comp.InputLinks[i].Big simStep
 
     /// get last cycle data from output i (for clocked components)
     let inline getLastCycleOutUInt32 n =
         checkOutputWidth ()
         match numStep with
         | 0 -> 0u
-        | _ -> comp.Outputs[n].UInt32Step[simStepOld]
+        | _ -> comp.Outputs[n].U32 simStepOld
 
     let inline getLastCycleOutBigInt n =
         checkOutputWidth ()
         match numStep with
         | 0 -> 0I
-        | _ -> comp.Outputs[n].BigIntStep[simStepOld]
+        | _ -> comp.Outputs[n].Big simStepOld
 
     /// get last cycle data from output i for component
     let inline insOldUInt32 i =
@@ -882,7 +882,7 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
             // was, and the input always is: reaching this case at all means the input is over 32
             // bits, which is what UseBigInt means for a SplitWire. So output 0 was written with
             // putBigInt whatever its width, and a SplitWire whose input was wider than 32 bits
-            // could not be simulated at all - the write went to a BigIntStep array that is empty
+            // could not be simulated at all - the write went to a BigInt step store that is empty
             // for any output of 32 bits or fewer.
             match outs[0], outs[1] with
             | false, false ->

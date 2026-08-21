@@ -96,11 +96,11 @@ let getWaveToolTip (cycle:int) (wave: Wave) (ws:WaveSimModel) =
             // for rather than taken: a read off the end of a JS typed array is undefined, which
             // would be written into the tooltip as one.
             | Some {DriverData = data} when data.Width <= 32 ->
-                Array.tryItem arrayIndex data.UInt32Step
+                data.TryU32 arrayIndex
                 |> Option.map (NumberHelpers.UInt32ToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width)
                 |> Option.defaultValue ""
             | Some {DriverData = data} ->
-                Array.tryItem arrayIndex data.BigIntStep
+                data.TryBig arrayIndex
                 |> Option.map (NumberHelpers.BigIntToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width)
                 |> Option.defaultValue ""
             | None -> ""

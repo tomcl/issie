@@ -49,8 +49,8 @@ let printComp (fs: FastSimulation) (step: int) (fc: FastComponent) =
           "    "
           (fc.InputLinks
            |> Array.map (fun (arr: IOArray) ->
-               ((arr.UInt32Step.Length > 0)
-                || (arr.BigIntStep.Length > 0))
+               ((arr.UInt32Slab.Length > 0)
+                || (arr.BigIntSlab.Length > 0))
                && isValidData arr)
            |> Array.map (function
                | true -> "*"
@@ -118,12 +118,12 @@ let orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : FastSimu
                 // change simulation semantics to output 0 in cycle 0 (the memory word at
                 // address 0 was read into an unused binding here)
                 match vec.Width with
-                | w when w <= 32 -> vec.UInt32Step[0] <- 0u
-                | w -> vec.BigIntStep[0] <- 0I
+                | w when w <= 32 -> vec.SetU32 0 0u
+                | w -> vec.SetBig 0 0I
             | _, w ->
                 match vec.Width with
-                | w when w <= 32 -> vec.UInt32Step[0] <- 0u
-                | w -> vec.BigIntStep[0] <- 0I)
+                | w when w <= 32 -> vec.SetU32 0 0u
+                | w -> vec.SetBig 0 0I)
 
     fs.FClockedComps |> Array.iter initClockedOuts
     fs.FConstantComps |> Array.iter init

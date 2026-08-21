@@ -224,6 +224,37 @@ What the numbers say:
   objects) is where the speed win is expected, and the baseline's GC profile above says exactly
   why.
 
+**Step-slab layout (measured after the table above).** Flattening every uint32/bigint step
+array into a few large shared slabs - IOArray regions named by `StepBase`/`StepLength` integer
+offsets, the FastCreate arena made cross-runtime instead of Fable-only - moved the numbers
+decisively. Pure-simulation rates (SimLog chunk sums, build excluded), same 3cpu workloads:
+
+| workload | Electron | .NET, server GC |
+| --- | --- | --- |
+| 1.1M cycles, full arrays | 102-131 | 181-206 |
+| 1.1M cycles, 250-entry circular | 116 | 321 |
+| 4M cycles, full arrays, fresh process | - | **303, flat 250-327 across the run, 6.6 GB live** |
+
+.NET's big-array rate doubled (the ~150 ceiling was substantially the runtime's own array
+bookkeeping, not memory latency as first guessed); Electron stayed inside its usual range, as
+the arena note predicted ("measured simulation speed unchanged") since under Fable the layout
+was already slab-backed views. The .NET build also got cheaper (0.6-0.9s against 1.6-2.7s for
+the 2 GB build). With the slabs, the wave-sim workload verdict flips: .NET is ~2x Electron at
+1.1M and holds ~300 cycles/ms to 4M cycles, which Electron cannot build at all. One trap found
+and shimmed on the way: reads inside the new IOArray members compiled to fable-library's
+bounds-checked item() (the EvalCompiled getA/setA story again - `SimTypes.stepGet/stepSet` is
+the same shim one layer down), which had silently tripled Electron's whole-simulation cost
+until the emitted JS was checked. Correctness pinned by the full suite (652 tests, golden +
+reducers-agree) and by SimDigest byte-identity between the runtimes in the app.
+
+The largest open question is the run-to-run spread: the same 4M slab workload measured 107
+cycles/ms in a process carrying two ended sessions and 303 in a fresh one. "Heap debris" fits
+that observation but is NOT an established cause - retained slabs (one leaked IOArray pins
+256 MB), server-GC high-watermark behaviour, core scheduling and plain session variance are
+all unexcluded, and every causal statement in this section should be read as provisional until
+the instrumentation below has been run. The question matters in-app, not just in benchmarks: a
+user's second long wave simulation in one session runs in exactly the "dirty process" regime.
+
 Next instrumentation, so the GC account stops being conjecture: put
 `GC.CollectionCount` per generation and `GC.GetGCMemoryInfo()` pause data into each sidecar
 SimLog chunk record (and the running thread's processor number, for the P/E-core question) -

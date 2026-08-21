@@ -394,32 +394,38 @@ let tests =
             Expect.isTrue (itemsWanted |> List.exists (fun (_, path) -> not (List.isEmpty path)))
                 "expected at least one nested item so access-path parsing is exercised"
 
-            let startCycle, cycles = ticks - 10, 10
+            // the sampled read at three settings: a dense window (rep 1), a zoomed-out window
+            // (rep 3 - the viewer's SamplingZoom), and the tooltip degenerate case (1,1)
+            let readSampled startCycle rep samples =
+                let payload =
+                    [ startCycle; rep; samples; List.length itemsWanted ]
+                    @ (itemsWanted
+                       |> List.collect (fun (ComponentId cid, path) ->
+                           [ cid; 0; List.length path ] @ (path |> List.map (fun (ComponentId p) -> p))))
+                    |> u32s
 
-            let readPayload =
-                [ startCycle; cycles; List.length itemsWanted ]
-                @ (itemsWanted
-                   |> List.collect (fun (ComponentId cid, path) ->
-                       [ cid; 0; List.length path ] @ (path |> List.map (fun (ComponentId p) -> p))))
-                |> u32s
+                match Issie.Sidecar.SimSession.read payload with
+                | Error e -> failtest $"SimRead (start {startCycle}, rep {rep}) failed: {e}"
+                | Ok reply ->
+                    Expect.equal (int (System.BitConverter.ToUInt32(reply, 0))) (List.length itemsWanted) "signal count"
+                    Expect.equal (int (System.BitConverter.ToUInt32(reply, 4))) samples "sample count"
 
-            match Issie.Sidecar.SimSession.read readPayload with
-            | Error e -> failtest $"SimRead failed: {e}"
-            | Ok reply ->
-                Expect.equal (int (System.BitConverter.ToUInt32(reply, 0))) (List.length itemsWanted) "item count"
-                Expect.equal (int (System.BitConverter.ToUInt32(reply, 4))) cycles "cycle count"
+                    itemsWanted
+                    |> List.iteri (fun signalIndex fid ->
+                        for j in 0 .. samples - 1 do
+                            let cycle = startCycle + j * rep
+                            let wire = System.BitConverter.ToUInt32(reply, 8 + 4 * (signalIndex * samples + j))
 
-                itemsWanted
-                |> List.iteri (fun itemIndex fid ->
-                    for c in 0 .. cycles - 1 do
-                        let wire = System.BitConverter.ToUInt32(reply, 8 + 4 * (itemIndex * cycles + c))
+                            let local =
+                                match FastExtract.extractFastSimulationOutput localFs cycle fid (OutputPortNumber 0) with
+                                | SimGraphTypes.IData fd -> uint32 fd.GetBigInt
+                                | _ -> failtest "algebraic value in local read"
 
-                        let local =
-                            match FastExtract.extractFastSimulationOutput localFs (startCycle + c) fid (OutputPortNumber 0) with
-                            | SimGraphTypes.IData fd -> uint32 fd.GetBigInt
-                            | _ -> failtest "algebraic value in local read"
+                            Expect.equal wire local $"signal {signalIndex} cycle {cycle} (rep {rep}) differs")
 
-                        Expect.equal wire local $"item {itemIndex} cycle {startCycle + c} differs")
+            readSampled (ticks - 10) 1 10
+            readSampled 2 3 9
+            readSampled (ticks - 1) 1 1
 
             Issie.Sidecar.SimSession.endSession () |> ignore
         }

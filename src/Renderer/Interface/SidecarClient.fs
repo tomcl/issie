@@ -261,14 +261,16 @@ let simSetInputs (cycle: int) (values: (int * float) list) : JS.Promise<string> 
 
     requestArgs Constants.simSetInputsCmd args
 
-/// Read `cycles` cycles of output data starting at `startCycle` for each requested item -
-/// (component id, output port number, access path root-first) - resolving with the raw response
-/// frame. On success the values are `viewSimReadData frame (items * cycles)`, item-major; an
-/// error response is JSON text (`decodeText frame` starts with '{').
-let simRead (startCycle: int) (cycles: int) (items: (int * int * int list) list) : JS.Promise<obj> =
+/// THE waveform-data interface: for each signal - (component id, output port number, access
+/// path root-first) - read `samples` values taken every `rep` cycles from `startCycle`. These
+/// are the same (StartCycle, SamplingZoom, ShownCycles) parameters the waveform viewer's own
+/// generation runs on, so a view at any zoom is one request. Resolves with the raw response
+/// frame: on success the values are `viewSimReadData frame (signals * samples)`, signal-major
+/// and zero-copy; an error response is JSON text (`decodeText frame` starts with '{').
+let simRead (startCycle: int) (rep: int) (samples: int) (signals: (int * int * int list) list) : JS.Promise<obj> =
     let args =
-        [ startCycle; cycles; List.length items ]
-        @ (items
+        [ startCycle; rep; samples; List.length signals ]
+        @ (signals
            |> List.collect (fun (compId, outPort, path) -> [ compId; outPort; List.length path ] @ path))
 
     let payload = makeBytes (4 * List.length args)
@@ -277,3 +279,11 @@ let simRead (startCycle: int) (cycles: int) (items: (int * int * int list) list)
 
 /// The response payload as text, for reading an error reply from a binary command.
 let decodeText (frame: obj) : string = decodeTextPayload frame
+
+/// One signal at one clock - the tooltip case, which is simRead's degenerate form: one signal,
+/// one sample, rep 1.
+let simReadPoint (compId: int) (outPort: int) (path: int list) (clock: int) : JS.Promise<Result<float, string>> =
+    simRead clock 1 1 [ compId, outPort, path ]
+    |> Promise.map (fun frame ->
+        let asText = decodeText frame
+        if asText.StartsWith "{" then Error asText else Ok(readUint32At frame 16))

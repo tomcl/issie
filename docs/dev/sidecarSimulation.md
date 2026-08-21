@@ -381,6 +381,45 @@ where the work is compute-bound and cache-resident - but it was never measured i
 treat it as a hint rather than a result. Either way the "old simulator was faster" impression
 came from unpinned runs, where scheduling noise is larger than any of this.
 
+### The large designs
+
+3cpu is 378 components. The designs that decide whether this is worth doing are the ones a
+student's project actually reaches, and `largeTest` is the stress case: `main1`..`main6`, each
+sheet instantiating several of the one below, so tiny files expand enormously - **main5 to
+120,084 components and main6 to 480,342**, the design the step-array arena was built for. Both
+cost megabytes of step storage per clock, so they are measured at few cycles and the interesting
+numbers are the build and the per-cycle rate rather than any total.
+
+Measured as shipped - the sidecar with its QoS request and server GC, Electron as it runs today:
+
+| design | components | | Electron | .NET | .NET is |
+| --- | ---: | --- | ---: | ---: | ---: |
+| main5 | 120,084 | build | 5.1 s | 3.4 s | 1.5x faster |
+| | | simulation | 105 cycles/s | 218 cycles/s | **2.1x** |
+| main6 | 480,342 | build | 21.6 s | 15.6 s | 1.4x faster |
+| | | simulation | 22.4 cycles/s | 54.5 cycles/s | **2.4x** |
+
+Three things to take from this beyond the ratios.
+
+**The advantage narrows as the design grows** - 2.9x on 3cpu, 2.4x on main6 - because a cycle of
+main6 touches 480,000 components' worth of step storage and the work becomes memory-bound, where
+neither runtime can do much. It does not disappear, and the build advantage appears only at this
+scale.
+
+**Pinning Electron is the wrong control here.** On 3cpu it was the fix; on these designs it makes
+Electron *slower* (main5 105 -> 64 cycles/s, main6 22.4 -> 15.8), because confining every Electron
+process to two physical cores starves V8's parallel GC threads, which have real work at a 5.6 GB
+heap. The as-shipped comparison above is the meaningful one; the pinned-core methodology used
+earlier does not transfer to workloads where the collector is busy.
+
+**GC is a build cost, not a run cost, and only at scale.** The run loop still collects nothing -
+0/0/0 over 400 cycles of a 480,000-component design, which is the slab layout doing its job. The
+build is the opposite: 1,232 gen0 collections and 7.0 s of pause in a 22.8 s build under the
+default collector. That is why `ServerGarbageCollection` is back in the sidecar's fsproj after
+being removed a few commits ago: it was removed on evidence from 3cpu's run loop, where GC does
+nothing and it made no difference, and that evidence simply did not cover the case where it
+earns its place.
+
 **Cycle count does not change the rate.** 800K against 1.1M, interleaved three times each to
 cancel drift, gave medians of 116 and 139 cycles/ms - the larger workload nominally faster, and
 both well inside the 96-180 spread of unpinned runs. A wider sweep (500K, 800K, 1.1M, 1.4M) put

@@ -7,6 +7,12 @@
     <AssemblyName>issie-sidecar</AssemblyName>
     <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx-x64;osx-arm64</RuntimeIdentifiers>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- For the BUILD, not the run loop. A simulation's run loop collects nothing at all -
+         SimLog records 0/0/0 over a 400-cycle run of a 480,000-component design - but building
+         one allocates hard, and on that design the default collector spent 31% of a 22.8s build
+         in GC pause against 16% of a 15.6s build here. Measured on largeTest/main6; see
+         docs/dev/sidecarSimulation.md. -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
   </PropertyGroup>
   <ItemGroup>
     <!-- The renderer compiles under plain .NET too (the test suite proves it daily), which is

@@ -595,7 +595,7 @@ let tests =
                   |> List.collect (fun (_, ofInstance) ->
                       ofInstance
                       :: (ofInstance
-                          |> List.groupBy (WaveSimHelpers.getCompGroup fs)
+                          |> List.groupBy (fun w -> WaveSimHelpers.getCompGroup fs.WaveComps[w.WaveId.Id].FType)
                           |> List.map snd))
               Expect.isNonEmpty rowsOfWaves "the design has rows"
               Expect.all

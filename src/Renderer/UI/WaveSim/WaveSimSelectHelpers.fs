@@ -591,7 +591,7 @@ let private makeInstanceRows showDetails (ws: WaveSimModel) (fs: FastSimulation)
     |> List.map (fun (instance, wavesOfInstance) ->
         let groupRows =
             wavesOfInstance
-            |> List.groupBy (fun wave -> getCompGroup fs wave)
+            |> List.groupBy (fun wave -> getCompGroup fs.WaveComps[wave.WaveId.Id].FType)
             |> List.map (fun (grp, groupWaves) ->
                 makeFlatGroupRow showDetails ws [instance] grp groupWaves dispatch)
         // The sheet's name, as everywhere else. This is the one place a row can stand for an
@@ -646,7 +646,7 @@ let private makeNodeRows
                 |> Option.defaultValue []
             let groupRows =
                 wavesOfNode
-                |> List.groupBy (fun wave -> getCompGroup fs wave)
+                |> List.groupBy (fun wave -> getCompGroup fs.WaveComps[wave.WaveId.Id].FType)
                 |> List.map (fun (grp, groupWaves) ->
                     makeFlatGroupRow showDetails ws node.NodeKey grp groupWaves dispatch)
 

@@ -59,9 +59,14 @@ let bitLimsString (a, b) =
 
 let portBits n = if n < 2 then "" else $"({n-1}:0)"
 
-/// Which group (for selector classification) is a component in?
-let getCompGroup fs wave =
-    match fs.WaveComps[wave.WaveId.Id].FType with
+/// Which group (for selector classification) is a component of this type in?
+///
+/// A function of the component TYPE alone, which is all it ever needed: it took a whole
+/// FastSimulation only to look the type up. Callers pass the type, so that when a port carries
+/// its own type there is nothing here left to change - and so that this says nothing about where
+/// the simulation ran.
+let getCompGroup (compType: ComponentType) =
+    match compType with
     | Input1 _ | Output _ | Constant1 _ | Viewer _ | IOLabel | NotConnected ->
         InputOutput
     | Not | GateN _ ->

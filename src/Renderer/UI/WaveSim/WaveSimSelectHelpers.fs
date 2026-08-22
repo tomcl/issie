@@ -83,25 +83,42 @@ let wavePropsTable (rows: TableRow list) =
 
     
 
-/// The waves of each sheet instance, worked out once per AllWaves map rather than once per render.
+/// The waves offered inside ONE instance.
 ///
-/// The selector wants the waves of the handful of instances it is drawing and had no way to ask for
-/// them: it read every wave in the design and threw nearly all of them away, on every keystroke in
-/// a search box and every click on a pill. main6 of largeTest carries 208,896 waves.
+/// Worked out from the DESIGN: the sheet that instance is a copy of names its own components, and
+/// each is looked up in the simulation to get its ports and their step arrays. So this costs the
+/// size of one sheet, however many times that sheet is instantiated.
 ///
-/// Keyed on the SIMULATION, not on AllWaves. Which waves exist and which instance each belongs to
-/// are settled when the simulation is built; AllWaves holds the same waves with their drawn SVGs,
-/// and is REPLACED every time any waveform is generated - Map.change returns a new map - so keying
-/// on it meant selecting one wave rebuilt this index over every wave in the design.
-///
-/// It holds indices rather than the records, for the same reason: the records change as they are
-/// drawn, and the caller has AllWaves to look them up in.
-let waveIndicesByInstance: FastSimulation -> Map<InstancePath, WaveIndexT list> =
-    Helpers.memoizeByIdentity (fun fs ->
-        fs.WaveIndex
-        |> Array.toList
-        |> List.groupBy (fun wi -> fs.WaveComps[wi.Id].Instance)
-        |> Map.ofList)
+/// It replaces an index of every wave in the simulation grouped by instance, which cost the whole
+/// expansion to build - 208,896 entries on largeTest - to answer a question only ever asked about
+/// the handful of instances on screen. The rule deciding which ports carry a wave is
+/// FastCreate.portCarriesWave, the same one the wave index itself is built from, so the two
+/// cannot disagree.
+let waveIndicesOfInstance (fs: FastSimulation) (InstancePath ap as instance) : WaveIndexT list =
+    let sheet = fs.getSheetNameOfInstance instance
+
+    fs.SimulatedCanvasState
+    |> List.tryFind (fun ldc -> ldc.Name = sheet)
+    |> Option.map (fun ldc ->
+        fst ldc.CanvasState
+        |> List.collect (fun comp ->
+            match Map.tryFind (ComponentId comp.Id, ap) fs.WaveComps with
+            | None -> []
+            | Some fc ->
+                let portsOf pType (arrays: IOArray array) =
+                    if FastCreate.portCarriesWave fs fc pType then
+                        arrays
+                        |> Array.toList
+                        |> List.mapi (fun pn io ->
+                            { SimArrayIndex = io.Index
+                              Id = fc.fId
+                              PortType = pType
+                              PortNumber = pn })
+                    else
+                        []
+
+                portsOf PortType.Output fc.Outputs @ portsOf PortType.Input fc.InputLinks))
+    |> Option.defaultValue []
 
 /// The selected waves the simulation still has, which is what Show Only Selected shows and what the
 /// ticks in the dialog are drawn from.
@@ -162,15 +179,13 @@ let updateSheetString (newSheetName: string) (ws: WaveSimModel) =
 /// sheet box matches every instance, since every string contains the empty string.
 let filterWaves (shown: Set<InstancePath> option) (wsModel: WaveSimModel) =
     let fs = Simulator.getFastSim()
-    // Only the instances on show are read out of the index. This is the step that makes the cost
-    // the design's rather than its expansion's: everything below works on what it returns.
+    // Only the instances on show are enumerated. This is the step that makes the cost the design's
+    // rather than its expansion's: everything below works on what it returns, and working out what
+    // one instance offers costs one sheet.
     let candidates =
         match shown with
         | Some instances ->
-            let index = waveIndicesByInstance fs
-            instances
-            |> Set.toList
-            |> List.collect (fun instance -> Map.tryFind instance index |> Option.defaultValue [])
+            instances |> Set.toList |> List.collect (waveIndicesOfInstance fs)
             // waves inside a library component are not offered, so are not in AllWaves
             |> List.choose (fun wi -> Map.tryFind wi wsModel.AllWaves)
         | None ->

@@ -648,6 +648,44 @@ let gatherSimulation (graph: SimulationGraph) =
 /// Return a WaveIndex reference.
 /// WaveIndex refrences are bound to specific component ports
 /// and not unique per driver.
+/// Whether a port of a component carries a waveform the user can watch.
+///
+/// The rules the wave index is built from, said once. They used to live only inside
+/// addComponentWaveDrivers, which walks every port of every component of the whole expanded
+/// simulation; anything wanting to know which ports one INSTANCE offers - without walking the
+/// expansion to find out - has to decide it the same way, and two copies of a rule like this
+/// drift. The builder below now asks this, so there is one answer.
+///
+/// What is excluded, and why each: the input side of components whose input is not a signal of
+/// its own (an IOLabel, an Input1, a Viewer, a NotConnected, an Output); a Constant1, whose
+/// output drives but is not worth watching; every IOLabel of a same-named group except the one
+/// elected to drive it, since they are all one net; the wiring components, which carry no signal
+/// distinct from what they are wired to; and the Input1 and Output components INSIDE a subsheet,
+/// whose signal is the enclosing custom component's port and is offered there instead.
+let portCarriesWave (f: FastSimulation) (fc: FastComponent) (pType: PortType) =
+    let ioLabelIsActive () =
+        f.FIOActive[ComponentLabel fc.FLabel, snd fc.fId].fId <> fc.fId
+
+    match fc.FType, pType with
+    | IOLabel, PortType.Input
+    | Input1 _, PortType.Input
+    | Viewer _, PortType.Input
+    | NotConnected, PortType.Input
+    | Output _, PortType.Input -> false
+    | Constant1 _, _ -> false
+    | IOLabel, _ when ioLabelIsActive () -> false
+    | _ ->
+        match fc.FType with
+        | SplitWire _
+        | BusSelection _
+        | MergeWires
+        | MergeN _
+        | SplitN _
+        | Constant1 _ -> false
+        | Output _ when fc.SubSheet <> [] -> false
+        | Input1 _ when fc.SubSheet <> [] -> false
+        | _ -> true
+
 let addComponentWaveDrivers (f: FastSimulation) (fc: FastComponent) (pType: PortType) =
     let makeWaveIndex index pn pType arr =
         { SimArrayIndex = index; Id = fc.fId; PortType = pType; PortNumber = pn }
@@ -673,32 +711,25 @@ let addComponentWaveDrivers (f: FastSimulation) (fc: FastComponent) (pType: Port
     |> Array.mapi (fun pn stepA ->
         let index = stepA.Index
 
-        let addDriver, addWave =
+        // a DRIVER is registered more widely than a wave is offered: a Constant1's output has to
+        // drive the things wired to it even though nobody watches it, and an inactive IOLabel
+        // shares the driver of the one elected for its group
+        let addDriver =
             match fc.FType, pType with
             | IOLabel, PortType.Input
             | Input1 _, PortType.Input
             | Viewer _, PortType.Input
             | NotConnected, PortType.Input
-            | Output _, PortType.Input -> false, false
-            | Constant1 _, _ -> // special case because constant output drivers are needed!
-                true, false
-            | IOLabel, _ when ioLabelIsActive fc -> false, false
-            | _ -> true, true
+            | Output _, PortType.Input -> false
+            | Constant1 _, _ -> true
+            | IOLabel, _ when ioLabelIsActive fc -> false
+            | _ -> true
 
         if pType = PortType.Output && addDriver then
             addStepArray pn index stepA
 
-        if addWave then
-            match fc.FType with
-            | SplitWire _
-            | BusSelection _
-            | MergeWires
-            | MergeN _
-            | SplitN _
-            | Constant1 _ -> [||]
-            | Output _ when fc.SubSheet <> [] -> [||]
-            | Input1 _ when fc.SubSheet <> [] -> [||]
-            | _ -> [| makeWaveIndex index pn pType stepA |]
+        if portCarriesWave f fc pType then
+            [| makeWaveIndex index pn pType stepA |]
         else
             [||])
 

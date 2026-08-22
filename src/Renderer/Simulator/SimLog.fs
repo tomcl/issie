@@ -43,6 +43,11 @@ type SimLogRecord = {
     Gen2: int
     /// milliseconds this invocation spent in GC pauses (.NET; 0 under Fable)
     PauseMs: float
+    /// megabytes allocated during this invocation (.NET; 0 under Fable). Collections and pause
+    /// say what the collector DID; this says how much work it was given, which is the number to
+    /// watch when a change is meant to allocate less - it is exact and has none of the run-to-run
+    /// noise that timing a build has.
+    AllocMb: float
     /// heap in use when the invocation ended - GC.GetTotalMemory under .NET,
     /// performance.memory.usedJSHeapSize under Fable, which counts neither runtime's
     /// off-heap step slabs
@@ -75,6 +80,7 @@ let private resetSamples () = ()
 let private samplePPct () = -1.0
 let private gcCounts () = struct (0, 0, 0)
 let private gcPauseMs () = 0.0
+let private allocatedBytes () = 0.0
 
 [<Emit("(typeof performance !== 'undefined' && performance.memory) ? performance.memory.usedJSHeapSize / 1048576 : 0")>]
 let private heapMb () : float = jsNative
@@ -187,6 +193,8 @@ let private gcCounts () =
 
 let private gcPauseMs () = System.GC.GetTotalPauseDuration().TotalMilliseconds
 
+let private allocatedBytes () = float (System.GC.GetTotalAllocatedBytes false)
+
 let private heapMb () = float (System.GC.GetTotalMemory false) / 1048576.0
 
 #endif
@@ -194,14 +202,14 @@ let private heapMb () = float (System.GC.GetTotalMemory false) / 1048576.0
 /// The machine's state when the invocation being timed began, so a record can report what
 /// happened DURING it rather than since the process started. Invocations do not nest - the
 /// simulator is single-threaded - so one slot is enough.
-let mutable private atStart = struct (0, 0, 0, 0.0)
+let mutable private atStart = struct (0, 0, 0, 0.0, 0.0)
 
 /// Bracket an invocation: called where its timing starts, so that GC and core samples cover
 /// the same span as its Ms.
 let beginInvocation () =
     resetSamples ()
     let struct (g0, g1, g2) = gcCounts ()
-    atStart <- struct (g0, g1, g2, gcPauseMs ())
+    atStart <- struct (g0, g1, g2, gcPauseMs (), allocatedBytes ())
 
 module Constants =
     let ringSize = 1000
@@ -217,7 +225,7 @@ let private kindName kind =
 
 /// Record one invocation. Called from inside the simulator; everything else reads.
 let record (kind: SimLogKind) (sheet: string) (components: int) (fromCycle: int) (toCycle: int) (ms: float) =
-    let struct (s0, s1, s2, sPause) = atStart
+    let struct (s0, s1, s2, sPause, sAlloc) = atStart
     let struct (g0, g1, g2) = gcCounts ()
 
     let entry =
@@ -234,6 +242,7 @@ let record (kind: SimLogKind) (sheet: string) (components: int) (fromCycle: int)
           Gen1 = g1 - s1
           Gen2 = g2 - s2
           PauseMs = gcPauseMs () - sPause
+          AllocMb = (allocatedBytes () - sAlloc) / 1048576.0
           HeapMb = heapMb () }
 
     ring[nextSeq % Constants.ringSize] <- Some entry
@@ -265,7 +274,7 @@ let recentJson () : string =
     recent ()
     |> List.map (fun entry ->
         sprintf
-            """{"seq":%d,"kind":"%s","sheet":"%s","components":%d,"fromCycle":%d,"toCycle":%d,"ms":%.3f,"at":%.1f,"pPct":%.1f,"gen0":%d,"gen1":%d,"gen2":%d,"pauseMs":%.2f,"heapMb":%.1f}"""
+            """{"seq":%d,"kind":"%s","sheet":"%s","components":%d,"fromCycle":%d,"toCycle":%d,"ms":%.3f,"at":%.1f,"pPct":%.1f,"gen0":%d,"gen1":%d,"gen2":%d,"pauseMs":%.2f,"allocMb":%.2f,"heapMb":%.1f}"""
             entry.Seq
             (kindName entry.Kind)
             entry.Sheet
@@ -279,6 +288,7 @@ let recentJson () : string =
             entry.Gen1
             entry.Gen2
             entry.PauseMs
+            entry.AllocMb
             entry.HeapMb)
     |> String.concat ","
     |> sprintf "[%s]"

@@ -983,6 +983,39 @@ with
             
             
 
+// Why none of the id types here are [<Struct>], although they look like textbook cases for it.
+//
+// Because F# Map BOXES a struct key on every comparison. Measured directly (.NET, 200,000
+// Map.containsKey lookups into a 10,000-entry map, keys built outside the timed loop, so the
+// only thing measured is the comparison):
+//
+//     raw int key                                 11.1 ms      0 MB
+//     RefId of int        (reference DU, as here) 26.5 ms      0 MB
+//     [<Struct>] StructId of int                  46.7 ms    113 MB
+//
+// That is about 570 bytes per lookup, roughly 44 bytes on each of the ~13 comparisons a tree of
+// that size needs - both operands boxed every time. It is also SLOWER than the reference wrapper,
+// not faster. The reason is that Map does not reach IComparable<'T> through a devirtualised
+// constrained call: it takes its comparer from LanguagePrimitives.FastGenericComparer<'T>, which
+// has hard-coded fast paths for genuine primitives and otherwise falls back to a path taking obj.
+// A struct wrapper gets neither the primitive fast path nor the reference type's property of
+// already being an object.
+//
+// The same effect is visible in the application. Allocation per build of the 3cpu demo, from
+// SimLog's AllocMb, which repeats to within 0.1%:
+//
+//     nothing struct (as here)                    270.26 MB
+//     port NUMBERS struct - never Map keys        270.44 MB   no change
+//     ComponentId struct - the dominant Map key   275.38 MB   +1.9%
+//     all seven struct                            278.11 MB   +2.9%
+//
+// So: [<Struct>] is free for an id that never becomes a Map key, and costs allocation and time
+// for one that does. Every id below is Map-key material. Do not add it without measuring.
+//
+// The table also prices the wrappers themselves: a raw int key is 2.4x faster than the reference
+// DU. That is the standing cost of type-safe ids in an F# Map, it is already being paid, and
+// [<Struct>] does not recover it.
+
 // The next types are not strictly necessary, but help in understanding what is what.
 // Used consistently they provide type protection that greatly reduces coding errors
 
@@ -1011,7 +1044,7 @@ let componentIdDecoder: Decoder<ComponentId> =
 /// LoadedComponent.Name, CustomComponentType.Name or SimpleSheet.SheetName: those cross the .dgm
 /// persistence boundary and the SimpleJsonDotNet wire boundary, and [<Erase>] does not mean the
 /// same thing under Fable as under .NET.
-[<Erase; Struct>]
+[<Erase>]
 type SheetName = | SheetName of string
 
 /// The chain of custom-component instances from the simulated top sheet down to one instance,
@@ -1022,14 +1055,14 @@ type SheetName = | SheetName of string
 /// simulator already builds exactly this as FastComponent.AccessPath (`ap @ [cid]` in
 /// FastCreate) and the design side already builds exactly this as SheetTree.SheetAccessPath
 /// (`accessPath @ [inst.InstId]` in MenuHelpers). This gives it a name.
-[<Erase; Struct>]
+[<Erase>]
 type InstancePath = | InstancePath of ComponentId list
 
 /// A path as a person reads it: the labels of the custom components passed through, root first.
 ///
 /// DISPLAY ONLY, never an identity. A shown path may be shortened where that is unambiguous -
 /// which is a rendering decision, and must not reach anything that compares paths.
-[<Erase; Struct>]
+[<Erase>]
 type LabelPath = | LabelPath of string list
 
 /// Unique identifier for a fast component.
@@ -1041,23 +1074,21 @@ type SimComponentId = ComponentId * ComponentId list
 /// are still doing so.
 ///
 /// Both are abbreviations of the same tuple today, so this costs nothing and changes nothing.
-/// Making the identity a tagged type is one line here - `[<Erase; Struct>] type SimComponentId =
+/// Making the identity a tagged type is one line here - `[<Erase>] type SimComponentId =
 /// SimComponentId of ComponentId * ComponentId list` - and it was measured, on this branch, to
 /// break 71 sites, 38 of them in FastCreate and FastExtract. THAT is the reason to wait: it is
 /// worth doing with the change that needs it (the per-instance port enumeration, which factors a
 /// predicate out of FastCreate anyway) rather than as a sweep of the simulator core which buys
 /// nothing on its own.
 ///
-/// It is NOT worth waiting for performance reasons. Tagged as a struct it would be CHEAPER than
-/// what is here now: an F# tuple is a reference type, so today every one of these allocates
-/// under .NET, once per component in the sidecar's build. [<Erase>] is erased by Fable and
-/// ignored by .NET, [<Struct>] is the other way round, and together they give a name that
-/// vanishes in the browser and a value type on the server.
+/// When it is done, tag it [<Erase>] and NOT [<Struct>]: this is the key type of fs.FComps and
+/// the note above the id types prices what a struct key costs in an F# Map. A plain reference
+/// wrapper is what the rest of them are and what this should be.
 type FComponentId = SimComponentId
 
 /// One instance of a sheet in a running simulation - the simulation-time identity that a dotted,
 /// upper-cased label path (FastComponent.SimSheetName) stands for today.
-[<Erase; Struct>]
+[<Erase>]
 type SimSheetId = | SimSheetId of InstancePath
 
 /// Unique integer id of a connection, unique within its SHEET only - nothing resolves a
@@ -1133,12 +1164,12 @@ type SignalId =
 /// after each build and quotes handles back when reading data. Keeping it distinct from SignalId
 /// is what stops a handle from one simulation being used to read another - which is exactly the
 /// mistake an exposed SimArrayIndex makes possible.
-[<Erase; Struct>]
+[<Erase>]
 type SignalHandle = | SignalHandle of int
 
 /// Bumped by every simulation build. Every cached entry and every reply in flight carries the
 /// epoch it belongs to, so an answer from a superseded build is discarded rather than displayed.
-[<Erase; Struct>]
+[<Erase>]
 type SimEpoch = | SimEpoch of int
 
 type WSConfig = {

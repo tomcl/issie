@@ -177,6 +177,38 @@ back and the caller goes to two calls *for that component only*.
 
 Roughly in order of how much it costs.
 
+**Every component lookup goes through a composite `Map` key, and that is the build's shape
+problem.** `fs.FComps`, `fs.FCustomComps` and `fs.WaveComps` are all keyed by
+`FComponentId = ComponentId * ComponentId list`. Measured on .NET, 200,000 `containsKey` lookups
+into a 10,000-entry structure:
+
+| key shape | time | allocated |
+| --- | ---: | ---: |
+| `Map<int,_>` | 8.4 ms | 0 MB |
+| `Map<ComponentId,_>` (a reference DU over int) | 60.6 ms | 0 MB |
+| `Map<int * int list,_>` | 93.7 ms | 122 MB |
+| `Map<ComponentId * ComponentId list,_>` — what is used | 77.2 ms | 0 MB |
+| `Dictionary<int,_>` | 0.4 ms | 0 MB |
+| array index | 0.2 ms | 0 MB |
+
+So a dense integer into an array is around **two hundred times** faster than the lookup a build
+does constantly, and this is the first place to look when .NET simulation startup is the thing
+being made fast. Two traps the table also records. Structural comparison of a composite key
+compares its elements as `obj`, so any VALUE-type element is boxed on every comparison - which is
+why the raw-int tuple both allocates and loses, and why the reference wrapper that looks wasteful
+is in fact the best of those three. And `[<Struct>]` on an id makes it a value type, so it hits
+exactly that trap: see the note above the id types in `CommonTypes.fs`, where the same effect is
+measured end to end as +1.9% allocation across a whole 3cpu build.
+
+The direction, when it is worth doing: **allocate contiguous integers as ids at build time**, and
+let the id type carry that integer so everything else about a component is an array lookup from
+it. That makes the id both a name and an index, which is what the design-time `ComponentId`
+already is per design and what a simulation-time id could be per build. The condition is that any
+such array is built **write-once**, or is encapsulated tightly enough that nothing outside can
+mutate it - otherwise this trades a slow lookup for the class of bug `docs/mutableState.md`
+exists to prevent. A build-scoped index also must not be persisted: anything saved or compared
+across builds stays a structured name.
+
 **`EvalAlgebraic` duplicates `EvalReference`.** ~2,500 lines expressing one set of component
 semantics twice, kept in step only by discipline. The build path duplicates with it:
 `orderCombinationalComponents`/`…FData`, `checkAndValidate`/`…FData`,

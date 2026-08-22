@@ -75,6 +75,16 @@ How these two passes are meant to work is in [wireRouting.md](wireRouting.md).
   project sheet and never sees a later version of the library component. This is probably what is
   wanted, but it is nowhere stated to the user.
 
+## Simulation
+
+- **The memory guard that bounds how many cycles a simulation may run is now too conservative.**
+  `SimTypes.Constants.heapBytesPerComponent` is `1000 + 350 * ports`, measured when the waveform
+  simulator described every wave the simulation offered and kept the lot in its model. It no longer
+  does - it keeps records only for the waves selected - so roughly 260 of those 350 bytes per port
+  is a cost that has gone, and designs are being refused that there is memory for. The number was
+  measured and its replacement has not been; the comment beside it says how to remeasure (build
+  phase deltas under `--log=perf`, and `window.issieDev.simStats()` for the counts to divide by).
+
 ## Refactoring worth doing
 
 - `SheetLayout.saveSheet` and `sheetBody` are the same function twice, differing only in

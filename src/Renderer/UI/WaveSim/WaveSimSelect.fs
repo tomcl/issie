@@ -609,11 +609,25 @@ let waveIndexOfWire
 /// The step index wraps: the step simulator uses its data arrays as a circular buffer, so a long
 /// step simulation is holding only the last MaxArraySize cycles. The waveform simulator does not
 /// wrap - its array is sized for the whole run - so there the modulo does nothing.
+/// This one reads the given simulation DIRECTLY, and is the only value read left that does.
+///
+/// Not an oversight. The probe is handed whichever simulation it should answer from - the
+/// waveform simulator's while one is running, and the STEP simulator's otherwise (MainView's
+/// Probe.source) - and the cache models one active source, not a choice made per call. Routing
+/// this through it would have the probe read the waveform simulation while the user is stepping
+/// the other one. It goes through a provider when the step simulator gets one, which is also when
+/// this stops working by reaching into a FastSimulation that .NET mode will not have.
 let waveValueAt (fs: FastSimulation) (cycle: int) (radix: NumberBase) (wi: WaveIndexT) : string option =
     match Array.tryItem wi.SimArrayIndex fs.Drivers with
-    | Some (Some driver) ->
+    | Some(Some driver) ->
         let index = if fs.MaxArraySize > 0 then cycle % fs.MaxArraySize else cycle
-        WaveData.valueAt driver.DriverData wi.SimArrayIndex index driver.DriverWidth
+
+        (if driver.DriverWidth > 32 then
+             driver.DriverData.TryBig index
+             |> Option.map (fun v -> { Dat = BigWord v; Width = driver.DriverWidth })
+         else
+             driver.DriverData.TryU32 index
+             |> Option.map (fun v -> { Dat = Word v; Width = driver.DriverWidth }))
         // padded to a width nothing will be truncated at: unlike the viewer's value column, the
         // probe label sizes itself to its text rather than the text to a column
         |> Option.map (fun fd -> (NumberHelpers.fastDataToPaddedString 60 radix fd).Trim())

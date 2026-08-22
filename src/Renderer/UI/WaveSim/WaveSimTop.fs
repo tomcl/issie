@@ -71,6 +71,17 @@ let private currentWaveOfIdentity: Map<WaveIndexT, Wave> -> Map<FComponentId * P
 /// A fact about the simulation and nothing else, but it was rebuilt on every GenerateWaveforms -
 /// which is every tick of a checkbox - by filtering and sorting every FastComponent in the design.
 /// main6 of largeTest has about 480,000 of them.
+/// How the cache reads the renderer's own simulation: a handle is a driver index into whatever
+/// simulation is current.
+///
+/// Looked up at read time rather than closed over, so installing this pins nothing - a closure
+/// holding a FastSimulation would keep its step arrays alive for as long as the cache lived,
+/// which is the leak ModelHelpers.releaseWaveSimData exists to prevent.
+let private localDriverData (SignalHandle i) =
+    match Array.tryItem i (Simulator.getFastSim ()).Drivers with
+    | Some(Some driver) -> Some driver.DriverData
+    | _ -> None
+
 let private ramCompIdsOf: FastSimulation -> FComponentId list =
     Helpers.memoizeByIdentity (fun fs ->
         fs.FComps
@@ -207,12 +218,12 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
             |> List.filter (fun i -> i >= 0 && i < fs.Drivers.Length)
 
         if model.SimulateInRenderer then
-            WaveData.setLocal ()
+            WaveData.setLocal localDriverData
         elif newSimulation then
             // the design or its shape has changed, so what the sidecar holds is not it: make it
             // build again, and throw away the window, which was read from the old simulation
             WaveSimSidecar.forget ()
-            WaveData.setLocal ()
+            WaveData.setLocal localDriverData
 
         /// Ask the sidecar for this view, and come back to draw when it answers. The waves on
         /// screen stay as they are meanwhile; they are redrawn on re-entry, by which point
@@ -260,7 +271,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                     (fun exn -> failed exn.Message)
 
         if not model.SimulateInRenderer
-           && not (WaveData.coversFetched window shownDrivers wsModel.CursorExactClkCycle) then
+           && not (WaveData.coversFetched window (List.map SignalHandle shownDrivers) wsModel.CursorExactClkCycle) then
             model, fetchThisView ()
         else
 

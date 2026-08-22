@@ -14,6 +14,7 @@ For every wave in the simulation.
 
 *)
 
+open CommonTypes
 open ModelType
 open SimTypes
 open WaveSimTypes
@@ -92,19 +93,16 @@ let getWaveToolTip (cycle:int) (wave: Wave) (ws:WaveSimModel) =
     let arrayIndex = cycle * ws.SamplingZoom
     let hiddenValue =
         if checkIfHatched wave.HatchedCycles cycle then
-            match Simulator.simCacheWS.FastSim.Drivers[wave.DriverIndex] with
             // The cursor can rest past the end of what has been simulated, and where the sidecar
             // is simulating it can rest outside the window fetched for this view, so the value is
             // ASKED for rather than taken - a read off the end of a JS typed array is undefined,
             // which would be written into the tooltip as one.
-            | Some {DriverData = data} ->
-                WaveData.valueAt data wave.DriverIndex arrayIndex data.Width
-                |> Option.map (fun fd ->
-                    match fd.Dat with
-                    | Word v -> NumberHelpers.UInt32ToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width v
-                    | BigWord v -> NumberHelpers.BigIntToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width v)
-                |> Option.defaultValue ""
-            | None -> ""
+            WaveData.valueAt (SignalHandle wave.DriverIndex) arrayIndex
+            |> Option.map (fun fd ->
+                match fd.Dat with
+                | Word v -> NumberHelpers.UInt32ToPaddedString Constants.waveLegendMaxChars ws.Radix fd.Width v
+                | BigWord v -> NumberHelpers.BigIntToPaddedString Constants.waveLegendMaxChars ws.Radix fd.Width v)
+            |> Option.defaultValue ""
         else ""
     match hiddenValue, getRomCommentAtStep Simulator.simCacheWS.FastSim arrayIndex wave with
     | "", "" -> ""

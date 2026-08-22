@@ -1011,7 +1011,7 @@ let componentIdDecoder: Decoder<ComponentId> =
 /// LoadedComponent.Name, CustomComponentType.Name or SimpleSheet.SheetName: those cross the .dgm
 /// persistence boundary and the SimpleJsonDotNet wire boundary, and [<Erase>] does not mean the
 /// same thing under Fable as under .NET.
-[<Erase>]
+[<Erase; Struct>]
 type SheetName = | SheetName of string
 
 /// The chain of custom-component instances from the simulated top sheet down to one instance,
@@ -1022,14 +1022,14 @@ type SheetName = | SheetName of string
 /// simulator already builds exactly this as FastComponent.AccessPath (`ap @ [cid]` in
 /// FastCreate) and the design side already builds exactly this as SheetTree.SheetAccessPath
 /// (`accessPath @ [inst.InstId]` in MenuHelpers). This gives it a name.
-[<Erase>]
+[<Erase; Struct>]
 type InstancePath = | InstancePath of ComponentId list
 
 /// A path as a person reads it: the labels of the custom components passed through, root first.
 ///
 /// DISPLAY ONLY, never an identity. A shown path may be shortened where that is unambiguous -
 /// which is a rendering decision, and must not reach anything that compares paths.
-[<Erase>]
+[<Erase; Struct>]
 type LabelPath = | LabelPath of string list
 
 /// Unique identifier for a fast component.
@@ -1041,19 +1041,23 @@ type SimComponentId = ComponentId * ComponentId list
 /// are still doing so.
 ///
 /// Both are abbreviations of the same tuple today, so this costs nothing and changes nothing.
-/// Making the identity a tagged type is one line here - `[<Erase>] type SimComponentId =
+/// Making the identity a tagged type is one line here - `[<Erase; Struct>] type SimComponentId =
 /// SimComponentId of ComponentId * ComponentId list` - and it was measured, on this branch, to
-/// break 71 sites, 38 of them in FastCreate and FastExtract. That is worth doing WITH the change
-/// that needs it (the per-instance port enumeration, which factors a predicate out of FastCreate
-/// anyway) rather than as a sweep of the simulator core that buys nothing on its own. Note also
-/// that [<Erase>] is a Fable-only erasure: under .NET this becomes a real union used as a Map key
-/// once per component, so the sidecar's build time on a 480,000-component design needs measuring
-/// when it happens.
+/// break 71 sites, 38 of them in FastCreate and FastExtract. THAT is the reason to wait: it is
+/// worth doing with the change that needs it (the per-instance port enumeration, which factors a
+/// predicate out of FastCreate anyway) rather than as a sweep of the simulator core which buys
+/// nothing on its own.
+///
+/// It is NOT worth waiting for performance reasons. Tagged as a struct it would be CHEAPER than
+/// what is here now: an F# tuple is a reference type, so today every one of these allocates
+/// under .NET, once per component in the sidecar's build. [<Erase>] is erased by Fable and
+/// ignored by .NET, [<Struct>] is the other way round, and together they give a name that
+/// vanishes in the browser and a value type on the server.
 type FComponentId = SimComponentId
 
 /// One instance of a sheet in a running simulation - the simulation-time identity that a dotted,
 /// upper-cased label path (FastComponent.SimSheetName) stands for today.
-[<Erase>]
+[<Erase; Struct>]
 type SimSheetId = | SimSheetId of InstancePath
 
 /// Unique integer id of a connection, unique within its SHEET only - nothing resolves a
@@ -1129,12 +1133,12 @@ type SignalId =
 /// after each build and quotes handles back when reading data. Keeping it distinct from SignalId
 /// is what stops a handle from one simulation being used to read another - which is exactly the
 /// mistake an exposed SimArrayIndex makes possible.
-[<Erase>]
+[<Erase; Struct>]
 type SignalHandle = | SignalHandle of int
 
 /// Bumped by every simulation build. Every cached entry and every reply in flight carries the
 /// epoch it belongs to, so an answer from a superseded build is discarded rather than displayed.
-[<Erase>]
+[<Erase; Struct>]
 type SimEpoch = | SimEpoch of int
 
 type WSConfig = {

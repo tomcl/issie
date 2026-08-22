@@ -1086,10 +1086,9 @@ type SimComponentId = ComponentId * ComponentId list
 /// wrapper is what the rest of them are and what this should be.
 type FComponentId = SimComponentId
 
-/// One instance of a sheet in a running simulation - the simulation-time identity that a dotted,
-/// upper-cased label path (FastComponent.SimSheetName) stands for today.
-[<Erase>]
-type SimSheetId = | SimSheetId of InstancePath
+// An instance of a sheet in a running simulation is named by its InstancePath and nothing more,
+// so no separate type for it: a wrapper carrying exactly the same information would be a layer to
+// unwrap at every use and a second name for one idea.
 
 /// Unique integer id of a connection, unique within its SHEET only - nothing resolves a
 /// connection id outside the sheet it belongs to (error highlighting is sheet-guarded).

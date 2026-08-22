@@ -41,7 +41,7 @@ let private memoryContentsError (fs: FastSimulation) (activeComps: FastComponent
                           to fit the widths it has."
                   // "Error found in sheet 'X' which is a dependency" - so the SHEET, not the
                   // instance. It read as a sheet name only while a sheet had one instance
-                  InDependency = Some (fs.getSheetNameOfInstance fc.SimSheetName)
+                  InDependency = Some (fs.getSheetNameOfInstance fc.Instance)
                   ComponentsAffected = [fc.cId]
                   ConnectionsAffected = [] })
         | _ -> None)

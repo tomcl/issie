@@ -40,7 +40,7 @@ let emptyFastSimulation diagramName =
       ComponentsById = Map.empty
       SimulatedCanvasState = []
       SimulatedTopSheet = diagramName
-      SimSheetStructure = Map.empty}
+}
 
 let simulationPlaceholder = emptyFastSimulation ""
 let getFid (cid: ComponentId) (ap: ComponentId list) =
@@ -520,8 +520,6 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
       cId = sComp.Id
       FType = sComp.Type
       AccessPath = accessPath
-      SimSheetName = ""
-      SimSheetNamePath = []
       SheetName = []
       // placeholders: the real reducers need EvalReference, which is compiled after this, and
       // cannot be built until widths and bigint state are known anyway. installReducers puts
@@ -791,16 +789,9 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
     let makeFastComp fid =
         let comp, ap = g.AllComps[fid]
         let fc = createFastComponent numSteps comp ap
-        let sheetLabel =
-            match ap with
-            | [] -> f.SimulatedTopSheet
-            | _ -> g.Labels[List.last ap]
-
-            
         { fc with
-            FullName = g.getFullSimName fid;
-            SheetName = g.getFullSimPath fid
-            SimSheetName = sheetLabel.ToUpperInvariant()}
+            FullName = g.getFullSimName fid
+            SheetName = g.getFullSimPath fid }
 
     let comps, customComps =
         ((Map.empty, Map.empty), g.AllComps)
@@ -810,43 +801,6 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
             else
                 Map.add (comp.Id, ap) (makeFastComp (comp.Id, ap)) m, mc)
 
-    /// What identifies one instance of a sheet: the labels of the custom components it sits inside,
-    /// from the root of the simulation, and then its own. SheetName already holds exactly that.
-    ///
-    /// A label is unique on the canvas it is drawn on, so a path of labels is unique in the design.
-    /// That is what this has to be - it keys SimSheetStructure, and Wave.SheetId groups waves by it,
-    /// so two instances sharing an identity would be one instance to everything downstream.
-    ///
-    /// It used to be the sheet's name with a disambiguator bolted on wherever several instances
-    /// shared it: whatever suffix told their labels apart, or a bare ordinal where nothing did. That
-    /// was unique and unreadable - MAIN4:1, or just 2 - and being a name it leaked to the user, in
-    /// waveform names, in the sheet filter box, and in the boxes choosing between instances. Nothing
-    /// had to be invented: the design already names every instance, at every level down to it.
-    ///
-    /// Upper-cased here rather than by addSimSheetNames below, because the one thing that has to be
-    /// decided about the whole string is decided here.
-    let customSimSheetNames =
-        /// The identity of the top sheet, which is the one instance NOT named by a path of labels:
-        /// it is named by its sheet, since there is no instance of it to name it by.
-        let topName = f.SimulatedTopSheet.ToUpperInvariant()
-
-        customComps
-        |> Map.valuesL
-        |> List.map (fun cc ->
-            let path = (String.concat "." cc.SheetName).ToUpperInvariant()
-            // A path that reads as the top sheet's name would BE the top sheet to everything
-            // downstream - one key in SimSheetStructure, one group of waves - and the two are
-            // different instances. It takes a custom component on the top sheet labelled with that
-            // sheet's own name, which is unusual and entirely allowed. Every other identity here is
-            // upper case, so lowering this one separates them while still saying which instance it
-            // is; a label with no cased characters at all is the one case that stays ambiguous.
-            cc.fId, (if path = topName then path.ToLowerInvariant() else path))
-        |> Map.ofList
-
-
-                         
-
-
     let customOutLookup =
         g.CustomOutputCompLinks
         |> Map.toList
@@ -855,41 +809,9 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
 
     instrumentTime "createInitFastCompPhase" start
 
-    // customSimSheetNames is already upper-cased, and one of its entries deliberately is not - so
-    // nothing here may case them again.
-    let addSimSheetNames (comps:Map<FComponentId,FastComponent>) =
-        comps
-        |> Map.map (fun (cid,ap) fc ->
-            match fc.AccessPath with
-            | [] -> {fc with SimSheetName = f.SimulatedTopSheet.ToUpperInvariant()}
-            | path -> {fc with SimSheetName = customSimSheetNames[List.last path,path[0..path.Length-2]]})
-
-    let comps = addSimSheetNames comps
-    let customComps = addSimSheetNames customComps
-
-    let addSimSheetPaths (comps:Map<FComponentId,FastComponent>) =
-        comps
-        |> Map.map (fun (fId,ap) fc ->
-            [0..(List.length ap - 1)]
-            |> List.map (fun i ->
-                let fId = ap[i],ap[0..i-1]
-                customComps[fId].SimSheetName)
-            |> (fun sp -> {fc with SimSheetNamePath = f.SimulatedTopSheet :: sp}))
-
-    let simSheetStructure : Map<string,FastComponent option> =
-        (customComps |> Map.toList)
-        |> List.append (comps |> Map.toList)
-        |> List.map (fun ((cid,ap),fc) ->
-            let parent : FastComponent option =
-                List.tryLast ap
-                |> Option.map (fun cid -> customComps[cid, ap[0..ap.Length-2]])
-            fc.SimSheetName, parent)
-        |> Map.ofList
-
     { f with
-        FComps = addSimSheetPaths comps 
-        FCustomComps = addSimSheetPaths customComps
-        SimSheetStructure = simSheetStructure
+        FComps = comps 
+        FCustomComps = customComps
         MaxArraySize = simulationArraySize
         FCustomOutputCompLookup = customOutLookup
         NumStepArrays = stepArrayIndex + 1

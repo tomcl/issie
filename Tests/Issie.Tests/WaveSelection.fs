@@ -258,7 +258,38 @@ let private clashSimulation =
 let tests =
     testList
         "WaveSelection"
-        [ testCase "a component on the top sheet is offered its own ports"
+        [ testCase "enumerating one instance's waves agrees with the whole wave index"
+          <| fun () ->
+              // The selector works out what ONE instance offers from the design - that sheet's own
+              // components, each looked up in the simulation - so that a design expanding to tens
+              // of thousands of instances costs one sheet to ask about one of them. What it must
+              // produce is exactly what grouping the built wave index by instance would have.
+              //
+              // Two ways of deciding the same thing, which is what this holds together: the
+              // enumeration and the wave index itself both ask FastCreate.portCarriesWave, and this
+              // fails if either ever stops.
+              let fs, _ = deepSimulation.Force()
+
+              let fromIndex =
+                  fs.WaveIndex
+                  |> Array.toList
+                  |> List.groupBy (fun wi -> InstancePath(snd wi.Id))
+                  |> List.map (fun (inst, wis) -> inst, List.sort wis)
+                  |> Map.ofList
+
+              Expect.isNonEmpty (Map.toList fromIndex) "the simulation has waves to compare"
+
+              allInstances fs
+              |> List.iter (fun instance ->
+                  let enumerated = WaveSimSelectHelpers.waveIndicesOfInstance fs instance |> List.sort
+                  let indexed = Map.tryFind instance fromIndex |> Option.defaultValue []
+
+                  Expect.equal
+                      enumerated
+                      indexed
+                      $"instance %s{WaveSimHierarchy.labelPathOf fs instance} offers what the wave index holds for it")
+
+          testCase "a component on the top sheet is offered its own ports"
           <| fun () ->
               let waves, copies = offered 2
               Expect.equal copies 1 "one copy of a component on the simulated top sheet"

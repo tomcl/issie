@@ -339,16 +339,26 @@ module SimulationBudget =
     ///   the FastComponents            ~990 bytes fixed - the 25-field record, its map node, the
     ///                                  output IOArrays with their typed-array wrappers (~120 B a
     ///                                  wrapper, measured), path strings, reducer closures
-    ///   AllWaves                      ~430 bytes a wave, at ~0.6 waves per port - the Wave
-    ///                                  record's strings, built by the waveform simulator only,
-    ///                                  but charged here because this guard cannot know which
-    ///                                  simulator is coming and the waveform one is both the
-    ///                                  heavier and the one large designs are opened in
+    ///   the Wave records               ~430 bytes a wave, at ~0.6 waves per port when this was
+    ///                                  measured - the Wave record's strings, built by the
+    ///                                  waveform simulator only, but charged here because this
+    ///                                  guard cannot know which simulator is coming and the
+    ///                                  waveform one is both the heavier and the one large designs
+    ///                                  are opened in
+    ///
+    /// That last term is no longer spent. The waveform simulator described every wave the
+    /// simulation offered and kept the lot in its model; it now describes the waves of the sheet
+    /// instances the selector is drawing, as it draws them, and keeps records only for the ones
+    /// SELECTED - at most maxAllowedViewerWaves, which is a hundred. So about 260 of the 350 bytes
+    /// per port below is a cost that has gone, and this guard now refuses designs it has the memory
+    /// for. The number is left where it is because it was MEASURED and the replacement has not
+    /// been: subtracting a term from someone else's measurement is how a guard ends up on the wrong
+    /// side. Remeasure and lower it.
     ///
     /// The step arrays themselves are NOT here - they scale with cycles, not components, and are
     /// StepCost's business. The formula sits ~15% above the measured total at 2.9 ports, which is
     /// the right side to miss on for a guard. To remeasure after changing these structures: build
-    /// phase deltas are logged under --log=perf (FastBuild.buildFastSimulation and the createWaves
+    /// phase deltas are logged under --log=perf (FastBuild.buildFastSimulation and the defaultWaves
     /// line), and `node scripts/drive.js` + window.issieDev.simStats() gives the exact component,
     /// port and wave counts to divide by.
     let heapBytesPerComponent (ports: float) = 1000.0 + 350.0 * ports

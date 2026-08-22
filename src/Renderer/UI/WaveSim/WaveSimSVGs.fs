@@ -156,55 +156,6 @@ let nonBinaryFillPoints (startCycle: int) (clkCycleWidth: float) (gap: Gap): arr
 //------------------------------------------------------------------------------------------------------//
 
 
-/// True when the component sits inside an instance of a library sheet.
-/// A library component is opaque: its innards are no more offered here than its sheet is offered
-/// in the Sheets menu. The instance's own ports are unaffected - they belong to the sheet it was
-/// placed on, and appear like any other custom component's, as sheet.L<n>_Comp1.port.
-/// AccessPath is the chain of custom component instances the component sits within, so the test
-/// is whether any of them is an instance of a library sheet.
-let private isInsideLibraryComponent (fs: FastSimulation) (librarySheets: Set<string>) (fc: FastComponent) =
-    match Set.isEmpty librarySheets with
-    | true -> false
-    | false ->
-        fc.AccessPath
-        |> List.mapi (fun i cid -> cid, fc.AccessPath[0 .. i - 1])
-        |> List.exists (fun fid ->
-            match Map.tryFind fid fs.FCustomComps with
-            | Some customComp ->
-                match customComp.FType with
-                | Custom cc -> Set.contains cc.Name librarySheets
-                | _ -> false
-            | None -> false)
-
-/// Build the AllWaves map in a scope that holds nothing.
-///
-/// This exists because a Fable map carries the comparer it was built with, and Fable creates that
-/// comparer - an object holding a Compare closure - at the construction site. V8 gives all the
-/// closures of a function one shared context holding every variable any of them captures, so a
-/// comparer made inside getWaves shares a context with lambdas that capture the FastSimulation -
-/// and the map then pins the whole simulation, step arrays and all, for as long as the map lives.
-/// AllWaves lives in the WaveSimModel, which outlives its simulation by design, and a copy of it
-/// sits in every model generation React retains - which is how an ended simulation's memory
-/// survived every explicit release. Built here, where no closure can capture anything, the
-/// comparer retains nothing. Do not inline this back into its caller.
-let private makeWaveMap (pairs: (WaveIndexT * Wave) array) : Map<WaveIndexT, Wave> =
-    Map.ofArray pairs
-
-/// Get all simulatable waves from CanvasState. Includes top-level Input and Output ports.
-/// Waves contain info which will be used later to create the SVGs for those waves actually
-/// selected. Init value of these from this function is None.
-/// `librarySheets` names the sheets that came from a component library, whose innards are not
-/// offered - see isInsideLibraryComponent.
-let getWaves (librarySheets: Set<string>) (ws: WaveSimModel) (fs: FastSimulation) : Map<WaveIndexT, Wave> =
-    let start = TimeHelpers.getTimeMs ()
-    fs.WaveIndex
-    |> TimeHelpers.instrumentInterval "getAllPorts" start
-    |> Array.filter (fun wi -> not (isInsideLibraryComponent fs librarySheets fs.WaveComps[wi.Id]))
-    |> Array.map (fun wi -> wi, makeWave ws fs wi)
-    |> makeWaveMap
-    |> TimeHelpers.instrumentInterval "makeWavePipeline" start
-
-
 /// <summary>Generates SVG to display non-binary values on waveforms.</summary>
 /// This function has side effect of recording hatched gaps in <c>gapCache</c>.
 /// <remarks>Should be refactored together with <c>displayBigIntOnWave</c>.</remarks>
@@ -428,7 +379,8 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
             // The simulation has not reached these cycles, or - with the sidecar simulating - the
             // window fetched for this view does not cover them. Draw the row empty rather than
             // leave the wave stale, which would have it remade on every refresh.
-            Log.warn $"no simulation data for wave {wave.DisplayName} over the cycles now shown"
+            Log.warn
+                $"no simulation data for wave {wave.DisplayName} over {window.StartSample}+{window.SampleCount}x{window.Multiplier}"
             svg (waveRowProps ws) [], initGapStore 0
 
         | Some slice, 1 -> // binary waveform
@@ -491,7 +443,7 @@ let makeWaveformsWithTimeOut
     try
         let start = TimeHelpers.getTimeMs()
         let allWaves, numberDone, timeTaken =
-            ((ws.AllWaves, 0, None), wavesToBeMade)
+            ((ws.WaveDetails, 0, None), wavesToBeMade)
             ||> List.fold (fun (all,n, _) wi ->
                     match timeOut, TimeHelpers.getTimeMs() - start with
                     | Some timeOut, timeSoFar when timeOut < timeSoFar ->
@@ -508,7 +460,7 @@ let makeWaveformsWithTimeOut
                 |> List.length
         
             Log.dbg Log.Perf $"makeWaveformsWithTimeOut: visible only {Constants.generateVisibleOnly}, {List.length wavesToBeMade}/{Map.count allWaves} waveforms, {countWavesWithWidthRange 1 1} binary, {countWavesWithWidthRange 2 32} int32, took %.2f{finish-start}ms"
-        {| WSM={ws with AllWaves = allWaves}; NumberDone=numberDone; TimeTaken = timeTaken|}
+        {| WSM={ws with WaveDetails = allWaves}; NumberDone=numberDone; TimeTaken = timeTaken|}
     with
         | ex -> 
             Log.error $"making waveforms: {ex.Message}"

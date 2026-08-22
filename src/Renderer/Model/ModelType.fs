@@ -312,8 +312,16 @@ type WaveSimModel = {
     WSConfigDialog: WSConfig option
     /// Current state of WaveSimModel.
     State: WaveSimState
-    /// Map of all simulatable waves
-    AllWaves: Map<WaveIndexT, Wave>
+    /// What is known about each SELECTED wave: its name, its width, where its data lies, and the
+    /// SVG last drawn for it.
+    ///
+    /// The selected waves and no others. It used to be every wave the simulation offered - one per
+    /// viewable port of every INSTANCE of every sheet, which is 208,896 records on main6 of
+    /// largeTest, more than the design has components, rebuilt on every scroll step and retained in
+    /// every model generation React holds. What the viewer draws is at most
+    /// maxAllowedViewerWaves of them; what the SELECTOR draws it now describes as it draws it,
+    /// from the handful of sheet instances on screen.
+    WaveDetails: Map<WaveIndexT, Wave>
     /// List of which waves are currently visible in the waveform viewer.
     SelectedWaves: WaveIndexT list
     /// Left-most visible clock cycle.

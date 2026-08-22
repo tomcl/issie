@@ -307,3 +307,407 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
 
 
     
+
+// ---------------------------------------------------------------------------------------------
+// What a waveform is called, and the Wave record that carries it
+// ---------------------------------------------------------------------------------------------
+//
+// This was the top third of WaveSimSelect, which compiles after the selection dialog that needs
+// it: the dialog now describes the waves of the instances it is drawing rather than looking them
+// up in a map of every wave in the simulation, so it has to be able to make a Wave. Nothing here
+// is about selection - it is naming, which is what this module is for, and the pieces it is built
+// from (camelCaseDottedWords, bitLimsString, portBits) are just above.
+
+/// return sheet with all latters capitalised
+let cap (sheet:string) = sheet.ToUpper()
+
+
+/// Get port names for waves that are from Input ports.
+/// Appended to comp.Label
+let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string =
+    let muxPortName (size: int) : string =
+        if port = (InputPortNumber size) then ".SEL"
+        else "." + string port
+
+    match compType with
+    | Not | BusCompare _ | BusCompare1 _ ->
+        ".IN"
+    | GateN _ | NbitsNot _ | NbitSpreader _ ->
+        ".IN" + string port
+
+    | Mux2 ->
+        muxPortName 2
+    | Mux4 ->
+        muxPortName 4
+    | Mux8 ->
+        muxPortName 8
+
+    | Decode4 ->
+        match port with
+        | InputPortNumber 0 -> ".SEL"
+        | _ -> ".DATA"
+
+    | Input1 _ | Output _ | Constant1 _ | Constant _ | Viewer _ | CounterNoEnableLoad _ | NotConnected ->
+        ""
+    | DFF | Register _ ->
+        ".D"
+
+    | ROM1 _ | AsyncROM1 _ ->
+        ".ADDR"
+
+    | Demux2 | Demux4 | Demux8 ->
+        match port with
+        | InputPortNumber 0 -> ".DATA"
+        | _ -> ".SEL"
+
+    | NbitsXor _ | NbitsAnd _ |NbitsOr _ ->
+        match port with
+        | InputPortNumber 0 -> ".P"
+        | _ -> ".Q"
+
+    | NbitsAdder _ |NbitsAdderNoCout _ ->
+        match port with
+        | InputPortNumber 0 -> ".CIN"
+        | InputPortNumber 1 -> ".P"
+        | _ -> ".Q"
+
+    | NbitsAdderNoCin _ |NbitsAdderNoCinCout _ ->
+        match port with
+        | InputPortNumber 0 -> ".P"
+        | _ -> ".Q"
+
+    | Shift _ ->
+        match port with
+        |InputPortNumber 0 -> ".IN"
+        |_ -> ".Shifter"
+    
+    | DFFE | RegisterE _ ->
+        match port with
+        | InputPortNumber 0 -> ".D"
+        | _ -> ".EN"
+
+    | Counter _ ->
+        match port with
+        | InputPortNumber 0 -> ".D"
+        | InputPortNumber 1 -> ".LOAD"
+        | _ -> ".EN"
+
+    | CounterNoEnable _ ->
+        match port with
+        | InputPortNumber 0 -> ".D"
+        | _ -> ".LOAD"
+
+    | CounterNoLoad _ -> ".EN"
+        
+    | RAM1 _ | AsyncRAM1 _ ->
+        match port with
+        | InputPortNumber 0 -> ".ADDR"
+        | InputPortNumber 1 -> ".DIN"
+        | _ -> ".WEN"
+
+    | Custom c ->
+        "." + fst c.InputLabels[getInputPortNumber port]
+
+    | ROM _ | RAM _ | AsyncROM _ -> failwithf "What? Legacy RAM component types should never occur"
+    | Input _ -> failwithf "Legacy Input component types should never occur"
+    | IOLabel -> failwithf "IOLabel should not occur in getInputPortName"
+    | MergeWires -> failwithf "MergeWires should not occur in getInputPortName"
+    | MergeN _ -> failwithf "MergeN should not occur in getInputPortName"
+    | SplitWire _ -> failwithf "SplitWire should not occur in getInputPortName"
+    | SplitN _ -> failwithf "SplitN should not occur in getInputPortName"
+    | BusSelection _ -> failwithf "BusSelection should not occur in getInputPortName"
+
+/// Get names for waves that are from Input ports
+/// TODO: unify this with DrawBlock and widthInferror logic
+
+let getInputName (withComp: bool) (comp: FastComponent) (port: InputPortNumber) : string =
+    let portName : string = getInputPortName comp.FType port
+    let bitLims : string =
+        match comp.FType with
+        // The enable and load inputs are one bit whatever the width of the register or counter
+        // they control - only the data input carries that width. getInputPortName has already put
+        // the leading '.' on, which is why the names compared against carry one too.
+        | RegisterE _ | Counter _ | CounterNoEnable _ | CounterNoLoad _
+                when portName = ".EN" || portName = ".LOAD" ->
+            bitLimsString (0, 0)
+        // An adder's carry in is one bit; it is the two operands that are as wide as the adder.
+        | NbitsAdder _ | NbitsAdderNoCout _ when portName = ".CIN" ->
+            bitLimsString (0, 0)
+        | Input1 (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
+        | NbitsXor(w, _) | NbitsNot w | NbitsAnd w | NbitsAdder w | NbitsOr w
+        | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w
+        | BusCompare(w,_) | BusCompare1(w,_,_)  |Register w | RegisterE w
+        | Counter w | CounterNoEnable w | NbitSpreader w ->
+            bitLimsString (w - 1, 0)
+        | Not | BusCompare _ | BusCompare1 _ | GateN _
+        | Mux2 | Mux4 | Mux8 | Decode4 | Demux2 | Demux4 | Demux8
+        | DFF | Register _ | DFFE | RegisterE _ |Counter _
+        |CounterNoEnable _ |CounterNoLoad _ |CounterNoEnableLoad _ ->
+            bitLimsString (0, 0)
+
+        | Shift(w,m,tp) -> bitLimsString (w - 1, 0)
+        // TODO: Find the right parameters for RAMs and ROMs.
+        | ROM1 _ | AsyncROM1 _ | RAM1 _ | AsyncRAM1 _ ->
+            ""
+
+        | Custom c ->
+            bitLimsString (snd c.InputLabels[getInputPortNumber port] - 1, 0)
+
+        | ROM _ | RAM _ | AsyncROM _ -> failwithf "What? Legacy RAM component types should never occur"
+        | Input _ -> failwithf "Legacy Input component types should never occur"
+        | NotConnected -> failwithf "NotConnected should not occur in getInputName"
+        | IOLabel -> failwithf "IOLabel should not occur in getInputName"
+        | MergeWires -> failwithf "MergeWires should not occur in getInputName"
+        | MergeN _ -> failwithf "MergeN should not occur in getInputName"
+        | SplitWire _ -> failwithf "SplitWire should not occur in getInputName"
+        | SplitN _ -> failwithf "SplitN should not occur in getInputName"
+        | BusSelection _ -> failwithf "BusSeleciton should not occur in getInputName"
+
+    if withComp then 
+        comp.FLabel + portName + bitLims
+    else 
+        portName[1..portName.Length-1] + bitLims
+
+/// Get port names for waves that are from Output ports
+/// Appended to comp.Label
+let getOutputPortName (compType: ComponentType) (port: OutputPortNumber) : string =
+    match compType with
+    | Not | GateN _ | Decode4 | Mux2 | Mux4 | Mux8 | BusCompare _ | BusCompare1 _ | NbitsXor _ | NbitsNot _  | NbitSpreader _ | NbitsAnd _ | NbitsOr _ |Shift _->
+        ".OUT"
+    | Input1 _ | Output _ | Constant1 _ | Constant _ | Viewer _ | IOLabel | NotConnected ->
+        ""
+    | Demux2 | Demux4 | Demux8 ->
+        "." + string port
+    | NbitsAdder _ |NbitsAdderNoCin _ ->
+        match port with
+        | OutputPortNumber 0 ->
+            ".SUM"
+        | _ ->
+            ".COUT"
+    | NbitsAdderNoCout _ |NbitsAdderNoCinCout _ ->
+        ".SUM"
+        
+    | DFF | DFFE | Register _ | RegisterE _ |Counter _ |CounterNoEnable _ |CounterNoLoad _ |CounterNoEnableLoad _ ->
+        ".Q"
+    | RAM1 _ | AsyncRAM1 _ | AsyncROM1 _ | ROM1 _ ->
+        ".DOUT"
+    | Custom c ->
+        "." + fst c.OutputLabels[getOutputPortNumber port]
+
+    | ROM _ | RAM _ | AsyncROM _ -> failwithf "What? Legacy RAM component types should never occur"
+    | Input _ -> failwithf "Legacy Input component types should never occur"
+    | MergeWires -> failwithf "MergeWires should not occur in getOutputName"
+    | MergeN _ -> failwithf "MergeN should not occur in getOutputName"
+    | SplitWire _ -> failwithf "SplitWire should not occur in getOutputName"
+    | SplitN _ -> failwithf "SplitN should not occur in getOutputName"
+    | BusSelection _ -> failwithf "BusSeleciton should not occur in getOutputName"
+
+/// Get names for waves that are from Output ports
+/// TODO: unify this with DrawBlock and widthInferror logic
+let getOutputName (withComp: bool) (comp: FastComponent) (port: OutputPortNumber) (fastSim: FastSimulation): string =
+    let portName = getOutputPortName comp.FType port
+    let bitLims =
+        match comp.FType with
+        | BusCompare(w,_) | BusCompare1(w,_,_) -> bitLimsString (w-1, 0)
+        // As with the carry in, the carry out is one bit whatever the width of the adder.
+        | NbitsAdder _ | NbitsAdderNoCin _ when portName = ".COUT" -> bitLimsString (0, 0)
+        | Not | GateN _
+        | Decode4 | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
+        | DFF | DFFE ->
+            bitLimsString (0, 0)
+
+        | Input1 (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
+        | NbitsXor(w,_) | NbitsAnd w | NbitsOr w | NbitsNot w | NbitSpreader w | NbitsAdder w | Register w | RegisterE w 
+        | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w | Counter w |CounterNoEnable w |CounterNoLoad w |CounterNoEnableLoad w->
+            bitLimsString (w - 1, 0)
+
+        | Shift (w,m,tp) -> bitLimsString (w - 1, 0)
+        | RAM1 mem | AsyncRAM1 mem | AsyncROM1 mem | ROM1 mem ->
+            bitLimsString (mem.WordWidth - 1, 0)
+
+        | Custom c ->
+            bitLimsString (snd c.OutputLabels[getOutputPortNumber port] - 1, 0)
+
+        | IOLabel ->
+            let drivingComp = fastSim.FIOActive[ComponentLabel comp.FLabel,snd comp.fId]
+            let labelWidth = FastExtract.extractFastSimulationWidth fastSim (drivingComp.Id,snd drivingComp.fId) (OutputPortNumber 0)
+            match labelWidth with
+            | 0 ->
+                failwithf $"What? Can't find width for IOLabel {comp.FLabel}$ "
+            | width ->
+                bitLimsString (width - 1, 0)
+
+        | ROM _ | RAM _ | AsyncROM _ -> failwithf "What? Legacy RAM component types should never occur"
+        | Input _ -> failwithf "Legacy Input component types should never occur"
+        | NotConnected -> failwithf "NotConnected should not occur in getOutputName"
+        | MergeWires -> failwithf "MergeWires should not occur in getOutputName"
+        | MergeN _ -> failwithf "MergeN should not occur in getOutputName"
+        | SplitWire _ -> failwithf "SplitWire should not occur in getOutputName"
+        | SplitN _ -> failwithf "SplitN should not occur in getOutputName"
+        | BusSelection _ -> failwithf "BusSelection should not occur in getOutputName"
+
+    if withComp then 
+        comp.FLabel + portName + bitLims
+    else 
+        portName[1..portName.Length-1] + bitLims
+
+
+let caseCompAndPortName (name:string) =
+    let parts = name.Split([|'.'|])
+    match parts.Length with
+    | 0 | 1 -> name.ToUpper()
+    | n -> (String.concat "." parts[0..n-2]).ToUpper() + "." + camelCaseDottedWords parts[n-1]
+
+
+
+
+/// Get name for a wave. Names are generated from component label, port name, and bit width of wave.
+let getName (index: WaveIndexT) (fastSim: FastSimulation) : string =
+    let fc = fastSim.WaveComps[index.Id]
+    match index.PortType with
+    | PortType.Input -> getInputName true fc (InputPortNumber index.PortNumber)
+    | PortType.Output -> getOutputName true fc (OutputPortNumber index.PortNumber) fastSim
+    |> caseCompAndPortName
+
+/// sheet.component.port, which is what a waveform is called.
+///
+/// The SHEET is named, not the instance of it: which instance a waveform belongs to is said by
+/// where its row sits in the selector and by the combo box beside it, so a name carrying the
+/// instance as well said the same thing twice - and said it as a path of labels nobody asked to
+/// read. Where that leaves two waveforms with one name, the viewer disambiguates them on hover.
+let nameWithSheet (fastSim: FastSimulation) (dispName: string) (waveIndex:WaveIndexT) =
+    let fc = fastSim.WaveComps[waveIndex.Id]
+    camelCaseDottedWords (fastSim.getSheetNameOfInstance fc.Instance) + "." + dispName
+
+/// Make Wave for each component and port on sheet
+let makeWave (ws: WaveSimModel) (fastSim: FastSimulation) (wi: WaveIndexT) : Wave =
+    let fc = fastSim.WaveComps[wi.Id]
+    let driver = 
+        
+        match fastSim.Drivers[wi.SimArrayIndex] with
+        | Some d -> d
+        | None ->
+            Log.error $"no simulation waveform driver for {fc.FullName}.{wi.PortType}[{wi.PortNumber}] (subsheet {fc.SubSheet}, sheet {fc.SheetName})"
+            failwithf "Aborting..."
+    if driver.DriverWidth = 0 then 
+        Log.warn $"zero-width driver for {fc.FullName}.{wi.PortType}[{wi.PortNumber}]"
+    let dispName = getName wi fastSim
+    let portLabel =
+        match wi.PortType with
+        | PortType.Input -> getInputName false fc (InputPortNumber wi.PortNumber)
+        | PortType.Output -> getOutputName false fc (OutputPortNumber wi.PortNumber) fastSim
+ 
+    {
+        WaveId = wi
+        StartCycle = ws.StartCycle
+        ShownCycles = ws.ShownCycles
+        Multiplier = ws.SamplingZoom
+        CycleWidth = singleWaveWidth ws
+        Radix = ws.Radix
+        SubSheet = fc.SubSheet
+        DisplayName = dispName
+        ViewerDisplayName = nameWithSheet fastSim dispName wi
+        CompLabel = fc.FLabel
+        PortLabel = portLabel
+        Width = driver.DriverWidth
+        DriverIndex = driver.Index
+        SheetId = fc.Instance
+        SVG = None
+        HatchedCycles = EvilHoverCache.initGapStore 0
+    }
+
+/// The sheets of the simulated design that came from a component library.
+///
+/// Read off the design the simulation was built from, so nothing has to thread it down from the
+/// project. It was recomputed from Model.CurrentProj on every refresh, which is every tick of a
+/// checkbox.
+let librarySheetsOf: FastSimulation -> Set<string> =
+    Helpers.memoizeByIdentity (fun fs ->
+        fs.SimulatedCanvasState
+        |> List.filter ComponentLibraries.isLibrarySheet
+        |> List.map (fun ldc -> ldc.Name)
+        |> Set.ofList)
+
+/// True when the component sits inside an instance of a library sheet.
+/// A library component is opaque: its innards are no more offered here than its sheet is offered
+/// in the Sheets menu. The instance's own ports are unaffected - they belong to the sheet it was
+/// placed on, and appear like any other custom component's, as sheet.L<n>_Comp1.port.
+/// AccessPath is the chain of custom component instances the component sits within, so the test
+/// is whether any of them is an instance of a library sheet.
+///
+/// The selector does not need this: the hierarchy it draws already makes a library component
+/// opaque, so no instance inside one is ever on show. It is for the two places that reach a
+/// component without going through the hierarchy - the default selection, which looks for Viewers
+/// anywhere in the design, and the schematic's right-click menu.
+let isInsideLibraryComponent (fs: FastSimulation) (fc: FastComponent) =
+    let librarySheets = librarySheetsOf fs
+
+    match Set.isEmpty librarySheets with
+    | true -> false
+    | false ->
+        fc.AccessPath
+        |> List.mapi (fun i cid -> cid, fc.AccessPath[0 .. i - 1])
+        |> List.exists (fun fid ->
+            match Map.tryFind fid fs.FCustomComps with
+            | Some customComp ->
+                match customComp.FType with
+                | Custom cc -> Set.contains cc.Name librarySheets
+                | _ -> false
+            | None -> false)
+
+/// The ports of one elaborated component that carry a waveform, as wave indices into the
+/// simulation as it is now.
+let waveIndicesOfFComp (fs: FastSimulation) (fId: FComponentId) : WaveIndexT list =
+    match Map.tryFind fId fs.WaveComps with
+    | None -> []
+    | Some fc ->
+        let portsOf pType (arrays: IOArray array) =
+            if FastCreate.portCarriesWave fs fc pType then
+                arrays
+                |> Array.toList
+                |> List.mapi (fun pn io ->
+                    { SimArrayIndex = io.Index
+                      Id = fId
+                      PortType = pType
+                      PortNumber = pn })
+            else
+                []
+
+        portsOf PortType.Output fc.Outputs @ portsOf PortType.Input fc.InputLinks
+
+/// The wave one index names, in the simulation as it is NOW - or None if that simulation does not
+/// offer it any more.
+///
+/// A WaveIndexT says where its data lies (SimArrayIndex) as well as which port it is. The first is
+/// true only of the build it came from, so a selection made before a rebuild has to be resolved
+/// against the new one. The other three fields are the stable name and are what this looks up.
+///
+/// It used to be answered by indexing a map of every wave in the simulation, built by inverting
+/// that map's 208,896 keys. The component knows where its own ports are, so a selection of a
+/// hundred waves is a hundred lookups.
+let reResolveWave (fs: FastSimulation) (wi: WaveIndexT) : WaveIndexT option =
+    match Map.tryFind wi.Id fs.WaveComps with
+    | Some fc when FastCreate.portCarriesWave fs fc wi.PortType ->
+        let arrays =
+            match wi.PortType with
+            | PortType.Output -> fc.Outputs
+            | PortType.Input -> fc.InputLinks
+
+        if wi.PortNumber < arrays.Length then
+            Some { wi with SimArrayIndex = arrays[wi.PortNumber].Index }
+        else
+            None
+    | _ -> None
+
+/// Build a wave map in a scope that holds nothing.
+///
+/// This exists because a Fable map carries the comparer it was built with, and Fable creates that
+/// comparer - an object holding a Compare closure - at the construction site. V8 gives all the
+/// closures of a function one shared context holding every variable any of them captures, so a
+/// comparer made where a FastSimulation is in scope shares a context with it - and the map then
+/// pins the whole simulation, step arrays and all, for as long as the map lives. WaveDetails lives
+/// in the WaveSimModel, which outlives its simulation by design, and a copy of it sits in every
+/// model generation React retains - which is how an ended simulation's memory survived every
+/// explicit release. Built here, where no closure can capture anything, the comparer retains
+/// nothing. Do not inline this into a caller that has a simulation in scope.
+let makeWaveMap (pairs: (WaveIndexT * Wave) list) : Map<WaveIndexT, Wave> = Map.ofList pairs

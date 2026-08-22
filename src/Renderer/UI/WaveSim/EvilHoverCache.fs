@@ -86,9 +86,9 @@ let getRomCommentAtStep (fs: FastSimulation) (step: int) (wave: Wave) : string =
 /// the location being read, so that both appear when the number is hidden as well.
 ///
 /// The wave is passed in rather than counted off SelectedWaves by row number. The rows drawn are
-/// the selected waves that AllWaves still HOLDS - see WaveSimStyle.selectedWaves, which the three
+/// the selected waves that WaveDetails still HOLDS - see WaveSimStyle.selectedWaves, which the three
 /// columns are all built from - so counting rows off SelectedWaves itself answered for a different
-/// row wherever the two differ, and indexed AllWaves with a key it might not have.
+/// row wherever the two differ, and indexed WaveDetails with a key it might not have.
 let getWaveToolTip (cycle:int) (wave: Wave) (ws:WaveSimModel) =
     let arrayIndex = cycle * ws.SamplingZoom
     let hiddenValue =

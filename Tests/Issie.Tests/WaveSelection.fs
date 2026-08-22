@@ -71,7 +71,7 @@ let private closedSimulation =
         (match Simulator.startCircuitSimulation maxArraySize "closed" closed.CanvasState [ closed; probed ] with
          | Error e -> failwith $"Simulation setup failed: %A{e}"
          | Ok simData ->
-             simData.FastSim, WaveSimSVGs.getWaves Set.empty ModelHelpers.initWSModel simData.FastSim)
+             simData.FastSim, TestFixtures.allWavesOf ModelHelpers.initWSModel simData.FastSim)
 
 /// The simulation and every wave the wave simulator would offer from it. Built once: making a
 /// FastSimulation is not cheap, and the tests only read it.
@@ -79,12 +79,12 @@ let private simulation =
     lazy
         (match Simulator.startCircuitSimulation maxArraySize "top" top.CanvasState [ top; solo; twin ] with
          | Error e -> failwith $"Simulation setup failed: %A{e}"
-         | Ok simData -> simData.FastSim, WaveSimSVGs.getWaves Set.empty ModelHelpers.initWSModel simData.FastSim)
+         | Ok simData -> simData.FastSim, TestFixtures.allWavesOf ModelHelpers.initWSModel simData.FastSim)
 
 /// The waves offered for a canvas component, and the number of copies of it in the simulation
 let private offered (compId: int) =
     let fs, allWaves = simulation.Force()
-    WaveSimSelect.wavesOfComponent fs allWaves (ComponentId compId)
+    WaveSimSelect.wavesOfComponent fs ModelHelpers.initWSModel (ComponentId compId)
 
 //-------------------------------------------------------------------------------------------//
 // A third design, for the collapsed hierarchy the selector draws.
@@ -122,7 +122,7 @@ let private deepSimulation =
         (let sheets = [ deepSheet; midSheet; leafSheet ]
          match Simulator.startCircuitSimulation maxArraySize "deep" deepSheet.CanvasState sheets with
          | Error e -> failwith $"Simulation setup failed: %A{e}"
-         | Ok simData -> simData.FastSim, WaveSimSVGs.getWaves Set.empty ModelHelpers.initWSModel simData.FastSim)
+         | Ok simData -> simData.FastSim, TestFixtures.allWavesOf ModelHelpers.initWSModel simData.FastSim)
 
 /// Every instance of the simulation: the top sheet, which nothing contains, and one per custom
 /// component - each of which introduces the instance of the sheet it names.
@@ -253,12 +253,83 @@ let private clashSimulation =
          with
          | Error e -> failwith $"Simulation setup failed: %A{e}"
          | Ok simData ->
-             simData.FastSim, WaveSimSVGs.getWaves Set.empty ModelHelpers.initWSModel simData.FastSim)
+             simData.FastSim, TestFixtures.allWavesOf ModelHelpers.initWSModel simData.FastSim)
 
 let tests =
     testList
         "WaveSelection"
-        [ testCase "enumerating one instance's waves agrees with the whole wave index"
+        [ testCase "a real design's waves all re-resolve, and its first start chooses some"
+          <| fun () ->
+              // The small fixtures above have no Viewers, no IOLabels and no wide buses, and those
+              // are exactly the components whose ports carry a wave under a rule of their own.
+              // Every shipped demo, simulated and asked the two questions the wave selector asks
+              // of a simulation it has just built.
+              let demosDir =
+                  System.IO.Path.GetFullPath(
+                      System.IO.Path.Combine(__SOURCE_DIRECTORY__, "..", "..", "static", "demos"))
+
+              let projects = System.IO.Directory.GetDirectories demosDir |> Array.sort
+              Expect.isGreaterThan projects.Length 0 $"no demo projects under {demosDir}"
+
+              projects
+              |> Array.iter (fun projectPath ->
+                  let name = System.IO.Path.GetFileName projectPath
+
+                  let sheets =
+                      match FilesIO.loadAllComponentFiles projectPath with
+                      | Error msg -> failtest $"{name}: {msg}"
+                      | Ok statuses ->
+                          statuses
+                          |> List.map (function
+                              | FilesIO.OkComp ldc
+                              | FilesIO.OkAuto ldc
+                              | FilesIO.Resolve(ldc, _) -> ldc)
+
+                  // the sheet nothing else instantiates is the one a user would simulate
+                  let instantiated =
+                      sheets
+                      |> List.collect (fun ldc ->
+                          fst ldc.CanvasState
+                          |> List.choose (fun comp ->
+                              match comp.Type with
+                              | Custom cc -> Some cc.Name
+                              | _ -> None))
+                      |> Set.ofList
+
+                  match sheets |> List.tryFind (fun ldc -> not (Set.contains ldc.Name instantiated)) with
+                  | None -> ()
+                  | Some top ->
+                      match Simulator.startCircuitSimulation maxArraySize top.Name top.CanvasState sheets with
+                      | Error _ -> () // a demo that does not simulate is PersistenceTests' business
+                      | Ok simData ->
+                          let fs = simData.FastSim
+
+                          fs.WaveIndex
+                          |> Array.iter (fun wi ->
+                              Expect.equal
+                                  (WaveSimHelpers.reResolveWave fs wi)
+                                  (Some wi)
+                                  $"{name}/{top.Name}: %A{wi.PortType}[%d{wi.PortNumber}] resolves to itself")
+
+                          Expect.isNonEmpty
+                              (WaveSimSelect.defaultSelectedWaves fs)
+                              $"{name}/{top.Name}: a first start offers something to look at")
+
+          testCase "every wave the simulation offers re-resolves to itself"
+          <| fun () ->
+              // A selection survives a rebuild by being resolved again against the new simulation:
+              // the component is asked where its own port now is. Against the SAME simulation that
+              // has to be the identity, or a selection is thrown away every time it is checked.
+              let fs, _ = deepSimulation.Force()
+
+              fs.WaveIndex
+              |> Array.iter (fun wi ->
+                  Expect.equal
+                      (WaveSimHelpers.reResolveWave fs wi)
+                      (Some wi)
+                      $"%A{wi.Id} port %A{wi.PortType}[%d{wi.PortNumber}] resolves to itself")
+
+          testCase "enumerating one instance's waves agrees with the whole wave index"
           <| fun () ->
               // The selector works out what ONE instance offers from the design - that sheet's own
               // components, each looked up in the simulation - so that a design expanding to tens
@@ -358,7 +429,7 @@ let tests =
           testCase "a wave in a subsheet knows its sheet by the instance's type, not its label"
           <| fun () ->
               let fs, allWaves = simulation.Force()
-              match fst (WaveSimSelect.wavesOfComponent fs allWaves (ComponentId 12)) with
+              match fst (WaveSimSelect.wavesOfComponent fs ModelHelpers.initWSModel (ComponentId 12)) with
               | wave :: _ ->
                   Expect.equal
                       (WaveSimHelpers.sheetOfWave fs wave)
@@ -372,7 +443,7 @@ let tests =
           testCase "a wave on the top sheet knows its sheet"
           <| fun () ->
               let fs, allWaves = simulation.Force()
-              match fst (WaveSimSelect.wavesOfComponent fs allWaves (ComponentId 2)) with
+              match fst (WaveSimSelect.wavesOfComponent fs ModelHelpers.initWSModel (ComponentId 2)) with
               | wave :: _ ->
                   Expect.equal (WaveSimHelpers.sheetOfWave fs wave) (Some "top") "the simulated top sheet"
                   Expect.isNonEmpty (WaveSimHelpers.connsOfWave fs wave) "and its connections are found"
@@ -386,8 +457,8 @@ let tests =
           <| fun () ->
               let fs, allWaves = simulation.Force()
               let chosen =
-                  WaveSimSelect.defaultSelectedWaves fs allWaves
-                  |> List.map (fun wi -> WaveSimSelect.getName wi fs)
+                  WaveSimSelect.defaultSelectedWaves fs
+                  |> List.map (fun wi -> WaveSimHelpers.getName wi fs)
               // IN before OUT: inputs are ranked before outputs, and each group is sorted by label
               Expect.equal chosen [ "IN"; "OUT" ] "the top sheet's ports, inputs first"
 
@@ -395,7 +466,7 @@ let tests =
           <| fun () ->
               let fs, allWaves = simulation.Force()
               Expect.all
-                  (WaveSimSelect.defaultSelectedWaves fs allWaves)
+                  (WaveSimSelect.defaultSelectedWaves fs)
                   (fun wi -> snd wi.Id = [])
                   "every default wave is on the simulated top sheet, not inside an instance"
 
@@ -403,7 +474,7 @@ let tests =
           <| fun () ->
               let fs, allWaves = simulation.Force()
               Expect.all
-                  (WaveSimSelect.defaultSelectedWaves fs allWaves)
+                  (WaveSimSelect.defaultSelectedWaves fs)
                   (fun wi -> fst wi.Id <> ComponentId 2)
                   "TOPNOT is on the top sheet but is not one of its ports"
 
@@ -411,7 +482,7 @@ let tests =
           <| fun () ->
               let fs, allWaves = simulation.Force()
               let mine = [ (Map.toList allWaves |> List.head |> fst) ]
-              let ws = { ModelHelpers.initWSModel with AllWaves = allWaves; SelectedWaves = mine }
+              let ws = { ModelHelpers.initWSModel with WaveDetails = allWaves; SelectedWaves = mine }
               Expect.equal
                   (WaveSimSelect.withDefaultSelectionIfEmpty fs ws).SelectedWaves
                   mine
@@ -424,7 +495,7 @@ let tests =
               let fs, allWaves = simulation.Force()
               let ws =
                   { ModelHelpers.initWSModel with
-                      AllWaves = allWaves
+                      WaveDetails = allWaves
                       SelectedWaves = []
                       SelectedRams = Map [ (ComponentId 999, []), "RAM1" ] }
               Expect.isEmpty
@@ -434,7 +505,7 @@ let tests =
           testCase "an empty selection is filled in"
           <| fun () ->
               let fs, allWaves = simulation.Force()
-              let ws = { ModelHelpers.initWSModel with AllWaves = allWaves; SelectedWaves = [] }
+              let ws = { ModelHelpers.initWSModel with WaveDetails = allWaves; SelectedWaves = [] }
               Expect.isNonEmpty
                   (WaveSimSelect.withDefaultSelectionIfEmpty fs ws).SelectedWaves
                   "the viewer never opens empty when the top sheet has ports"
@@ -443,8 +514,8 @@ let tests =
           <| fun () ->
               let fs, allWaves = closedSimulation.Force()
               let chosen =
-                  WaveSimSelect.defaultSelectedWaves fs allWaves
-                  |> List.map (fun wi -> WaveSimSelect.getName wi fs)
+                  WaveSimSelect.defaultSelectedWaves fs
+                  |> List.map (fun wi -> WaveSimHelpers.getName wi fs)
               // the Viewer is inside the instance, which is exactly the point: it is the one signal
               // the author of the design said was worth watching, and nothing on the top sheet is
               Expect.equal chosen [ "PROBE" ] "the Viewer in the subsheet"
@@ -455,7 +526,7 @@ let tests =
               // this only checks that having ports stops the search there
               let fs, allWaves = simulation.Force()
               Expect.all
-                  (WaveSimSelect.defaultSelectedWaves fs allWaves)
+                  (WaveSimSelect.defaultSelectedWaves fs)
                   (fun wi ->
                       match Map.tryFind wi.Id fs.WaveComps with
                       | Some fc -> fc.AccessPath = []
@@ -559,7 +630,7 @@ let tests =
               // shape, so the filter only has to say which sheet.
               let fs, allWaves = deepSimulation.Force()
               Simulator.simCacheWS <- { Simulator.simCacheInit () with FastSim = fs }
-              let ws = { ModelHelpers.initWSModel with AllWaves = allWaves }
+              let ws = { ModelHelpers.initWSModel with WaveDetails = allWaves }
               let hierarchy = WaveSimHierarchy.getSelectorHierarchy fs ws
               let shown = hierarchy.HierOrder |> List.choose (fun node -> node.NodeInstance) |> Set.ofList
 
@@ -583,11 +654,11 @@ let tests =
               // The one mode the collapsed hierarchy cannot narrow: a wave already chosen inside an
               // instance no combo box is currently showing has to stay reachable, or it could never
               // be deselected. So it is bounded by the SELECTION instead, which is what keeps it off
-              // the expansion - reading every wave in AllWaves and every key of SimSheetStructure
+              // the expansion - reading every wave in WaveDetails and every key of SimSheetStructure
               // made one click on the checkbox cost the whole of a design that multiplies out.
               let fs, allWaves = deepSimulation.Force()
               Simulator.simCacheWS <- { Simulator.simCacheInit () with FastSim = fs }
-              let ws = { ModelHelpers.initWSModel with AllWaves = allWaves }
+              let ws = { ModelHelpers.initWSModel with WaveDetails = allWaves }
               let hierarchy = WaveSimHierarchy.getSelectorHierarchy fs ws
               let shown = hierarchy.HierOrder |> List.choose (fun node -> node.NodeInstance) |> Set.ofList
               Expect.isFalse
@@ -702,7 +773,7 @@ let tests =
 
           testCase "the viewer is sized by the rows it draws, not by the selection"
           <| fun () ->
-              // A selected wave AllWaves no longer holds is dropped from every column, since all
+              // A selected wave WaveDetails no longer holds is dropped from every column, since all
               // three are built from selectedWaves. Anything sized or hit-tested by the selection's
               // own length therefore disagreed with them by a row - which is how the tooltip on a
               // waveform came to answer for the waveform above it.
@@ -714,7 +785,7 @@ let tests =
 
               let ws =
                   { ModelHelpers.initWSModel with
-                      AllWaves = allWaves
+                      WaveDetails = allWaves
                       SelectedWaves = stale :: chosen }
               Expect.equal
                   (List.length (WaveSimStyle.selectedWaves ws))
@@ -823,7 +894,7 @@ let tests =
               let fs, allWaves = deepSimulation.Force()
               // filterWaves reaches the simulation through the wave-sim cache, as the dialog does
               Simulator.simCacheWS <- { Simulator.simCacheInit () with FastSim = fs }
-              let ws = { ModelHelpers.initWSModel with AllWaves = allWaves }
+              let ws = { ModelHelpers.initWSModel with WaveDetails = allWaves }
               let hierarchy = WaveSimHierarchy.getSelectorHierarchy fs ws
               let shown = hierarchy.HierOrder |> List.choose (fun node -> node.NodeInstance) |> Set.ofList
               let filtered = WaveSimSelectHelpers.filterWaves (Some shown) ws

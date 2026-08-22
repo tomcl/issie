@@ -367,8 +367,8 @@ let checkSimulationFits (arraySize: int) (cost: StepCost) : Result<unit, Simulat
     (5.8GB of step arrays) used to end its build ELEVEN MINUTES in with the renderer at 10GB and
     no simulation to show for it; with the arena the same build completes. What it does not do is
     make that build quick - the time was measured afterwards to be almost entirely algorithmic,
-    in phases that scale quadratically where gather stays linear (link, order, waves, and
-    AllWaves construction - see the perf-category phase table), and those are a separate fix.
+    in phases that scale quadratically where gather stays linear (link, order and waves - see the
+    perf-category phase table), and those are a separate fix.
 
     Two consequences to know about:
     - A slab is retained while ANY region of it is referenced, so a simulation's arrays free as

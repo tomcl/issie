@@ -44,7 +44,7 @@ let private simulateAt (ldc: LoadedComponent) (romId: int) (address: bigint) (ti
         |> List.iter (fun (cid, _, width) ->
             FastExtract.changeInput cid (IData(NumberHelpers.convertBigintToFastData width address)) 0 fs)
         FastRun.runFastSimulation None ticks fs |> ignore
-        let waves = WaveSimSVGs.getWaves Set.empty ModelHelpers.initWSModel fs
+        let waves = TestFixtures.allWavesOf ModelHelpers.initWSModel fs
         let wave =
             waves
             |> Map.toList
@@ -98,7 +98,7 @@ let tests =
               let ldc = romSheet "asyncrom" (AsyncROM1 romMemory)
               let fs, _ = simulateAt ldc 2 0I 3
               let inputWave =
-                  WaveSimSVGs.getWaves Set.empty ModelHelpers.initWSModel fs
+                  TestFixtures.allWavesOf ModelHelpers.initWSModel fs
                   |> Map.toList
                   |> List.map snd
                   |> List.find (fun w ->

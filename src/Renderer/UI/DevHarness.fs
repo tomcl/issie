@@ -178,7 +178,7 @@ let private simStats () =
                waves =
                 latestModel
                 |> Option.map (fun m ->
-                    m.WaveSim |> Map.toSeq |> Seq.sumBy (fun (_, ws) -> ws.AllWaves.Count))
+                    m.WaveSim |> Map.toSeq |> Seq.sumBy (fun (_, ws) -> ws.WaveDetails.Count))
                 |> Option.defaultValue 0
                typedArrayMB = float fs.StepCost.TypedArrayBytes * float fs.MaxArraySize / 1.0e6
                heapStepMB = float fs.StepCost.HeapBytes * float fs.MaxArraySize / 1.0e6 |}

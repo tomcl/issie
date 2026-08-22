@@ -105,7 +105,7 @@ let initWSModel  : WaveSimModel = {
     WSConfig = Constants.defaultWSConfig
     WSConfigDialog = None
     State = Empty
-    AllWaves = Map.empty
+    WaveDetails = Map.empty
     SelectedWaves = List.empty
     StartCycle = 0
     ShownCycles = 5
@@ -461,20 +461,21 @@ let getCurrSheets (model: Model) =
 
 /// Release what a WaveSimModel holds that should live only as long as its simulation does.
 ///
-/// AllWaves looks like plain data and is not. A Fable Map carries its comparer, a closure made
-/// where the map was built - inside getWaves, with the FastSimulation in scope - and a V8 closure
-/// context captures the scope's variables whether or not this closure uses them. So the comparer
-/// of every AllWaves map pins the whole simulation it was built from, step arrays and all.
-/// A wave simulation keeps its WaveSimModel after it ends, for its configuration and its selected
-/// waves; keeping AllWaves too kept the dead simulation - hundreds of MB on a large design, one
-/// per sheet ever wave-simulated - for the life of the project. Found with a heap snapshot, after
-/// every holder the code knows about was confirmed empty.
+/// WaveDetails looks like plain data and is not. A Fable Map carries its comparer, a closure made
+/// where the map was built, and a V8 closure context captures the scope's variables whether or not
+/// this closure uses them - so a map built with the FastSimulation in scope pins the whole
+/// simulation, step arrays and all. A wave simulation keeps its WaveSimModel after it ends, for
+/// its configuration and its selected waves; keeping the waves too kept the dead simulation -
+/// hundreds of MB on a large design, one per sheet ever wave-simulated - for the life of the
+/// project. Found with a heap snapshot, after every holder the code knows about was confirmed
+/// empty. WaveSimHelpers.makeWaveMap is where that map is built for exactly this reason, and this
+/// is the belt to its braces: the SVGs a hundred Wave records hold are worth releasing anyway.
 ///
-/// Success and Loading become Ended because AllWaves is what the viewer draws from: a state that
+/// Success and Loading become Ended because WaveDetails is what the viewer draws from: a state that
 /// says "showing waveforms" over an emptied map would be a lie some view would act on.
 let private releaseWaveSimData (ws: WaveSimModel) : WaveSimModel =
     { ws with
-        AllWaves = Map.empty
+        WaveDetails = Map.empty
         State =
             match ws.State with
             | Success | Loading -> Ended
@@ -487,7 +488,7 @@ let private releaseWaveSimData (ws: WaveSimModel) : WaveSimModel =
 ///
 /// CurrentStepSimulationStep is the only field of the model holding one. Every WaveSim entry is
 /// released as well - see releaseWaveSimData - which covers the sheet the caller is about to
-/// resimulate (its AllWaves is rebuilt by the refresh), the sheets left behind by switching the
+/// resimulate (its WaveDetails is rebuilt by the refresh), the sheets left behind by switching the
 /// waveform simulator between sheets, and the entry EndWaveSim is about to mark Ended. The truth
 /// table's TableSimData is deliberately left alone: it is what regenerates the table when a
 /// constraint changes, so it is in use rather than stale.

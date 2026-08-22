@@ -49,22 +49,40 @@ let cancelSpinner (model:Model) =
 
 
 
-/// What identifies a wave across a rebuild of the simulation.
+/// Bring a WaveSimModel's selection, and what is known about each selected wave, into step with
+/// the simulation.
 ///
-/// SimArrayIndex is part of WaveIndexT and changes when the simulation is rebuilt, so a wave the
-/// user selected before that cannot be looked up in AllWaves directly. These are the other three
-/// fields - exactly what the old isSameWave compared, one wave at a time, by scanning every wave in
-/// the design for each selected one.
-let private waveIdentity (wi: WaveIndexT) = wi.Id, wi.PortType, wi.PortNumber
+/// Two things have to be true before anything reads the model. Every selected wave must name a port
+/// of the simulation as it is NOW: a wave index says where its data lies as well as which port it
+/// is, and the first is true only of the build it came from, so a selection made before a rebuild
+/// has to be resolved against the new one and a wave the rebuilt design no longer offers dropped.
+/// And every selected wave must have its Wave record - its name, its width, where its data lies -
+/// since that is what the viewer draws from and what the selection dialog reads back.
+///
+/// Records already held are kept: they carry the SVG last drawn, which is what makes redrawing a
+/// view cheap.
+///
+/// This is called at the top of every refresh, and it has to be, not once the data for the view has
+/// arrived. Selecting a wave in .NET mode is exactly the case where the view is NOT held: the
+/// refresh asks for it and returns, and anything conditional on that answer never runs. Leaving the
+/// model unreconciled that long emptied the selection - the dialog reads it back through
+/// consistentSelectedWaves, which drops what has no record, so ticking one more box replaced the
+/// selection with the box just ticked.
+let private reconcileWaves (fs: FastSimulation) (ws: WaveSimModel) : WaveSimModel =
+    let selected = ws.SelectedWaves |> List.choose (WaveSimHelpers.reResolveWave fs)
 
-/// The wave each identity now names. Turns re-resolving a selection from a scan of the whole design
-/// per selected wave into one lookup per selected wave.
-let private currentWaveOfIdentity: Map<WaveIndexT, Wave> -> Map<FComponentId * PortType * int, WaveIndexT> =
-    Helpers.memoizeByIdentity (fun allWaves ->
-        allWaves
-        |> Map.toList
-        |> List.map (fun (wi, _) -> waveIdentity wi, wi)
-        |> Map.ofList)
+    let details =
+        selected
+        |> List.map (fun wi ->
+            wi,
+            match Map.tryFind wi ws.WaveDetails with
+            | Some wave -> wave
+            | None -> WaveSimHelpers.makeWave ws fs wi)
+        |> WaveSimHelpers.makeWaveMap
+
+    { ws with
+        SelectedWaves = selected
+        WaveDetails = details }
 
 /// The RAM and ROM components of a simulation, in the order the RAM selector lists them.
 ///
@@ -135,30 +153,23 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
     /// The validation may be done more than once because this function is recursive, but that is OK.
     /// validateSimparas is idempotent unless model changes.
     let wsModel =
-        let librarySheets =
-            model.CurrentProj
-            |> Option.map (fun proj ->
-                proj.LoadedComponents
-                |> List.filter ComponentLibraries.isLibrarySheet
-                |> List.map (fun ldc -> ldc.Name)
-                |> Set.ofList)
-            |> Option.defaultValue Set.empty
-        let createWaves (wsModel: WaveSimModel) =
-            // Timed and measured alongside the build phases (see FastBuild.buildFastSimulation):
-            // this makes one Wave record per viewable port, which on a large flat simulation is
-            // more records than the design has components.
-            let t0, m0 = TimeHelpers.getTimeMs (), TimeHelpers.usedHeapBytes ()
-            {wsModel with AllWaves = WaveSimSVGs.getWaves librarySheets wsModel (Simulator.getFastSim())}
+        let chooseDefaultWaves (wsModel: WaveSimModel) =
             // a viewer with nothing in it is never what the user wants: give a first start the top
             // sheet's own ports. Does nothing once anything at all has been selected.
-            |> WaveSimSelect.withDefaultSelectionIfEmpty (Simulator.getFastSim())
+            //
+            // This is where every wave the simulation offers used to be described, one record per
+            // viewable port - more records than a large flat design has components. What each
+            // SELECTED wave is, is worked out below.
+            let t0, m0 = TimeHelpers.getTimeMs (), TimeHelpers.usedHeapBytes ()
+            WaveSimSelect.withDefaultSelectionIfEmpty (Simulator.getFastSim()) wsModel
             |> fun ws ->
                 if Log.isOn Log.Perf then
                     let dt, dm = TimeHelpers.getTimeMs () - t0, TimeHelpers.usedHeapBytes () - m0
-                    Log.dbg Log.Perf $"createWaves {ws.AllWaves.Count} waves %8.0f{dt}ms  %+6.0f{dm / 1.0e6}MB"
+                    Log.dbg Log.Perf $"defaultWaves {ws.SelectedWaves.Length} selected %8.0f{dt}ms  %+6.0f{dm / 1.0e6}MB"
                 ws
         validateSimParas wsModel
-        |> if newSimulation then createWaves else id
+        |> if newSimulation then chooseDefaultWaves else id
+        |> reconcileWaves (Simulator.getFastSim())
 
     // Use the given (more uptodate) wsModel. This ensures it is returned from this function.
     let model = updateWSModel (fun _ -> wsModel) model
@@ -202,12 +213,15 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                 |> setProgressBar $"Extending Circuit Simulation..." spinnerFunc cyclesToDo
             model, Elmish.Cmd.none
  
-        /// The view this refresh is for: ShownCycles samples, one every SamplingZoom cycles,
-        /// from StartCycle - which counts SAMPLES, not clock cycles (see WaveSlice.Window).
-        let window: WaveSlice.Window =
-            { StartSample = wsModel.StartCycle
-              Multiplier = wsModel.SamplingZoom
-              SampleCount = wsModel.ShownCycles }
+        /// The view a WaveSimModel is asking for: ShownCycles samples, one every SamplingZoom
+        /// cycles, from StartCycle - which counts SAMPLES, not clock cycles (see WaveSlice.Window).
+        let windowOf (ws: WaveSimModel) : WaveSlice.Window =
+            { StartSample = ws.StartCycle
+              Multiplier = ws.SamplingZoom
+              SampleCount = ws.ShownCycles }
+
+        /// The view this refresh is for.
+        let window = windowOf wsModel
 
         /// the drivers the shown waves read. Taken from the selection as it stands: after a
         /// rebuild it may name indices that no longer exist, which the re-resolution below
@@ -259,14 +273,26 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                                 let m =
                                     updateWSModel
                                         (fun ws ->
-                                            { ws with AllWaves = ws.AllWaves |> Map.map (fun _ w -> { w with SVG = None }) })
+                                            { ws with WaveDetails = ws.WaveDetails |> Map.map (fun _ w -> { w with SVG = None }) })
                                         m
 
                                 fst (refreshWaveSim false (getWSModel m) m))
                         | Error e -> failed e)
                     (fun exn -> failed exn.Message)
 
-        if not (WaveProvider.covers window (List.map SignalHandle shownDrivers) wsModel.CursorExactClkCycle) then
+        let viewIsHeld =
+            WaveProvider.covers window (List.map SignalHandle shownDrivers) wsModel.CursorExactClkCycle
+
+        // What this refresh is working from, in one line: the view, what is selected, what is known
+        // about it, and whether the data for it is already here. The waveform viewer's failures are
+        // almost always a disagreement between two of those.
+        let heldOrNot = if viewIsHeld then "held" else "fetching"
+
+        Log.dbg
+            Log.Wave
+            $"refresh: view {window.StartSample}+{window.SampleCount}x{window.Multiplier} cursor {wsModel.CursorExactClkCycle}, {wsModel.SelectedWaves.Length} selected, {wsModel.WaveDetails.Count} detailed, {shownDrivers.Length} drivers - {heldOrNot}"
+
+        if not viewIsHeld then
             model, fetchThisView ()
         else
 
@@ -296,42 +322,40 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                         let wsModel =
                             getWSModel model
                         
-                        // redo waves based on simulation data which is now correct
-                        let allWaves = wsModel.AllWaves
+                        let simulationIsStillUptodate = Simulator.getFastSim().ClockTick >= lastCycleNeeded wsModel
 
-                        let simulationIsStillUptodate = Simulator.getFastSim().ClockTick >= lastCycleNeeded wsModel                              
-                        if not simulationIsStillUptodate then
-                            // The simulation has changed due to viewer width change. We need to redo the simulation.
-                            // This is done by calling refreshWaveSim again, we will come back here
-                            // after the simulation has been redone and is uptodate.
-                            // TODO: maybe the viewer width check should be earlier in this function?
+                        // The viewer width check above can change how many cycles are shown, and it
+                        // runs AFTER the data for this refresh was asked for. A row is as wide as
+                        // its name, so selecting a wave with a longer name than any before it takes
+                        // cycles off the view - and with the sidecar simulating, what was fetched is
+                        // one exact window and covers no other. Drawing then found nothing and left
+                        // the waveforms blank until something else happened to move the view.
+                        //
+                        // This cannot loop: it re-enters only when the view has ALREADY changed, and
+                        // the next pass asks for the view it now has.
+                        let viewIsUnchanged = windowOf wsModel = window
+
+                        if not simulationIsStillUptodate || not viewIsUnchanged then
+                            // The simulation or the view has changed under this refresh. Do it again
+                            // for what we now have; we come back here when both are current.
                             refreshWaveSim newSimulation wsModel model
                         else
-                            // The array index of a wave changes when the simulation is rebuilt, so a
-                            // selection made before that has to be re-resolved against what AllWaves
-                            // holds now, by the other three fields. That is the only time it can be
-                            // needed: generating waveforms replaces the Wave records but never the KEYS
-                            // - Map.change keeps the key set - so a selection that is already current
-                            // stays current however many times the SVGs are redrawn.
-                            //
-                            // Asking first costs one lookup per SELECTED wave and is the answer on
-                            // every refresh except the one after a rebuild. Reaching for the identity
-                            // map unconditionally cost a 208,896-entry map REBUILT on every scroll
-                            // step, since scrolling stales every selected wave and so returns a new
-                            // AllWaves each time, which is what the map is memoised on.
-                            let selectedWaves =
-                                if wsModel.SelectedWaves |> List.forall (fun wi -> Map.containsKey wi allWaves) then
-                                    wsModel.SelectedWaves
-                                else
-                                    let currentWave = currentWaveOfIdentity allWaves
-                                    wsModel.SelectedWaves
-                                    |> List.choose (fun wi -> Map.tryFind (waveIdentity wi) currentWave)
+                            // Read again rather than reusing what refreshWaveSim bound: this runs
+                            // after a render, and re-resolving a selection against the simulation is
+                            // exactly the case where it may not be the one we started with.
+                            let fs = Simulator.getFastSim()
+
+                            // Again, because this runs after a render: the viewer width check just
+                            // above can change the view, and a rebuild can land between the two.
+                            let wsModel = reconcileWaves fs wsModel
+                            let selectedWaves = wsModel.SelectedWaves
+
                             // Only generate waveforms for selected waves, and only where the SVG they
                             // hold is not the one the current view calls for.
                             let wavesToBeMade =
                                 selectedWaves
                                 |> List.filter (fun wi ->
-                                    match Map.tryFind wi allWaves with
+                                    match Map.tryFind wi wsModel.WaveDetails with
                                     | Some wave -> not <| WaveSimSVGs.waveformIsUptodate wsModel wave
                                     | None -> false)
                             if wsModel.StartCycle < 0 then
@@ -360,7 +384,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                                 {
                                     wsModel with
                                         State = Success
-                                        AllWaves = spinnerInfo.WSM.AllWaves
+                                        WaveDetails = spinnerInfo.WSM.WaveDetails
                                         SelectedWaves = selectedWaves
                                         RamComps = ramCompIds
                                         SelectedRams = selectedRams

@@ -23,7 +23,7 @@ open WaveSimTypes
 /// three columns are built from this, so it is also what a row number means anything against.
 let selectedWaves (wsModel: WaveSimModel) : Wave list =
     wsModel.SelectedWaves
-    |> List.choose (fun wi -> Map.tryFind wi wsModel.AllWaves)
+    |> List.choose (fun wi -> Map.tryFind wi wsModel.WaveDetails)
 
 /// Convert XYPos list to string
 let pointsToString (points: XYPos array) : string =
@@ -580,7 +580,7 @@ let showWaveformsStyle = Style [
 ]
 
 /// The height the waveform table wants: one row per waveform DRAWN, which is a selected wave that
-/// AllWaves still holds, plus the row of clock cycle numbers above them.
+/// WaveDetails still holds, plus the row of clock cycle numbers above them.
 let calcWaveformHeight wsModel =
     let rowPixels = Constants.rowHeight * (selectedWaves wsModel).Length
     let wantedHeight = float rowPixels + 0.6 * Constants.viewBoxHeight + 20.0

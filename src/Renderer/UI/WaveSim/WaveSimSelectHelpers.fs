@@ -129,11 +129,11 @@ let waveIndicesOfInstance (fs: FastSimulation) (InstancePath ap as instance) : W
 /// it happens, since a selection quietly shrinking is worth knowing about.
 ///
 /// It used to check the CANDIDATES against the simulation as well. They are read out of WaveIndex or
-/// out of AllWaves, both of which the simulation is what defines, so there was nothing there to
+/// out of WaveDetails, both of which the simulation is what defines, so there was nothing there to
 /// find.
 let consistentSelectedWaves (ws: WaveSimModel) =
     let okSelectedWaves =
-        ws.SelectedWaves |> List.filter (fun selW -> Map.containsKey selW ws.AllWaves)
+        ws.SelectedWaves |> List.filter (fun selW -> Map.containsKey selW ws.WaveDetails)
     if okSelectedWaves.Length <> ws.SelectedWaves.Length then
         Log.dbg Log.Wave $"wave consistency: {okSelectedWaves.Length} valid selected waves of {ws.SelectedWaves.Length}"
     okSelectedWaves
@@ -185,16 +185,17 @@ let filterWaves (shown: Set<InstancePath> option) (wsModel: WaveSimModel) =
     let candidates =
         match shown with
         | Some instances ->
-            instances |> Set.toList |> List.collect (waveIndicesOfInstance fs)
-            // waves inside a library component are not offered, so are not in AllWaves
-            |> List.choose (fun wi -> Map.tryFind wi wsModel.AllWaves)
+            // Described as they are drawn, rather than looked up in a map of every wave the
+            // simulation offers. A library component is opaque in the hierarchy, so no instance
+            // inside one is ever on show and none of their waves can reach this.
+            instances
+            |> Set.toList
+            |> List.collect (waveIndicesOfInstance fs)
+            |> List.map (makeWave wsModel fs)
         | None ->
             // Show Only Selected draws the waves already chosen and nothing else, so those are the
             // only candidates there are, and there are at most maxAllowedViewerWaves of them.
-            // Reading every wave in AllWaves instead - 208,896 records on main6 of largeTest, one
-            // per port of every INSTANCE of every sheet - made the one mode the collapsed hierarchy
-            // cannot narrow the one mode that scanned the whole expansion.
-            wsModel.SelectedWaves |> List.choose (fun wi -> Map.tryFind wi wsModel.AllWaves)
+            wsModel.SelectedWaves |> List.choose (fun wi -> Map.tryFind wi wsModel.WaveDetails)
     let selectedIds = Set.ofList (consistentSelectedWaves wsModel)
     let matchWithBox (searchString: string) (matcher:string) =
         let s = searchString.Trim().ToUpperInvariant()

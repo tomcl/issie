@@ -182,7 +182,29 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
     // is measured from the DOM, but it is already in the model - a ResizeObserver puts it there -
     // so nothing here needs a render to have happened. The TODO this answers is as old as the
     // function.
+    /// The view a WaveSimModel is asking for: ShownCycles samples, one every SamplingZoom cycles,
+    /// from StartCycle - which counts SAMPLES, not clock cycles (see WaveSlice.Window).
+    let windowOf (ws: WaveSimModel) : WaveSlice.Window =
+        { StartSample = ws.StartCycle
+          Multiplier = ws.SamplingZoom
+          SampleCount = ws.ShownCycles }
+
+    /// The view as it was before this refresh, to tell a refresh that changes it from one that
+    /// does not - which is the difference between a wait that starts now and one already running.
+    let previousWindow = windowOf (getWSModel model)
+
     let model = updateWSModel (fun _ -> wsModel) model |> updateViewerWidthInWaveSim model.WaveSimViewerWidth
+
+    // The one write of this timestamp. Everything that asks how long the waveforms have been
+    // behind is a pure function of it and the clock, worked out where it is asked.
+    let model =
+        model
+        |> updateWSModel (fun ws ->
+            if windowOf ws = previousWindow then
+                ws
+            else
+                { ws with ViewSetAtMs = TimeHelpers.getTimeMs () })
+
     let wsModel = getWSModel model
 
     // local containing the current fast simulation to be examined and extended if need be.
@@ -224,13 +246,6 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                 |> setProgressBar $"Extending Circuit Simulation..." spinnerFunc cyclesToDo
             model, Elmish.Cmd.none
  
-        /// The view a WaveSimModel is asking for: ShownCycles samples, one every SamplingZoom
-        /// cycles, from StartCycle - which counts SAMPLES, not clock cycles (see WaveSlice.Window).
-        let windowOf (ws: WaveSimModel) : WaveSlice.Window =
-            { StartSample = ws.StartCycle
-              Multiplier = ws.SamplingZoom
-              SampleCount = ws.ShownCycles }
-
         /// The view this refresh is for.
         let window = windowOf wsModel
 
@@ -276,23 +291,27 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                     ()
                     (function
                         | Ok() ->
-                            UpdateModel(fun m ->
-                                // The waves on screen were drawn before this window arrived, and
-                                // carry the view's cache keys, so they count as up to date and
-                                // would not be made again. Throw their SVGs away so that the
-                                // refresh below draws them from what was just fetched.
-                                let m =
-                                    updateWSModel
-                                        (fun ws ->
-                                            { ws with WaveDetails = ws.WaveDetails |> Map.map (fun _ w -> { w with SVG = None }) })
-                                        m
-
-                                fst (refreshWaveSim false (getWSModel m) m))
+                            // Just refresh: the waves on screen are the ones drawn for whatever
+                            // view they were last drawn for, and each carries that view's stamp, so
+                            // the refresh below finds them out of date and redraws them from what
+                            // has just arrived.
+                            //
+                            // This used to throw every SVG away first, because a wave that had been
+                            // regenerated while the data was in flight carried the CURRENT view's
+                            // stamp with nothing drawn under it, and so counted as up to date. A
+                            // wave with no data now keeps what it is showing and does not take the
+                            // stamp, which removes the reason - and with it a flash of white across
+                            // every waveform on every scroll.
+                            UpdateModel(fun m -> fst (refreshWaveSim false (getWSModel m) m))
                         | Error e -> failed e)
                     (fun exn -> failed exn.Message)
 
         let viewIsHeld =
-            WaveProvider.covers window (List.map SignalHandle shownDrivers) wsModel.CursorExactClkCycle
+            WaveProvider.covers
+                model.SimulateInRenderer
+                window
+                (List.map SignalHandle shownDrivers)
+                wsModel.CursorExactClkCycle
 
         // What this refresh is working from, in one line: the view, what is selected, what is known
         // about it, and whether the data for it is already here. The waveform viewer's failures are
@@ -307,7 +326,22 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
             model, fetchThisView ()
         else
 
-            FastRun.runFastSimulation (Some Constants.initSimulationTime) (lastCycleNeeded wsModel)  fs
+            // Run the renderer's own simulator to the last cycle this view needs - if it is the one
+            // answering. The sidecar is run to that same cycle as part of fetching the view, so
+            // when it is simulating this ran the whole thing a SECOND time, in the process that is
+            // drawing, and threw every cycle of it away. With the cursor at 1.26M on 3cpu that is a
+            // renderer locked up for as long as the simulation takes, starting the moment the
+            // waveforms became correct - and it is the renderer's run, not the sidecar's, that the
+            // progress bar below is reporting.
+            //
+            // What still reads the renderer's own step arrays in .NET mode - the schematic probe
+            // and the RAM tables - therefore reads a simulation that has not been run. Those move
+            // to the sidecar next; showing them stale is better than running a 4,000,000 cycle
+            // simulation twice to keep them right.
+            (if model.SimulateInRenderer then
+                 FastRun.runFastSimulation (Some Constants.initSimulationTime) (lastCycleNeeded wsModel) fs
+             else
+                 None)
             |> (fun speedOpt -> // if not None the fast simulation has timed out and has not yet completed
                     let cyclesToDo = (lastCycleNeeded wsModel) - fs.ClockTick // may be negative
 
@@ -318,7 +352,8 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                     | _ ->
                         // Force simulation to finish now in case it is not finished.
                         // We know this will be quick enough not to need a spinner.
-                        FastRun.runFastSimulation None (lastCycleNeeded wsModel) fs |> ignore
+                        if model.SimulateInRenderer then
+                            FastRun.runFastSimulation None (lastCycleNeeded wsModel) fs |> ignore
                             
                         // Simulation has now always finished so we can generate the waves
                         // this again may need to be done in a spinner if it takes too long.
@@ -333,7 +368,18 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                         let wsModel =
                             getWSModel model
                         
-                        let simulationIsStillUptodate = Simulator.getFastSim().ClockTick >= lastCycleNeeded wsModel
+                        // Has the simulator been run far enough for what is now being drawn?
+                        //
+                        // Asked of the simulator that is RUNNING. The renderer's own answers with its
+                        // clock tick; the sidecar has been run to the last cycle this view needs as
+                        // part of fetching it, and `covers` above is what says that fetch has landed.
+                        // Reading the renderer's clock tick while the sidecar simulates asks a
+                        // simulation that is never run whether it has run - always no, and the branch
+                        // below calls this function again, which is an unbounded recursion inside one
+                        // message and locks the renderer up with no way back.
+                        let simulationIsStillUptodate =
+                            not model.SimulateInRenderer
+                            || Simulator.getFastSim().ClockTick >= lastCycleNeeded wsModel
 
                         // Rendering can change the viewer's width - the panel divider moves, the
                         // window is resized - and the width decides how many cycles are shown. When

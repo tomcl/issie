@@ -13,6 +13,14 @@
 
 
 module Constants =
+
+    /// How long the waveforms may lag the view before the viewer says so, in ms.
+    ///
+    /// Long enough that no ordinary fetch reaches it - scrolling a window of a few cycles is tens
+    /// of milliseconds - and short enough that somebody looking at a wrong waveform finds out
+    /// while they are still looking at it. A wait that is EXPECTED to be long has a progress bar,
+    /// and this says nothing while one is up.
+    let staleWaveformWarningMs = 1000.0
     // Width of names column - replaced by calcNamesColWidth function
 
     /// Width of values column

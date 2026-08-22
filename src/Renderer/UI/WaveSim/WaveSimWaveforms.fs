@@ -456,7 +456,46 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
                 else
                     $"min( calc(100vh - {fixedHeight}px) ,  {wHeight}px)"
 
+            /// Said when the waveforms have been showing a view other than this one for longer
+            /// than any fetch takes, and nothing is claiming to be working on it.
+            ///
+            /// Waveforms lagging by a frame or two is how a viewer whose data comes over a wire is
+            /// meant to behave, and blanking them instead is worse. The cost of that is that a
+            /// waveform which is simply WRONG looks exactly like one that is about to be right,
+            /// and nothing in the viewer would ever have said otherwise. This is the difference,
+            /// and it is deliberately loud: it is here to catch our own bugs, in front of whoever
+            /// hits one.
+            ///
+            /// A pure function of the model and the clock, worked out here on every render rather
+            /// than tracked. The only thing recorded is when the view changed; whether each wave
+            /// has caught up with it is something each wave already says, and how long that has
+            /// been true is the clock's business.
+            let staleWarning =
+                let behindMs = TimeHelpers.getTimeMs () - wsModel.ViewSetAtMs
+
+                let anyWaveBehind () =
+                    selectedWaves wsModel
+                    |> List.exists (WaveSimSVGs.waveformIsUptodate wsModel >> not)
+
+                if
+                    model.SpinnerPayload = None
+                    && behindMs > Constants.staleWaveformWarningMs
+                    && anyWaveBehind ()
+                then
+                    [ div
+                          [ Style
+                                [ Background "#ffe0b2"
+                                  BorderBottom "1px solid #e69138"
+                                  Color "#7f4a00"
+                                  Padding "4px 8px"
+                                  FontSize "12px" ] ]
+                          [ str
+                                $"These waveforms have been showing an older view for %.0f{behindMs / 1000.0} seconds.                                   What is drawn is not what the cycle numbers above it say." ] ]
+                else
+                    []
+
             div [ HTMLAttr.Id "Scroller";  Style [ Height cssHeight; Width "100%"; CSSProp.Custom("overflow", "hidden auto")]] [
+                yield! staleWarning
                 div [ HTMLAttr.Id "WaveCols" ;showWaveformsStyle ]
                     [
                         namesColumn model wsModel dispatch 

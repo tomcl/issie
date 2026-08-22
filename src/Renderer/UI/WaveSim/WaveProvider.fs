@@ -36,9 +36,23 @@ module Constants =
 /// separate program is holding, and nothing in the model would be a better place to say so.
 let mutable private built: (string * int) option = None
 
+/// How far the sidecar's simulation has been run, as it last reported.
+///
+/// This and `built` above are the only state this module keeps, and neither is a copy of anything
+/// in the model: they are the renderer's picture of a process it cannot see inside. WHICH
+/// simulator is running is a model fact - Model.SimulateInRenderer - and is passed in rather than
+/// mirrored here, because a second copy of a model fact is a thing that can disagree with it.
+///
+/// The renderer keeps its own simulator's clock in the FastSimulation; the sidecar's is in the
+/// sidecar, and this is the renderer's copy of it. Written only from the chunk replies of runTo,
+/// which is where the sidecar says what it has reached.
+let mutable private sidecarClockTick = 0
+
 /// Forget what the sidecar holds, so the next refresh builds again. Called when the waveform
 /// simulation ends or the design changes.
-let forget () = built <- None
+let forget () =
+    built <- None
+    sidecarClockTick <- 0
 
 /// (component id, output port, access path) for each driver, taken from the wave index.
 ///
@@ -137,6 +151,7 @@ let private runTo (cycle: int) (onProgress: int -> unit) : JS.Promise<Result<uni
                 let parsed = parseJson reply
                 let tick: int = unbox parsed?clockTick
                 let finished: bool = unbox parsed?``done``
+                sidecarClockTick <- tick
                 onProgress tick
 
                 if finished then
@@ -236,11 +251,6 @@ let private fetchWindow
                 return Ok()
         }
 
-/// Which simulator is answering. Not a copy of Model.SimulateInRenderer for its own sake: the
-/// refresh has one question to ask - is the data for this view here yet - and the answer differs
-/// only in whether anything has to be waited for.
-let mutable private sidecarIsSimulating = false
-
 /// Everything the viewer needs for one view, in one promise: build if the sidecar does not hold
 /// the design, run to the last cycle the view shows, then fetch that window.
 let private fetchForView
@@ -270,21 +280,27 @@ let private fetchForView
 /// A new simulation means the design or its shape changed: what the sidecar holds is then not it,
 /// and any window already fetched was read from a simulation that no longer exists.
 let selectSimulator (inRenderer: bool) (newSimulation: bool) (localLookup: SignalHandle -> IOArray option) =
-    sidecarIsSimulating <- not inRenderer
-
     if inRenderer then
         WaveData.setLocal localLookup
     elif newSimulation then
         forget ()
         WaveData.setLocal localLookup
 
+/// How many cycles the simulation being shown has actually been run for.
+///
+/// Whichever simulator is running is the one that knows. Asking the renderer's FastSimulation
+/// while the sidecar simulates gives zero however far the sidecar has gone, which is not a number
+/// anything should act on: it put the cursor back to cycle 0 when a progress bar was cancelled.
+let cyclesSimulated (inRenderer: bool) (fs: FastSimulation) =
+    if inRenderer then fs.ClockTick else sidecarClockTick
+
 /// Is the data this view draws already where the viewer can read it?
 ///
 /// Always, when the renderer is simulating: its cache reads through to step arrays that are
 /// already in memory, so there is nothing to fetch and nothing to wait for. That asymmetry is the
 /// only thing that distinguishes the two simulators here, and it is why the caller needs no flag.
-let covers (window: Window) (handles: SignalHandle list) (cursorCycle: int) =
-    not sidecarIsSimulating || WaveData.coversFetched window handles cursorCycle
+let covers (inRenderer: bool) (window: Window) (handles: SignalHandle list) (cursorCycle: int) =
+    inRenderer || WaveData.coversFetched window handles cursorCycle
 
 /// Put the data for this view where the viewer can read it, for a simulator that has to be asked.
 /// Only ever called when `covers` says no, which for the renderer's own simulator is never.

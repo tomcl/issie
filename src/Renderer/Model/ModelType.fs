@@ -324,6 +324,19 @@ type WaveSimModel = {
     WaveDetails: Map<WaveIndexT, Wave>
     /// List of which waves are currently visible in the waveform viewer.
     SelectedWaves: WaveIndexT list
+    /// When the view the waveforms are drawn under last changed, in ms on the performance clock.
+    ///
+    /// Waveforms are deliberately allowed to lag: a viewer whose data comes over a wire keeps
+    /// showing the last view it has while the next is fetched, because emptying itself on every
+    /// scroll is what a broken viewer looks like. So "drawn for an older view" is a normal state
+    /// lasting a frame or two, and it looks exactly like "drawn for a view whose data is never
+    /// coming". How long it has gone on is the only thing that tells them apart.
+    ///
+    /// A timestamp and nothing else. WHETHER the waveforms match the view is derived - every Wave
+    /// carries the view it was drawn for - and needs no field; how long ago the view changed
+    /// cannot be worked out from anything, so it is recorded, once, where the view is settled.
+    /// Everything downstream is a pure function of this and the clock, read where it is used.
+    ViewSetAtMs: float
     /// Left-most visible clock cycle.
     /// this is scaled by CycleMultiplier, and therefore not the real clock cycle
     /// for sampling zoom > 1X.

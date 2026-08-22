@@ -359,7 +359,18 @@ let waveformIsUptodate (ws: WaveSimModel) (wave: Wave): bool =
 /// whether needed or not. The SVG depends on cycle width as well as start/stop
 /// clocks and design. Assumes that the fast simulation data has not changed and
 /// has enough cycles.</summary>
-let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
+/// Redraw one waveform for the current view, or None when the data for that view is not here.
+///
+/// None means KEEP WHAT IS DRAWN. A view whose data has not arrived - scrolled somewhere the
+/// sidecar has not sent yet - used to blank the row, so scrolling flashed the waveforms white and
+/// then filled them in. Waveforms a moment out of date are what a viewer over a wire looks like;
+/// a viewer that empties itself is what a broken one looks like. The wave keeps the view stamp of
+/// what it is still showing, so it stays "not up to date" and is offered again on the next refresh,
+/// which is what makes it fill in the moment the data lands.
+///
+/// How long that is allowed to go on is not this function's business: see the staleness check in
+/// WaveSimTop, which is what makes a wait that should have ended visible instead of silent.
+let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave option =
     let makePolyline points = 
         let points = points |> Array.concat |> Array.distinct
         polyline (wavePolylineStyle points) []
@@ -370,18 +381,22 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
           Multiplier = ws.SamplingZoom
           SampleCount = ws.ShownCycles }
 
+    match WaveData.slice (SignalHandle wave.DriverIndex) window with
+    | None ->
+        // the simulation has not reached these cycles, or the window fetched for this view does
+        // not cover them yet
+        Log.dbg
+            Log.Wave
+            $"no data yet for {wave.DisplayName} over {window.StartSample}+{window.SampleCount}x{window.Multiplier} - keeping what is drawn"
+
+        None
+    | Some sliceOfWave ->
+
     let waveform, (gaps:GapStore) =
-        match WaveData.slice (SignalHandle wave.DriverIndex) window, wave.Width with
+        match Some sliceOfWave, wave.Width with
         | _, 0 ->
             failwithf "Cannot have wave of width 0"
 
-        | None, _ ->
-            // The simulation has not reached these cycles, or - with the sidecar simulating - the
-            // window fetched for this view does not cover them. Draw the row empty rather than
-            // leave the wave stale, which would have it remade on every refresh.
-            Log.warn
-                $"no simulation data for wave {wave.DisplayName} over {window.StartSample}+{window.SampleCount}x{window.Multiplier}"
-            svg (waveRowProps ws) [], initGapStore 0
 
         | Some slice, 1 -> // binary waveform
             let transitions = WaveSlice.binaryTransitions slice
@@ -416,14 +431,15 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
  
 
             svg (waveRowProps ws) (List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG), gapStore
-    {wave with 
-        Radix = ws.Radix
-        ShownCycles = ws.ShownCycles
-        StartCycle = ws.StartCycle
-        Multiplier = ws.SamplingZoom
-        CycleWidth = singleWaveWidth ws
-        HatchedCycles = gaps
-        SVG = Some waveform}
+    Some
+        {wave with
+            Radix = ws.Radix
+            ShownCycles = ws.ShownCycles
+            StartCycle = ws.StartCycle
+            Multiplier = ws.SamplingZoom
+            CycleWidth = singleWaveWidth ws
+            HatchedCycles = gaps
+            SVG = Some waveform}
 
 
 /// <summary>This function regenerates all the waveforms listed on <c> wavesToBeMade </c>. 
@@ -449,7 +465,17 @@ let makeWaveformsWithTimeOut
                     | Some timeOut, timeSoFar when timeOut < timeSoFar ->
                         all, n, Some timeSoFar
                     | _ ->
-                        (Map.change wi (Option.map (generateWaveform ws wi)) all), n+1, None)
+                        // A wave whose data has not arrived keeps the one it is showing rather
+                        // than losing it - see generateWaveform. It still counts as done for the
+                        // timeout, because deciding it costs a map lookup: counting it as
+                        // outstanding would make this pass look slow and start a spinner for work
+                        // that is not happening.
+                        let redraw (existing: Wave option) =
+                            existing
+                            |> Option.map (fun wave ->
+                                generateWaveform ws wi wave |> Option.defaultValue wave)
+
+                        (Map.change wi redraw all), n+1, None)
 
         let finish = TimeHelpers.getTimeMs()
         if Constants.showPerfLogs then

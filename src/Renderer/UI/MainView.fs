@@ -56,8 +56,14 @@ module Probe =
     let private source (model: Model) : (SimTypes.FastSimulation * int * NumberBase) option =
         let ws = ModelHelpers.getWSModel model
         match ws.State with
-        | WaveSimState.Success ->
+        | WaveSimState.Success when model.SimulateInRenderer ->
             Some(Simulator.getFastSim (), ws.CursorExactClkCycle, ws.Radix)
+        | WaveSimState.Success ->
+            // The waveform simulation is the sidecar's, and the renderer's own copy of it is never
+            // run - so every value it could give here is whatever an unrun simulation holds. No
+            // label is better than a confident wrong one. Reading the probe over the wire is what
+            // gives this back.
+            None
         | _ ->
             match model.CurrentStepSimulationStep with
             // ClockTickNumber, not fs.ClockTick: it is the tick the step simulator is showing and

@@ -175,7 +175,7 @@
     <Compile Include="UI\WaveSim\WaveSimSVGs.fs" />
     <Compile Include="UI\WaveSim\WaveSimWaveforms.fs" />
     <Compile Include="UI\WaveSim\WaveSimRams.fs" />
-    <Compile Include="UI\WaveSim\WaveSimSidecar.fs" />
+    <Compile Include="UI\WaveSim\WaveProvider.fs" />
     <Compile Include="UI\WaveSim\WaveSimTop.fs" />
     <Compile Include="UI\MainView.fs" />
     <Compile Include="UI\KeyBindings.fs" />

@@ -1,0 +1,246 @@
+/// Running the waveform simulation on the .NET sidecar and fetching what the view draws.
+///
+/// The shape of it: the sidecar builds and runs the simulation, and the renderer asks it for one
+/// window - the samples the current view shows, for the waves it is showing - every time that
+/// view changes. `SidecarClient.simRead` takes exactly the viewer's own (StartCycle, SamplingZoom,
+/// ShownCycles) triple, so a view at any zoom is ONE request rather than one per wave, and the
+/// reply is read with no copy. What comes back becomes a `WaveData.Fetched` source, and the
+/// drawing code is none the wiser (see WaveSlice).
+///
+/// Two requests, not one, and for a reason: the drawn window holds a sample every SamplingZoom
+/// cycles, but the cursor sits on an exact cycle which at any zoom above 1 falls between those
+/// samples. So the cursor column - every shown wave at that one cycle - is fetched alongside it.
+/// Both are sub-millisecond: the measured round trip is 0.3-0.6 ms and a typical window is a few
+/// hundred kB at 350-800 MB/s, against waveform generation that is budgeted at 50 ms a slice.
+///
+/// **Not yet here**: buses wider than 32 bits, which `simRead` refuses, so their waves come back
+/// with no data and are drawn empty. That is the next thing to add, along with the RAM tables,
+/// which need a command of their own.
+module WaveSimSidecar
+
+open Fable.Core
+open Fable.Core.JsInterop
+open Fable.SimpleJson // Json.serialize, the renderer's wire encoder (an extension member)
+open CommonTypes
+open SimTypes
+open WaveSlice
+
+module Constants =
+    /// How long one SimRun chunk may take. The renderer does nothing while the sidecar simulates,
+    /// so this is what keeps the progress bar moving and Cancel answerable.
+    let runChunkMs = 100
+
+/// What the sidecar has been told to build: the top sheet, and the step-array size it was built
+/// for. Process state about another process, not model state - the model cannot know what a
+/// separate program is holding, and nothing in the model would be a better place to say so.
+let mutable private built: (string * int) option = None
+
+/// Forget what the sidecar holds, so the next refresh builds again. Called when the waveform
+/// simulation ends or the design changes.
+let forget () = built <- None
+
+/// (component id, output port, access path) for each driver, taken from the wave index.
+///
+/// A driver is a component OUTPUT and `WaveIndexT.SimArrayIndex` says which driver a wave reads,
+/// so an output-port entry names its own driver. An INPUT-port entry names the driven component
+/// instead, and has to be followed back through `InputDrivers` to the output feeding it - most
+/// drivers are only reachable that way. Measured on 3cpu: taking output entries alone found 167
+/// of 1,094 drivers, and the waves a user actually picks were mostly among the other 927.
+///
+/// A ComponentId IS an integer here - the whole design is reduced to integer ids when a project
+/// is opened (Helpers.RegenerateIds), which is what lets the sidecar name components at all - so
+/// this is a rename rather than a conversion.
+let private driverSignals (fs: FastSimulation) : Map<int, int * int * int list> =
+    let ofFId ((ComponentId comp), path) port =
+        comp, port, path |> List.map (fun (ComponentId p) -> p)
+
+    let componentAt fId =
+        match Map.tryFind fId fs.FComps with
+        | Some fc -> Some fc
+        | None -> Map.tryFind fId fs.FCustomComps
+
+    (Map.empty, fs.WaveIndex)
+    ||> Array.fold (fun found wi ->
+        if Map.containsKey wi.SimArrayIndex found then
+            found
+        else
+            let signal =
+                match wi.PortType with
+                | PortType.Output -> Some(ofFId wi.Id wi.PortNumber)
+                | PortType.Input ->
+                    componentAt wi.Id
+                    |> Option.bind (fun fc -> Array.tryItem wi.PortNumber fc.InputDrivers)
+                    |> Option.flatten
+                    |> Option.map (fun (fId, OutputPortNumber port) -> ofFId fId port)
+
+            match signal with
+            | Some s -> Map.add wi.SimArrayIndex s found
+            | None -> found)
+
+/// The error text of a sidecar reply, or None when it is not an error. Every reply that can fail
+/// answers with a JSON object whose only key is "error".
+let private errorIn (reply: string) =
+    if reply.StartsWith "{\"error\"" then Some reply else None
+
+/// Build the design on the sidecar if it does not already hold it at a big enough array size.
+let private ensureBuilt (design: SimpleDesign) (arraySize: int) : JS.Promise<Result<unit, string>> =
+    match built with
+    | Some(top, size) when top = design.TopSheet && size >= arraySize -> Promise.lift (Ok())
+    | _ ->
+        promise {
+            do! SidecarClient.connect ()
+            let sheetJsons = design.Sheets |> List.map Json.serialize<SimpleSheet>
+            let! sent = SidecarClient.sendDesign design.TopSheet sheetJsons
+
+            match errorIn sent with
+            | Some e ->
+                built <- None
+                return Error e
+            | None ->
+                let! reply = SidecarClient.simBuild arraySize
+
+                match errorIn reply with
+                | Some e ->
+                    built <- None
+                    return Error e
+                | None ->
+                    built <- Some(design.TopSheet, arraySize)
+                    return Ok()
+        }
+
+[<Emit("JSON.parse($0)")>]
+let private parseJson (text: string) : obj = jsNative
+
+/// Advance the sidecar's simulation to `cycle`, a chunk at a time so the renderer stays live.
+/// `onProgress` is told the clock tick after each chunk.
+let private runTo (cycle: int) (onProgress: int -> unit) : JS.Promise<Result<unit, string>> =
+    let rec chunk () =
+        promise {
+            let! reply = SidecarClient.simRun cycle Constants.runChunkMs
+
+            match errorIn reply with
+            | Some e -> return Error e
+            | None ->
+                let parsed = parseJson reply
+                let tick: int = unbox parsed?clockTick
+                let finished: bool = unbox parsed?``done``
+                onProgress tick
+
+                if finished then
+                    return Ok()
+                else
+                    return! chunk ()
+        }
+
+    chunk ()
+
+/// Fetch the window the view draws, plus the cursor column, and make them what the viewer reads.
+///
+/// A binary waveform's first drawn cycle needs the value before it, so where the window does not
+/// start at cycle 0 one extra sample is asked for and the slice is told it has a lead-in.
+let private fetchWindow
+    (fs: FastSimulation)
+    (driverIndices: int list)
+    (window: Window)
+    (cursorCycle: int)
+    : JS.Promise<Result<unit, string>> =
+    let signals = driverSignals fs
+
+    // Only what simRead will answer for: a wider bus has no wire format yet, and asking would
+    // fail the whole request rather than just that wave.
+    let wanted =
+        driverIndices
+        |> List.distinct
+        |> List.choose (fun i ->
+            match Map.tryFind i signals, Array.tryItem i fs.Drivers with
+            | Some sig_, Some(Some driver) when driver.DriverWidth <= 32 -> Some(i, sig_, driver.DriverWidth)
+            | _ -> None)
+
+    let asked = Set.ofList (List.distinct driverIndices)
+
+    if List.isEmpty wanted then
+        // every wave shown is wider than simRead will answer for; say so rather than fall back
+        // to local data, which in time will not be there to fall back to
+        WaveData.setFetched
+            { WaveData.Window = window
+              WaveData.LeadIn = false
+              WaveData.Rows = Map.empty
+              WaveData.Widths = Map.empty
+              WaveData.Asked = asked
+              WaveData.Data = Array.empty }
+            None
+
+        Promise.lift (Ok())
+    else
+        let leadIn = window.StartSample > 0
+        let firstCycle = if leadIn then window.FirstCycle - window.Multiplier else window.FirstCycle
+        let samples = window.SampleCount + (if leadIn then 1 else 0)
+        let requested = wanted |> List.map (fun (_, s, _) -> s)
+
+        let rowsAndWidths (perSignal: int) =
+            wanted
+            |> List.mapi (fun row (i, _, width) -> i, (row * perSignal, width))
+            |> List.fold (fun (rows, widths) (i, (b, w)) -> Map.add i b rows, Map.add i w widths) (Map.empty, Map.empty)
+
+        promise {
+            let! frame = SidecarClient.simRead firstCycle window.Multiplier samples requested
+            let asText = SidecarClient.decodeText frame
+
+            if asText.StartsWith "{" then
+                return Error asText
+            else
+                let data = SidecarClient.viewSimReadData frame (List.length requested * samples)
+                let rows, widths = rowsAndWidths samples
+
+                let drawn =
+                    { WaveData.Window = window
+                      WaveData.LeadIn = leadIn
+                      WaveData.Rows = rows
+                      WaveData.Widths = widths
+                      WaveData.Asked = asked
+                      WaveData.Data = unbox data }
+
+                // the cursor sits on an exact cycle, which above zoom 1 is between drawn samples
+                let! cursorFrame = SidecarClient.simRead cursorCycle 1 1 requested
+                let cursorText = SidecarClient.decodeText cursorFrame
+
+                let cursor =
+                    if cursorText.StartsWith "{" then
+                        None
+                    else
+                        let cursorData = SidecarClient.viewSimReadData cursorFrame (List.length requested)
+                        let cRows, cWidths = rowsAndWidths 1
+
+                        Some
+                            { WaveData.Window = { StartSample = cursorCycle; Multiplier = 1; SampleCount = 1 }
+                              WaveData.LeadIn = false
+                              WaveData.Rows = cRows
+                              WaveData.Widths = cWidths
+                              WaveData.Asked = asked
+                              WaveData.Data = unbox cursorData }
+
+                WaveData.setFetched drawn cursor
+                return Ok()
+        }
+
+/// Everything the viewer needs for one view, in one promise: build if the sidecar does not hold
+/// the design, run to the last cycle the view shows, then fetch that window.
+let prepare
+    (design: SimpleDesign)
+    (arraySize: int)
+    (fs: FastSimulation)
+    (driverIndices: int list)
+    (window: Window)
+    (cursorCycle: int)
+    (onProgress: int -> unit)
+    : JS.Promise<Result<unit, string>> =
+    promise {
+        match! ensureBuilt design arraySize with
+        | Error e -> return Error e
+        | Ok() ->
+            let lastNeeded = max window.LastCycle cursorCycle
+
+            match! runTo (lastNeeded + 1) onProgress with
+            | Error e -> return Error e
+            | Ok() -> return! fetchWindow fs driverIndices window cursorCycle
+    }

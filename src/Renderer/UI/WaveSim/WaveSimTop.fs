@@ -16,6 +16,7 @@ open EEExtensions
 open CommonTypes
 open ModelType
 open ModelHelpers
+open Sheet.SheetInterface
 open WaveSimStyle
 open WaveSimHelpers
 open SimGraphTypes
@@ -190,112 +191,185 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                 |> setProgressBar $"Extending Circuit Simulation..." spinnerFunc cyclesToDo
             model, Elmish.Cmd.none
  
-        FastRun.runFastSimulation (Some Constants.initSimulationTime) (lastCycleNeeded wsModel)  fs
-        |> (fun speedOpt -> // if not None the fast simulation has timed out and has not yet completed
-                let cyclesToDo = (lastCycleNeeded wsModel) - fs.ClockTick // may be negative
+        /// The view this refresh is for: ShownCycles samples, one every SamplingZoom cycles,
+        /// from StartCycle - which counts SAMPLES, not clock cycles (see WaveSlice.Window).
+        let window: WaveSlice.Window =
+            { StartSample = wsModel.StartCycle
+              Multiplier = wsModel.SamplingZoom
+              SampleCount = wsModel.ShownCycles }
 
-                match speedOpt with
-                | Some speed when float cyclesToDo / speed + Constants.initSimulationTime > Constants.maxSimulationTimeWithoutSpinner ->
-                    // The simulation is taking too long. We need to use a spinner.
-                    runSimulationWithSpinner cyclesToDo model // A callback to refreshWaveSim is made dispatched from this function
-                | _ ->
-                    // Force simulation to finish now in case it is not finished.
-                    // We know this will be quick enough not to need a spinner.
-                    FastRun.runFastSimulation None (lastCycleNeeded wsModel) fs |> ignore
+        /// the drivers the shown waves read. Taken from the selection as it stands: after a
+        /// rebuild it may name indices that no longer exist, which the re-resolution below
+        /// corrects - and the fetch then misses its cover check and is simply made again.
+        let shownDrivers =
+            wsModel.SelectedWaves
+            |> List.map (fun wi -> wi.SimArrayIndex)
+            |> List.filter (fun i -> i >= 0 && i < fs.Drivers.Length)
+
+        if model.SimulateInRenderer then
+            WaveData.setLocal ()
+        elif newSimulation then
+            // the design or its shape has changed, so what the sidecar holds is not it: make it
+            // build again, and throw away the window, which was read from the old simulation
+            WaveSimSidecar.forget ()
+            WaveData.setLocal ()
+
+        /// Ask the sidecar for this view, and come back to draw when it answers. The waves on
+        /// screen stay as they are meanwhile; they are redrawn on re-entry, by which point
+        /// WaveData holds the window and every read below finds it there.
+        let fetchThisView () =
+            match model.CurrentProj with
+            | None -> Elmish.Cmd.none
+            | Some project ->
+                let design =
+                    ModelHelpers.designOf project (model.Sheet.GetCanvasState())
+                    |> CanvasExtractor.simpleDesignOfLoadedComponents
+                    |> fun d -> { d with TopSheet = fs.SimulatedTopSheet }
+
+                let failed (why: string) =
+                    UpdateModel(fun m ->
+                        Log.error $"the .NET simulator could not answer for this view: {why}"
+                        cancelSpinner m)
+
+                Elmish.Cmd.OfPromise.either
+                    (fun () ->
+                        WaveSimSidecar.prepare
+                            design
+                            fs.MaxArraySize
+                            fs
+                            shownDrivers
+                            window
+                            wsModel.CursorExactClkCycle
+                            ignore)
+                    ()
+                    (function
+                        | Ok() ->
+                            UpdateModel(fun m ->
+                                // The waves on screen were drawn before this window arrived, and
+                                // carry the view's cache keys, so they count as up to date and
+                                // would not be made again. Throw their SVGs away so that the
+                                // refresh below draws them from what was just fetched.
+                                let m =
+                                    updateWSModel
+                                        (fun ws ->
+                                            { ws with AllWaves = ws.AllWaves |> Map.map (fun _ w -> { w with SVG = None }) })
+                                        m
+
+                                fst (refreshWaveSim false (getWSModel m) m))
+                        | Error e -> failed e)
+                    (fun exn -> failed exn.Message)
+
+        if not model.SimulateInRenderer
+           && not (WaveData.coversFetched window shownDrivers wsModel.CursorExactClkCycle) then
+            model, fetchThisView ()
+        else
+
+            FastRun.runFastSimulation (Some Constants.initSimulationTime) (lastCycleNeeded wsModel)  fs
+            |> (fun speedOpt -> // if not None the fast simulation has timed out and has not yet completed
+                    let cyclesToDo = (lastCycleNeeded wsModel) - fs.ClockTick // may be negative
+
+                    match speedOpt with
+                    | Some speed when float cyclesToDo / speed + Constants.initSimulationTime > Constants.maxSimulationTimeWithoutSpinner ->
+                        // The simulation is taking too long. We need to use a spinner.
+                        runSimulationWithSpinner cyclesToDo model // A callback to refreshWaveSim is made dispatched from this function
+                    | _ ->
+                        // Force simulation to finish now in case it is not finished.
+                        // We know this will be quick enough not to need a spinner.
+                        FastRun.runFastSimulation None (lastCycleNeeded wsModel) fs |> ignore
                             
-                    // Simulation has now always finished so we can generate the waves
-                    // this again may need to be done in a spinner if it takes too long.
-                    // That decision is made below with the help of makeWaveformsWithTimeOut.
+                        // Simulation has now always finished so we can generate the waves
+                        // this again may need to be done in a spinner if it takes too long.
+                        // That decision is made below with the help of makeWaveformsWithTimeOut.
 
-                    // Validate and update all parameters affecting waveforms.
-                    let model =
-                        updateViewerWidthInWaveSim model.WaveSimViewerWidth model
-                        // cancel any spinner so that when a new one is started
-                        // it will have teh correct total number of steps to do.
-                        //|> (fun model -> {model with SpinnerPayload = None})
-                    let wsModel =
-                        getWSModel model
+                        // Validate and update all parameters affecting waveforms.
+                        let model =
+                            updateViewerWidthInWaveSim model.WaveSimViewerWidth model
+                            // cancel any spinner so that when a new one is started
+                            // it will have teh correct total number of steps to do.
+                            //|> (fun model -> {model with SpinnerPayload = None})
+                        let wsModel =
+                            getWSModel model
                         
-                    // redo waves based on simulation data which is now correct
-                    let allWaves = wsModel.AllWaves
+                        // redo waves based on simulation data which is now correct
+                        let allWaves = wsModel.AllWaves
 
-                    let simulationIsStillUptodate = Simulator.getFastSim().ClockTick >= lastCycleNeeded wsModel                              
-                    if not simulationIsStillUptodate then
-                        // The simulation has changed due to viewer width change. We need to redo the simulation.
-                        // This is done by calling refreshWaveSim again, we will come back here
-                        // after the simulation has been redone and is uptodate.
-                        // TODO: maybe the viewer width check should be earlier in this function?
-                        refreshWaveSim newSimulation wsModel model
-                    else
-                        // The array index of a wave changes when the simulation is rebuilt, so a
-                        // selection made before that has to be re-resolved against what AllWaves
-                        // holds now, by the other three fields. That is the only time it can be
-                        // needed: generating waveforms replaces the Wave records but never the KEYS
-                        // - Map.change keeps the key set - so a selection that is already current
-                        // stays current however many times the SVGs are redrawn.
-                        //
-                        // Asking first costs one lookup per SELECTED wave and is the answer on
-                        // every refresh except the one after a rebuild. Reaching for the identity
-                        // map unconditionally cost a 208,896-entry map REBUILT on every scroll
-                        // step, since scrolling stales every selected wave and so returns a new
-                        // AllWaves each time, which is what the map is memoised on.
-                        let selectedWaves =
-                            if wsModel.SelectedWaves |> List.forall (fun wi -> Map.containsKey wi allWaves) then
-                                wsModel.SelectedWaves
-                            else
-                                let currentWave = currentWaveOfIdentity allWaves
-                                wsModel.SelectedWaves
-                                |> List.choose (fun wi -> Map.tryFind (waveIdentity wi) currentWave)
-                        // Only generate waveforms for selected waves, and only where the SVG they
-                        // hold is not the one the current view calls for.
-                        let wavesToBeMade =
-                            selectedWaves
-                            |> List.filter (fun wi ->
-                                match Map.tryFind wi allWaves with
-                                | Some wave -> not <| WaveSimSVGs.waveformIsUptodate wsModel wave
-                                | None -> false)
-                        if wsModel.StartCycle < 0 then
-                            failwithf $"Sanity check failed: wsModel.StartCycle = {wsModel.StartCycle}"
-                        let spinnerInfo =  
-                            let numToDo = wavesToBeMade.Length
-                            WaveSimSVGs.makeWaveformsWithTimeOut (Some <| Constants.initWaveformTime ) wsModel  wavesToBeMade
-                            |> (fun res ->
-                                    match wavesToBeMade.Length - res.NumberDone, res.TimeTaken with
-                                    | _, None | 0, _-> 
-                                        {| WSM=res.WSM; SpinnerPayload=None; NumToDo=numToDo|} // finished
-                                    | numToDo, Some t when float numToDo * t / float res.NumberDone < Constants.maxWaveCreationTimeWithoutSpinner ->
-                                        let res2 = WaveSimSVGs.makeWaveformsWithTimeOut None res.WSM wavesToBeMade
-                                        {| WSM= res2.WSM; SpinnerPayload=None; NumToDo = numToDo - res2.NumberDone|}
-                                    | numToDo, _ ->
-                                        if res.NumberDone = 0 && numToDo > 0 then
-                                            Log.warn $"no waves completed when {numToDo} are required - retrying refreshWaveSim"
-                                        let payload = Some ("Updating Waveform Display", refreshWaveSim false res.WSM >> fst)
-                                        {| WSM=res.WSM; SpinnerPayload=payload; NumToDo=numToDo|})
+                        let simulationIsStillUptodate = Simulator.getFastSim().ClockTick >= lastCycleNeeded wsModel                              
+                        if not simulationIsStillUptodate then
+                            // The simulation has changed due to viewer width change. We need to redo the simulation.
+                            // This is done by calling refreshWaveSim again, we will come back here
+                            // after the simulation has been redone and is uptodate.
+                            // TODO: maybe the viewer width check should be earlier in this function?
+                            refreshWaveSim newSimulation wsModel model
+                        else
+                            // The array index of a wave changes when the simulation is rebuilt, so a
+                            // selection made before that has to be re-resolved against what AllWaves
+                            // holds now, by the other three fields. That is the only time it can be
+                            // needed: generating waveforms replaces the Wave records but never the KEYS
+                            // - Map.change keeps the key set - so a selection that is already current
+                            // stays current however many times the SVGs are redrawn.
+                            //
+                            // Asking first costs one lookup per SELECTED wave and is the answer on
+                            // every refresh except the one after a rebuild. Reaching for the identity
+                            // map unconditionally cost a 208,896-entry map REBUILT on every scroll
+                            // step, since scrolling stales every selected wave and so returns a new
+                            // AllWaves each time, which is what the map is memoised on.
+                            let selectedWaves =
+                                if wsModel.SelectedWaves |> List.forall (fun wi -> Map.containsKey wi allWaves) then
+                                    wsModel.SelectedWaves
+                                else
+                                    let currentWave = currentWaveOfIdentity allWaves
+                                    wsModel.SelectedWaves
+                                    |> List.choose (fun wi -> Map.tryFind (waveIdentity wi) currentWave)
+                            // Only generate waveforms for selected waves, and only where the SVG they
+                            // hold is not the one the current view calls for.
+                            let wavesToBeMade =
+                                selectedWaves
+                                |> List.filter (fun wi ->
+                                    match Map.tryFind wi allWaves with
+                                    | Some wave -> not <| WaveSimSVGs.waveformIsUptodate wsModel wave
+                                    | None -> false)
+                            if wsModel.StartCycle < 0 then
+                                failwithf $"Sanity check failed: wsModel.StartCycle = {wsModel.StartCycle}"
+                            let spinnerInfo =  
+                                let numToDo = wavesToBeMade.Length
+                                WaveSimSVGs.makeWaveformsWithTimeOut (Some <| Constants.initWaveformTime ) wsModel  wavesToBeMade
+                                |> (fun res ->
+                                        match wavesToBeMade.Length - res.NumberDone, res.TimeTaken with
+                                        | _, None | 0, _-> 
+                                            {| WSM=res.WSM; SpinnerPayload=None; NumToDo=numToDo|} // finished
+                                        | numToDo, Some t when float numToDo * t / float res.NumberDone < Constants.maxWaveCreationTimeWithoutSpinner ->
+                                            let res2 = WaveSimSVGs.makeWaveformsWithTimeOut None res.WSM wavesToBeMade
+                                            {| WSM= res2.WSM; SpinnerPayload=None; NumToDo = numToDo - res2.NumberDone|}
+                                        | numToDo, _ ->
+                                            if res.NumberDone = 0 && numToDo > 0 then
+                                                Log.warn $"no waves completed when {numToDo} are required - retrying refreshWaveSim"
+                                            let payload = Some ("Updating Waveform Display", refreshWaveSim false res.WSM >> fst)
+                                            {| WSM=res.WSM; SpinnerPayload=payload; NumToDo=numToDo|})
 
-                        let ramCompIds = ramCompIdsOf fs
-                        let ramCompIdSet = Set.ofList ramCompIds
-                        let selectedRams = Map.filter (fun ramfId _ -> Set.contains ramfId ramCompIdSet) wsModel.SelectedRams
+                            let ramCompIds = ramCompIdsOf fs
+                            let ramCompIdSet = Set.ofList ramCompIds
+                            let selectedRams = Map.filter (fun ramfId _ -> Set.contains ramfId ramCompIdSet) wsModel.SelectedRams
 
-                        let ws =  
-                            {
-                                wsModel with
-                                    State = Success
-                                    AllWaves = spinnerInfo.WSM.AllWaves
-                                    SelectedWaves = selectedWaves
-                                    RamComps = ramCompIds
-                                    SelectedRams = selectedRams
-                            }
+                            let ws =  
+                                {
+                                    wsModel with
+                                        State = Success
+                                        AllWaves = spinnerInfo.WSM.AllWaves
+                                        SelectedWaves = selectedWaves
+                                        RamComps = ramCompIds
+                                        SelectedRams = selectedRams
+                                }
 
-                        let model = putWaveSim ws model
+                            let model = putWaveSim ws model
 
-                        match spinnerInfo.SpinnerPayload with
-                        | None ->
-                            cancelSpinner model
-                            |> dispatchFocusAfterRender
-                        | Some (spinnerName, spinnerAction) -> 
-                            setButtonSpinner (fun _dispatch model -> spinnerAction model)  model
-                        |> updateWSModel (fun _ -> {ws with DefaultCursor = Default})
-                        |> (fun model -> model, Elmish.Cmd.none))
+                            match spinnerInfo.SpinnerPayload with
+                            | None ->
+                                cancelSpinner model
+                                |> dispatchFocusAfterRender
+                            | Some (spinnerName, spinnerAction) -> 
+                                setButtonSpinner (fun _dispatch model -> spinnerAction model)  model
+                            |> updateWSModel (fun _ -> {ws with DefaultCursor = Default})
+                            |> (fun model -> model, Elmish.Cmd.none))
 
 /// Refresh the state of the wave simulator according to the model and canvas state.
 /// Redo a new simulation. Set inputs to default values. Then call refreshWaveSim via RefreshWaveSim message.

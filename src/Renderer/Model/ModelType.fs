@@ -271,9 +271,9 @@ type Wave = {
     /// radix of waveform numbers
     Radix: NumberBase
     /// Which INSTANCE of a sheet the waveform is in, as the path of custom component labels down to
-    /// it - the FastComponent's SimSheetName, which is unique across the simulation. Not something
+    /// it - the path of custom components down to it, which is unique by construction. Not something
     /// to show anyone: for the sheet's own name use FastSimulation.getSheetNameOfInstance.
-    SheetId: string
+    SheetId: InstancePath
     /// The labels of the custom component instances the waveform's component sits within, outermost
     /// first, which is what tells two instances of one sheet apart when a name cannot.
     SubSheet: string list
@@ -364,11 +364,11 @@ type WaveSimModel = {
     /// the others, so both panes of the selector agree on which occurrence of a sheet is on show.
     ShowSheetDetail: Set<string list>
     /// Which instance of each sheet the wave selector is showing, keyed the same way. The value is
-    /// the instance's SimSheetName, which is what Wave.SheetId holds. An entry that does not name
+    /// the instance's path, which is what Wave.SheetId holds. An entry that does not name
     /// an instance inside the instance chosen at the parent node is ignored and the alphabetically
     /// first used - so choosing a different instance high in the hierarchy needs no cascade of
     /// updates to the entries below it.
-    SelectedSheetInstance: Map<string list, string>
+    SelectedSheetInstance: Map<string list, InstancePath>
     /// What is shown in wave sim group detail elements
     ShowGroupDetail: Set<ComponentGroup * string list>
     /// The label which a user is hovering over.

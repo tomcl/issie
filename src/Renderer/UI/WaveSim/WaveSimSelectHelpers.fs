@@ -96,11 +96,11 @@ let wavePropsTable (rows: TableRow list) =
 ///
 /// It holds indices rather than the records, for the same reason: the records change as they are
 /// drawn, and the caller has AllWaves to look them up in.
-let waveIndicesByInstance: FastSimulation -> Map<string, WaveIndexT list> =
+let waveIndicesByInstance: FastSimulation -> Map<InstancePath, WaveIndexT list> =
     Helpers.memoizeByIdentity (fun fs ->
         fs.WaveIndex
         |> Array.toList
-        |> List.groupBy (fun wi -> fs.WaveComps[wi.Id].SimSheetName)
+        |> List.groupBy (fun wi -> fs.WaveComps[wi.Id].Instance)
         |> Map.ofList)
 
 /// The selected waves the simulation still has, which is what Show Only Selected shows and what the
@@ -121,19 +121,17 @@ let consistentSelectedWaves (ws: WaveSimModel) =
         Log.dbg Log.Wave $"wave consistency: {okSelectedWaves.Length} valid selected waves of {ws.SelectedWaves.Length}"
     okSelectedWaves
 
-/// Whether a sheet instance is one of `sheets`, or lies inside one. Walks up the chain of parent
-/// instances, which is as deep as the design nests rather than as wide as it expands - so the set
-/// it is asked about has to be a Set, or the walk is paid for once per member.
-let isSubSheetOf (subSheetId: string) (sheets: Set<string>) =
-    let fs = Simulator.getFastSim()
-    let rec isSubSheetOf' subSheetId =
-        Set.contains subSheetId sheets ||
-        // An instance the simulation does not hold is inside nothing. That is reachable: the
-        // instance named may be one remembered from a simulation of an earlier design.
-        match Map.tryFind subSheetId fs.SimSheetStructure with
-        | None | Some None -> false
-        | Some (Some parent) -> isSubSheetOf' parent.SimSheetName
-    isSubSheetOf' subSheetId
+/// Whether a sheet instance is one of `sheets`, or lies inside one.
+///
+/// An instance is the path of custom components down to it, so "inside" is "has that path as a
+/// prefix" and containment is answered without consulting the simulation at all. This used to
+/// walk a stored instance-to-parent map one level at a time, and needed a note about instances
+/// the simulation no longer holds; a prefix test has nothing to look up and so nothing to miss.
+let isSubSheetOf (InstancePath sub) (sheets: Set<InstancePath>) =
+    let isPrefix (InstancePath outer) =
+        outer.Length <= sub.Length && List.forall2 (=) outer sub[0 .. outer.Length - 1]
+
+    sheets |> Set.exists isPrefix
 
 let updateSheetString (newSheetName: string) (ws: WaveSimModel) =
     let s = ws.SheetSearchString.Trim().ToUpperInvariant()
@@ -162,7 +160,7 @@ let updateSheetString (newSheetName: string) (ws: WaveSimModel) =
 /// once per wave, which is a product of two numbers that both grow with the design - the reason
 /// opening this dialog on a large design took minutes. The worst case was the DEFAULT one: an empty
 /// sheet box matches every instance, since every string contains the empty string.
-let filterWaves (shown: Set<string> option) (wsModel: WaveSimModel) =
+let filterWaves (shown: Set<InstancePath> option) (wsModel: WaveSimModel) =
     let fs = Simulator.getFastSim()
     // Only the instances on show are read out of the index. This is the step that makes the cost
     // the design's rather than its expansion's: everything below works on what it returns.
@@ -205,7 +203,7 @@ let filterWaves (shown: Set<string> option) (wsModel: WaveSimModel) =
         | None ->
             // Under Show Only Selected the rows are one per instance a wave was chosen in -
             // makeInstanceRows groups by exactly this - so those are the instances to match. It
-            // used to be every key of SimSheetStructure, which is one per sheet INSTANCE and so
+            // used to be every key of the instance-to-parent map, one per sheet INSTANCE and so
             // tens of thousands on a design that expands; each was then tested against a list of
             // the same length below, making a single click on the checkbox quadratic in the
             // expansion. largeTest is seven sheets and 49,152 instances of the innermost one.
@@ -216,7 +214,7 @@ let filterWaves (shown: Set<string> option) (wsModel: WaveSimModel) =
     // box shows what it is filtering by, so filtering by an identity put main6.main5.main4 in front
     // of the user. The panel already says which instance, by the row's place in it and by the combo
     // box beside it, so there is nothing here for the path to add.
-    let nameOfSheet (instance: string) = (fs.getSheetNameOfInstance instance).ToUpperInvariant()
+    let nameOfSheet (instance: InstancePath) = (fs.getSheetNameOfInstance instance).ToUpperInvariant()
 
     let filteredSheets =
         (match allSheets |> List.filter (fun instance -> nameOfSheet instance = sheet) with
@@ -346,7 +344,7 @@ let portSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement
 let waveSelectBreadcrumbs
         (wsModel: WaveSimModel)
         (hierarchy: WaveSimHierarchy.SelectorHierarchy)
-        (filteredWaves: {| All: Wave list; Sheets: Set<string>; OfSheet: Wave list|})
+        (filteredWaves: {| All: Wave list; Sheets: Set<InstancePath>; OfSheet: Wave list|})
         (dispatch: Msg -> unit)
         (model: Model) : ReactElement =
     match model.CurrentProj with
@@ -556,10 +554,12 @@ let makeFlatGroupRow
 /// where there is a choice to make - most sheets in most designs are instantiated once.
 let private instanceSelector (node: WaveSimHierarchy.SelectorNode) (dispatch: Msg -> unit) =
     // The instance is chosen by its label on the canvas above it - what the user drew. The value
-    // behind each option stays the SimSheetName, which is what Wave.SheetId holds and so what
-    // selects the waves; it is a run-time identifier and not something to show anyone.
+    // behind each option is the instance PATH, written as a key, since a DOM option can carry only
+    // a string; it is an identifier and not something to show anyone.
     let labels = WaveSimHierarchy.instanceLabels (Simulator.getFastSim())
-    let labelOf instance = Map.tryFind instance labels |> Option.defaultValue instance
+
+    let labelOf instance =
+        Map.tryFind instance labels |> Option.defaultValue (WaveSimHierarchy.pathKey instance)
     match node.NodeInstances, node.NodeInstance with
     | _ :: _ :: _, Some shown ->
         div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; MarginLeft "10px"]] [
@@ -574,10 +574,10 @@ let private instanceSelector (node: WaveSimHierarchy.SelectorNode) (dispatch: Ms
                     Style [BoxSizing BoxSizingOptions.BorderBox]
                     Value shown
                     OnChange (fun ev ->
-                        let chosen = ev.Value
+                        let chosen = WaveSimHierarchy.pathOfKey ev.Value
                         dispatch <| UpdateWSModel (fun ws ->
                             { ws with SelectedSheetInstance = Map.add node.NodeKey chosen ws.SelectedSheetInstance }))
-                ] (node.NodeInstances |> List.map (fun instance -> option [Value instance] [str (labelOf instance)]))
+                ] (node.NodeInstances |> List.map (fun instance -> option [Value (WaveSimHierarchy.pathKey instance)] [str (labelOf instance)]))
             ]
         ]
     | _ -> null
@@ -593,13 +593,15 @@ let private makeInstanceRows showDetails (ws: WaveSimModel) (fs: FastSimulation)
             wavesOfInstance
             |> List.groupBy (fun wave -> getCompGroup fs.WaveComps[wave.WaveId.Id].FType)
             |> List.map (fun (grp, groupWaves) ->
-                makeFlatGroupRow showDetails ws [instance] grp groupWaves dispatch)
+                makeFlatGroupRow showDetails ws [WaveSimHierarchy.pathKey instance] grp groupWaves dispatch)
         // The sheet's name, as everywhere else. This is the one place a row can stand for an
         // instance no combo box is showing, so which instance cannot be read off the panel - it is
         // on hover, where a path is something the user asked for rather than something in the way.
         let title =
-            span [HTMLAttr.Title instance] [str (fs.getSheetNameOfInstance instance)]
-        makeSummaryItem showDetails ws title null groupRows (SheetItem [instance]) wavesOfInstance dispatch)
+            span [HTMLAttr.Title(WaveSimHierarchy.labelPathOf fs instance)] [str (fs.getSheetNameOfInstance instance)]
+        // SheetItem is a key for whether this row is open, not a reference to the instance - the
+        // other caller passes a node's path of sheet names. The instance goes in as its key form.
+        makeSummaryItem showDetails ws title null groupRows (SheetItem [WaveSimHierarchy.pathKey instance]) wavesOfInstance dispatch)
 
 /// One row per sheet of the collapsed hierarchy, holding the signals of the instance that row is
 /// showing. A row whose instance has no waves left after filtering is left out, which is how the

@@ -15,7 +15,7 @@
 ///
 /// **Why this interface is narrow and the old one was not.** What the renderer uses today is not
 /// an interface at all: it is field access into a `FastSimulation` - `FComps`, `Drivers`,
-/// `WaveIndex`, `WaveComps`, `SimSheetStructure`. Every one of those is proportional to the
+/// `WaveIndex`, `WaveComps`. Every one of those is proportional to the
 /// EXPANDED simulation, so promoting them to an interface would oblige a remote simulator to
 /// rebuild all of it renderer-side, which is the cost this exists to remove. So the interface
 /// asks small questions - which instances are inside this one, which ports does this instance
@@ -44,12 +44,12 @@ open SimGraphTypes
 /// design expands to. The distinction is the whole memory argument - a design that expands to
 /// 49,152 copies of a sheet still only ever draws a handful of them at once.
 type SimInstance =
-    { InstId: SimSheetId
+    { InstId: InstancePath
       /// the design-time sheet this instantiates
       InstSheet: SheetName
       /// the label on the custom component above it, for display
       InstLabel: string
-      InstParent: SimSheetId option }
+      InstParent: InstancePath option }
 
 /// One port of one elaborated component that a waveform can be taken of.
 ///
@@ -134,19 +134,19 @@ type ISimulator =
 
     // ---- enumeration: design-sized ----
 
-    abstract TopInstance: SimSheetId
+    abstract TopInstance: InstancePath
 
     /// The instances of `sheet` directly inside `parent`. Answered from the design, so it costs
     /// one pass over a sheet's own components however many times that sheet is instantiated.
-    abstract InstancesInside: parent: SimSheetId * sheet: SheetName -> JS.Promise<SimInstance list>
+    abstract InstancesInside: parent: InstancePath * sheet: SheetName -> JS.Promise<SimInstance list>
 
-    abstract SheetOfInstance: SimSheetId -> JS.Promise<SheetName option>
+    abstract SheetOfInstance: InstancePath -> JS.Promise<SheetName option>
 
     // ---- what can be watched, with widths ----
 
     /// The ports of several instances at once, because the selector draws a whole collapsed
     /// hierarchy and one round trip for it is the difference between a pause and a stutter.
-    abstract PortsOfInstances: SimSheetId list -> JS.Promise<Map<SimSheetId, SimPort list>>
+    abstract PortsOfInstances: InstancePath list -> JS.Promise<Map<InstancePath, SimPort list>>
 
     /// The ports of one canvas component, and how many elaborated copies the simulation holds -
     /// the question the schematic's right-click menu asks.

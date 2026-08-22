@@ -25,11 +25,11 @@ type SelectorNode = {
     NodeKey: string list
     /// the sheet instances of this node's sheet that lie inside the instance chosen at its parent,
     /// alphabetically - so the head is what a node with nothing recorded about it shows
-    NodeInstances: string list
-    /// the instance on show. This is a SimSheetName, which is what Wave.SheetId holds, so it is
+    NodeInstances: InstancePath list
+    /// the instance on show. This is an InstancePath, which is what Wave.SheetId holds, so it is
     /// what selects the waves to list. None where the simulation has no instance here - a sheet
     /// with nothing on it, or a simulation of an earlier version of the design
-    NodeInstance: string option
+    NodeInstance: InstancePath option
     /// whether more than one route from the top sheet reaches this node's sheet, so that it appears
     /// in the hierarchy more than once. Such a sheet has no place in the flat top level of the
     /// signal list - which of the routes would a single row stand for? - so its row is drawn inside
@@ -59,61 +59,90 @@ let emptyHierarchy = {
     HierNodes = Map.empty
     HierOrder = [] }
 
-/// For each sheet instance of the simulation, the instances of each sheet directly inside it -
-/// keyed by the containing instance and by the design-time name of the sheet instantiated, and
-/// sorted, so the head of each list is the default choice.
+/// For each sheet instance, the instances of each sheet directly inside it - keyed by the
+/// containing instance and by the design-time name of the sheet instantiated, and sorted, so the
+/// head of each list is the default choice.
 ///
-/// SimSheetStructure maps a sheet instance to the custom component whose innards it is. That
-/// component carries both the instance it sits in, as its own SimSheetName, and the design-time
-/// name of what it instantiates, in its type - which is the whole of what is needed here.
+/// Read off the custom components themselves: one of those IS an instance of the sheet it names,
+/// its access path says which instance contains it, and its own id extends that path to name the
+/// instance it introduces. Nothing else has to be built or kept in step.
 ///
-/// Worked out once per simulation rather than once per render. It reads an entry per sheet INSTANCE
-/// - tens of thousands on a design that expands - and the hierarchy it feeds is rebuilt on every
-/// keystroke in the selector's search boxes. A simulation is rebuilt rather than mutated, so a new
-/// one is exactly the signal that this is stale.
-let instancesInside: FastSimulation -> Map<string * string, string list> =
+/// Worked out once per simulation rather than once per render - the hierarchy it feeds is rebuilt
+/// on every keystroke in the selector's search boxes. A simulation is rebuilt rather than
+/// mutated, so a new one is exactly the signal that this is stale.
+let instancesInside: FastSimulation -> Map<InstancePath * string, InstancePath list> =
     Helpers.memoizeByIdentity (fun fs ->
-        fs.SimSheetStructure
+        fs.FCustomComps
         |> Map.toList
-        |> List.choose (fun (simSheetName, parent) ->
-            parent
-            |> Option.bind (fun fc ->
-                match fc.FType with
-                | Custom ct -> Some ((fc.SimSheetName, ct.Name), simSheetName)
-                | _ -> None))
+        |> List.choose (fun ((cid, ap), fc) ->
+            match fc.FType with
+            | Custom ct -> Some((InstancePath ap, ct.Name), InstancePath(ap @ [ cid ]))
+            | _ -> None)
         |> List.groupBy fst
         |> List.map (fun (key, entries) -> key, entries |> List.map snd |> List.sort)
         |> Map.ofList)
 
-/// The label each sheet instance carries on the canvas above it: what the user drew, and what tells
-/// two instances of one sheet apart when the selector offers a choice between them.
+/// The label each sheet instance carries on the canvas above it: what the user drew, and what
+/// tells two instances of one sheet apart when the selector offers a choice between them.
 ///
-/// A SimSheetName is not that. It is the whole path of labels down to the instance - MID2.LEAF1 -
-/// which is what makes it unique and what makes it unreadable in a box offering a choice between
-/// siblings, where everything but the last element is the same. (It was worse before: whatever
-/// suffix of the label told it apart from every other instance of that sheet in the design, or a
-/// bare ordinal where nothing did, so the box offered things like "20" and "3".)
-///
-/// SimSheetStructure maps an instance to the custom component whose innards it is, which is the
-/// component carrying that label. Instances offered together are siblings on one canvas, so their
-/// labels are distinct.
-let instanceLabels: FastSimulation -> Map<string, string> =
+/// An instance is a path, which is unique but says nothing a user would recognise. The label is
+/// what the custom component introducing that instance is called, and instances offered together
+/// are siblings on one canvas, so their labels are distinct. (Before the path, the identity was
+/// the whole dotted path of labels - MID2.LEAF1 - which is unreadable in a box choosing between
+/// siblings, where every element but the last is the same.)
+let instanceLabels: FastSimulation -> Map<InstancePath, string> =
     Helpers.memoizeByIdentity (fun fs ->
-        fs.SimSheetStructure
+        fs.FCustomComps
         |> Map.toList
-        |> List.choose (fun (simSheetName, parent) ->
-            parent |> Option.map (fun fc -> simSheetName, fc.FLabel))
+        |> List.map (fun ((cid, ap), fc) -> InstancePath(ap @ [ cid ]), fc.FLabel)
         |> Map.ofList)
 
-/// The SimSheetName of the design's top sheet, which every other instance is reached from.
+/// The design's top sheet instance, which every other is reached from.
 ///
 /// The one instance not identified by a path of labels down to it, so it is named by its sheet -
 /// which is what FastCreate sets on every component with an empty access path. None when there is
 /// no simulation to have a top sheet.
+/// An instance path written as one string, for a place that can carry only one - the value behind
+/// a DOM option. Ids, dot separated. NOT for showing anyone: see labelPathOf for that.
+let pathKey (InstancePath ap) =
+    ap |> List.map (fun (ComponentId i) -> string i) |> String.concat "."
+
+/// The inverse, for reading a DOM option's value back.
+let pathOfKey (key: string) =
+    if key = "" then
+        InstancePath []
+    else
+        key.Split '.'
+        |> Array.toList
+        |> List.choose (fun part ->
+            match System.Int32.TryParse part with
+            | true, n -> Some(ComponentId n)
+            | _ -> None)
+        |> InstancePath
+
+/// An instance path as a person reads it: the labels of the custom components entered, dot
+/// separated, and the top sheet's own name for the instance nothing contains.
+///
+/// This is the string that used to BE the identity. It is a rendering now, which is why it may be
+/// ambiguous without consequence - two instances can only share a label path if a label repeats on
+/// one canvas, and the identity that decides which wave is which no longer depends on it.
+let labelPathOf (fs: FastSimulation) (InstancePath ap) =
+    match ap with
+    | [] -> fs.SimulatedTopSheet
+    | _ ->
+        let labels = instanceLabels fs
+
+        [ 1 .. ap.Length ]
+        |> List.map (fun i ->
+            Map.tryFind (InstancePath ap[0 .. i - 1]) labels |> Option.defaultValue "?")
+        |> String.concat "."
+
+/// The top sheet's instance, which every other is reached from: the empty path, since nothing
+/// contains it. None when there is no simulation to have a top sheet.
 let private topInstance (fs: FastSimulation) =
     match fs.SimulatedTopSheet with
     | "" -> None
-    | sheet -> Some (sheet.ToUpperInvariant())
+    | _ -> Some(InstancePath [])
 
 /// What is inside each sheet of the SIMULATED design, and which of those sheets more than one route
 /// from the top reaches.
@@ -170,7 +199,7 @@ let getSelectorHierarchy (fs: FastSimulation) (ws: WaveSimModel): SelectorHierar
     /// Walk down, each node reading the instance its parent settled on. Validating the recorded
     /// choice against what is actually inside the parent's is what makes the chain hold: a choice
     /// higher up can change without anything below it having to be rewritten.
-    let rec walk (node: SheetTree) (instances: string list) =
+    let rec walk (node: SheetTree) (instances: InstancePath list) =
         let chosen =
             match Map.tryFind node.SheetPath ws.SelectedSheetInstance with
             | Some recorded when List.contains recorded instances -> Some recorded

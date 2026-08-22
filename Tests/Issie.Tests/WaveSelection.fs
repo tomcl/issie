@@ -9,6 +9,7 @@ module WaveSelection
 
 open Expecto
 open CommonTypes
+open SimTypes
 open CanvasBuilder
 
 let private maxArraySize = 100
@@ -123,8 +124,26 @@ let private deepSimulation =
          | Error e -> failwith $"Simulation setup failed: %A{e}"
          | Ok simData -> simData.FastSim, WaveSimSVGs.getWaves Set.empty ModelHelpers.initWSModel simData.FastSim)
 
+/// Every instance of the simulation: the top sheet, which nothing contains, and one per custom
+/// component - each of which introduces the instance of the sheet it names.
+let private allInstances (fs: FastSimulation) =
+    InstancePath []
+    :: (fs.FCustomComps |> Map.toList |> List.map (fun ((cid, ap), _) -> InstancePath(ap @ [ cid ])))
+
+/// How an instance reads, which is how these tests name one. The identity is a path of component
+/// ids; this is the path of LABELS it renders as, which is what a user sees and what the identity
+/// used to be.
+let private instanceNames (fs: FastSimulation) =
+    allInstances fs
+    |> List.map (fun path -> (WaveSimHierarchy.labelPathOf fs path).ToUpperInvariant())
+
+/// The instance that reads like this.
+let private instanceNamed (fs: FastSimulation) (name: string) =
+    allInstances fs
+    |> List.find (fun path -> (WaveSimHierarchy.labelPathOf fs path).ToUpperInvariant() = name)
+
 /// The hierarchy the selector would draw with the given instances chosen.
-let private hierarchyWith (chosen: (string list * string) list) =
+let private hierarchyWith (chosen: (string list * InstancePath) list) =
     let fs, _ = deepSimulation.Force()
     let ws = { ModelHelpers.initWSModel with SelectedSheetInstance = Map.ofList chosen }
     fs, WaveSimHierarchy.getSelectorHierarchy fs ws
@@ -478,7 +497,7 @@ let tests =
                   hierarchy.HierOrder
                   (fun node ->
                       match node.NodeInstance with
-                      | Some instance -> Map.containsKey instance fs.SimSheetStructure
+                      | Some instance -> List.contains instance (allInstances fs)
                       | None -> false)
                   "every node resolves to a sheet instance the simulation has"
               let leaf = hierarchy.HierNodes[leafKey]
@@ -541,14 +560,14 @@ let tests =
               let hierarchy = WaveSimHierarchy.getSelectorHierarchy fs ws
               let shown = hierarchy.HierOrder |> List.choose (fun node -> node.NodeInstance) |> Set.ofList
               Expect.isFalse
-                  (Set.contains "MID2.LEAF2" shown)
+                  (Set.contains (instanceNamed fs "MID2.LEAF2") shown)
                   "the node for `leaf` shows an instance under MID1, so this one is not on show"
 
               let hidden =
                   allWaves
                   |> Map.toList
                   |> List.map snd
-                  |> List.filter (fun wave -> wave.SheetId = "MID2.LEAF2")
+                  |> List.filter (fun wave -> wave.SheetId = instanceNamed fs "MID2.LEAF2")
               Expect.isNonEmpty hidden "the design has waves in that instance"
               let chosen =
                   { ws with
@@ -566,7 +585,7 @@ let tests =
                   "Show Only Selected gives back exactly the waves that were chosen"
               Expect.equal
                   (Set.toList filtered.Sheets)
-                  [ "MID2.LEAF2" ]
+                  [ instanceNamed fs "MID2.LEAF2" ]
                   "and only the instances they are in, not every sheet instance in the design"
 
               Simulator.simCacheWS <- Simulator.simCacheInit ()
@@ -605,20 +624,26 @@ let tests =
 
           testCase "an instance labelled with the top sheet's name is still a separate instance"
           <| fun () ->
-              // The top sheet is identified by its sheet's name, everything else by the path of
-              // labels down to it - so a component on the top sheet labelled with that sheet's own
-              // name gives a one-element path reading as the same thing. Sharing an identity makes
-              // them one instance to everything downstream: one key in SimSheetStructure, one group
-              // of waves, one node of the selector.
+              // A custom component on the top sheet labelled with that sheet's own name. While an
+              // instance was identified by the path of LABELS down to it, these two read as the
+              // same thing, and sharing an identity made them one instance to everything
+              // downstream - one group of waves, one node of the selector. It took a deliberate
+              // case-folding hack to keep them apart.
+              //
+              // An instance is now the path of component IDS, which cannot collide: the top sheet
+              // is the empty path and the component introduces a one-element one. What collides
+              // now is only how they READ, which costs nothing.
               let fs, allWaves = clashSimulation.Force()
-              Expect.equal
-                  (fs.SimSheetStructure |> Map.toList |> List.map fst |> List.sort)
-                  [ "CLASH"; "clash" ]
-                  "the two instances have identities of their own"
+              let instances = allInstances fs
+              Expect.equal (List.length instances) 2 "there are two instances"
+              Expect.equal (List.length (List.distinct instances)) 2
+                  "and they have identities of their own"
+              Expect.equal (instanceNames fs |> List.distinct |> List.length) 1
+                  "even though they read as the same thing"
 
               let instancesOfWaves =
                   allWaves |> Map.toList |> List.map (fun (_, wave) -> wave.SheetId) |> List.distinct
-              Expect.equal (List.sort instancesOfWaves) [ "CLASH"; "clash" ]
+              Expect.equal (List.length (List.distinct instancesOfWaves)) 2
                   "and the waves of each are grouped under their own"
               Expect.all
                   instancesOfWaves
@@ -677,12 +702,10 @@ let tests =
               // no distinguishing suffix. Nothing had to be invented for it.
               let fs, _ = deepSimulation.Force()
               Expect.equal
-                  (fs.SimSheetStructure |> Map.toList |> List.map fst |> List.sort)
+                  (instanceNames fs |> List.sort)
                   [ "DEEP"; "MID1"; "MID1.LEAF1"; "MID1.LEAF2"; "MID2"; "MID2.LEAF1"; "MID2.LEAF2" ]
-                  "every instance is the path of custom component labels reaching it"
-              Expect.all
-                  (fs.SimSheetStructure |> Map.toList |> List.map fst)
-                  (fun name -> not (name.Contains ":"))
+                  "every instance reads as the path of custom component labels reaching it"
+              Expect.all (instanceNames fs) (fun name -> not (name.Contains ":"))
                   "and none of them carries a disambiguator"
 
           testCase "a waveform is called sheet.component.port, with the sheet the user's name for it"
@@ -717,7 +740,9 @@ let tests =
               let _, hierarchy = hierarchyWith []
               let labelsOf (node: WaveSimHierarchy.SelectorNode) =
                   node.NodeInstances
-                  |> List.map (fun instance -> Map.tryFind instance labels |> Option.defaultValue instance)
+                  |> List.map (fun instance ->
+                      Map.tryFind instance labels
+                      |> Option.defaultValue (WaveSimHierarchy.pathKey instance))
                   |> List.sort
               Expect.equal (labelsOf hierarchy.HierNodes[midKey]) [ "MID1"; "MID2" ]
                   "the choice between the two mids is offered as what the user drew"

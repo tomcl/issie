@@ -193,22 +193,12 @@ type FastComponent =
       FullName: string
       /// label of component
       FLabel: string
-      /// Which INSTANCE of a sheet the component is in, as the dotted path of custom component
-      /// labels down to it, upper-cased - so it is unique, because a label is unique on the canvas
-      /// it is drawn on. The top sheet is the one instance with no such path, and is named by its
-      /// sheet instead. Not a sheet name and not meant to be read: for the sheet's own name use
-      /// getSheetNameOfInstance. Built in FastCreate.createInitFastCompPhase.
-      SimSheetName: string
-      /// SimSheetNamePath is the access path to the root of the simulation mapped to SimSheetNames of custom components
-      /// The last element is the SimSheetName of the sheet the component is in.
-      /// It is used by the Wave Selector to determine which waves are subsheets of a given Wave.SheetId.
-      SimSheetNamePath: string list
       /// The component's full path in the simulation: the LABELS of the custom component
       /// instances it sits within, from the root of the simulation, followed by its own label.
       /// All upper-cased. Built by GatherData.getFullSimPath.
       /// Despite the name these are component labels, NOT sheet names - a component on the top
-      /// sheet has a single-element path holding its own label. For sheets use SimSheetName (the
-      /// sheet this component is in) or SimSheetNamePath (that sheet's path from the root).
+      /// sheet has a single-element path holding its own label. For which INSTANCE a component
+      /// is in use Instance below, and for that instance's sheet use getSheetNameOfInstance.
       /// SubSheet below drops the last element to give just the enclosing instances.
       SheetName: string list
       /// This component's reducer, bound to this component, as a combinational and as a
@@ -225,6 +215,16 @@ type FastComponent =
       // these fields are used only by the Verilog output code
       mutable VerilogOutputName: string array
       mutable VerilogComponentName: string }
+    /// WHICH INSTANCE of a sheet this component sits in.
+    ///
+    /// The access path is the identity, and always was: a dotted upper-cased path of custom
+    /// component LABELS used to be stored beside it, computed from exactly this and from nothing
+    /// else. That string had to be unique, which cost a collision hack for the case of a custom
+    /// component labelled with the top sheet's own name, and it read as a sheet name without
+    /// being one. The path is unique by construction, needs no casing, and cannot be mistaken for
+    /// a name. Labels are for showing the user, and are worked out where they are shown.
+    member inline this.Instance = InstancePath this.AccessPath
+
     /// Number of component inputs
     member inline this.InputWidth(n) = this.InputLinks[n].Width
     /// Number of component outputs
@@ -467,8 +467,6 @@ type FastSimulation =
         SimulatedCanvasState: LoadedComponent list
         /// The root sheet being simulated
         SimulatedTopSheet: string
-        /// Map from SimSheetName to the parent sheet CustomComponent, or None if the sheet is top-level
-        SimSheetStructure: Map<string,FastComponent option>
 
         /// What one clock cycle of this design costs in step arrays. Worked out before the arrays
         /// were allocated, by FastCreate.stepCostOfDesign, and kept so that the waveform
@@ -476,20 +474,27 @@ type FastSimulation =
         StepCost: StepCost
     } with
 
-    /// The design-time name of the sheet an instance is of: what the user called it, and what they
-    /// see in the Sheets menu.
+    /// The custom component an instance is the innards of, or None for the top sheet.
     ///
-    /// SimSheetName is not a sheet name. It says WHICH INSTANCE, as the path of custom component
-    /// labels down to it, and is unique because it has to be - it keys SimSheetStructure and groups
-    /// waves. Anything telling the user which sheet something is in wants this instead.
-    member this.getSheetNameOfInstance(simSheetName: string) =
-        match Map.tryFind simSheetName this.SimSheetStructure with
-        | Some(Some fc) ->
+    /// A map from instance to parent used to be built and stored for this. It is a step off the
+    /// end of the path: the last id on the path IS the custom component, and what it sits in is
+    /// the rest of the path. One lookup, nothing to keep in step, and one entry per sheet INSTANCE
+    /// no longer allocated at build time - tens of thousands of them on a design that expands.
+    member this.parentCustomOf(InstancePath ap) : FastComponent option =
+        match List.tryLast ap with
+        | None -> None
+        | Some cid -> Map.tryFind (cid, ap[0 .. ap.Length - 2]) this.FCustomComps
+
+    /// The design-time name of the sheet an instance is of: what the user called it, and what they
+    /// see in the Sheets menu. An instance is a path; this says which sheet it is a copy of.
+    member this.getSheetNameOfInstance(instance: InstancePath) =
+        match this.parentCustomOf instance with
+        | Some fc ->
             match fc.FType with
             | Custom ct -> ct.Name
-            | _ -> simSheetName
+            | _ -> this.SimulatedTopSheet
         // no parent means the top sheet, which is the one instance named after its sheet
-        | _ -> this.SimulatedTopSheet
+        | None -> this.SimulatedTopSheet
 
  
 

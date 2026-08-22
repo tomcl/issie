@@ -293,7 +293,7 @@ let getName (index: WaveIndexT) (fastSim: FastSimulation) : string =
 /// read. Where that leaves two waveforms with one name, the viewer disambiguates them on hover.
 let nameWithSheet (fastSim: FastSimulation) (dispName: string) (waveIndex:WaveIndexT) =
     let fc = fastSim.WaveComps[waveIndex.Id]
-    camelCaseDottedWords (fastSim.getSheetNameOfInstance fc.SimSheetName) + "." + dispName
+    camelCaseDottedWords (fastSim.getSheetNameOfInstance fc.Instance) + "." + dispName
 
 /// Make Wave for each component and port on sheet
 let makeWave (ws: WaveSimModel) (fastSim: FastSimulation) (wi: WaveIndexT) : Wave =
@@ -327,7 +327,7 @@ let makeWave (ws: WaveSimModel) (fastSim: FastSimulation) (wi: WaveIndexT) : Wav
         PortLabel = portLabel
         Width = driver.DriverWidth
         DriverIndex = driver.Index
-        SheetId = fc.SimSheetName
+        SheetId = fc.Instance
         SVG = None
         HatchedCycles = EvilHoverCache.initGapStore 0
     }

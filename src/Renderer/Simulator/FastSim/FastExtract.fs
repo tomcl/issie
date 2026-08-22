@@ -239,11 +239,6 @@ let extractFastSimulationWidth (fs: FastSimulation) (fid: FComponentId) (opn: Ou
 let extractViewers (simulationData: SimulationData) : ((string * string) * int * FSInterface) list =
     let fs = simulationData.FastSim
 
-    let comps =
-        simulationData.FastSim.FComps
-        |> Map.map (fun fid fc -> fc.FType)
-        |> mapValues
-
     let viewers =
         simulationData.FastSim.FComps
         |> Map.filter (fun fid fc ->

@@ -172,7 +172,18 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
         |> reconcileWaves (Simulator.getFastSim())
 
     // Use the given (more uptodate) wsModel. This ensures it is returned from this function.
-    let model = updateWSModel (fun _ -> wsModel) model
+    //
+    // Settling how many cycles are shown belongs here, before anything is worked out from it. It
+    // depends on how wide the names column is, which is as wide as the longest selected wave's
+    // name - so selecting a wave with a longer name than any before it takes cycles off the view.
+    // That was only done after the render below, by which point this refresh had already decided
+    // what data to ask the simulator for, and asked for the wrong view: what the sidecar sends back
+    // is one exact window and covers no other, so the waveforms drew blank. The viewer width itself
+    // is measured from the DOM, but it is already in the model - a ResizeObserver puts it there -
+    // so nothing here needs a render to have happened. The TODO this answers is as old as the
+    // function.
+    let model = updateWSModel (fun _ -> wsModel) model |> updateViewerWidthInWaveSim model.WaveSimViewerWidth
+    let wsModel = getWSModel model
 
     // local containing the current fast simulation to be examined and extended if need be.
     let fs = Simulator.getFastSim()
@@ -324,14 +335,14 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                         
                         let simulationIsStillUptodate = Simulator.getFastSim().ClockTick >= lastCycleNeeded wsModel
 
-                        // The viewer width check above can change how many cycles are shown, and it
-                        // runs AFTER the data for this refresh was asked for. A row is as wide as
-                        // its name, so selecting a wave with a longer name than any before it takes
-                        // cycles off the view - and with the sidecar simulating, what was fetched is
-                        // one exact window and covers no other. Drawing then found nothing and left
-                        // the waveforms blank until something else happened to move the view.
+                        // Rendering can change the viewer's width - the panel divider moves, the
+                        // window is resized - and the width decides how many cycles are shown. When
+                        // it does, this refresh asked the simulator for a view that is no longer the
+                        // one being drawn, and what the sidecar sends back is one exact window that
+                        // covers no other. Everything a SELECTION changes is settled before the ask,
+                        // above, so this is left for what only a render can tell us.
                         //
-                        // This cannot loop: it re-enters only when the view has ALREADY changed, and
+                        // It cannot loop: it re-enters only when the view has ALREADY changed, and
                         // the next pass asks for the view it now has.
                         let viewIsUnchanged = windowOf wsModel = window
 

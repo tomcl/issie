@@ -38,6 +38,16 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
     let fs = Simulator.getFastSim()
     match Map.tryFind ramId fs.FComps with
     | None -> div [] []
+    // A RAM's contents come out of the renderer's own simulation, and with the sidecar simulating
+    // that one is never run - so this would show the memory as it was before the first clock edge,
+    // under a heading naming whatever cycle the cursor is on. Wrong contents look exactly like
+    // right ones, so say it plainly instead. Reading a RAM over the wire is what gives this back.
+    // (asked of the model rather than of WaveProvider, which compiles after this; switching
+    // simulators ends the simulation, so the two cannot disagree while a RAM table is up)
+    | Some _ when not model.SimulateInRenderer ->
+        div [ Style [ Margin "10px"; MaxWidth "40em" ] ] [
+            str $"The contents of '{ramLabel}' are not available while the .NET simulator is running                   the waveform simulation. Development > Simulate In Renderer shows them again."
+        ]
     | Some fc -> 
         let step = wsModel.CursorExactClkCycle
         if fs.ClockTick < step then

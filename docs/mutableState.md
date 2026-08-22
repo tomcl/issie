@@ -70,6 +70,14 @@ structurally would cost more than recomputing.
 | `UI/Update.fs`, `UI/UpdateHelpers.fs` | `uiStartTime`, `lastMemoryUpdateCheck` — timing instrumentation |
 | `UI/MainView.fs` | `lastDragModeOn`, `lastMemoryCheckTime` — view-time bookkeeping |
 | `UI/ModelHelpers.fs` | `asyncJobs` — async job queue |
+| `UI/WaveSim/WaveData.fs` | `source` — the waveform cache itself: either a read-through view of the renderer's own step arrays or one fetched window of the sidecar's, held as the typed array it arrived in. Read synchronously from `view` on every render, per wave, and megabytes in size; `localData` — the read-through lookup, a closure over whichever simulation is current, installed once per refresh |
+| `UI/WaveSim/WaveProvider.fs` | `built` — which design, at which array size, the sidecar process is holding; `sidecarClockTick` — how far that process has been run. Both are the renderer's picture of a process it cannot see inside, and both are written from inside the promises that talk to it, where there is no dispatch. **`sidecarClockTick` should become model state** when the sidecar's progress is reported: a progress bar needs a message per chunk, which is the thing that is missing today |
+
+**Not on this list, and deliberately: which simulator is running.** That is
+`Model.SimulateInRenderer`, and it is passed to `WaveProvider` rather than mirrored there. A
+`sidecarIsSimulating` mutable did mirror it, written from the model on every refresh so that it
+never actually drifted - which is the point: a copy that happens to agree is still a second place
+the answer can come from, and the callers all had the model anyway.
 
 ### To clean up: probably should be in `Model`
 

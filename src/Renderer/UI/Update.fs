@@ -422,7 +422,11 @@ let updateUnpinned (msg : Msg) oldModel =
         if fs.NumStepArrays = 0 then
             model |> withNoMsg
         else
-            model |> withMsg (WaveSimNavigation.setClkCycleMsg (getWSModel model) fs.ClockTick)
+            // The clock of whichever simulator is running. fs.ClockTick is the renderer's own, and
+            // is zero however far the sidecar has run, so cancelling threw the cursor back to
+            // cycle 0 rather than leaving it on the last cycle that exists.
+            model
+            |> withMsg (WaveSimNavigation.setClkCycleMsg (getWSModel model) (WaveProvider.cyclesSimulated model.SimulateInRenderer fs))
 
     | SetWaveGroupSelectionOpen (fIdL, show) ->
         model

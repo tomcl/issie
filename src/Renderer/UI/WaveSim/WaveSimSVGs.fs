@@ -73,19 +73,10 @@ let xShift clkCycleWidth =
 /// therefore clkCycleDetail IS NOT scaled the same as the sample numbers used
 /// everywhere else.
 let getWaveValue (clkCycleDetail: int) (wave: Wave) (width: int) : FastData =
-    let waveData =
-        match Array.tryItem wave.DriverIndex Simulator.simCacheWS.FastSim.Drivers with
-        | Some (Some d) -> d
-        | Some None ->
-            failwithf $"No driver found for wave {wave.DisplayName}"
-        | None ->
-            Log.error $"driver index {wave.DriverIndex} for wave {wave.DisplayName} is not in the fast simulation array"
-            failwithf $"Wave {wave.DisplayName} not found in fast simulation"
-
     // zero where the value cannot be had - past the end of the simulation, or outside the window
     // fetched for this view where the sidecar is simulating. The value column has always shown
     // something rather than nothing here.
-    WaveData.valueAt waveData.DriverData wave.DriverIndex clkCycleDetail width
+    WaveData.valueAt (SignalHandle wave.DriverIndex) clkCycleDetail
     |> Option.defaultValue { Dat = Word 0u; Width = width }
 
 /// Make left and right x-coordinates for a clock cycle.
@@ -421,10 +412,6 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
     let makePolyline points = 
         let points = points |> Array.concat |> Array.distinct
         polyline (wavePolylineStyle points) []
-    let waveData =
-        match Simulator.simCacheWS.FastSim.Drivers[wave.DriverIndex] with
-        | Some d  -> d
-        | None -> failwith $"No driver fround for {wave.DisplayName}"
     /// what this view draws: ShownCycles samples, one every SamplingZoom cycles, from StartCycle -
     /// which counts SAMPLES and not clock cycles (see WaveSlice.Window)
     let window: WaveSlice.Window =
@@ -433,7 +420,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
           SampleCount = ws.ShownCycles }
 
     let waveform, (gaps:GapStore) =
-        match WaveData.slice waveData.DriverData wave.DriverIndex window, wave.Width with
+        match WaveData.slice (SignalHandle wave.DriverIndex) window, wave.Width with
         | _, 0 ->
             failwithf "Cannot have wave of width 0"
 

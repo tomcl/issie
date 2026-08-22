@@ -21,6 +21,7 @@
 /// a cache of what the app is displaying, not model state.
 module WaveData
 
+open CommonTypes
 open SimTypes
 open SimGraphTypes
 open WaveSlice
@@ -51,14 +52,32 @@ type Source =
 /// What the viewer is currently drawing from. Local until the waveform simulator says otherwise.
 let mutable private source = Source.Local
 
-let setLocal () = source <- Source.Local
+/// How the Local source turns a handle into the data behind it.
+///
+/// A function rather than a FastSimulation, because this module must not know what one is: it is
+/// the cache, and a simulation is the private business of whichever simulator filled it. Whoever
+/// selects the Local source installs this, and the natural closure reaches for the CURRENT
+/// simulation rather than capturing one - capturing would pin a simulation and its step arrays
+/// for as long as the cache lives, which is the leak ModelHelpers.releaseWaveSimData exists to
+/// prevent.
+///
+/// Returning None is not an error: it is a handle from a simulation that is no longer there, and
+/// every caller already knows how to show nothing.
+let mutable private localData: SignalHandle -> IOArray option = fun _ -> None
+
+/// Read from the renderer's own simulation, through `lookup`. Nothing is copied - a local slice
+/// names the step array where it lies - so this "fill" is only recording how to find it.
+let setLocal (lookup: SignalHandle -> IOArray option) =
+    localData <- lookup
+    source <- Source.Local
+
 let setFetched (window: FetchedWindow) (cursor: FetchedWindow option) = source <- Source.Fetched(window, cursor)
 let current () = source
 
 /// Whether the fetched source already holds this view - the same window, the same cursor cycle,
 /// and every wave now being drawn among those it was fetched for. A local source is never
 /// "covered": it needs no fetch at all.
-let coversFetched (window: Window) (driverIndices: int list) (cursorCycle: int) =
+let coversFetched (window: Window) (handles: SignalHandle list) (cursorCycle: int) =
     match source with
     | Source.Local -> false
     | Source.Fetched(fetched, cursor) ->
@@ -66,26 +85,26 @@ let coversFetched (window: Window) (driverIndices: int list) (cursorCycle: int) 
         && (match cursor with
             | Some c -> c.Window.StartSample = cursorCycle
             | None -> true)
-        && driverIndices |> List.forall (fun i -> Set.contains i fetched.Asked)
+        && handles |> List.forall (fun (SignalHandle i) -> Set.contains i fetched.Asked)
 
 /// A slice of one wave over `window`, or None where the data is not held - which for a fetched
 /// source means the view has moved and the fetch for it has not landed yet, and for a local one
 /// means the simulation has not run that far. Every caller already has a way of showing nothing.
-let slice (driverData: IOArray) (driverIndex: int) (window: Window) : WaveSlice option =
+let slice (SignalHandle handle as h) (window: Window) : WaveSlice option =
     match source with
-    | Source.Local -> ofLocalDriver driverData window
+    | Source.Local -> localData h |> Option.bind (fun io -> ofLocalDriver io window)
     | Source.Fetched(fetched, _) ->
         if fetched.Window <> window then
             None
         else
-            match Map.tryFind driverIndex fetched.Rows, Map.tryFind driverIndex fetched.Widths with
+            match Map.tryFind handle fetched.Rows, Map.tryFind handle fetched.Widths with
             | Some rowBase, Some width -> Some(ofFetchedWords fetched.Data rowBase width window fetched.LeadIn)
             | _ -> None
 
 /// The value of one wave at one clock cycle, for the value column, the hover tooltip and the
 /// schematic probe. None where it cannot be answered.
-let valueAt (driverData: IOArray) (driverIndex: int) (cycle: int) (width: int) : FastData option =
-    let asData (v: bigint) =
+let valueAt (SignalHandle handle as h) (cycle: int) : FastData option =
+    let asWidth width (v: bigint) =
         if width > 32 then
             { Dat = BigWord v; Width = width }
         else
@@ -93,15 +112,19 @@ let valueAt (driverData: IOArray) (driverIndex: int) (cycle: int) (width: int) :
 
     match source with
     | Source.Local ->
-        if width > 32 then
-            driverData.TryBig cycle |> Option.map (fun v -> { Dat = BigWord v; Width = width })
-        else
-            driverData.TryU32 cycle |> Option.map (fun v -> { Dat = Word v; Width = width })
+        // the width is the signal's own, taken from the data rather than passed in: a caller that
+        // could get it wrong is a caller that can print one signal as another's width
+        localData h
+        |> Option.bind (fun io ->
+            if io.Width > 32 then
+                io.TryBig cycle |> Option.map (fun v -> { Dat = BigWord v; Width = io.Width })
+            else
+                io.TryU32 cycle |> Option.map (fun v -> { Dat = Word v; Width = io.Width }))
     | Source.Fetched(fetched, cursor) ->
         // the cursor column first, since that is the cycle the value readouts almost always want,
         // then the drawn window, whose samples are only every Multiplier cycles
         let fromWindow (f: FetchedWindow) =
-            match Map.tryFind driverIndex f.Rows, Map.tryFind driverIndex f.Widths with
+            match Map.tryFind handle f.Rows, Map.tryFind handle f.Widths with
             | Some rowBase, Some w ->
                 let offset = cycle - f.Window.FirstCycle
 
@@ -114,7 +137,7 @@ let valueAt (driverData: IOArray) (driverIndex: int) (cycle: int) (width: int) :
                         None
                     else
                         let s = ofFetchedWords f.Data rowBase w f.Window f.LeadIn
-                        Some(asData (sampleValue s i))
+                        Some(asWidth w (sampleValue s i))
             | _ -> None
 
         match cursor |> Option.bind fromWindow with

@@ -10,6 +10,10 @@ strategy options and their rough costs.
 All numbers are from one Windows development machine and are order-of-magnitude guides, not
 promises.
 
+What must be TRUE for the two sides to agree about a simulation - as opposed to how fast they can
+talk - is [sidecarInvariants.md](sidecarInvariants.md), which also says which of those things a
+running Issie can check for itself.
+
 ## What the channel measures as
 
 | Property | Measured |

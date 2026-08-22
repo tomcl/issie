@@ -1,4 +1,5 @@
-/// Running the waveform simulation on the .NET sidecar and fetching what the view draws.
+/// Which simulator answers the waveform viewer, and - when it is the .NET sidecar - fetching
+/// what the view draws.
 ///
 /// The shape of it: the sidecar builds and runs the simulation, and the renderer asks it for one
 /// window - the samples the current view shows, for the waves it is showing - every time that
@@ -16,7 +17,7 @@
 /// **Not yet here**: buses wider than 32 bits, which `simRead` refuses, so their waves come back
 /// with no data and are drawn empty. That is the next thing to add, along with the RAM tables,
 /// which need a command of their own.
-module WaveSimSidecar
+module WaveProvider
 
 open Fable.Core
 open Fable.Core.JsInterop
@@ -223,9 +224,14 @@ let private fetchWindow
                 return Ok()
         }
 
+/// Which simulator is answering. Not a copy of Model.SimulateInRenderer for its own sake: the
+/// refresh has one question to ask - is the data for this view here yet - and the answer differs
+/// only in whether anything has to be waited for.
+let mutable private sidecarIsSimulating = false
+
 /// Everything the viewer needs for one view, in one promise: build if the sidecar does not hold
 /// the design, run to the last cycle the view shows, then fetch that window.
-let prepare
+let private fetchForView
     (design: SimpleDesign)
     (arraySize: int)
     (fs: FastSimulation)
@@ -244,3 +250,39 @@ let prepare
             | Error e -> return Error e
             | Ok() -> return! fetchWindow fs driverIndices window cursorCycle
     }
+
+
+/// Choose the simulator for this refresh, and say what the renderer's own one reads through.
+///
+/// Called once per refresh so that nothing below has to branch on which simulator is running.
+/// A new simulation means the design or its shape changed: what the sidecar holds is then not it,
+/// and any window already fetched was read from a simulation that no longer exists.
+let selectSimulator (inRenderer: bool) (newSimulation: bool) (localLookup: SignalHandle -> IOArray option) =
+    sidecarIsSimulating <- not inRenderer
+
+    if inRenderer then
+        WaveData.setLocal localLookup
+    elif newSimulation then
+        forget ()
+        WaveData.setLocal localLookup
+
+/// Is the data this view draws already where the viewer can read it?
+///
+/// Always, when the renderer is simulating: its cache reads through to step arrays that are
+/// already in memory, so there is nothing to fetch and nothing to wait for. That asymmetry is the
+/// only thing that distinguishes the two simulators here, and it is why the caller needs no flag.
+let covers (window: Window) (handles: SignalHandle list) (cursorCycle: int) =
+    not sidecarIsSimulating || WaveData.coversFetched window handles cursorCycle
+
+/// Put the data for this view where the viewer can read it, for a simulator that has to be asked.
+/// Only ever called when `covers` says no, which for the renderer's own simulator is never.
+let fillFor
+    (design: SimpleDesign)
+    (arraySize: int)
+    (fs: FastSimulation)
+    (driverIndices: int list)
+    (window: Window)
+    (cursorCycle: int)
+    (onProgress: int -> unit)
+    : JS.Promise<Result<unit, string>> =
+    fetchForView design arraySize fs driverIndices window cursorCycle onProgress

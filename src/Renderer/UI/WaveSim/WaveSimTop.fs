@@ -217,15 +217,11 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
             |> List.map (fun wi -> wi.SimArrayIndex)
             |> List.filter (fun i -> i >= 0 && i < fs.Drivers.Length)
 
-        if model.SimulateInRenderer then
-            WaveData.setLocal localDriverData
-        elif newSimulation then
-            // the design or its shape has changed, so what the sidecar holds is not it: make it
-            // build again, and throw away the window, which was read from the old simulation
-            WaveSimSidecar.forget ()
-            WaveData.setLocal localDriverData
+        // Which simulator is answering, decided once. Nothing below asks again: the refresh has
+        // one question - is the data for this view here yet - and only the answer differs.
+        WaveProvider.selectSimulator model.SimulateInRenderer newSimulation localDriverData
 
-        /// Ask the sidecar for this view, and come back to draw when it answers. The waves on
+        /// Ask the simulator for this view, and come back to draw when it answers. The waves on
         /// screen stay as they are meanwhile; they are redrawn on re-entry, by which point
         /// WaveData holds the window and every read below finds it there.
         let fetchThisView () =
@@ -244,7 +240,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
 
                 Elmish.Cmd.OfPromise.either
                     (fun () ->
-                        WaveSimSidecar.prepare
+                        WaveProvider.fillFor
                             design
                             fs.MaxArraySize
                             fs
@@ -270,8 +266,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                         | Error e -> failed e)
                     (fun exn -> failed exn.Message)
 
-        if not model.SimulateInRenderer
-           && not (WaveData.coversFetched window (List.map SignalHandle shownDrivers) wsModel.CursorExactClkCycle) then
+        if not (WaveProvider.covers window (List.map SignalHandle shownDrivers) wsModel.CursorExactClkCycle) then
             model, fetchThisView ()
         else
 

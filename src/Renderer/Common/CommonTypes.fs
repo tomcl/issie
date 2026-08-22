@@ -999,10 +999,62 @@ let componentIdEncoder (cid: ComponentId) =
 let componentIdDecoder: Decoder<ComponentId> =
     Decode.int |> Decode.map ComponentId
 
+/// The DESIGN-time name of a sheet.
+///
+/// A sheet's name and the name of one INSTANCE of that sheet are different things which have had
+/// the same type - bare string - for as long as the waveform simulator has existed. That is why
+/// SimTypes and ModelType each carry a long comment warning about the confusion, and why
+/// FastCreate needs a collision hack for it. Wrapping the design-time one is half of telling
+/// them apart; SimSheetId below is the other half.
+///
+/// Wrapped at the simulator interface only. It is deliberately NOT pushed into
+/// LoadedComponent.Name, CustomComponentType.Name or SimpleSheet.SheetName: those cross the .dgm
+/// persistence boundary and the SimpleJsonDotNet wire boundary, and [<Erase>] does not mean the
+/// same thing under Fable as under .NET.
+[<Erase>]
+type SheetName = | SheetName of string
+
+/// The chain of custom-component instances from the simulated top sheet down to one instance,
+/// root first - so it names one ELABORATED copy of a sheet.
+///
+/// These are design-time ComponentIds, unique across the design, so a path is stable under
+/// relabelling and means the same thing whichever side computed it. It is not a new value: the
+/// simulator already builds exactly this as FastComponent.AccessPath (`ap @ [cid]` in
+/// FastCreate) and the design side already builds exactly this as SheetTree.SheetAccessPath
+/// (`accessPath @ [inst.InstId]` in MenuHelpers). This gives it a name.
+[<Erase>]
+type InstancePath = | InstancePath of ComponentId list
+
+/// A path as a person reads it: the labels of the custom components passed through, root first.
+///
+/// DISPLAY ONLY, never an identity. A shown path may be shortened where that is unambiguous -
+/// which is a rendering decision, and must not reach anything that compares paths.
+[<Erase>]
+type LabelPath = | LabelPath of string list
+
 /// Unique identifier for a fast component.
 /// The list is the access path, a list of all the containing custom components 
 /// from the top sheet of the simulation (root first)
-type FComponentId = ComponentId * ComponentId list
+type SimComponentId = ComponentId * ComponentId list
+
+/// The old name for SimComponentId, kept while the ~70 sites that destructure it as a bare tuple
+/// are still doing so.
+///
+/// Both are abbreviations of the same tuple today, so this costs nothing and changes nothing.
+/// Making the identity a tagged type is one line here - `[<Erase>] type SimComponentId =
+/// SimComponentId of ComponentId * ComponentId list` - and it was measured, on this branch, to
+/// break 71 sites, 38 of them in FastCreate and FastExtract. That is worth doing WITH the change
+/// that needs it (the per-instance port enumeration, which factors a predicate out of FastCreate
+/// anyway) rather than as a sweep of the simulator core that buys nothing on its own. Note also
+/// that [<Erase>] is a Fable-only erasure: under .NET this becomes a real union used as a Map key
+/// once per component, so the sidecar's build time on a 480,000-component design needs measuring
+/// when it happens.
+type FComponentId = SimComponentId
+
+/// One instance of a sheet in a running simulation - the simulation-time identity that a dotted,
+/// upper-cased label path (FastComponent.SimSheetName) stands for today.
+[<Erase>]
+type SimSheetId = | SimSheetId of InstancePath
 
 /// Unique integer id of a connection, unique within its SHEET only - nothing resolves a
 /// connection id outside the sheet it belongs to (error highlighting is sheet-guarded).
@@ -1057,6 +1109,33 @@ type WaveIndexT = {
     PortType: PortType
     PortNumber: int
 }
+
+/// The stable NAME of a signal: which port of which component of which instance.
+///
+/// This is WaveIndexT without SimArrayIndex, and that omission is the point. SimArrayIndex is a
+/// step-array index handed out by one build of one simulation and means nothing outside it,
+/// which is why a selection has to be re-resolved by the other three fields whenever the
+/// simulation is rebuilt. A SignalId survives a rebuild by construction, so it is what the model
+/// should hold.
+type SignalId =
+    { SigComp: FComponentId
+      SigPortType: PortType
+      SigPort: int }
+
+/// A simulator's handle for reading one signal: dense within one build, meaningless outside it,
+/// and issued by whichever simulator is running.
+///
+/// Never stored in the model. The renderer asks the simulator to turn SignalIds into handles
+/// after each build and quotes handles back when reading data. Keeping it distinct from SignalId
+/// is what stops a handle from one simulation being used to read another - which is exactly the
+/// mistake an exposed SimArrayIndex makes possible.
+[<Erase>]
+type SignalHandle = | SignalHandle of int
+
+/// Bumped by every simulation build. Every cached entry and every reply in flight carries the
+/// epoch it belongs to, so an answer from a superseded build is discarded rather than displayed.
+[<Erase>]
+type SimEpoch = | SimEpoch of int
 
 type WSConfig = {
     /// This is the last clock cycle number possibly needed by a waveform simulation

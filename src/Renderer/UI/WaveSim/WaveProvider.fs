@@ -114,6 +114,18 @@ let private parseJson (text: string) : obj = jsNative
 
 /// Advance the sidecar's simulation to `cycle`, a chunk at a time so the renderer stays live.
 /// `onProgress` is told the clock tick after each chunk.
+///
+/// **Only ever as far as the view needs.** A waveform simulation is run LAZILY and extended on
+/// demand as the user scrolls or zooms out; it is never run to the end of its step arrays because
+/// it was configured for a long one. That is deliberate UX - a design configured for four million
+/// cycles must not make the user wait for four million cycles to look at the first ten - and it
+/// is the reason `arraySize` above and the cycle here are different numbers with different jobs:
+/// the first ALLOCATES for the configured length, this one RUNS for the shown length.
+///
+/// The renderer's own simulator does the same thing through `lastCycleNeeded` in WaveSimTop,
+/// which works the bound out from the same view a slightly different way and lands one sample
+/// further on. Both cover what is drawn. When building and running are eventually shared, the
+/// two should become one expression rather than two that agree by inspection.
 let private runTo (cycle: int) (onProgress: int -> unit) : JS.Promise<Result<unit, string>> =
     let rec chunk () =
         promise {

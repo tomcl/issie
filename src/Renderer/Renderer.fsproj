@@ -70,6 +70,7 @@
     <Compile Include="Simulator\SimTypes.fs" />
     <Compile Include="UI\WaveSim\WaveSlice.fs" />
     <Compile Include="UI\WaveSim\WaveData.fs" />
+    <Compile Include="Simulator\SimInterface.fs" />
     <Compile Include="Simulator\TruthTableTypes.fs" />
     <Compile Include="Simulator\NumberHelpers.fs" />
     <Compile Include="Simulator\CanvasExtractor.fs" />

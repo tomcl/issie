@@ -180,6 +180,18 @@ open JSHelpers
 /// Edit and View in TopMenuView - or in a context menu.
 let devMenu (dispatch) =
     makeMenuGen (debugLevel > 0) false "Development" [
+        // Which simulator runs. The sidecar is the default and the intended one; the renderer's own
+        // simulator is kept for development - see Model.SimulateInRenderer - and these two items are
+        // the only way to reach it from the app.
+        //
+        // First in this menu, and not inside Play with the experiments, because it is the switch
+        // somebody comes to this menu looking for. Which one is running is said in the log when it
+        // changes (it always shows, whatever the log categories are set to), since a menu built once
+        // at startup cannot carry a tick that stays true.
+        makeDebugItem "Simulate In .NET Sidecar (default)" None
+            (fun _ -> dispatch <| ExecFuncInMessage((fun _ d -> DevHarness.setSimulateInRenderer false d), dispatch))
+        makeDebugItem "Simulate In Renderer (deprecated)" None
+            (fun _ -> dispatch <| ExecFuncInMessage((fun _ d -> DevHarness.setSimulateInRenderer true d), dispatch))
         // The writable half of the component libraries, under userData - where "save as library
         // component" puts things. The libraries shipped with Issie are elsewhere, read-only under
         // the installation, so this is the one that changes as the app is used.
@@ -214,14 +226,6 @@ let devMenu (dispatch) =
                               usage %.2f{heapUsage}%%")
             makeDebugItem "Initialise" None
                 (fun _ -> dispatch <| ExecFuncInMessage(softInitialise, dispatch))
-            // The simulator the app uses. The sidecar is the default and the intended one; the
-            // renderer's own simulator is kept for development - see Model.SimulateInRenderer -
-            // and this is the only way to reach it.
-            makeMenu false "Simulation" [
-                makeDebugItem "Use .NET Sidecar Simulator (default)" None
-                    (fun _ -> dispatch <| ExecFuncInMessage((fun _ d -> DevHarness.setSimulateInRenderer false d), dispatch))
-                makeDebugItem "Use Renderer Simulator (deprecated)" None
-                    (fun _ -> dispatch <| ExecFuncInMessage((fun _ d -> DevHarness.setSimulateInRenderer true d), dispatch)) ]
             // for writing libraries: normally a component's sheets are not the user's business
             makeDebugItem "Toggle Showing Library Sheets" None
                 (fun _ -> dispatch <| UpdateModel (fun m -> {m with ShowLibrarySheets = not m.ShowLibrarySheets}))

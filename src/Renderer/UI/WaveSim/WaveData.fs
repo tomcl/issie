@@ -35,6 +35,11 @@ type FetchedWindow =
       Rows: Map<int, int>
       /// bus width per driver index, since a slice needs to know which store it is
       Widths: Map<int, int>
+      /// every driver this fetch was FOR, including any it could not answer for - a bus wider
+      /// than 32 bits has no wire format yet and comes back with no row. Without this the
+      /// viewer could not tell "not fetched" from "fetched and not available", and would ask
+      /// again on every refresh for ever.
+      Asked: Set<int>
       Data: uint32 array }
 
 type Source =
@@ -49,6 +54,19 @@ let mutable private source = Source.Local
 let setLocal () = source <- Source.Local
 let setFetched (window: FetchedWindow) (cursor: FetchedWindow option) = source <- Source.Fetched(window, cursor)
 let current () = source
+
+/// Whether the fetched source already holds this view - the same window, the same cursor cycle,
+/// and every wave now being drawn among those it was fetched for. A local source is never
+/// "covered": it needs no fetch at all.
+let coversFetched (window: Window) (driverIndices: int list) (cursorCycle: int) =
+    match source with
+    | Source.Local -> false
+    | Source.Fetched(fetched, cursor) ->
+        fetched.Window = window
+        && (match cursor with
+            | Some c -> c.Window.StartSample = cursorCycle
+            | None -> true)
+        && driverIndices |> List.forall (fun i -> Set.contains i fetched.Asked)
 
 /// A slice of one wave over `window`, or None where the data is not held - which for a fetched
 /// source means the view has moved and the fetch for it has not landed yet, and for a local one

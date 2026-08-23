@@ -257,19 +257,15 @@ type GapStore = {
 
 
 /// Information required to display a waveform.
+/// One waveform the viewer knows about: which signal it is, what it is called and where its data
+/// lies. What it LOOKS like is not here - see WaveDrawn, which memoises that as a function of this
+/// and the view. It used to be: every Wave carried its SVG and the five view settings that SVG had
+/// been made under, so the model held a picture of the screen that had to be kept in step with the
+/// screen, and "is this waveform up to date" was a question about the model rather than about what
+/// is drawn.
 type Wave = {
     /// Uniquely identifies a waveform
     WaveId: WaveIndexT
-    /// First cycle displayed
-    StartCycle: int
-    /// Number of cycles displayed
-    ShownCycles: int
-    /// rate at which the simulated waveforms are sampled to achive very high zooms
-    Multiplier: int
-    /// width of one cycle: TODO - remove this and stretch SVGs to fit
-    CycleWidth: float
-    /// radix of waveform numbers
-    Radix: NumberBase
     /// Which INSTANCE of a sheet the waveform is in, as the path of custom component labels down to
     /// it - the path of custom components down to it, which is unique by construction. Not something
     /// to show anyone: for the sheet's own name use FastSimulation.getSheetNameOfInstance.
@@ -288,10 +284,6 @@ type Wave = {
     Width: int
     /// Array indexed by clock cycle to show value of wave.
     DriverIndex: int
-    /// SVG of waveform
-    SVG: ReactElement option
-    /// Hatched (greyed out) Gaps in waveform
-    HatchedCycles: GapStore
 }
 
 

@@ -425,17 +425,24 @@ let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =
     /// because the wave viewer is comprised of three columns of many
     /// rows, rather than many rows of three columns.
     let waves = selectedWaves wsModel
-    if List.exists (fun wave -> wave.SVG = None) waves then
-        dispatch <| GenerateCurrentWaveforms
+
+    // Each row is drawn from the data as it is now: the view the controls ask for where that has
+    // arrived, and the view the row is already showing where it has not. Making the SVG is a pure
+    // function of the two, memoised on exactly its inputs, so a render in which nothing changed
+    // costs a map lookup per row - which matters, because Issie renders on every message.
+    //
+    // Nothing is dispatched from here. This used to ask for a regeneration whenever a row had no
+    // SVG, which is a view deciding what the update should do next, from a model field that existed
+    // to be looked at by the view.
     let waveRows : ReactElement list =
         waves
         |> List.map (fun wave ->
-            match wave.SVG with
-            | Some waveform ->
-                waveform
-            | None ->
-                div [] [] // the GenerateCurrentWaveforms message will soon update this
-        )
+            match WaveSimSVGs.drawnFor wsModel wave with
+            | Some drawn -> drawn.Svg
+            // nothing has ever been drawn for this wave - it has just been selected, and its first
+            // data is on its way
+            | None -> div [] [])
+
     
     div [ waveformColumnStyle ]
         [
@@ -470,16 +477,29 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
             /// and it is deliberately loud: it is here to catch our own bugs, in front of whoever
             /// hits one.
             ///
-            /// A pure function of the model and the clock, worked out here on every render rather
-            /// than tracked. The only thing recorded is when the view changed; whether each wave
-            /// has caught up with it is something each wave already says, and how long that has
+            /// A pure function of the model, the cache and the clock, worked out here on every
+            /// render rather than tracked. The only thing recorded is when the view changed;
+            /// whether the data for it is here is a question about the cache, and how long that has
             /// been true is the clock's business.
+            ///
+            /// Asked of the DATA and not of what is drawn. The drawn waveforms are filled in by the
+            /// render itself, further down this same function, so asking them here would be asking
+            /// before the answer is made: every view change would show this banner for one frame,
+            /// which is the opposite of a warning that means something.
             let staleWarning =
                 let behindMs = TimeHelpers.getTimeMs () - wsModel.ViewSetAtMs
 
                 let anyWaveBehind () =
-                    selectedWaves wsModel
-                    |> List.exists (WaveSimSVGs.waveformIsUptodate wsModel >> not)
+                    let window: WaveSlice.Window =
+                        { StartSample = wsModel.StartCycle
+                          Multiplier = wsModel.SamplingZoom
+                          SampleCount = wsModel.ShownCycles }
+
+                    wsModel.SelectedWaves
+                    |> List.map (fun wi -> SignalHandle wi.SimArrayIndex)
+                    |> fun handles -> WaveData.needFetching handles window
+                    |> List.isEmpty
+                    |> not
 
                 if
                     model.SpinnerPayload = None

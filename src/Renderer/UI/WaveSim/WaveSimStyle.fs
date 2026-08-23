@@ -674,7 +674,13 @@ let setWaveToolTip (m: WaveSimModel) (ev:Browser.Types.MouseEvent) =
     let numValText =
         match List.tryItem waveNum (selectedWaves m) with
         | None -> ""
-        | Some wave -> EvilHoverCache.getWaveToolTip cycle wave m
+        | Some wave ->
+            // A row with nothing drawn has no tooltip: there is no waveform under the pointer to
+            // say anything about. That is also what happens where data has not arrived, since the
+            // row is then showing the last waveform it had and answers for THAT.
+            match WaveDrawn.tryDrawn wave.DriverIndex with
+            | None -> ""
+            | Some drawn -> EvilHoverCache.getWaveToolTip cycle drawn.Gaps wave m
     let ttXPos = float (cycle - m.StartCycle) * singleWaveWidth m
     let ttYPos = ( float waveNum * float Constants.rowHeight + 16. / 2.)
     // getWaveToolTip labels the value itself, since what it has to say may be a hidden value, the

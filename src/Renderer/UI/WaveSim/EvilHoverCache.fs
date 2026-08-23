@@ -106,10 +106,13 @@ let getRomCommentAtStep (fs: FastSimulation) (step: int) (wave: Wave) : string =
 /// the selected waves that WaveDetails still HOLDS - see WaveSimStyle.selectedWaves, which the three
 /// columns are all built from - so counting rows off SelectedWaves itself answered for a different
 /// row wherever the two differ, and indexed WaveDetails with a key it might not have.
-let getWaveToolTip (cycle:int) (wave: Wave) (ws:WaveSimModel) =
+/// The gaps are those of the waveform AS DRAWN, passed in rather than looked up, because they are a
+/// fact about the picture on screen and not about the wave: where the row is showing an older view
+/// - its data has not arrived yet - the gaps of that older view are the ones the pointer is over.
+let getWaveToolTip (cycle:int) (gaps: GapStore) (wave: Wave) (ws:WaveSimModel) =
     let arrayIndex = cycle * ws.SamplingZoom
     let hiddenValue =
-        if checkIfHatched wave.HatchedCycles cycle then
+        if checkIfHatched gaps cycle then
             // The cursor can rest past the end of what has been simulated, and where the sidecar
             // is simulating it can rest outside the window fetched for this view, so the value is
             // ASKED for rather than taken - a read off the end of a JS typed array is undefined,

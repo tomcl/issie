@@ -166,6 +166,7 @@
     <Compile Include="UI\SelectedComponentView.fs" />
     <Compile Include="UI\WaveSim\WaveSimTypes.fs" />
     <Compile Include="UI\WaveSim\WaveProvider.fs" />
+    <Compile Include="UI\WaveSim\WaveDrawn.fs" />
     <Compile Include="UI\WaveSim\EvilHoverCache.fs" />
     <Compile Include="UI\WaveSim/WaveSimStyle.fs" />
     <Compile Include="UI\WaveSim/WaveSimHelpers.fs" />

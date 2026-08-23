@@ -169,6 +169,13 @@ let private waveState () =
                     |> List.filter (fun wi -> Option.isSome (WaveDrawn.tryDrawn wi.SimArrayIndex))
                     |> List.length
                    stale = WaveDrawn.staleCount ws (WaveSimStyle.selectedWaves ws)
+                   // where the first drawn waveform actually starts, which while data is arriving
+                   // is behind `startCycle` and should be seen to follow it rather than to stick
+                   drawnStart =
+                    ws.SelectedWaves
+                    |> List.tryPick (fun wi ->
+                        WaveDrawn.tryDrawn wi.SimArrayIndex |> Option.map (fun d -> d.Spec.Window.StartSample))
+                    |> Option.defaultValue -1
                    fetchInProgress = ws.FetchInProgress
                    spinner = Option.isSome model.SpinnerPayload |}
 
@@ -483,6 +490,25 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
           | true, n ->
               dispatch (UpdateWSModel(fun ws -> { ws with WSConfig = { ws.WSConfig with LastClock = n } }))
               $"last clock set to {n} - start the simulation for it to take effect"
+
+      "ramSelect",
+      // "<n>" - show the contents of the first n RAMs the simulation offers, as ticking them in the
+      // Select RAM dialog would. The RAM tables share the pane with the waveforms, so how many
+      // there are is what the layout has to cope with.
+      fun arg model dispatch ->
+          match System.Int32.TryParse arg with
+          | false, _ -> $"ramSelect needs a number, not '{arg}'"
+          | true, n ->
+              let ws = getWSModel model
+              let fs = Simulator.getFastSim ()
+
+              let rams =
+                  ws.RamComps
+                  |> List.truncate n
+                  |> List.choose (fun ramId -> Map.tryFind ramId fs.FComps |> Option.map (fun fc -> ramId, fc.FLabel))
+
+              dispatch (UpdateWSModel(fun ws -> { ws with SelectedRams = Map.ofList rams }))
+              $"showing {List.length rams} of {List.length ws.RamComps} RAMs"
 
       "waveSelect",
       // "<n>" - show the first n waves the simulation offers, as picking them in the selector would.

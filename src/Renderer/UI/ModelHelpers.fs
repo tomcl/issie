@@ -49,12 +49,14 @@ module Constants =
     let waveSimRequiredArraySize wsModel =
         wsModel.WSConfig.LastClock + maxStepsOverflow + waveSimZoomMargin wsModel
 
+
     /// Where a waveform simulation of a big design starts, in clock cycles. Enough to watch a
     /// design work; short enough that starting one is seconds rather than minutes.
     let shortStartClock = 200
     /// The share of the heap budget its expanded design may take before a simulation is started at
     /// shortStartClock rather than at what it was configured for.
     let bigDesignHeapShare = 0.2
+
     let defaultWSConfig = {
             LastClock = 2000; // Simulation array limit during wave simulation
             FirstClock = 0; // first clock accessible - limits scroll range. NOT IMPLEMENTED
@@ -499,6 +501,20 @@ let removeAllSimulationsFromModel (model:Model) =
     model
     |> Optic.set currentStepSimulationStep_ None
     |> Optic.map waveSim_ (Map.map (fun _ -> releaseWaveSimData))
+
+/// Which simulator a button is about to start, or is running, for its label - development builds
+/// only, where it is the empty string.
+///
+/// The two backends are meant to be indistinguishable, and are checked against each other for
+/// exactly that. The cost is that when they are NOT - a difference in a waveform, a simulation that
+/// is slow, a fetch that fails - nothing on screen says which one is being looked at, and the
+/// Development menu that switches them does not say either. The button that starts a simulation is
+/// where the question is asked, so it is where the answer goes.
+let simulatorLabel (model: Model) =
+    if JSHelpers.debugLevel > 0 then
+        (if model.SimulateInRenderer then " (renderer)" else " (.NET)")
+    else
+        ""
 
 /// True if a step simulation, truth table or waveform simulation is currently open.
 /// Parameters create dependencies across a whole design, so they cannot be changed while one is open.

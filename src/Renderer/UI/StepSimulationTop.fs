@@ -109,7 +109,10 @@ let viewSimulation canvasState model dispatch =
     | None ->
         let isSync = verdict = Some(Ok true)
         let buttonColor, buttonText =
-            if buildsOk then IsSuccess, "Start Simulation" else IsWarning, "See Problems"
+            if buildsOk then
+                IsSuccess, "Start Simulation" + ModelHelpers.simulatorLabel model
+            else
+                IsWarning, "See Problems"
         div [] [
             str "Simulate simple logic using this tab."
             br []

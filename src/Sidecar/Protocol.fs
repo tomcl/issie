@@ -19,13 +19,24 @@
 ///   Download  payload is a 4-byte LE byte count N,
 ///             response carries N bytes                 - sidecar-to-renderer
 ///
-/// SendDesign carries real cargo rather than measuring. Its payload is length-prefixed UTF-8
-/// strings (uint32 LE byte count, then the bytes, repeated): first the top sheet name, then one
-/// CommonTypes.SimpleSheet JSON per sheet - per-sheet rather than one design JSON so the
-/// receiver can cache decoded sheets and skip unchanged ones (DesignCache.fs). The renderer
-/// encodes with the vendored SimpleJson serializer, this side decodes with SimpleJsonDotNet.
-/// The response payload is a small JSON object with what was received, how many sheets needed
-/// decoding, and how long that took.
+/// SendDesign carries real cargo rather than measuring, and carries it ONE SHEET PER MESSAGE.
+/// Payload: uint32 LE sheet index, uint32 LE sheet count, then length-prefixed UTF-8 strings
+/// (uint32 LE byte count, then the bytes) - the top sheet's name, then that one sheet's
+/// CommonTypes.SimpleSheet JSON.
+///
+/// One sheet because decoding is the cost and this side handles one message at a time: the whole
+/// 18-sheet 3cpu design decodes in ~300ms against ~25ms for its largest single sheet, and a
+/// handler holds the serve loop for as long as it runs. Per-sheet framing also lets the receiver
+/// cache decoded sheets and skip unchanged ones (DesignCache.fs).
+///
+/// Index 0 begins an upload, discarding any abandoned one AND the current simulation session: a
+/// design is only ever sent with every simulation closed, so nothing is taken from a caller using
+/// it, and afterwards a command left over from before the design changed names an epoch that no
+/// longer exists. The sheets become a design when the last of `count` has arrived, which the reply
+/// reports as "complete".
+///
+/// The renderer encodes with the vendored SimpleJson serializer, this side decodes with
+/// SimpleJsonDotNet.
 module Issie.Sidecar.Protocol
 
 [<Literal>]
@@ -64,6 +75,12 @@ let SimRun = 0x06uy
 
 /// The deterministic-stimulus digest text of the last-sent design. Payload: uint32 LE ticks.
 /// Reply: the raw render text (an error reply starts with '{').
+///
+/// **Declared long**, like SimBuild: it builds and runs a simulation of its own. Unlike SimBuild
+/// that is not a limitation to be lifted - this is a development and test command, used by
+/// simCompare and by the golden-model tests to compare the two runtimes byte for byte, and
+/// bounding it would refuse exactly the large designs a divergence hunt most wants to check. It
+/// touches no session, so a long one cannot disturb a simulation - only occupy the serve loop.
 [<Literal>]
 let SimDigest = 0x07uy
 

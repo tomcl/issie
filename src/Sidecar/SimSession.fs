@@ -127,6 +127,18 @@ let digest (design: SimpleDesign) (ticks: int) : string =
     | Ok text -> text
     | Error e -> errorReply e
 
+/// Drop the session because a new design is arriving, whatever session that is.
+///
+/// A design is only ever sent with every simulation closed - Start and Refresh both do it on a
+/// closed one, Refresh by stopping first - so this cannot take a session out from under a caller
+/// that is using it. It is here so that the sidecar's state says the same thing: between a design
+/// arriving and the build that follows it there is no session, so a command left over from before
+/// the design changed names an epoch that no longer exists and is refused, rather than being
+/// answered from a simulation of a design that has been replaced.
+///
+/// The epoch counter is untouched, so the next build takes a number never used before.
+let discardForNewDesign () = session <- None
+
 /// Drop the session so its (potentially large) step arrays can be collected.
 let endSession (askedEpoch: int) : string =
     match checkEpoch askedEpoch with

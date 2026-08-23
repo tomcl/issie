@@ -255,39 +255,54 @@ let tests =
                     [ System.BitConverter.GetBytes bytes.Length; bytes ])
                 |> Array.concat
 
-            match DesignCache.parsePayload (pack (design.TopSheet :: sheetJsons)) with
+            // one message per sheet, as the sidecar receives them: the top sheet's name and one
+            // sheet's JSON
+            match DesignCache.parsePayload (pack [ design.TopSheet; List.head sheetJsons ]) with
             | Error e -> failtest e
             | Ok(topSheet, jsons) ->
                 Expect.equal topSheet design.TopSheet "top sheet name survives the framing"
-                Expect.equal jsons sheetJsons "sheet JSONs survive the framing"
+                Expect.equal jsons [ List.head sheetJsons ] "the sheet's JSON survives the framing"
 
-                match DesignCache.decodeSheets Map.empty jsons with
-                | Error e -> failtest e
-                | Ok(sheets, decodedCold, cache) ->
-                    Expect.equal sheets design.Sheets "decoded sheets equal the originals"
-                    Expect.equal decodedCold design.Sheets.Length "cold: every sheet decodes"
+            /// What the sidecar's SendDesign loop does across the messages of one upload: decode
+            /// each sheet through the cache, which grows as it goes, then keep exactly this
+            /// design's sheets once the last has arrived.
+            let uploadDesign (cache: Map<string, SimpleSheet>) (jsons: string list) =
+                let cacheAfter, sheets, decoded =
+                    ((cache, [], 0), jsons)
+                    ||> List.fold (fun (c, sheets, decoded) json ->
+                        match DesignCache.decodeSheet c json with
+                        | Error e -> failtest e
+                        | Ok(sheet, wasDecoded, c') ->
+                            c', sheets @ [ sheet ], decoded + (if wasDecoded then 1 else 0))
 
-                    match DesignCache.decodeSheets cache jsons with
-                    | Error e -> failtest e
-                    | Ok(sheetsAgain, decodedWarm, _) ->
-                        Expect.equal sheetsAgain design.Sheets "cached sheets equal the originals"
-                        Expect.equal decodedWarm 0 "warm: nothing decodes"
+                sheets, decoded, DesignCache.keepOnly jsons cacheAfter
 
-                    // one edited sheet costs exactly one decode
-                    let sheet0 = design.Sheets.Head
+            let sheets, decodedCold, cache = uploadDesign Map.empty sheetJsons
+            Expect.equal sheets design.Sheets "decoded sheets equal the originals"
+            Expect.equal decodedCold design.Sheets.Length "cold: every sheet decodes"
 
-                    let modified =
-                        { sheet0 with
-                            Components =
-                                sheet0.Components
-                                |> List.map (fun comp -> { comp with Label = comp.Label + "X" }) }
+            let sheetsAgain, decodedWarm, _ = uploadDesign cache sheetJsons
+            Expect.equal sheetsAgain design.Sheets "cached sheets equal the originals"
+            Expect.equal decodedWarm 0 "warm: nothing decodes"
 
-                    let changedJsons = Json.serialize<SimpleSheet> modified :: List.tail sheetJsons
+            // one edited sheet costs exactly one decode
+            let sheet0 = design.Sheets.Head
 
-                    match DesignCache.decodeSheets cache changedJsons with
-                    | Error e -> failtest e
-                    | Ok(_, decodedAfterEdit, _) ->
-                        Expect.equal decodedAfterEdit 1 "an edit to one sheet decodes one sheet"
+            let modified =
+                { sheet0 with
+                    Components = sheet0.Components |> List.map (fun comp -> { comp with Label = comp.Label + "X" }) }
+
+            let changedJsons = Json.serialize<SimpleSheet> modified :: List.tail sheetJsons
+            let _, decodedAfterEdit, prunedCache = uploadDesign cache changedJsons
+            Expect.equal decodedAfterEdit 1 "an edit to one sheet decodes one sheet"
+
+            // and the cache ends holding that design and no more, so it stays bounded by one
+            // design however many uploads it has seen
+            Expect.equal (Map.count prunedCache) changedJsons.Length "the cache holds exactly the design just uploaded"
+
+            Expect.isFalse
+                (prunedCache |> Map.containsKey (List.head sheetJsons))
+                "the sheet that was edited away is gone from the cache"
         }
 
         test "sidecar sim session: build, chunked run, digest identical to local render" {

@@ -315,6 +315,19 @@ let selectSimulator (inRenderer: bool) (newSimulation: bool) (localLookup: Signa
 let cyclesSimulated (inRenderer: bool) (fs: FastSimulation) =
     if inRenderer then fs.ClockTick else sidecarClockTick
 
+/// Is a fetch already running?
+///
+/// A refresh that finds one has nothing to do. It must NOT ask for another - two chains against one
+/// session interleave build, run and read - and it must not pretend one was made either: the fetch
+/// in progress refreshes when it lands, and that refresh asks for whatever view is current by then,
+/// which is the one the user is looking at.
+///
+/// This used to be answered inside `fillFor`, which returned Ok when it dropped a request. The
+/// caller took that for "the data is here", refreshed, found the view still not covered, asked
+/// again, was dropped again - a refresh loop for as long as the real fetch took, which on a four
+/// million cycle run is half a minute of the renderer doing nothing else.
+let fetchInProgress () = fetching
+
 /// Is the data this view draws already where the viewer can read it?
 ///
 /// Always, when the renderer is simulating: its cache reads through to step arrays that are
@@ -326,16 +339,12 @@ let covers (inRenderer: bool) (window: Window) (handles: SignalHandle list) (cur
 /// Put the data for this view where the viewer can read it, for a simulator that has to be asked.
 /// Only ever called when `covers` says no, which for the renderer's own simulator is never.
 ///
-/// **One at a time.** A fetch is asked for whenever the view is not held, which is every checkbox
-/// tick, scroll step and cursor move - so without this a second chain starts while the first is
-/// still running, and the two interleave build, run and read against one session: the second
-/// chain's build resets the simulation under the first chain's read. The sidecar serves them in
-/// arrival order and cannot tell that they belong to different views.
-///
-/// A request arriving while one is in progress is DROPPED rather than queued, and that is safe
-/// because of what happens when the one in progress finishes: it refreshes, the refresh finds the
-/// current view is still not held, and asks again - for the view as it is by then, which is the
-/// one the user is looking at. A queue would fetch the views they scrolled through on the way.
+/// **One at a time**, which the CALLER enforces by asking `fetchInProgress` first. A fetch is asked
+/// for whenever the view is not held - every checkbox tick, scroll step and cursor move - so
+/// without that a second chain starts while the first is still running, and the two interleave
+/// build, run and read against one session: the second chain's build resets the simulation under
+/// the first chain's read. The sidecar serves them in arrival order and cannot tell that they
+/// belong to different views.
 let fillFor
     (design: SimpleDesign)
     (arraySize: int)
@@ -345,15 +354,12 @@ let fillFor
     (cursorCycle: int)
     (onProgress: int -> unit)
     : JS.Promise<Result<unit, string>> =
-    if fetching then
-        Promise.lift (Ok())
-    else
-        fetching <- true
+    fetching <- true
 
-        fetchForView design arraySize fs driverIndices window cursorCycle onProgress
-        |> Promise.map (fun result ->
-            fetching <- false
-            result)
-        |> Promise.catch (fun e ->
-            fetching <- false
-            Error e.Message)
+    fetchForView design arraySize fs driverIndices window cursorCycle onProgress
+    |> Promise.map (fun result ->
+        fetching <- false
+        result)
+    |> Promise.catch (fun e ->
+        fetching <- false
+        Error e.Message)

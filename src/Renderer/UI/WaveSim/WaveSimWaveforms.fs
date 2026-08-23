@@ -482,6 +482,14 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
                     && behindMs > Constants.staleWaveformWarningMs
                     && anyWaveBehind ()
                 then
+                    // Which of the two it is matters more than the fact: a fetch in flight is slow,
+                    // and no fetch at all is broken.
+                    let waiting =
+                        if WaveProvider.fetchInProgress () then
+                            "Data for it has been asked for and has not arrived."
+                        else
+                            "Nothing is fetching it, so this is a fault rather than a wait."
+
                     [ div
                           [ Style
                                 [ Background "#ffe0b2"
@@ -490,7 +498,7 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
                                   Padding "4px 8px"
                                   FontSize "12px" ] ]
                           [ str
-                                $"These waveforms have been showing an older view for %.0f{behindMs / 1000.0} seconds.                                   What is drawn is not what the cycle numbers above it say." ] ]
+                                $"These waveforms have been showing an older view for %.0f{behindMs / 1000.0} seconds. What is drawn is not what the cycle numbers above it say. {waiting}" ] ]
                 else
                     []
 

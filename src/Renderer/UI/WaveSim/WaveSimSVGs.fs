@@ -393,12 +393,12 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave o
     | Some sliceOfWave ->
 
     let waveform, (gaps:GapStore) =
-        match Some sliceOfWave, wave.Width with
+        match sliceOfWave, wave.Width with
         | _, 0 ->
             failwithf "Cannot have wave of width 0"
 
 
-        | Some slice, 1 -> // binary waveform
+        | slice, 1 -> // binary waveform
             let transitions = WaveSlice.binaryTransitions slice
             let wavePoints =
                 let waveWidth = singleWaveWidth ws
@@ -408,7 +408,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave o
 
             svg (waveRowProps ws) [ polyline (wavePolylineStyle wavePoints) [] ], initGapStore 0
 
-        | Some slice, w when w <= 32 -> // non-binary waveform
+        | slice, w when w <= 32 -> // non-binary waveform
             let transitions, waveValues = WaveSlice.nonBinaryTransitionsWords slice
             let fstPoints, sndPoints =
                 let waveWidth = singleWaveWidth ws
@@ -420,7 +420,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave o
 
             svg (waveRowProps ws) (List.append polyLines valuesSVG), gapStore
 
-        | Some slice, _ -> // non-binary waveform with width greather than 32
+        | slice, _ -> // non-binary waveform with width greather than 32
             let transitions, sampledWaveValues = WaveSlice.nonBinaryTransitionsBigs slice
 
             let fstPoints, sndPoints =

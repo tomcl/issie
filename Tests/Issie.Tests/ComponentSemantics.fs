@@ -389,6 +389,56 @@ let tests =
             let outs = simulateClocked (AsyncRAM1 mem) [ 33; 8; 1 ] [ 8 ] asyncRamStimuli
             Expect.equal outs asyncRamExpected "async read uses the current cycle's address"
         }
+        test "a run says whether it finished, and a run that did not can be continued" {
+            // The outcome used to be a rate, with None meaning both "nothing to do" and "finished",
+            // so the caller had to compare clock ticks afterwards to work out which. What matters
+            // to every caller is which of the two happened.
+            let simData = startSim (Register 8) [ 8 ] [ 8 ]
+            let fs = simData.FastSim
+
+            Expect.equal (FastRun.runFastSimulation None 20 fs) SimTypes.RunCompleted "no budget, so it finishes"
+            Expect.equal fs.ClockTick 20 "and the clock is where it was asked for"
+
+            // already there: nothing to do, and that is finishing rather than stopping
+            Expect.equal (FastRun.runFastSimulation None 20 fs) SimTypes.RunCompleted "already at the target"
+            Expect.equal fs.ClockTick 20 "with the clock untouched"
+
+            // A budget of zero ms stops at the first reading of the clock. That is not the first
+            // CYCLE: the clock is read every so many cycles, chosen so a roughly constant amount of
+            // work passes between readings, which on a design this small is hundreds of them. So
+            // the target has to be far enough away to outlast one batch.
+            let farTarget = 100_000
+
+            match FastRun.runFastSimulation (Some 0.0) farTarget fs with
+            | SimTypes.RunCompleted -> failtest "a zero budget should not have reached a distant target"
+            | SimTypes.RunStoppedAt clock ->
+                Expect.isLessThan clock farTarget "stopped short of the target"
+                Expect.equal clock fs.ClockTick "and says the clock it stopped at"
+
+            // continuing from there reaches it, losing nothing
+            Expect.equal (FastRun.runFastSimulation None farTarget fs) SimTypes.RunCompleted "continuing finishes"
+            Expect.equal fs.ClockTick farTarget "at the cycle first asked for"
+        }
+        test "stepping back inside the step arrays costs no re-run, and past them restarts" {
+            // The step arrays are a circular buffer, so a cycle still held has already been
+            // computed and showing it is a read. That is what makes stepping backwards cheap for
+            // the step simulator, and it is why how far back the arrays still hold is a number
+            // worth reporting rather than one to be inferred.
+            let simData = startSim (Register 8) [ 8 ] [ 8 ]
+            let fs = simData.FastSim
+
+            FastRun.runFastSimulation None (maxArraySize - 1) fs |> ignore
+            let reached = fs.ClockTick
+
+            // back a little: inside the buffer, so the clock does not move and nothing is re-run
+            Expect.equal (FastRun.runFastSimulation None (reached - 1) fs) SimTypes.RunCompleted "a step back"
+            Expect.equal fs.ClockTick reached "left the clock alone - the cycle asked for is still held"
+
+            // far enough forward that the beginning has been overwritten, then back to it
+            FastRun.runFastSimulation None (maxArraySize * 2) fs |> ignore
+            Expect.equal (FastRun.runFastSimulation None 0 fs) SimTypes.RunCompleted "a step back past the buffer"
+            Expect.equal fs.ClockTick 0 "restarted, so the clock is at the cycle asked for"
+        }
         test "RAM1 reads 0 in cycle 0 after a restart as well as on the first run" {
             // Going back further than the step arrays hold resimulates from step 0, which reduces
             // the RAM at a step a fresh run never reduces it at. Cycle 0 has had no clock edge for

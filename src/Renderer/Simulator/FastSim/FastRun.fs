@@ -90,71 +90,75 @@ let runCombinationalLogicFData (step: int) (fastSim: FastSimulation) =
     |> Array.iter (fastReduceFData fastSim.MaxArraySize step false)
 
 
-/// Run an existing fast simulation up to the given number of steps. This function will mutate the write-once data arrays
-/// of simulation data and only simulate the new steps needed, so it may return immediately doing no work.
-/// If the simulation data arrays are not large enough they are extended up to a limit. After that, they act as a circular buffer.
-/// TimeOut if not None is the cutoff time after which the simulation terminates execution unfinished.
-/// Use fs.ClockTick to determine whether simulation has completed.
-/// returns speed, in clock cycles per ms, or None if complete
-let private runFastSimulationCore (timeOut: float option) (lastStepNeeded: int) (fs: FastSimulation) : float option =
+/// About how many component evaluations should pass between readings of the clock.
+///
+/// The unit is WORK, not cycles, and that is the whole point. A clock read costs tens of
+/// nanoseconds and a component evaluation a few, so a thousand of them puts the clock well under
+/// 1% - and because the count is work rather than cycles, the time between readings is roughly
+/// constant whatever the design's size, which is what bounds how far a timed run can overrun its
+/// budget.
+let private pollWorkTarget = 1000
+
+/// How many cycles to run between readings of the clock, for a simulation of this size.
+///
+/// The fixed 100 this replaces bounded neither cost nor overshoot. On a two-component sheet it read
+/// the clock every hundred trivial cycles; on a 480,000-component design a hundred cycles is on the
+/// order of a hundred milliseconds, so a hundred-millisecond budget overshot by about double. That
+/// one constant was most of why timed running behaved badly at both ends of the size range - and it
+/// appeared twice, because the loop it guarded was written out twice.
+let private cyclesBetweenClockReads (fs: FastSimulation) =
+    let components = max 1 (fs.FComps.Count + fs.FCustomComps.Count)
+    max 1 (pollWorkTarget / components)
+
+/// Run an existing fast simulation to `lastStepNeeded`, mutating its data arrays, and doing no
+/// work if it is already there.
+///
+/// `timeOut` is a budget in ms, or None for "however long it takes". A budget that runs out is not
+/// a failure and loses nothing: the reply says where the clock reached, and running again continues
+/// from there. Nothing is inferred from how long the work took - see the time rule in
+/// docs/dev/sidecarInvariants.md - so a clock that jumps mid-run costs one extra call and cannot
+/// produce a wrong answer.
+///
+/// Asking for a cycle EARLIER than the clock is ordinary: the step simulator does it every time the
+/// user steps back. It costs nothing while that cycle is still in the circular buffer, and restarts
+/// the simulation when it is not.
+let private runFastSimulationCore (timeOut: float option) (lastStepNeeded: int) (fs: FastSimulation) : RunOutcome =
     if fs.MaxArraySize = 0 then
         failwithf "ERROR: can't run a fast simulation with 0 length arrays!"
-    let simStartTime = getTimeMs ()
-    let stepsToDo = lastStepNeeded - fs.ClockTick
 
-    if stepsToDo <= 0 then
-        if (fs.ClockTick - lastStepNeeded) < fs.MaxArraySize then
-            None
-        else 
-            restartSimulation fs
-            let startTick = fs.ClockTick
-            let mutable time = simStartTime
+    // going further back than the buffer still holds: the answer is no longer there to be read
+    if fs.ClockTick - lastStepNeeded >= fs.MaxArraySize then
+        restartSimulation fs
 
-            let stepsBeforeCheck = 100 // REVIEW - make this a parameter or move this to Constants
-
-            match timeOut with
-            | None ->
-                while fs.ClockTick < lastStepNeeded do
-                    stepSimulation fs
-            | Some incr ->
-                while fs.ClockTick < lastStepNeeded
-                    && time < simStartTime + incr do
-                    stepSimulation fs
-
-                    if (fs.ClockTick - startTick) % stepsBeforeCheck = 0 then
-                        time <- getTimeMs ()
-                        SimLog.sampleCore ()
-
-            float (fs.ClockTick - startTick) / (getTimeMs () - simStartTime)
-            |> Some
+    if fs.ClockTick >= lastStepNeeded then
+        RunCompleted
     else
-        let startTick = fs.ClockTick
-        let mutable time = simStartTime
+        let deadline = timeOut |> Option.map (fun budget -> getTimeMs () + budget)
+        let cyclesPerRead = cyclesBetweenClockReads fs
+        let mutable outOfTime = false
 
-        let stepsBeforeCheck = 100 // REVIEW - make this a parameter or move this to Constants
+        while not outOfTime && fs.ClockTick < lastStepNeeded do
+            let until = min lastStepNeeded (fs.ClockTick + cyclesPerRead)
 
-        match timeOut with
-        | None ->
-            while fs.ClockTick < lastStepNeeded do
-                stepSimulation fs
-        | Some incr ->
-            while fs.ClockTick < lastStepNeeded
-                  && time < simStartTime + incr do
+            while fs.ClockTick < until do
                 stepSimulation fs
 
-                if (fs.ClockTick - startTick) % stepsBeforeCheck = 0 then
-                    time <- getTimeMs ()
-                    SimLog.sampleCore ()
+            match deadline with
+            | None -> ()
+            | Some by ->
+                SimLog.sampleCore ()
+                outOfTime <- getTimeMs () > by
 
-        float (fs.ClockTick - startTick) / (getTimeMs () - simStartTime)
-        |> Some
-
+        if fs.ClockTick >= lastStepNeeded then
+            RunCompleted
+        else
+            RunStoppedAt fs.ClockTick
 
 /// runFastSimulationCore with its invocation recorded: one SimLog entry per call that advances
 /// the clock. The renderer's progress loop is repeated timed calls to this, so each progress
 /// update is one record; calls that find nothing to do (the wave viewer re-asking for a tick it
 /// already has, on every render) are not recorded, or they would flood the ring.
-let runFastSimulation (timeOut: float option) (lastStepNeeded: int) (fs: FastSimulation) : float option =
+let runFastSimulation (timeOut: float option) (lastStepNeeded: int) (fs: FastSimulation) : RunOutcome =
     let fromTick = fs.ClockTick
     SimLog.beginInvocation ()
     let start = getTimeMs ()

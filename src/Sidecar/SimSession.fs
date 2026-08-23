@@ -102,15 +102,18 @@ let run (askedEpoch: int) (targetCycle: int) (timeoutMs: int) : string =
     | Ok(), Some(fs, _) ->
         let timeout = if timeoutMs <= 0 then None else Some(float timeoutMs)
         let sw = System.Diagnostics.Stopwatch.StartNew()
-        FastRun.runFastSimulation timeout targetCycle fs |> ignore
+        let outcome = FastRun.runFastSimulation timeout targetCycle fs
         sw.Stop()
 
+        // The run says whether it finished; the clock is reported beside it rather than compared
+        // against the target to work the same thing out a second way. A budget that ran out loses
+        // nothing - the next call continues from where this one reached.
         sprintf
             """{"epoch":%d,"clockTick":%d,"firstValidCycle":%d,"done":%b,"ms":%.2f}"""
             epoch
             fs.ClockTick
             (firstValidCycle fs)
-            (fs.ClockTick >= targetCycle)
+            (outcome = SimTypes.RunCompleted)
             sw.Elapsed.TotalMilliseconds
 
 /// The digest text for the design under the deterministic stimulus: builds its own simulation

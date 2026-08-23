@@ -413,6 +413,19 @@ module SimulationBudget =
         elif mb >= 1.0 then $"%.0f{mb} MB"
         else $"%.0f{bytes / 1024.0} KB"
 
+/// What a run of a fast simulation did.
+///
+/// Not a rate. It used to return cycles per millisecond, with None meaning both "nothing to do" and
+/// "finished" - so a caller could not tell those apart, and the one caller that used the number
+/// divided by it to guess how long the rest would take. Guessing elapsed time from work done is
+/// what breaks when a machine sleeps mid-run: the rate collapses towards zero and instant work is
+/// predicted to take minutes. This says what happened and nothing more.
+type RunOutcome =
+    /// the clock reached the cycle asked for
+    | RunCompleted
+    /// the time budget ran out first, with the clock here. Running again continues from it
+    | RunStoppedAt of clock: int
+
 // The fast simulation components are similar to the issie components they are based on but with addition of arrays
 // for direct lookup of inputs and fast access of outputs. The input arrays contain pointers to the output arrays the
 // inputs are connected to, the InputPortNumber integer indexes this.

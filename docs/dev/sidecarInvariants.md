@@ -140,10 +140,10 @@ exact rather than heuristic: there is no case where the epochs agree and the sid
 
 ### C3 — one fetch at a time
 
-`refreshWaveSim` issues `fetchThisView()` whenever `covers` says the data is not held, and that is
-every checkbox tick, scroll step and cursor move. Nothing prevents a second chain starting before
-the first has finished. Two chains then interleave against one session, and the sidecar — being
-strictly serial — will happily serve them in whatever order they arrive:
+A fetch is asked for whenever a wave being drawn has not got the window it is drawn over, and that
+is every checkbox tick and scroll step. Nothing in the protocol prevents a second chain starting
+before the first has finished. Two chains then interleave against one session, and the sidecar —
+being strictly serial — will happily serve them in whatever order they arrive:
 
     chain A:  ensureBuilt ──────────► runTo ─────────────────► simRead
     chain B:            ensureBuilt ──────► runTo ────► simRead
@@ -151,12 +151,19 @@ strictly serial — will happily serve them in whatever order they arrive:
                               └─ rebuilds the session under A, so A's read is of a
                                  simulation that no longer exists at the cycle it wants
 
-**Fix**: single-flight. One outstanding fetch; a request arriving while one is in progress
-supersedes it rather than racing it — the newer view is the one the user is looking at, so the
-older one has nothing to contribute. With the epoch in place, a superseded chain's replies are
-rejected by the sidecar anyway, which makes single-flight an optimisation of a correctness property
-rather than the correctness property itself. Both are worth having: the epoch stops wrong data, the
-guard stops wasted work.
+**Holds, by a single bit in the model.** `WaveSimModel.FetchInProgress` is set where the fetch is
+issued and cleared by the `WaveFetchDone` message that carries its reply. A refresh that finds it
+set does nothing at all: the fetch in flight refreshes when it lands, and *that* refresh asks for
+whatever is missing by then — this view, or a later one, but never one the user has scrolled past.
+
+That bit is the only state in the waveform data path, and it is here because it is the only thing
+that cannot be derived. WHICH waves need fetching is a question about the cache and the view,
+answered afresh every time it is asked; whether a request is already in the air is a fact about the
+outside world.
+
+With the epoch in place, a superseded chain's replies are rejected anyway, which makes the bit an
+optimisation of a correctness property rather than the correctness property itself. Both are worth
+having: the epoch stops wrong data, the bit stops wasted work.
 
 ---
 
@@ -165,18 +172,45 @@ guard stops wasted work.
 `WaveData.fs`. Module state, deliberately: it is read synchronously from `view` on every render,
 per wave, and is megabytes in size.
 
+**Keyed by wave, not by view.** What the viewer needs to know is "has this wave got the cycles it is
+being drawn over", and that is a question about one wave: a wave just added to the selection is
+missing while every other wave is fine, and a window that has moved leaves them all missing
+together. One entry per wave says both without a special case; a single entry for the whole view
+could only say all or none, and so refetched every wave to get the one that had just been selected.
+
 | # | Invariant | Status |
 |---|---|---|
-| D1 | Every handle in `Rows` is also in `Asked`. | **holds** — and is checked |
-| D2 | `slice` answers only for the exact window the data was fetched for. | **holds** — an equality test, deliberately not a containment test |
-| D3 | The data received is `signals × samples` values long. | **holds** — and is checked, because a short reply is silent |
+| D1 | A wave answers only for the exact window it was fetched for. | **holds** — an equality test, deliberately not a containment test |
+| D2 | A wave is in the cache only if its data is. | **holds** — by construction: the entry and the data are put there together |
+| D3 | The data received is `signals × samples × wordsPerSample` values long. | **holds** — and is checked, because a short reply is silent |
+| D4 | Nothing fetched under a session that has ended is ever written. | **holds** — and is checked, by epoch, on receipt |
 
-D2 is stricter than it needs to be and that is intentional: a containment test would let the viewer
-draw a sub-window of stale data without anything noticing. The cost is a refetch on every view
-change, which is what the fetch is for.
+D1 is stricter than it needs to be and that is intentional: a containment test would let the viewer
+draw a sub-window of stale data without anything noticing. The cost is a refetch when the view
+changes, which is what the fetch is for.
 
 D3 is worth checking on receipt because the failure is silent — a short reply gives every wave after
 the truncation point somebody else's data, drawn confidently.
+
+D4 matters because the cache is emptied when the design changes but a fetch already in the air is
+not: without the check its reply would land beside waves of the design that replaced it, each
+looking exactly as trustworthy as the other.
+
+### What is drawn, and what that means for the tooltip
+
+A wave whose data has not arrived keeps the waveform it has. That is deliberate — waveforms a moment
+out of date are what a viewer over a wire looks like, a viewer that blanks itself on every scroll is
+what a broken one looks like — and it is why `WaveDrawn` remembers, beside each drawn waveform, the
+exact view it is of.
+
+The consequence to hold onto: **everything that describes what is on screen must be answered from
+the window that waveform was drawn from, not from the window the controls ask for.** The value
+column and the hover tooltip both do — `valueAt` reads the window the wave holds, and the tooltip is
+given the gaps of the waveform it is over — so neither can disagree with the picture beside it.
+
+There is no separate fetch for the cursor. The cursor is always on a drawn sample
+(`CursorExactClkCycle = CursorDisplayCycle × SamplingZoom`), so the samples the waveform is drawn
+from already contain it.
 
 ---
 
@@ -262,11 +296,14 @@ An invariant that cannot be checked is a comment. These can be, cheaply.
 | epoch mismatch | sidecar, per session-dependent command | C1, C2, C4 |
 | request outstanding, or answered, past its budget | `SidecarClient`, on send and on receive | A6, and every hang above it |
 | pending requests failed rather than dropped on close | `SidecarClient.onclose` | A4 |
-| `Rows ⊆ Asked`, data length = signals × samples | `WaveData.setFetched` | D1, D3 |
+| data length = signals × samples × wordsPerSample | `WaveData.setFetched` | D3 |
+| the session that answered is the session that exists | `WaveProvider`, on receipt | D4 |
+| a wave drawn without the window it is drawn over, for longer than a fetch takes | the viewer, per render | C3, D1 |
 | correlation id already in `pending` | `SidecarClient.request` | A2 |
 
-C3 has no check because it is **enforced**: `fillFor` will not start a second chain. An invariant
-that cannot be broken needs no detector.
+C3 has no check because it is **enforced**: a refresh will not start a second chain while
+`FetchInProgress` is set. An invariant that cannot be broken needs no detector - what the viewer's
+banner catches is the other half, a fetch that should have been made and was not.
 
 ### Timestamps, not a tick
 
@@ -308,6 +345,11 @@ is not what you asked for*.
   never appear. It exists so that a violation is something a user sees rather than a log line
   nobody reads. Built the same way as the checks above: the moment the view last changed is
   recorded, and how long ago that was is worked out where it is read.
+
+  It asks the **data** - is any wave being drawn without the window it is drawn over - and not what
+  is on screen. What is on screen is filled in by the render itself, so asking it during that render
+  is asking before the answer is made: the banner then appeared for one frame on every view change,
+  which is the opposite of a warning that means something.
 
 ### What cannot be checked
 
@@ -445,12 +487,13 @@ They are easy to conflate and have different answers.
 ### The waveform tooltip
 
 Hovering a drawn waveform shows the value at that point. The signal is one the user selected, and
-the cycle is inside the window being drawn - both by construction, since the thing under the
-pointer is a waveform that was fetched to be drawn.
+the cycle is inside the window that waveform was drawn from - both by construction, since the thing
+under the pointer is a waveform made from data that had to be there for it to exist.
 
-**So the cache already holds it, and there is no command and no new invariant.** It is a read of
-data that had to be there for the pixel under the mouse to exist. `D2` covers it: the cache answers
-for the window it fetched, which is the window being pointed at.
+**So the cache already holds it, and there is no command and no new invariant.** The window it
+answers for is the window that was drawn, which where data is still on its way is an older one than
+the controls show - and that is right: the tooltip describes what is under the pointer. A row with
+nothing drawn has no tooltip at all, so there is never a "waiting for data" to display.
 
 ### The schematic tooltip
 
@@ -532,10 +575,11 @@ Unchanged, and small - it serves the waveform viewer's drawing and nothing else:
 
 | | |
 |---|---|
-| `covers window handles cursor` | is the data for this view here yet |
+| `needFetching handles window` | which of these waves has not got this window |
 | `slice handle window` | the samples to draw |
 | `valueAt handle cycle` | the cursor column, and the waveform tooltip |
 | `setFetched` | fill it |
+| `holdNothing` | hold nothing, and ask for everything: a new design |
 
 The interface does not change; what changes is that nothing else goes through it. The step
 simulator, the RAM tables and the schematic tooltip are command-response, because each wants one

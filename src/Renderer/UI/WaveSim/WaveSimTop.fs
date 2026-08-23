@@ -280,6 +280,13 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
             localDriverData
             (fun () -> (Simulator.getFastSim()).ClockTick)
 
+        // What is drawn was drawn from the simulation that has just been replaced. A waveform is
+        // remembered against its driver index, and a driver index names a different signal in the
+        // next build, so every one of them is now a picture of something else - which would be
+        // drawn, under the new signal's name, for as long as the view did not change.
+        if newSimulation then
+            WaveDrawn.forget ()
+
         /// Ask the simulator for the waves that have not got the window they are drawn over, and
         /// come back to draw when it answers. What is on screen stays there meanwhile - a wave
         /// keeps the last data it was given until it is given more.

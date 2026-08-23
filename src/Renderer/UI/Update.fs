@@ -505,6 +505,9 @@ let updateUnpinned (msg : Msg) oldModel =
     | EndWaveSim ->
         let model =
             Simulator.simCacheWS <- Simulator.simCacheInit()
+            // the waveforms on screen are about to stop being on screen, and they are the only
+            // thing this holds
+            WaveDrawn.forget ()
             // As EndSimulation: the wave selector's and the RAM list's indexes are memoised on the
             // simulation, so they have to be emptied or they retain it for the rest of the session.
             Helpers.clearIdentityMemos()

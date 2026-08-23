@@ -195,26 +195,29 @@ let private fetchWindow
     : JS.Promise<Result<unit, string>> =
     let signals = driverSignals fs
 
-    // Only what simRead will answer for: a wider bus has no wire format yet, and asking would
-    // fail the whole request rather than just that wave.
+    // Every driver the view draws, whatever its width - simRead carries a sample in as many words
+    // as it needs. This used to drop anything over 32 bits while still recording it as asked for,
+    // so coverage said yes, the wave came back with no row, and it kept whatever it had been
+    // showing before, silently and for ever.
     let wanted =
         driverIndices
         |> List.distinct
         |> List.choose (fun i ->
             match Map.tryFind i signals, Array.tryItem i fs.Drivers with
-            | Some sig_, Some(Some driver) when driver.DriverWidth <= 32 -> Some(i, sig_, driver.DriverWidth)
+            | Some sig_, Some(Some driver) -> Some(i, sig_, driver.DriverWidth)
             | _ -> None)
 
     let asked = Set.ofList (List.distinct driverIndices)
 
     if List.isEmpty wanted then
-        // every wave shown is wider than simRead will answer for; say so rather than fall back
-        // to local data, which in time will not be there to fall back to
+        // nothing the simulation can name a driver for - say so rather than fall back to local
+        // data, which in time will not be there to fall back to
         WaveData.setFetched
             { WaveData.Window = window
               WaveData.LeadIn = false
               WaveData.Rows = Map.empty
               WaveData.Widths = Map.empty
+              WaveData.WordsPerSample = 1
               WaveData.Asked = asked
               WaveData.Data = Array.empty }
             None
@@ -226,9 +229,11 @@ let private fetchWindow
         let samples = window.SampleCount + (if leadIn then 1 else 0)
         let requested = wanted |> List.map (fun (_, s, _) -> s)
 
-        let rowsAndWidths (perSignal: int) =
+        /// Where each signal's row starts, in WORDS, and how wide that signal is. `perSignal` is
+        /// how many samples the row holds; each sample is `wordsPerSample` words.
+        let rowsAndWidths (perSignal: int) (wordsPerSample: int) =
             wanted
-            |> List.mapi (fun row (i, _, width) -> i, (row * perSignal, width))
+            |> List.mapi (fun row (i, _, width) -> i, (row * perSignal * wordsPerSample, width))
             |> List.fold (fun (rows, widths) (i, (b, w)) -> Map.add i b rows, Map.add i w widths) (Map.empty, Map.empty)
 
         promise {
@@ -238,14 +243,18 @@ let private fetchWindow
             if asText.StartsWith "{" then
                 return Error asText
             else
-                let data = SidecarClient.viewSimReadData frame (List.length requested * samples)
-                let rows, widths = rowsAndWidths samples
+                // the reply states its own layout, so a signal whose width the renderer has stale
+                // is still read the way the sender wrote it
+                let wordsPerSample = SidecarClient.simReadWordsPerSample frame
+                let data = SidecarClient.viewSimReadData frame (List.length requested * samples * wordsPerSample)
+                let rows, widths = rowsAndWidths samples wordsPerSample
 
                 let drawn =
                     { WaveData.Window = window
                       WaveData.LeadIn = leadIn
                       WaveData.Rows = rows
                       WaveData.Widths = widths
+                      WaveData.WordsPerSample = wordsPerSample
                       WaveData.Asked = asked
                       WaveData.Data = unbox data }
 
@@ -257,14 +266,16 @@ let private fetchWindow
                     if cursorText.StartsWith "{" then
                         None
                     else
-                        let cursorData = SidecarClient.viewSimReadData cursorFrame (List.length requested)
-                        let cRows, cWidths = rowsAndWidths 1
+                        let cursorWords = SidecarClient.simReadWordsPerSample cursorFrame
+                        let cursorData = SidecarClient.viewSimReadData cursorFrame (List.length requested * cursorWords)
+                        let cRows, cWidths = rowsAndWidths 1 cursorWords
 
                         Some
                             { WaveData.Window = { StartSample = cursorCycle; Multiplier = 1; SampleCount = 1 }
                               WaveData.LeadIn = false
                               WaveData.Rows = cRows
                               WaveData.Widths = cWidths
+                              WaveData.WordsPerSample = cursorWords
                               WaveData.Asked = asked
                               WaveData.Data = unbox cursorData }
 
@@ -300,12 +311,17 @@ let private fetchForView
 /// Called once per refresh so that nothing below has to branch on which simulator is running.
 /// A new simulation means the design or its shape changed: what the sidecar holds is then not it,
 /// and any window already fetched was read from a simulation that no longer exists.
-let selectSimulator (inRenderer: bool) (newSimulation: bool) (localLookup: SignalHandle -> IOArray option) =
+let selectSimulator
+    (inRenderer: bool)
+    (newSimulation: bool)
+    (localLookup: SignalHandle -> IOArray option)
+    (localClock: unit -> int)
+    =
     if inRenderer then
-        WaveData.setLocal localLookup
+        WaveData.setLocal localLookup localClock
     elif newSimulation then
         forget ()
-        WaveData.setLocal localLookup
+        WaveData.setLocal localLookup localClock
 
 /// How many cycles the simulation being shown has actually been run for.
 ///

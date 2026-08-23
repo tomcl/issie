@@ -271,7 +271,14 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
 
         // Which simulator is answering, decided once. Nothing below asks again: the refresh has
         // one question - is the data for this view here yet - and only the answer differs.
-        WaveProvider.selectSimulator model.SimulateInRenderer newSimulation localDriverData
+        // The lookup and the clock are read at call time rather than closed over, so installing
+        // them pins nothing: a closure holding a FastSimulation would keep its step arrays alive
+        // for as long as the cache lived.
+        WaveProvider.selectSimulator
+            model.SimulateInRenderer
+            newSimulation
+            localDriverData
+            (fun () -> (Simulator.getFastSim()).ClockTick)
 
         /// Ask the simulator for this view, and come back to draw when it answers. The waves on
         /// screen stay as they are meanwhile; they are redrawn on re-entry, by which point

@@ -352,6 +352,94 @@ let tests =
                 "no run record in SimLog"
         }
 
+        test "SimRead carries a signal wider than one word" {
+            // 3cpu is a 16-bit machine, so nothing in it exercises a sample of more than one
+            // uint32. A wide register does, and it is the case that used to be REFUSED: the
+            // viewer asked for such a wave, was given a reply that silently omitted it, and went
+            // on drawing whatever that waveform had shown before.
+            let width = 70
+
+            let input = makeComp 1 0 1 (Input1(width, None)) "IN"
+            let reg = makeComp 2 1 1 (Register width) "REG"
+            let output = makeComp 3 1 0 (Output width) "OUT"
+
+            let ldc =
+                makeLdc "wide" None ([ input; reg; output ], [ conn input 0 reg 0; conn reg 0 output 0 ])
+
+            let design = CanvasExtractor.simpleDesignOfLoadedComponents [ ldc ]
+            let shimmed = shimDesign design
+
+            let buildReply = Issie.Sidecar.SimSession.build design 250
+            Expect.isFalse (buildReply.Contains "error") $"build failed: {buildReply}"
+            let epoch = Issie.Sidecar.SimSession.currentEpoch ()
+
+            let localSim =
+                let top = shimmed |> List.find (fun l -> l.Name = design.TopSheet)
+
+                match Simulator.startCircuitSimulation 250 design.TopSheet top.CanvasState shimmed with
+                | Ok simData -> simData
+                | Error e -> failtest $"local build failed: %A{e.ErrType}"
+
+            let u32s (values: int list) =
+                values |> List.collect (System.BitConverter.GetBytes >> Array.toList) |> Array.ofList
+
+            // Not symmetric, so a wrong word order shows - and inside 64 bits, because
+            // SimSetInputs carries a value as two words and would truncate anything wider. What is
+            // being tested here is the WIDTH of the signal, which decides the words per sample
+            // whatever the value: 70 bits needs three of them however few are set.
+            let value = (1I <<< 63) + (1I <<< 33) + 12345I
+            let inputId = localSim.Inputs |> List.map (fun (ComponentId c, _, _) -> c) |> List.head
+
+            let setPayload =
+                [ 0; 1; inputId; int (uint32 (value &&& 4294967295I)); int (uint32 ((value >>> 32) &&& 4294967295I)) ]
+                |> u32s
+
+            Expect.isFalse
+                ((Issie.Sidecar.SimSession.setInputs epoch setPayload).Contains "error")
+                "setting a wide input"
+
+            Issie.Sidecar.SimSession.run epoch 3 0 |> ignore
+
+            // read the register's output over three cycles
+            let regId = localSim.FastSim.FClockedComps |> Array.head |> fun fc -> fc.fId
+            let (ComponentId regCid, regPath) = regId
+
+            let payload =
+                [ 0; 1; 3; 1; regCid; 0; List.length regPath ]
+                @ (regPath |> List.map (fun (ComponentId p) -> p))
+                |> u32s
+
+            match Issie.Sidecar.SimSession.read epoch payload with
+            | Error e -> failtest $"SimRead of a {width}-bit signal failed: {e}"
+            | Ok reply ->
+                let wordsPerSample = int (System.BitConverter.ToUInt32(reply, 8))
+                Expect.equal wordsPerSample 3 $"a {width}-bit signal needs three uint32 words a sample"
+                Expect.equal (reply.Length) (16 + 4 * 3 * wordsPerSample) "the reply is exactly its stated shape"
+
+                // the same simulation locally, driven the same way, for the values to match
+                let fd = NumberHelpers.convertBigintToFastData width value
+                FastExtract.changeInput (ComponentId inputId) (SimGraphTypes.IData fd) 0 localSim.FastSim
+                FastRun.runFastSimulation None 3 localSim.FastSim |> ignore
+
+                for j in 0 .. 2 do
+                    let at = 16 + 4 * (j * wordsPerSample)
+
+                    let wire =
+                        (0I, [ wordsPerSample - 1 .. -1 .. 0 ])
+                        ||> List.fold (fun v w -> (v <<< 32) + bigint (System.BitConverter.ToUInt32(reply, at + 4 * w)))
+
+                    let local =
+                        match FastExtract.extractFastSimulationOutput localSim.FastSim j regId (OutputPortNumber 0) with
+                        | SimGraphTypes.IData d -> d.GetBigInt
+                        | _ -> failtest "algebraic value in local read"
+
+                    // the high word being non-zero here is what caught SimSetInputs reading a
+                    // value word as a signed int - see SimSession.word
+                    Expect.equal wire local $"cycle {j} of a {width}-bit signal differs"
+
+            Issie.Sidecar.SimSession.endSession epoch |> ignore
+        }
+
         test "a command naming a session the sidecar no longer holds is refused" {
             // The renderer cannot see inside the sidecar, so everything it believes about the
             // session there - that one exists, that it is of the design last sent, how far its
@@ -445,15 +533,22 @@ let tests =
 
             // read a window of every top-level clocked component plus one nested one (path in
             // the payload), and compare word for word with local extraction
+            // widths are NOT filtered: a sample is as many words as it needs, and a read of
+            // ordinary buses must stay one word per sample while one wide bus widens its own reply
             let itemsWanted =
                 localFs.FClockedComps
                 |> Array.filter (fun fc ->
                     (match fc.FType with ROM1 _ -> false | _ -> true)
                     && (FastExtract.extractFastSimulationOutput localFs 0 fc.fId (OutputPortNumber 0)
-                        |> function SimGraphTypes.IData fd -> fd.Width <= 32 | _ -> false))
+                        |> function SimGraphTypes.IData _ -> true | _ -> false))
                 |> Array.truncate 6
                 |> Array.toList
                 |> List.map (fun fc -> fc.fId)
+
+            let widthOfItem fid =
+                match FastExtract.extractFastSimulationOutput localFs 0 fid (OutputPortNumber 0) with
+                | SimGraphTypes.IData fd -> fd.Width
+                | _ -> failtest "algebraic value in local read"
 
             Expect.isTrue (itemsWanted |> List.exists (fun (_, path) -> not (List.isEmpty path)))
                 "expected at least one nested item so access-path parsing is exercised"
@@ -471,18 +566,27 @@ let tests =
                 match Issie.Sidecar.SimSession.read epoch payload with
                 | Error e -> failtest $"SimRead (start {startCycle}, rep {rep}) failed: {e}"
                 | Ok reply ->
+                    let wordsPerSample = int (System.BitConverter.ToUInt32(reply, 8))
+                    let widest = itemsWanted |> List.map widthOfItem |> List.max
+
                     Expect.equal (int (System.BitConverter.ToUInt32(reply, 0))) (List.length itemsWanted) "signal count"
                     Expect.equal (int (System.BitConverter.ToUInt32(reply, 4))) samples "sample count"
+                    Expect.equal wordsPerSample ((widest + 31) / 32) "words per sample is the widest signal's"
 
                     itemsWanted
                     |> List.iteri (fun signalIndex fid ->
                         for j in 0 .. samples - 1 do
                             let cycle = startCycle + j * rep
-                            let wire = System.BitConverter.ToUInt32(reply, 8 + 4 * (signalIndex * samples + j))
+                            let at = 16 + 4 * ((signalIndex * samples + j) * wordsPerSample)
+
+                            // least significant word first, so the words rebuild the number
+                            let wire =
+                                (0I, [ wordsPerSample - 1 .. -1 .. 0 ])
+                                ||> List.fold (fun v w -> (v <<< 32) + bigint (System.BitConverter.ToUInt32(reply, at + 4 * w)))
 
                             let local =
                                 match FastExtract.extractFastSimulationOutput localFs cycle fid (OutputPortNumber 0) with
-                                | SimGraphTypes.IData fd -> uint32 fd.GetBigInt
+                                | SimGraphTypes.IData fd -> fd.GetBigInt
                                 | _ -> failtest "algebraic value in local read"
 
                             Expect.equal wire local $"signal {signalIndex} cycle {cycle} (rep {rep}) differs")
@@ -490,6 +594,45 @@ let tests =
             readSampled (ticks - 10) 1 10
             readSampled 2 3 9
             readSampled (ticks - 1) 1 1
+
+            // and a signal wider than one word, if the design has one, read on its own so that
+            // wordsPerSample is genuinely greater than 1
+            let wideItems =
+                localFs.FClockedComps
+                |> Array.filter (fun fc ->
+                    match FastExtract.extractFastSimulationOutput localFs 0 fc.fId (OutputPortNumber 0) with
+                    | SimGraphTypes.IData fd -> fd.Width > 32
+                    | _ -> false)
+                |> Array.truncate 1
+                |> Array.toList
+                |> List.map (fun fc -> fc.fId)
+
+            for (ComponentId cid, path) as fid in wideItems do
+                let payload =
+                    [ ticks - 3; 1; 3; 1; cid; 0; List.length path ]
+                    @ (path |> List.map (fun (ComponentId p) -> p))
+                    |> u32s
+
+                match Issie.Sidecar.SimSession.read epoch payload with
+                | Error e -> failtest $"SimRead of a wide signal failed: {e}"
+                | Ok reply ->
+                    let wordsPerSample = int (System.BitConverter.ToUInt32(reply, 8))
+                    Expect.isGreaterThan wordsPerSample 1 "a signal over 32 bits needs more than one word"
+
+                    for j in 0 .. 2 do
+                        let cycle = ticks - 3 + j
+                        let at = 16 + 4 * (j * wordsPerSample)
+
+                        let wire =
+                            (0I, [ wordsPerSample - 1 .. -1 .. 0 ])
+                            ||> List.fold (fun v w -> (v <<< 32) + bigint (System.BitConverter.ToUInt32(reply, at + 4 * w)))
+
+                        let local =
+                            match FastExtract.extractFastSimulationOutput localFs cycle fid (OutputPortNumber 0) with
+                            | SimGraphTypes.IData fd -> fd.GetBigInt
+                            | _ -> failtest "algebraic value in local read"
+
+                        Expect.equal wire local $"wide signal at cycle {cycle} differs"
 
             Issie.Sidecar.SimSession.endSession epoch |> ignore
         }

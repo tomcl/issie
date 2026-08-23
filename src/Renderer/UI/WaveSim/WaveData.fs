@@ -36,10 +36,10 @@ type FetchedWindow =
       Rows: Map<int, int>
       /// bus width per driver index, since a slice needs to know which store it is
       Widths: Map<int, int>
-      /// every driver this fetch was FOR, including any it could not answer for - a bus wider
-      /// than 32 bits has no wire format yet and comes back with no row. Without this the
-      /// viewer could not tell "not fetched" from "fetched and not available", and would ask
-      /// again on every refresh for ever.
+      /// how many uint32 words each sample occupies - ceil(widest asked for / 32). A reply of
+      /// ordinary buses has one, and one wide bus widens the samples of that reply alone
+      WordsPerSample: int
+      /// every driver this fetch was for
       Asked: Set<int>
       Data: uint32 array }
 
@@ -65,10 +65,16 @@ let mutable private source = Source.Local
 /// every caller already knows how to show nothing.
 let mutable private localData: SignalHandle -> IOArray option = fun _ -> None
 
+/// How far the renderer's own simulation has been run. Installed beside the lookup because a
+/// slice of local data is only valid up to it, and reading it at call time rather than closing
+/// over a number keeps the answer current as the simulation is extended.
+let mutable private localClock: unit -> int = fun () -> 0
+
 /// Read from the renderer's own simulation, through `lookup`. Nothing is copied - a local slice
 /// names the step array where it lies - so this "fill" is only recording how to find it.
-let setLocal (lookup: SignalHandle -> IOArray option) =
+let setLocal (lookup: SignalHandle -> IOArray option) (clock: unit -> int) =
     localData <- lookup
+    localClock <- clock
     source <- Source.Local
 
 /// Make a fetched window what the viewer reads, checking that it is the shape it claims to be.
@@ -89,7 +95,7 @@ let setFetched (window: FetchedWindow) (cursor: FetchedWindow option) =
             $"waveform cache: {rowsNotAsked} rows of a fetched window were never asked for (invariant D1)"
 
     let samplesPerRow = window.Window.SampleCount + (if window.LeadIn then 1 else 0)
-    let expected = Map.count window.Rows * samplesPerRow
+    let expected = Map.count window.Rows * samplesPerRow * window.WordsPerSample
 
     if window.Data.Length < expected then
         Log.error
@@ -116,13 +122,16 @@ let coversFetched (window: Window) (handles: SignalHandle list) (cursorCycle: in
 /// means the simulation has not run that far. Every caller already has a way of showing nothing.
 let slice (SignalHandle handle as h) (window: Window) : WaveSlice option =
     match source with
-    | Source.Local -> localData h |> Option.bind (fun io -> ofLocalDriver io window)
+    | Source.Local -> localData h |> Option.bind (fun io -> ofLocalDriver io (localClock ()) window)
     | Source.Fetched(fetched, _) ->
         if fetched.Window <> window then
             None
         else
             match Map.tryFind handle fetched.Rows, Map.tryFind handle fetched.Widths with
-            | Some rowBase, Some width -> Some(ofFetchedWords fetched.Data rowBase width window fetched.LeadIn)
+            | Some rowBase, Some width when width <= 32 ->
+                Some(ofFetchedWords fetched.Data rowBase fetched.WordsPerSample width window fetched.LeadIn)
+            | Some rowBase, Some width ->
+                Some(ofFetchedBigs fetched.Data rowBase fetched.WordsPerSample width window fetched.LeadIn)
             | _ -> None
 
 /// The value of one wave at one clock cycle, for the value column, the hover tooltip and the
@@ -139,6 +148,7 @@ let valueAt (SignalHandle handle as h) (cycle: int) : FastData option =
         // the width is the signal's own, taken from the data rather than passed in: a caller that
         // could get it wrong is a caller that can print one signal as another's width
         localData h
+        |> Option.filter (fun _ -> cycle <= localClock ())
         |> Option.bind (fun io ->
             if io.Width > 32 then
                 io.TryBig cycle |> Option.map (fun v -> { Dat = BigWord v; Width = io.Width })
@@ -160,7 +170,12 @@ let valueAt (SignalHandle handle as h) (cycle: int) : FastData option =
                     if i >= f.Window.SampleCount then
                         None
                     else
-                        let s = ofFetchedWords f.Data rowBase w f.Window f.LeadIn
+                        let s =
+                            if w <= 32 then
+                                ofFetchedWords f.Data rowBase f.WordsPerSample w f.Window f.LeadIn
+                            else
+                                ofFetchedBigs f.Data rowBase f.WordsPerSample w f.Window f.LeadIn
+
                         Some(asWidth w (sampleValue s i))
             | _ -> None
 

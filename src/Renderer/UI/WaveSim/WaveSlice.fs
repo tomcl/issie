@@ -97,10 +97,18 @@ let sampleValue (slice: WaveSlice) (i: int) : bigint =
 /// A slice over a driver's local step data. Nothing is copied: the step arrays are read where
 /// they lie, at the sampling stride.
 ///
-/// `None` when the window is not inside what the simulation holds, which is the caller's cue
-/// that the simulation has to run further first - the same condition the old direct reads
-/// expressed by returning an empty array of transitions.
-let ofLocalDriver (io: IOArray) (window: Window) : WaveSlice option =
+/// `None` when the window is not inside what the simulation HOLDS - which is a question about
+/// `clockTick`, not about the array's size. Those are different numbers and using the wrong one
+/// is silent: an array long enough for a cycle the simulation has not reached yet holds zeros
+/// there, and a slice over them draws zeros as confidently as data. This guarded on the array
+/// length alone, and was right only because the caller happened to run the simulation first.
+///
+/// The step arrays are a circular buffer, and this reads them with a stride and no modulo, which
+/// is only correct while the simulation has not wrapped. It never has here: the waveform
+/// simulator sizes its arrays for the whole configured run. Rather than leave that as an
+/// assumption two files apart, a wrapped simulation is refused - so if this is ever pointed at
+/// the step simulator's arrays it says no instead of returning somebody else's cycles.
+let ofLocalDriver (io: IOArray) (clockTick: int) (window: Window) : WaveSlice option =
     let leadIn = window.StartSample > 0
     let firstNeeded = if leadIn then window.FirstCycle - window.Multiplier else window.FirstCycle
 
@@ -108,7 +116,13 @@ let ofLocalDriver (io: IOArray) (window: Window) : WaveSlice option =
         window.SampleCount <= 0
         || window.Multiplier < 1
         || firstNeeded < 0
+        // not simulated this far yet
+        || window.LastCycle > clockTick
+        // outside the arrays altogether
         || window.LastCycle >= io.StepLength
+        // the buffer has wrapped, so a strided read without a modulo would be reading the wrong
+        // cycles - see the note above
+        || clockTick >= io.StepLength
     then
         None
     else
@@ -124,14 +138,56 @@ let ofLocalDriver (io: IOArray) (window: Window) : WaveSlice option =
               Samples = samples
               HasLeadIn = leadIn }
 
-/// A slice over one signal's row of a sidecar reply, which is already sampled - so a stride of
-/// one, and a base of where that row starts. `leadIn` says whether the fetch asked for the
-/// extra sample before the window, in which case the row's first entry is that one and sample 0
-/// is the next.
-let ofFetchedWords (data: uint32 array) (rowBase: int) (width: int) (window: Window) (leadIn: bool) : WaveSlice =
+/// A slice over one signal's row of a sidecar reply, which is already sampled.
+///
+/// A reply carries `wordsPerSample` uint32s per sample, least significant word first, so a signal
+/// of 32 bits or less is read in place at that stride - word 0 of each sample - and nothing is
+/// copied. `rowBase` is the index of the row's first WORD, and `leadIn` says whether the fetch
+/// asked for the extra sample before the window, in which case that sample is first and sample 0
+/// is the next one.
+let ofFetchedWords
+    (data: uint32 array)
+    (rowBase: int)
+    (wordsPerSample: int)
+    (width: int)
+    (window: Window)
+    (leadIn: bool)
+    : WaveSlice =
+    let firstSample = if leadIn then rowBase + wordsPerSample else rowBase
+
     { Window = window
       Width = width
-      Samples = Words(data, (if leadIn then rowBase + 1 else rowBase), 1)
+      Samples = Words(data, firstSample, wordsPerSample)
+      HasLeadIn = leadIn }
+
+/// A slice over one signal's row of a sidecar reply, for a signal too wide for a uint32.
+///
+/// This one copies, because a bigint is not a view over anything: each sample's words are joined
+/// into a number. It is the only copying reader here and it is affordable for the same reason the
+/// width is unusual - a view draws tens of samples, not thousands.
+let ofFetchedBigs
+    (data: uint32 array)
+    (rowBase: int)
+    (wordsPerSample: int)
+    (width: int)
+    (window: Window)
+    (leadIn: bool)
+    : WaveSlice =
+    let sampleCount = window.SampleCount + (if leadIn then 1 else 0)
+
+    let values =
+        Array.init sampleCount (fun i ->
+            let at = rowBase + i * wordsPerSample
+            let mutable v = 0I
+
+            for w in wordsPerSample - 1 .. -1 .. 0 do
+                v <- (v <<< 32) + bigint data[at + w]
+
+            v)
+
+    { Window = window
+      Width = width
+      Samples = Bigs(values, (if leadIn then 1 else 0), 1)
       HasLeadIn = leadIn }
 
 // ---------------------------------------------------------------------------------------------

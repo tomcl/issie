@@ -341,20 +341,20 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
             (if model.SimulateInRenderer then
                  FastRun.runFastSimulation (Some Constants.initSimulationTime) (lastCycleNeeded wsModel) fs
              else
-                 None)
-            |> (fun speedOpt -> // if not None the fast simulation has timed out and has not yet completed
-                    let cyclesToDo = (lastCycleNeeded wsModel) - fs.ClockTick // may be negative
+                 RunCompleted)
+            |> (fun outcome ->
+                    match outcome with
+                    | RunStoppedAt clock ->
+                        // One budget was not enough, so this run is long enough to be worth saying
+                        // so - and that budget IS the delay before a progress bar appears. Nothing
+                        // is estimated: this used to divide the cycles left by a measured rate to
+                        // guess how much longer, which is inferring elapsed time from work done,
+                        // and is what collapses when a machine sleeps mid-run.
+                        runSimulationWithSpinner (lastCycleNeeded wsModel - clock) model
+                    | RunCompleted ->
+                        // Completed means completed. A second forced run "in case it is not
+                        // finished" used to follow, from when the outcome could not say which.
 
-                    match speedOpt with
-                    | Some speed when float cyclesToDo / speed + Constants.initSimulationTime > Constants.maxSimulationTimeWithoutSpinner ->
-                        // The simulation is taking too long. We need to use a spinner.
-                        runSimulationWithSpinner cyclesToDo model // A callback to refreshWaveSim is made dispatched from this function
-                    | _ ->
-                        // Force simulation to finish now in case it is not finished.
-                        // We know this will be quick enough not to need a spinner.
-                        if model.SimulateInRenderer then
-                            FastRun.runFastSimulation None (lastCycleNeeded wsModel) fs |> ignore
-                            
                         // Simulation has now always finished so we can generate the waves
                         // this again may need to be done in a spinner if it takes too long.
                         // That decision is made below with the help of makeWaveformsWithTimeOut.

@@ -105,8 +105,6 @@ module Constants =
     // helpers constants
     /// initial time running simulation without spinner to check speed (in ms)
     let initSimulationTime = 100.
-    /// max estimated time to run simulation and not need a spinner (in ms)
-    let maxSimulationTimeWithoutSpinner = 300.
 
 
     /// initial time making waveforms without spinner to check speed (in ms)

@@ -221,7 +221,19 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
         failwithf $"Sanity check failed: lastCycleNeeded = {cycleLimit} >= fs.MaxArraySize = {fs.MaxArraySize}"
 
     if fs.NumStepArrays = 0 then
-        // Special case if simulation is empty there is nothing to do. Not sure why this is needed.
+        // There is no simulation to draw from. That is not a quiet case to skip: the viewer is
+        // showing waveforms, this refresh has just recorded that the view changed, and returning
+        // here leaves those waveforms drawn for a view that will now never be fetched - silently,
+        // and for as long as the user keeps moving the cursor rather than the window, since only a
+        // window move refreshes again.
+        //
+        // It happens when a build failed after a simulation was already on screen. The commonest
+        // reason is running out of memory for the step arrays, which the renderer still allocates
+        // in full even when the sidecar is doing the simulating - four million cycles of 3cpu is
+        // 7.1GB - and which fails once the heap is fragmented even where it succeeded before.
+        Log.error
+            "the waveform viewer has no simulation to draw from - what is on screen is whatever was drawn last, and will not update"
+
         model, Elmish.Cmd.none
             
     else
@@ -322,7 +334,13 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
             Log.Wave
             $"refresh: view {window.StartSample}+{window.SampleCount}x{window.Multiplier} cursor {wsModel.CursorExactClkCycle}, {wsModel.SelectedWaves.Length} selected, {wsModel.WaveDetails.Count} detailed, {shownDrivers.Length} drivers - {heldOrNot}"
 
-        if not viewIsHeld then
+        if not viewIsHeld && WaveProvider.fetchInProgress () then
+            // A fetch is already running against this session, and a second would interleave with
+            // it. Do nothing at all: when the one in progress lands it refreshes, and that refresh
+            // asks for whatever view is current by then - which is this one, or a later one, but
+            // never one the user has already scrolled past.
+            model, Elmish.Cmd.none
+        elif not viewIsHeld then
             model, fetchThisView ()
         else
 

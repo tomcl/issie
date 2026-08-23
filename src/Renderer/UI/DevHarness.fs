@@ -160,13 +160,14 @@ let private waveState () =
                    // the resting state; anything else should be accompanied by fetchInProgress, or
                    // by a fetch on the way out of the update that is running now
                    missing = List.length (WaveData.needFetching handles window)
-                   // waves with an SVG, which is what is actually on screen. A wave can have one
-                   // drawn for an older window - that is the fallback, not a fault
+                   // waves with something on screen, and how many of those are showing a view
+                   // other than the one the controls ask for. Stale is the fallback working, not a
+                   // fault - unless it stays that way
                    drawn =
-                    ws.WaveDetails
-                    |> Map.toList
-                    |> List.filter (fun (_, w) -> Option.isSome w.SVG)
+                    ws.SelectedWaves
+                    |> List.filter (fun wi -> Option.isSome (WaveDrawn.tryDrawn wi.SimArrayIndex))
                     |> List.length
+                   stale = WaveDrawn.staleCount ws (WaveSimStyle.selectedWaves ws)
                    fetchInProgress = ws.FetchInProgress
                    spinner = Option.isSome model.SpinnerPayload |}
 

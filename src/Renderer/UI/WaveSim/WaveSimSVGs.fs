@@ -344,56 +344,24 @@ let displayBigIntOnWave
 
 
 
-/// <summary>Check if generated SVG is correct, based on existence, position, 
-/// and zoom. Fast simulation data is assumed unchanged. Used to determine if 
-/// <c>generateWaveform</c> is run.</summary>
-let waveformIsUptodate (ws: WaveSimModel) (wave: Wave): bool =
-    wave.SVG <> None &&
-    wave.ShownCycles = ws.ShownCycles &&
-    wave.StartCycle = ws.StartCycle &&
-    wave.CycleWidth = singleWaveWidth ws &&
-    wave.Radix = ws.Radix &&
-    wave.Multiplier = ws.SamplingZoom
-
-/// <summary>Called when <c>InitiateWaveSimulation</c> message is dispatched and when wave
-/// simulator is refreshed. Generates or updates the SVG for a specific waveform
-/// whether needed or not. The SVG depends on cycle width as well as start/stop
-/// clocks and design. Assumes that the fast simulation data has not changed and
-/// has enough cycles.</summary>
-/// Redraw one waveform for the current view, or None when the data for that view is not here.
+/// Draw one waveform, or None where the data for that view is not here.
 ///
-/// None means KEEP WHAT IS DRAWN. A view whose data has not arrived - scrolled somewhere the
-/// sidecar has not sent yet - used to blank the row, so scrolling flashed the waveforms white and
-/// then filled them in. Waveforms a moment out of date are what a viewer over a wire looks like;
-/// a viewer that empties itself is what a broken one looks like. The wave keeps the view stamp of
-/// what it is still showing, so it stays "not up to date" and is offered again on the next refresh,
-/// which is what makes it fill in the moment the data lands.
-///
-/// How long that is allowed to go on is not this function's business: see the staleness check in
-/// WaveSimTop, which is what makes a wait that should have ended visible instead of silent.
-let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave option =
-    let makePolyline points = 
+/// A pure function of the data and the spec - what it draws is decided entirely by its arguments,
+/// and it decides nothing. Whether to call it, and what to do when it answers None, is `drawnFor`
+/// below.
+let private makeWaveform (ws: WaveSimModel) (wave: Wave) (spec: WaveDrawn.WaveSpec) =
+    let makePolyline points =
         let points = points |> Array.concat |> Array.distinct
         polyline (wavePolylineStyle points) []
-    /// what this view draws: ShownCycles samples, one every SamplingZoom cycles, from StartCycle -
-    /// which counts SAMPLES and not clock cycles (see WaveSlice.Window)
-    let window: WaveSlice.Window =
-        { StartSample = ws.StartCycle
-          Multiplier = ws.SamplingZoom
-          SampleCount = ws.ShownCycles }
 
-    match WaveData.slice (SignalHandle wave.DriverIndex) window with
+    match WaveData.slice (SignalHandle wave.DriverIndex) spec.Window with
     | None ->
-        // the simulation has not reached these cycles, or the window fetched for this view does
-        // not cover them yet
-        Log.dbg
-            Log.Wave
-            $"no data yet for {wave.DisplayName} over {window.StartSample}+{window.SampleCount}x{window.Multiplier} - keeping what is drawn"
-
+        // the simulation has not reached these cycles, or the window this wave holds is not the one
+        // being asked for - which where the sidecar simulates is every view until its fetch lands
         None
     | Some sliceOfWave ->
 
-    let waveform, (gaps:GapStore) =
+    let waveform, (gaps: GapStore) =
         match sliceOfWave, wave.Width with
         | _, 0 ->
             failwithf "Cannot have wave of width 0"
@@ -429,69 +397,35 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave o
             let gapStore = EvilHoverCache.initGapStore (ws.ShownCycles/ 2 + 1)
             let valuesSVG = displayBigIntOnWave ws wave.Width sampledWaveValues transitions gapStore
             EvilHoverCache.finaliseStore gapStore
- 
+
 
             svg (waveRowProps ws) (List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG), gapStore
-    Some
-        {wave with
-            Radix = ws.Radix
-            ShownCycles = ws.ShownCycles
-            StartCycle = ws.StartCycle
-            Multiplier = ws.SamplingZoom
-            CycleWidth = singleWaveWidth ws
-            HatchedCycles = gaps
-            SVG = Some waveform}
 
+    Some { WaveDrawn.Spec = spec; WaveDrawn.Svg = waveform; WaveDrawn.Gaps = gaps }
 
-/// <summary>This function regenerates all the waveforms listed on <c> wavesToBeMade </c>. 
-/// Generation is subject to timeout, so may not complete.</summary>
-/// <remarks>This function has been augmented with performance monitoring function, turn <c>Constants.showPerfLogs</c>
-/// to print performance information to console.</remarks>
-/// <returns>An anonymous record with the following information:<br/>
-/// a) <c>WSM</c> (WaveSimModel with updated waveforms),<br/>
-/// b) <c>NumberDone</c> (no of waveforms made), and <br/>
-/// c) <c>TimeTaken</c> (<c>Some timeTaken</c> when greater than <c>timeOut</c> or <c>None</c>
-/// if completed with no time out).</returns>
-let makeWaveformsWithTimeOut
-    (timeOut: option<float>)
-    (ws: WaveSimModel)
-    (wavesToBeMade: list<WaveIndexT>)
-        : {| WSM: WaveSimModel ; NumberDone: int ; TimeTaken: option<float> |}=
-    try
-        let start = TimeHelpers.getTimeMs()
-        let allWaves, numberDone, timeTaken =
-            ((ws.WaveDetails, 0, None), wavesToBeMade)
-            ||> List.fold (fun (all,n, _) wi ->
-                    match timeOut, TimeHelpers.getTimeMs() - start with
-                    | Some timeOut, timeSoFar when timeOut < timeSoFar ->
-                        all, n, Some timeSoFar
-                    | _ ->
-                        // A wave whose data has not arrived keeps the one it is showing rather
-                        // than losing it - see generateWaveform. It still counts as done for the
-                        // timeout, because deciding it costs a map lookup: counting it as
-                        // outstanding would make this pass look slow and start a spinner for work
-                        // that is not happening.
-                        let redraw (existing: Wave option) =
-                            existing
-                            |> Option.map (fun wave ->
-                                generateWaveform ws wi wave |> Option.defaultValue wave)
+/// The waveform to put on screen for one wave: the view the controls ask for where its data is
+/// here, and otherwise the one it is already showing.
+///
+/// Called from the view, for every wave, on every render. Three outcomes, in the order they are
+/// tried: the waveform asked for has already been made, so it is reused; it has not, and the data
+/// is here, so it is made and kept; the data is not here, so what is on screen stays there. Only
+/// the last is a judgement, and it is the one the user asked for - a viewer that empties itself
+/// while it waits looks broken, one that shows the last view for a moment does not.
+///
+/// None only before anything has ever been drawn for this wave, which is the moment a wave is added
+/// to the selection. An empty row is right there: there is nothing older to show.
+let drawnFor (ws: WaveSimModel) (wave: Wave) : WaveDrawn.Drawn option =
+    let spec = WaveDrawn.specOf ws wave
 
-                        (Map.change wi redraw all), n+1, None)
+    match WaveDrawn.tryDrawn wave.DriverIndex with
+    | Some drawn when drawn.Spec = spec -> Some drawn
+    | onScreen ->
+        match makeWaveform ws wave spec with
+        | Some drawn ->
+            WaveDrawn.put drawn
+            Some drawn
+        | None -> onScreen
 
-        let finish = TimeHelpers.getTimeMs()
-        if Constants.showPerfLogs then
-            let countWavesWithWidthRange lowerLim upperLim =
-                wavesToBeMade
-                |> List.map (fun wi -> (Map.find wi allWaves).Width)
-                |> List.filter (fun width -> lowerLim <= width && width <= upperLim)
-                |> List.length
-        
-            Log.dbg Log.Perf $"makeWaveformsWithTimeOut: visible only {Constants.generateVisibleOnly}, {List.length wavesToBeMade}/{Map.count allWaves} waveforms, {countWavesWithWidthRange 1 1} binary, {countWavesWithWidthRange 2 32} int32, took %.2f{finish-start}ms"
-        {| WSM={ws with WaveDetails = allWaves}; NumberDone=numberDone; TimeTaken = timeTaken|}
-    with
-        | ex -> 
-            Log.error $"making waveforms: {ex.Message}"
-            {| WSM=ws; NumberDone=0; TimeTaken= None |}
 
 
 

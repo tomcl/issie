@@ -403,35 +403,21 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                         let wsModel = reconcileWaves fs wsModel
                         let selectedWaves = wsModel.SelectedWaves
 
-                        // Only generate waveforms for selected waves, and only where the SVG they
-                        // hold is not the one the current view calls for.
-                        let wavesToBeMade =
-                            selectedWaves
-                            |> List.filter (fun wi ->
-                                match Map.tryFind wi wsModel.WaveDetails with
-                                | Some wave -> not <| WaveSimSVGs.waveformIsUptodate wsModel wave
-                                | None -> false)
                         if wsModel.StartCycle < 0 then
                             failwithf $"Sanity check failed: wsModel.StartCycle = {wsModel.StartCycle}"
-                        let spinnerInfo =  
-                            let numToDo = wavesToBeMade.Length
-                            WaveSimSVGs.makeWaveformsWithTimeOut (Some <| Constants.initWaveformTime ) wsModel  wavesToBeMade
-                            |> (fun res ->
-                                    match wavesToBeMade.Length - res.NumberDone, res.TimeTaken with
-                                    | _, None | 0, _-> 
-                                        {| WSM=res.WSM; SpinnerPayload=None; NumToDo=numToDo|} // finished
-                                    | numToDo, Some t when float numToDo * t / float res.NumberDone < Constants.maxWaveCreationTimeWithoutSpinner ->
-                                        let res2 = WaveSimSVGs.makeWaveformsWithTimeOut None res.WSM wavesToBeMade
-                                        {| WSM= res2.WSM; SpinnerPayload=None; NumToDo = numToDo - res2.NumberDone|}
-                                    | numToDo, _ ->
-                                        if res.NumberDone = 0 && numToDo > 0 then
-                                            Log.warn $"no waves completed when {numToDo} are required - retrying refreshWaveSim"
-                                        let payload =
-                                            Some(
-                                                "Updating Waveform Display",
-                                                fun dispatch model -> refreshAndIssue dispatch false res.WSM model
-                                            )
-                                        {| WSM=res.WSM; SpinnerPayload=payload; NumToDo=numToDo|})
+
+                        // Waveforms are not made here. They are made in the view, from the data as
+                        // it is at the moment of drawing, and memoised on exactly what they are a
+                        // function of - so there is nothing for this refresh to bring up to date
+                        // and nothing to time out part way through. What used to be here was a pass
+                        // over the selection asking each wave whether its SVG matched the current
+                        // view, remaking those that did not, and a spinner for when that took too
+                        // long: an update deciding what the screen should look like, from a copy of
+                        // the screen kept in the model.
+                        //
+                        // Keeping the memo to the selection is this refresh's business, because
+                        // this is where the selection settles.
+                        WaveDrawn.keepOnly (selectedWaves |> List.map (fun wi -> wi.SimArrayIndex) |> Set.ofList)
 
                         let ramCompIds = ramCompIdsOf fs
                         let ramCompIdSet = Set.ofList ramCompIds
@@ -441,7 +427,6 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                             {
                                 wsModel with
                                     State = Success
-                                    WaveDetails = spinnerInfo.WSM.WaveDetails
                                     SelectedWaves = selectedWaves
                                     RamComps = ramCompIds
                                     SelectedRams = selectedRams
@@ -449,12 +434,8 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
 
                         let model = putWaveSim ws model
 
-                        match spinnerInfo.SpinnerPayload with
-                        | None ->
-                            cancelSpinner model
-                            |> dispatchFocusAfterRender
-                        | Some (spinnerName, spinnerAction) ->
-                            setButtonSpinner spinnerAction model
+                        cancelSpinner model
+                        |> dispatchFocusAfterRender
                         |> updateWSModel (fun _ -> {ws with DefaultCursor = Default})
                         |> (fun model ->
                                 // Ask for the waves that have not got the window they are drawn

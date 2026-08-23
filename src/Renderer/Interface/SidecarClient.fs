@@ -197,68 +197,97 @@ let private reportOverdue () =
 
         pending[corrId] <- { entry with Warned = true })
 
-/// Resolves once the socket is open; rejects when the sidecar is not up (yet). One socket per
-/// renderer: a second connect while one is open resolves immediately.
+/// How long to wait for the sidecar to start listening before deciding it is not going to.
+///
+/// It is spawned with the app and prints its port when it is ready. Until then the endpoint is not
+/// missing, it is NOT YET - and from a development build "not yet" is tens of seconds, because the
+/// sidecar is built first. A transport that reports the difference as a failure makes every caller
+/// above it responsible for a startup ordering problem it cannot see: the waveform viewer sat empty
+/// and had to be told to ask again.
+let private startupBudgetMs = 60000.
+
+/// The sidecar's endpoint, waiting for it to appear if it has not yet.
+///
+/// Polled, because nothing pushes it: the main process learns the port from the sidecar's own
+/// output and answers with it when asked. A hundred milliseconds is far below the time any of this
+/// takes and far above the cost of asking.
+let rec private endpoint (deadline: float) : JS.Promise<int * string> =
+    match Bridge.sidecarEndpoint () with
+    | Some ep -> Promise.lift ep
+    | None when TimeHelpers.getTimeMs () > deadline ->
+        Promise.create (fun _ reject ->
+            reject (System.Exception $"the sidecar did not start listening within %.0f{startupBudgetMs / 1000.}s"))
+    | None ->
+        Promise.create (fun resolve _ -> JS.setTimeout (fun () -> resolve ()) 100 |> ignore)
+        |> Promise.bind (fun () -> endpoint deadline)
+
+/// Resolves once the socket is open, WAITING for the sidecar to be listening if it is still
+/// starting. One socket per renderer: a second connect while one is open resolves immediately.
+///
+/// Rejects only when the sidecar is genuinely not there - it never started, or it has died - which
+/// is a fault and is reported as one. That distinction is the point of the wait above: everything
+/// over this is written as though the sidecar is simply there, because by the time it is called it
+/// is.
 let connect () : JS.Promise<unit> =
-    Promise.create (fun resolve reject ->
-        match socket, Bridge.sidecarEndpoint () with
-        | Some _, _ -> resolve ()
-        | None, None ->
-            reject (System.Exception "sidecar is not running (or not listening yet) - try again")
-        | None, Some (port, token) ->
-            let ws = newWebSocket $"ws://127.0.0.1:{port}/?token={token}"
-            setBinaryTypeArrayBuffer ws
+    match socket with
+    | Some _ -> Promise.lift ()
+    | None ->
+        endpoint (TimeHelpers.getTimeMs () + startupBudgetMs)
+        |> Promise.bind (fun (port, token) ->
+            Promise.create (fun resolve reject ->
+                let ws = newWebSocket $"ws://127.0.0.1:{port}/?token={token}"
+                setBinaryTypeArrayBuffer ws
 
-            setOnOpen (fun _ -> socket <- Some ws; resolve ()) ws
+                setOnOpen (fun _ -> socket <- Some ws; resolve ()) ws
 
-            setOnError
-                (fun _ ->
-                    socket <- None
-                    reject (System.Exception "sidecar websocket failed"))
-                ws
+                setOnError
+                    (fun _ ->
+                        socket <- None
+                        reject (System.Exception "sidecar websocket failed"))
+                    ws
 
-            // Every in-flight request now has no possible answer, so every caller waiting on one
-            // is FAILED. Clearing the table instead dropped the resolvers without calling them,
-            // and a promise that neither resolves nor rejects makes "still working" and "gone"
-            // the same thing to everything above it - which is the shape of hang that is hardest
-            // to find, because nothing anywhere reports it.
-            setOnClose
-                (fun _ ->
-                    socket <- None
-                    let dropped = List.ofSeq pending.Values
-                    pending.Clear()
+                // Every in-flight request now has no possible answer, so every caller waiting on one
+                // is FAILED. Clearing the table instead dropped the resolvers without calling them,
+                // and a promise that neither resolves nor rejects makes "still working" and "gone"
+                // the same thing to everything above it - which is the shape of hang that is hardest
+                // to find, because nothing anywhere reports it.
+                setOnClose
+                    (fun _ ->
+                        socket <- None
+                        let dropped = List.ofSeq pending.Values
+                        pending.Clear()
 
-                    if not (List.isEmpty dropped) then
-                        Log.warn $"sidecar connection closed with {dropped.Length} requests unanswered"
+                        if not (List.isEmpty dropped) then
+                            Log.warn $"sidecar connection closed with {dropped.Length} requests unanswered"
 
-                    dropped
-                    |> List.iter (fun entry -> entry.Fail (System.Exception "the sidecar connection closed")))
-                ws
+                        dropped
+                        |> List.iter (fun entry -> entry.Fail (System.Exception "the sidecar connection closed")))
+                    ws
 
-            setOnMessage
-                (fun ev ->
-                    let frame = eventBytes ev
-                    let corrId = readCorrId frame
+                setOnMessage
+                    (fun ev ->
+                        let frame = eventBytes ev
+                        let corrId = readCorrId frame
 
-                    match pending.TryGetValue corrId with
-                    | true, entry ->
-                        pending.Remove corrId |> ignore
+                        match pending.TryGetValue corrId with
+                        | true, entry ->
+                            pending.Remove corrId |> ignore
 
-                        // a reply that came, but too slowly to be one of the bounded commands the
-                        // protocol says this is - reported as well as the ones that never come,
-                        // because it is the same invariant and this is the half that is testable
-                        let took = TimeHelpers.getTimeMs () - entry.SentAtMs
+                            // a reply that came, but too slowly to be one of the bounded commands the
+                            // protocol says this is - reported as well as the ones that never come,
+                            // because it is the same invariant and this is the half that is testable
+                            let took = TimeHelpers.getTimeMs () - entry.SentAtMs
 
-                        match budgetMs entry.Cmd with
-                        | Some budget when took > budget && not entry.Warned ->
-                            Log.warn
-                                $"sidecar {nameOf entry.Cmd} answered after %.0f{took}ms, past its %.0f{budget}ms budget (invariant A6)"
-                        | _ -> ()
+                            match budgetMs entry.Cmd with
+                            | Some budget when took > budget && not entry.Warned ->
+                                Log.warn
+                                    $"sidecar {nameOf entry.Cmd} answered after %.0f{took}ms, past its %.0f{budget}ms budget (invariant A6)"
+                            | _ -> ()
 
-                        reportOverdue ()
-                        entry.Resolve frame
-                    | false, _ -> Log.error $"sidecar: unmatched response, command {commandOf frame}")
-                ws)
+                            reportOverdue ()
+                            entry.Resolve frame
+                        | false, _ -> Log.error $"sidecar: unmatched response, command {commandOf frame}")
+                    ws))
 
 /// One request, resolved with the whole response frame - header included, so a caller can size
 /// what came back. The payload is a Uint8Array from makeBytes.

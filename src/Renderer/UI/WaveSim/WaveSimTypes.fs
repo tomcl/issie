@@ -108,9 +108,10 @@ module Constants =
 
     /// How long to leave a failed fetch of waveform data alone before asking again (in ms).
     ///
-    /// Long enough that a sidecar which is not there costs one attempt every few seconds rather
-    /// than one per message, and short enough that a sidecar still starting up - which is the
-    /// commonest reason for a fetch to fail - is noticed as soon as the user does anything.
+    /// Which waves need fetching is derived, so a failure leaves exactly the state that asks for
+    /// another fetch: without this the two spin as fast as the message queue will carry them. It
+    /// should never be reached - the transport waits for a sidecar that is starting, and what is
+    /// left is a fault - which is why it is a plain interval and not a schedule of retries.
     let fetchRetryAfterMs = 2000.
 
 

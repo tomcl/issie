@@ -433,8 +433,11 @@ let updateUnpinned (msg : Msg) oldModel =
             // while this was in flight.
             WaveSimTop.refreshWaveSim false (getWSModel model) model
         | Error e ->
-            // Do NOT refresh: the waves are still missing, so a refresh would ask again, and a
-            // session error asked again is an error again. The next thing the user does refreshes.
+            // A fetch that fails now means a fault rather than a wait: the transport waits for a
+            // sidecar that is still starting, so what is left is a session that no longer exists, a
+            // design that would not build, or a sidecar that has died. Say so and stop - a fault
+            // asked again is a fault again, and the viewer's banner is what tells the user that
+            // what is on screen is not what the numbers above it say.
             Log.error $"the .NET simulator could not answer for this view: {e}"
             WaveSimTop.cancelSpinner model, Elmish.Cmd.none
 

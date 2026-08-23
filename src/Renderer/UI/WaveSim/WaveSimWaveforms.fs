@@ -459,14 +459,6 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
         if List.isEmpty wsModel.SelectedWaves then
             div [] [] // no waveforms
         else
-            let wHeight = calcWaveformHeight wsModel
-            let fixedHeight = Constants.softScrollBarWidth + Constants.topHalfHeight
-            let cssHeight =
-                if wsModel.SelectedRams.Count > 0 then
-                    $"min( calc(50vh - (0.5 * {fixedHeight}px)) ,  {wHeight}px)"
-                else
-                    $"min( calc(100vh - {fixedHeight}px) ,  {wHeight}px)"
-
             /// Said when the waveforms have been showing a view other than this one for longer
             /// than any fetch takes, and nothing is claiming to be working on it.
             ///
@@ -526,7 +518,7 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
                 else
                     []
 
-            div [ HTMLAttr.Id "Scroller";  Style [ Height cssHeight; Width "100%"; CSSProp.Custom("overflow", "hidden auto")]] [
+            div [ HTMLAttr.Id "Scroller"; waveformScrollerStyle ] [
                 yield! staleWarning
                 div [ HTMLAttr.Id "WaveCols" ;showWaveformsStyle ]
                     [

@@ -353,8 +353,10 @@ let makeScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit): ReactElement =
     // Indented to start on the same line as the labels and the controls above, leaving the strip
     // at the left of the pane to the view buttons. Its width is short by the same amount, so its
     // right-hand end stays level with the right of the table - see updateViewerWidthInWaveSim.
+    // Flex 0 0 auto: the pane it sits in is a flex column whose space the waveforms take, and a
+    // scrollbar squeezed to make room for them is one nobody can grab.
     div [ Style [ WhiteSpace WhiteSpaceOptions.Nowrap; MarginTop "5px"; MarginBottom "5px";
-                  MarginLeft Constants.viewSymbolWidth; Height "25px";
+                  MarginLeft Constants.viewSymbolWidth; Height "25px"; Flex "0 0 auto";
                   CSSProp.Custom("Overflow", "visible visible")]] [
         button [ Button.Props [scrollbarClkCycleLeftStyle] ]
             (fun _ -> scrollWaveformViewBy -1.0)

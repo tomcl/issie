@@ -123,7 +123,12 @@ let normalFontStyle = [
 /// Style for top row of buttons
 let topRowButtonStyle isRightSide= Style [
     Height ModelHelpers.Constants.wsButtonHeight
-    Width ModelHelpers.Constants.wsButtonWidth
+    Width (
+        if JSHelpers.debugLevel > 0 then
+            ModelHelpers.Constants.wsButtonWidthDev
+        else
+            ModelHelpers.Constants.wsButtonWidth
+    )
     FontSize "16px"
     Flex "0 0.5"
     if isRightSide then MarginLeft "auto" else AlignSelf AlignSelfOptions.FlexStart
@@ -560,11 +565,48 @@ let viewWaveSimStyle = Style [
     MarginTop "5px"
 ]
 
-// style for waveforms and RAM viewer
-let showWaveformsAndRamStyle (height:float) = Style [
+/// The pane below the controls, holding the waveforms, their horizontal scrollbar and the RAM
+/// tables.
+///
+/// It is the space left under the controls, and it NEVER scrolls: the waveforms scroll inside it,
+/// and so do the RAM tables when there are any. It used to be sized from its CONTENT - the height
+/// of the whole selection, or the whole window when RAMs were shown - so a selection taller than
+/// the pane made the pane taller than the window, and the tab body scrolled to reach the rest.
+/// That is where the second scrollbar came from: an outer one that moved the controls off the top
+/// of the screen, and an inner one that moved the waveforms.
+let showWaveformsAndRamStyle = Style [
     Width "100%"
+    Height $"calc(100vh - {Constants.topHalfHeight}px)"
+    Display DisplayOptions.Flex
+    FlexDirection "column"
     CSSProp.Custom("overflow", "hidden hidden")
-    Height $"{height}px"
+    ]
+
+/// The waveforms within that pane: whatever height is left after the scrollbar and the RAM tables,
+/// scrolling within it. With no RAMs that is all of it.
+///
+/// `min-height: 0` is what lets it be SHORTER than its content: a flex item's floor is its content
+/// by default, which would push the pane out again and put the outer scrollbar back.
+let waveformScrollerStyle = Style [
+    Width "100%"
+    Flex "1 1 auto"
+    MinHeight 0
+    CSSProp.Custom("overflow", "hidden auto")
+    ]
+
+/// The RAM tables within that pane: at most half of it, less if they need less, scrolling within
+/// whatever they get. Nothing at all when no RAM is selected, which is what leaves the waveforms
+/// the whole pane.
+let ramTablesStyle (sharingWithWaveforms: bool) = Style [
+    Width "100%"
+    // 0 0 auto, so they take what they need up to half the pane rather than being squeezed by
+    // waveforms that have far more content than room: shrinking is shared out in proportion to how
+    // much each item wants, and a hundred waveforms want a great deal more than two RAM tables.
+    Flex "0 0 auto"
+    // half the pane while waveforms are sharing it, all of it when they are not
+    MaxHeight (if sharingWithWaveforms then "50%" else "100%")
+    MinHeight 0
+    CSSProp.Custom("overflow", "hidden auto")
     ]
 
 /// Style for waveforms only path of viewer

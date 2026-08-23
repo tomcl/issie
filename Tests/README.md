@@ -1,7 +1,7 @@
 # Issie tests
 
 ```bash
-npm run test        # the whole suite: 642 tests, ~90s (629 tests, ~20s with VerilogCompiler excluded)
+npm run test        # the whole suite: 672 tests, ~70s (659 tests, ~34s with VerilogCompiler excluded)
 ```
 
 That runs `dotnet run --project Tests/Issie.Tests -c Release`. It is `dotnet run`, not
@@ -18,15 +18,23 @@ dotnet run --project Tests/Issie.Tests -c Release -- --filter-test-case Register
 
 Group runtimes (Release, warm build; add ~2s of startup per invocation):
 
-| Group (`--filter Issie.<name>`) | Tests | Time |
-|---|---:|---:|
-| `VerilogCompiler` | 13 | **38s** |
-| `ComponentSemantics` | 63 | 10s |
-| `GoldenModel` | 6 | 7.6s |
-| `Properties` | 44 | 1.2s |
-| `VerilogOutput` | 45 | 1.1s |
-| `SheetDescription` | 18 | 1.0s |
-| everything else (`Algebra`, `CustomOutputExtraction`, `DrawBlock`, `InstanceSignatures`, `Issie`, `KeyBindings`, `Library`, `ListPairs`, `Markdown`, `MemoryParameters`, `NumberHelpers`, `ParameterScenarios`, `ParameterUI`, `PathHelpers`, `Persistence`, `RamBenchmark`, `RamStore`, `ReadOnlySheet`, `RomComments`, `SheetHierarchy`, `SimulationBudget`, `SourceHygiene`, `StaleSheetName`, `TruthTableSim`, `WaveSelection`, `WidthInference`, `WireQuality`) | 453 | ~24s in total |
+| Group (`--filter Issie.<name>`) | Time |
+|---|---:|
+| `VerilogCompiler` | **36s** |
+| `SimpleDesign` | 16s |
+| `WireQuality` | 6.6s |
+| `GoldenModel` | 5.1s |
+| `ComponentSemantics` | 4.5s |
+| `WaveSelection` | 4.5s |
+| `Persistence` | 3.4s |
+| `SimulationBudget` | 2.0s |
+| everything else, 25 groups | under 1.5s each |
+
+These are what the tests DO. They were once ten times this, all of it in one place: a build used to
+take a 256MB step-array slab whatever it was building, so a suite of a few thousand small
+simulations spent eight of its twelve minutes allocating and zeroing memory it did not use. If the
+suite is ever slow again, measure a group before suspecting the tests - that one was a fault in the
+simulator, and it was costing every build in the app too.
 
 `VerilogCompiler` dominates: it spawns **node** for every parse (the real nearley parser, the
 same one the editor runs), so it needs node on PATH and costs over a third of the suite. Because

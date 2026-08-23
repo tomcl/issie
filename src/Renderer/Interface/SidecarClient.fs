@@ -117,7 +117,13 @@ let private readCorrId (frame: obj) : float = jsNative
 // Connection state and in-flight requests. Live socket handles, not model state
 // (docs/mutableState.md) - the Elmish model never sees the socket, only promises.
 let mutable private socket: obj option = None
-let private pending = System.Collections.Generic.Dictionary<float, obj -> unit>()
+
+/// Requests sent and not yet answered: how to resolve one, and how to fail it.
+///
+/// Both halves, because a request that can never be answered has to be FAILED rather than
+/// forgotten - see the close handler below.
+let private pending = System.Collections.Generic.Dictionary<float, (obj -> unit) * (exn -> unit)>()
+
 let mutable private nextCorrId = 0.0
 
 /// Resolves once the socket is open; rejects when the sidecar is not up (yet). One socket per
@@ -140,8 +146,23 @@ let connect () : JS.Promise<unit> =
                     reject (System.Exception "sidecar websocket failed"))
                 ws
 
-            // in-flight requests can never complete now; forget them rather than leak them
-            setOnClose (fun _ -> socket <- None; pending.Clear()) ws
+            // Every in-flight request now has no possible answer, so every caller waiting on one
+            // is FAILED. Clearing the table instead dropped the resolvers without calling them,
+            // and a promise that neither resolves nor rejects makes "still working" and "gone"
+            // the same thing to everything above it - which is the shape of hang that is hardest
+            // to find, because nothing anywhere reports it.
+            setOnClose
+                (fun _ ->
+                    socket <- None
+                    let dropped = List.ofSeq pending.Values
+                    pending.Clear()
+
+                    if not (List.isEmpty dropped) then
+                        Log.warn $"sidecar connection closed with {dropped.Length} requests unanswered"
+
+                    dropped
+                    |> List.iter (fun (_, fail) -> fail (System.Exception "the sidecar connection closed")))
+                ws
 
             setOnMessage
                 (fun ev ->
@@ -149,7 +170,7 @@ let connect () : JS.Promise<unit> =
                     let corrId = readCorrId frame
 
                     match pending.TryGetValue corrId with
-                    | true, resolveRequest ->
+                    | true, (resolveRequest, _) ->
                         pending.Remove corrId |> ignore
                         resolveRequest frame
                     | false, _ -> Log.error $"sidecar: unmatched response, command {commandOf frame}")
@@ -167,7 +188,7 @@ let request (cmd: int) (payload: obj) : JS.Promise<obj> =
             setCommand frame cmd
             writeUint32At frame 1 nextCorrId
             blitPayload frame payload
-            pending[nextCorrId] <- resolve
+            pending[nextCorrId] <- (resolve, reject)
             wsSend ws frame)
 
 /// Drop the connection; the next connect () makes a fresh one.
@@ -219,16 +240,28 @@ let private requestArgs (cmd: int) (args: int list) : JS.Promise<string> =
 /// Build a simulation of the last-sent design's top sheet on the sidecar.
 let simBuild (maxArraySize: int) = requestArgs Constants.simBuildCmd [ maxArraySize ]
 
+/// The session epoch a build reply issued, or 0 if it issued none.
+///
+/// Zero for an error reply and for anything unparseable, which is the safe direction: a command
+/// naming epoch 0 is refused by the sidecar unless there genuinely is no session, so a caller that
+/// failed to build cannot go on to name one.
+[<Emit("(function (t) { try { return JSON.parse(t).epoch || 0 } catch (e) { return 0 } })($0)")>]
+let epochOf (buildReply: string) : int = jsNative
+
 /// Advance the sidecar's simulation towards a cycle within a millisecond budget (0 = none);
 /// the reply says where the clock got to. Chunk by repeating; cancel by stopping.
-let simRun (targetCycle: int) (timeoutMs: int) =
-    requestArgs Constants.simRunCmd [ targetCycle; timeoutMs ]
+///
+/// Every command that depends on a session names the session it means, and the sidecar refuses one
+/// that names any other - see SimSession.checkEpoch. That is what stops a reply from a superseded
+/// simulation being taken for a reply from this one.
+let simRun (epoch: int) (targetCycle: int) (timeoutMs: int) =
+    requestArgs Constants.simRunCmd [ epoch; targetCycle; timeoutMs ]
 
 /// The sidecar's deterministic-stimulus digest text for the last-sent design (an error reply
 /// starts with '{').
 let simDigest (ticks: int) = requestArgs Constants.simDigestCmd [ ticks ]
 
-let simEnd () = requestArgs Constants.simEndCmd []
+let simEnd (epoch: int) = requestArgs Constants.simEndCmd [ epoch ]
 
 /// The sidecar's SimLog ring as JSON - the .NET half of a cross-runtime cost comparison.
 let simLog () = requestArgs Constants.simLogCmd []
@@ -250,9 +283,9 @@ let uint32At (view: obj) (index: int) : float = jsNative
 
 /// Set top-level input values at a cycle: (component id, value) pairs, values up to 2^53
 /// (split into low and high words on the wire). Reply is JSON.
-let simSetInputs (cycle: int) (values: (int * float) list) : JS.Promise<string> =
+let simSetInputs (epoch: int) (cycle: int) (values: (int * float) list) : JS.Promise<string> =
     let args =
-        [ cycle; List.length values ]
+        [ epoch; cycle; List.length values ]
         @ (values
            |> List.collect (fun (compId, value) ->
                let hi = System.Math.Floor(value / 4294967296.0)
@@ -267,9 +300,15 @@ let simSetInputs (cycle: int) (values: (int * float) list) : JS.Promise<string> 
 /// generation runs on, so a view at any zoom is one request. Resolves with the raw response
 /// frame: on success the values are `viewSimReadData frame (signals * samples)`, signal-major
 /// and zero-copy; an error response is JSON text (`decodeText frame` starts with '{').
-let simRead (startCycle: int) (rep: int) (samples: int) (signals: (int * int * int list) list) : JS.Promise<obj> =
+let simRead
+    (epoch: int)
+    (startCycle: int)
+    (rep: int)
+    (samples: int)
+    (signals: (int * int * int list) list)
+    : JS.Promise<obj> =
     let args =
-        [ startCycle; rep; samples; List.length signals ]
+        [ epoch; startCycle; rep; samples; List.length signals ]
         @ (signals
            |> List.collect (fun (compId, outPort, path) -> [ compId; outPort; List.length path ] @ path))
 
@@ -282,8 +321,14 @@ let decodeText (frame: obj) : string = decodeTextPayload frame
 
 /// One signal at one clock - the tooltip case, which is simRead's degenerate form: one signal,
 /// one sample, rep 1.
-let simReadPoint (compId: int) (outPort: int) (path: int list) (clock: int) : JS.Promise<Result<float, string>> =
-    simRead clock 1 1 [ compId, outPort, path ]
+let simReadPoint
+    (epoch: int)
+    (compId: int)
+    (outPort: int)
+    (path: int list)
+    (clock: int)
+    : JS.Promise<Result<float, string>> =
+    simRead epoch clock 1 1 [ compId, outPort, path ]
     |> Promise.map (fun frame ->
         let asText = decodeText frame
         if asText.StartsWith "{" then Error asText else Ok(readUint32At frame 16))

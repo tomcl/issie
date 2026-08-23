@@ -313,11 +313,13 @@ let runOnSidecarWithProgress (cycles: int) (arraySize: int) (topSheet: string op
                 | Some p when p.Name = sidecarRunName -> { m with SpinnerPayload = None }
                 | _ -> m)
 
-        let finishSession () =
-            SidecarClient.simEnd () |> Promise.map ignore |> ignore
+        // the epoch the build issued, carried by every command that follows it: the sidecar
+        // refuses one that names a session other than the one it holds
+        let finishSession (epoch: int) =
+            SidecarClient.simEnd epoch |> Promise.map ignore |> ignore
 
-        let rec chunk (chunkCount: int) : unit =
-            SidecarClient.simRun cycles 100
+        let rec chunk (epoch: int) (chunkCount: int) : unit =
+            SidecarClient.simRun epoch cycles 100
             |> Promise.map (fun reply ->
                 if reply.StartsWith "{\"error" then
                     clearBarIfOurs ()
@@ -341,14 +343,14 @@ let runOnSidecarWithProgress (cycles: int) (arraySize: int) (topSheet: string op
                                         + $"(%.2f{float cycles / ms} cycles/ms) - see simLog/sidecarSimLog for the per-chunk records"
                                     )
 
-                                    finishSession ()
+                                    finishSession epoch
                                 else
                                     setBar (cycles - tick)
-                                    chunk (chunkCount + 1)
+                                    chunk epoch (chunkCount + 1)
                             | _ ->
                                 // the progress bar's Cancel fired: stop by sending no more chunks
                                 Log.out $"sidecarRun: cancelled at cycle {tick} after {chunkCount} chunks"
-                                finishSession ()),
+                                finishSession epoch),
                         dispatch
                     ))
             |> Promise.catch (fun e ->
@@ -365,7 +367,7 @@ let runOnSidecarWithProgress (cycles: int) (arraySize: int) (topSheet: string op
                 Log.error $"sidecarRun: {built}"
             else
                 setBar cycles
-                chunk 1
+                chunk (SidecarClient.epochOf built) 1
         }
         |> Promise.catch (fun e -> Log.error $"sidecarRun: {e.Message}")
         |> ignore
@@ -687,8 +689,9 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
                       do! SidecarClient.connect ()
                       let! _ = SidecarClient.sendDesign design.TopSheet sheetJsons
                       let! built = SidecarClient.simBuild 250
-                      let! _ = SidecarClient.simRun (cycles - 1) 0
-                      let! frame = SidecarClient.simRead 0 1 cycles items
+                      let epoch = SidecarClient.epochOf built
+                      let! _ = SidecarClient.simRun epoch (cycles - 1) 0
+                      let! frame = SidecarClient.simRead epoch 0 1 cycles items
 
                       let asText = SidecarClient.decodeText frame
 

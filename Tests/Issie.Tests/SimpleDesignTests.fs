@@ -297,13 +297,18 @@ let tests =
             let buildReply = Issie.Sidecar.SimSession.build design 250
             Expect.isFalse (buildReply.Contains "error") $"build failed: {buildReply}"
 
+            // every session-dependent command names the session it means, and the sidecar refuses
+            // one that names another - so a test driving the wire format has to carry it too
+            let epoch = Issie.Sidecar.SimSession.currentEpoch ()
+            Expect.isGreaterThan epoch 0 "a successful build issues a session epoch"
+
             // chunked run with a 1ms budget per chunk: the client-driven progress contract -
             // repeat until done, each chunk one SimLog record
             let mutable chunks = 0
             let mutable finished = false
 
             while not finished && chunks < 10_000 do
-                let reply = Issie.Sidecar.SimSession.run 2_000 1
+                let reply = Issie.Sidecar.SimSession.run epoch 2_000 1
                 chunks <- chunks + 1
                 Expect.isFalse (reply.Contains "error") $"run failed: {reply}"
                 finished <- reply.Contains "\"done\":true"
@@ -320,7 +325,7 @@ let tests =
                 | Error e -> failtest e
 
             Expect.equal viaSession local "session digest differs from the local render"
-            Issie.Sidecar.SimSession.endSession () |> ignore
+            Issie.Sidecar.SimSession.endSession epoch |> ignore
 
             // both kinds of invocation were recorded, in the same log both runtimes share
             let log = SimLog.recent ()
@@ -332,6 +337,49 @@ let tests =
                 "no run record in SimLog"
         }
 
+        test "a command naming a session the sidecar no longer holds is refused" {
+            // The renderer cannot see inside the sidecar, so everything it believes about the
+            // session there - that one exists, that it is of the design last sent, how far its
+            // clock has run - is a belief with nothing to check it. The epoch is that check: a
+            // build issues one, every session-dependent command names it, and a command naming any
+            // other is refused rather than answered from whatever session happens to exist.
+            let _, design, _ = convertProject "3cpu"
+
+            let firstBuild = Issie.Sidecar.SimSession.build design 250
+            Expect.isFalse (firstBuild.Contains "error") $"first build failed: {firstBuild}"
+            let stale = Issie.Sidecar.SimSession.currentEpoch ()
+
+            let secondBuild = Issie.Sidecar.SimSession.build design 250
+            Expect.isFalse (secondBuild.Contains "error") $"second build failed: {secondBuild}"
+            let current = Issie.Sidecar.SimSession.currentEpoch ()
+
+            Expect.notEqual current stale "a rebuild issues a session of its own"
+
+            // the run, the write and the read all refuse it, and each says so rather than failing
+            // silently or answering from the new session
+            let staleRun = Issie.Sidecar.SimSession.run stale 5 0
+            Expect.stringContains staleRun "stale session" $"a stale run was answered: {staleRun}"
+
+            let staleSet = Issie.Sidecar.SimSession.setInputs stale [||]
+            Expect.stringContains staleSet "stale session" $"a stale write was answered: {staleSet}"
+
+            match Issie.Sidecar.SimSession.read stale [||] with
+            | Ok _ -> failtest "a stale read was answered"
+            | Error e -> Expect.stringContains e "stale session" $"unexpected read error: {e}"
+
+            // and the current one still works
+            let liveRun = Issie.Sidecar.SimSession.run current 5 0
+            Expect.isFalse (liveRun.Contains "error") $"the live session was refused: {liveRun}"
+
+            // ending names a session too, so a stale end cannot drop the live one
+            let staleEnd = Issie.Sidecar.SimSession.endSession stale
+            Expect.stringContains staleEnd "stale session" $"a stale end was accepted: {staleEnd}"
+            Expect.equal (Issie.Sidecar.SimSession.currentEpoch ()) current "the live session survived"
+
+            Issie.Sidecar.SimSession.endSession current |> ignore
+            Expect.equal (Issie.Sidecar.SimSession.currentEpoch ()) 0 "ending leaves no session"
+        }
+
         test "sidecar SimSetInputs and SimRead agree with a local simulation, via wire payloads" {
             let admitted, design, shimmed = convertProject "3cpu"
             let ticks = 30
@@ -339,6 +387,7 @@ let tests =
             // the session, driven through the exact wire-format payloads
             let buildReply = Issie.Sidecar.SimSession.build design 250
             Expect.isFalse (buildReply.Contains "error") $"build failed: {buildReply}"
+            let epoch = Issie.Sidecar.SimSession.currentEpoch ()
 
             // a local simulation of the same shimmed design, driven identically
             let top = shimmed |> List.find (fun ldc -> ldc.Name = design.TopSheet)
@@ -354,7 +403,7 @@ let tests =
             // drive both with the digest stimulus, tick by tick: run to the tick, set inputs at it
             for tick in 0 .. ticks - 1 do
                 if tick > 0 then
-                    Issie.Sidecar.SimSession.run tick 0 |> ignore
+                    Issie.Sidecar.SimSession.run epoch tick 0 |> ignore
                     FastRun.runFastSimulation None tick localFs |> ignore
 
                 let inputs = localSim.Inputs |> List.sortBy (fun (_, ComponentLabel l, _) -> l)
@@ -368,7 +417,7 @@ let tests =
                        |> List.concat)
                     |> u32s
 
-                let setReply = Issie.Sidecar.SimSession.setInputs setPayload
+                let setReply = Issie.Sidecar.SimSession.setInputs epoch setPayload
                 Expect.isFalse (setReply.Contains "error") $"setInputs failed: {setReply}"
 
                 inputs
@@ -376,7 +425,7 @@ let tests =
                     let fd = NumberHelpers.convertBigintToFastData width (SimDigest.stimulus i tick width)
                     FastExtract.changeInput cid (SimGraphTypes.IData fd) tick localFs)
 
-            Issie.Sidecar.SimSession.run (ticks - 1) 0 |> ignore
+            Issie.Sidecar.SimSession.run epoch (ticks - 1) 0 |> ignore
             FastRun.runFastSimulation None (ticks - 1) localFs |> ignore
 
             // read a window of every top-level clocked component plus one nested one (path in
@@ -404,7 +453,7 @@ let tests =
                            [ cid; 0; List.length path ] @ (path |> List.map (fun (ComponentId p) -> p))))
                     |> u32s
 
-                match Issie.Sidecar.SimSession.read payload with
+                match Issie.Sidecar.SimSession.read epoch payload with
                 | Error e -> failtest $"SimRead (start {startCycle}, rep {rep}) failed: {e}"
                 | Ok reply ->
                     Expect.equal (int (System.BitConverter.ToUInt32(reply, 0))) (List.length itemsWanted) "signal count"
@@ -427,7 +476,7 @@ let tests =
             readSampled 2 3 9
             readSampled (ticks - 1) 1 1
 
-            Issie.Sidecar.SimSession.endSession () |> ignore
+            Issie.Sidecar.SimSession.endSession epoch |> ignore
         }
 
         test "integer ids survive a save and reload round trip" {

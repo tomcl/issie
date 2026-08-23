@@ -41,14 +41,24 @@ let Download = 0x03uy
 let SendDesign = 0x04uy
 
 /// Build a simulation of the last-sent design's top sheet. Payload: uint32 LE maxArraySize.
-/// Reply: JSON build report or error.
+/// Reply: JSON build report including the session `epoch` this build issued, or an error.
+///
+/// **Every command below that depends on a session carries that epoch**, and the sidecar refuses
+/// one naming any other session. The renderer cannot see inside this process, so without it every
+/// belief it holds about the session - that one exists, that it is of the design last sent, how far
+/// its clock has run - is unverifiable, and a reply from a superseded simulation is indistinguish-
+/// able from a reply from the current one. See docs/dev/sidecarInvariants.md, section C.
 [<Literal>]
 let SimBuild = 0x05uy
 
 /// Run the built simulation towards a target cycle within a time budget. Payload: uint32 LE
-/// target cycle, uint32 LE timeout ms (0 = unbounded). Reply: JSON {clockTick, done, ms}.
-/// The caller chunks: repeat until done, cancel by not sending the next chunk - the same
-/// contract the renderer's own progress loop uses.
+/// epoch, uint32 LE target cycle, uint32 LE timeout ms (0 = unbounded). Reply: JSON
+/// {epoch, clockTick, firstValidCycle, done, ms}. The caller chunks: repeat until done, cancel by
+/// not sending the next chunk - the same contract the renderer's own progress loop uses.
+///
+/// firstValidCycle is the earliest cycle whose data is still correct. The step arrays are a
+/// circular buffer, so a simulation run past its array length has overwritten its own beginning;
+/// without this number "overwritten" and "not yet reached" are the same silence to the caller.
 [<Literal>]
 let SimRun = 0x06uy
 
@@ -57,7 +67,7 @@ let SimRun = 0x06uy
 [<Literal>]
 let SimDigest = 0x07uy
 
-/// Drop the simulation session. Empty payload. Reply: JSON.
+/// Drop the simulation session. Payload: uint32 LE epoch. Reply: JSON.
 [<Literal>]
 let SimEnd = 0x08uy
 
@@ -67,9 +77,9 @@ let SimEnd = 0x08uy
 [<Literal>]
 let SimLog = 0x09uy
 
-/// Set top-level input values on the built simulation at a cycle. Payload: uint32 LE cycle,
-/// uint32 LE count, then per input uint32 LE component id, uint32 LE value low word, uint32 LE
-/// value high word. Reply: JSON.
+/// Set top-level input values on the built simulation at a cycle. Payload: uint32 LE epoch,
+/// uint32 LE cycle, uint32 LE count, then per input uint32 LE component id, uint32 LE value low
+/// word, uint32 LE value high word. Reply: JSON.
 [<Literal>]
 let SimSetInputs = 0x0Auy
 
@@ -77,8 +87,8 @@ let SimSetInputs = 0x0Auy
 /// values taken every `rep` cycles from `start` - the same (StartCycle, SamplingZoom,
 /// ShownCycles) parameters the waveform viewer's own generation uses, so a zoomed-out view is
 /// one request with rep > 1, and a tooltip is the degenerate one-signal one-sample request.
-/// Payload: uint32 LE start cycle, uint32 LE rep (cycles between samples, >= 1), uint32 LE
-/// sample count, uint32 LE signal count, then per signal uint32 LE component id, uint32 LE
+/// Payload: uint32 LE epoch, uint32 LE start cycle, uint32 LE rep (cycles between samples, >= 1),
+/// uint32 LE sample count, uint32 LE signal count, then per signal uint32 LE component id, uint32 LE
 /// output port number, uint32 LE access-path length, then that many uint32 LE path component
 /// ids (root first). Reply payload on success: uint32 LE signal count, uint32 LE sample count,
 /// then signal-major uint32 LE values - so values start at byte 16 of the frame, 8-aligned for

@@ -46,13 +46,30 @@ type CachedWave =
       RowBase: int
       Data: uint32 array }
 
+/// What the cache holds for one wave over one window: its samples, or the reason there are none.
+///
+/// "There are none, and asking again will not help" has to be sayable. A missing wave is exactly
+/// what asks for a fetch, so a wave that can never be fetched - the simulation has no driver to
+/// name it by - would be asked for again by every update for as long as it stayed selected. The
+/// answer is recorded like any other, against the window it was asked over.
+type Held =
+    | Samples of CachedWave
+    /// asked for over this window, and the simulation offers no way to name the signal. The row
+    /// stays blank, and nothing asks again until the window changes.
+    | NoDriver of Window
+
+let private windowHeld =
+    function
+    | Samples c -> c.Window
+    | NoDriver w -> w
+
 type Source =
     /// the renderer's own simulation - read its step arrays where they lie
     | Local
-    /// waves fetched from the sidecar, by driver index. A wave is here when it has been fetched,
-    /// whatever window it was fetched over; whether that window is the one being drawn is the
-    /// caller's question and is answered by `hasData`
-    | Fetched of Map<int, CachedWave>
+    /// what has been fetched from the sidecar, by driver index. A wave is here when it has been
+    /// asked for, whatever window it was asked over; whether that window is the one being drawn is
+    /// the caller's question and is answered by `hasData`
+    | Fetched of Map<int, Held>
 
 /// What the viewer is currently drawing from. Local until the waveform simulator says otherwise.
 let mutable private source = Source.Local
@@ -109,7 +126,21 @@ let setFetched (waves: (int * CachedWave) list) =
         | Source.Fetched held -> held
         | Source.Local -> Map.empty
 
-    source <- Source.Fetched((existing, waves) ||> List.fold (fun m (h, c) -> Map.add h c m))
+    source <- Source.Fetched((existing, waves) ||> List.fold (fun m (h, c) -> Map.add h (Samples c) m))
+
+/// Record that these waves were asked for over this window and the simulation cannot name them.
+///
+/// Not an error and not a gap to be retried: a wave whose driver the simulation does not offer is
+/// one this build has no way of fetching, so what is recorded is that answer. It goes in the cache
+/// rather than in a list of exceptions because the question - "has this wave got the window it is
+/// drawn over" - is the same one, and one answer is easier to keep true than two.
+let setNoDriver (handles: int list) (window: Window) =
+    let existing =
+        match source with
+        | Source.Fetched held -> held
+        | Source.Local -> Map.empty
+
+    source <- Source.Fetched((existing, handles) ||> List.fold (fun m h -> Map.add h (NoDriver window) m))
 
 let current () = source
 
@@ -122,7 +153,7 @@ let hasData (SignalHandle handle) (window: Window) =
     | Source.Local -> true
     | Source.Fetched waves ->
         match Map.tryFind handle waves with
-        | Some cached -> cached.Window = window
+        | Some held -> windowHeld held = window
         | None -> false
 
 /// The waves, of those being drawn, that do not hold the window they are drawn over.
@@ -141,7 +172,7 @@ let slice (SignalHandle handle as h) (window: Window) : WaveSlice option =
     | Source.Local -> localData h |> Option.bind (fun io -> ofLocalDriver io (localClock ()) window)
     | Source.Fetched waves ->
         match Map.tryFind handle waves with
-        | Some c when c.Window = window ->
+        | Some(Samples c) when c.Window = window ->
             if c.Width <= 32 then
                 Some(ofFetchedWords c.Data c.RowBase c.WordsPerSample c.Width window c.LeadIn)
             else
@@ -173,8 +204,9 @@ let valueAt (SignalHandle handle as h) (cycle: int) : FastData option =
         // value column and the tooltip say what the waveform beside them says, whether or not that
         // is the view the controls now ask for.
         match Map.tryFind handle waves with
-        | None -> None
-        | Some c ->
+        | None
+        | Some(NoDriver _) -> None
+        | Some(Samples c) ->
             let offset = cycle - c.Window.FirstCycle
 
             if offset < 0 || offset % c.Window.Multiplier <> 0 then

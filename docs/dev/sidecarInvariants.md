@@ -61,11 +61,11 @@ WebSocket; the renderer connects directly and the main process is not in the dat
 | # | Invariant | Status |
 |---|---|---|
 | A1 | There is at most one socket. `connect` returns the existing one if open; `request` rejects when there is none. | **holds** |
-| A2 | A correlation id is unique among requests in flight. `nextCorrId` only increments, and it is a JS float, so it does not wrap in any realistic session. | **holds** |
+| A2 | A correlation id is unique among requests in flight. `nextCorrId` only increments, and it is a JS float, so it does not wrap in any realistic session. | **holds** — and is checked |
 | A3 | Every reply matches a request in flight. | **holds** — an unmatched reply is logged rather than ignored |
-| A4 | Every request eventually settles — resolves or rejects. | **violated**, see below |
+| A4 | Every request eventually settles — resolves or rejects. | **holds** — failed, not forgotten, when the socket closes |
 | A5 | Replies arrive in the order the requests were sent. | **holds**, and is deliberately *not* relied on: correlation ids mean it could stop being true without breaking anything |
-| A6 | Every request is answered within a bounded number of ticks, except commands declared long. | **to build** |
+| A6 | Every request is answered within its command's budget, except the two declared long. | **holds** — checked, see F |
 
 ### A4 — requests that never settle
 
@@ -111,10 +111,10 @@ and nothing currently checks that the beliefs are true.
 
 | # | Invariant | Status |
 |---|---|---|
-| C1 | `WaveProvider.built` describes the session the sidecar actually holds. | **violated** — a belief with no verification |
-| C2 | `sidecarClockTick` equals the sidecar's clock. | **violated** — same |
-| C3 | At most one fetch chain runs against a session at a time. | **violated** — unguarded |
-| C4 | A reply is applied only to the simulation it was asked of. | **violated** — an in-flight reply from a superseded design can still land |
+| C1 | `WaveProvider.built` describes the session the sidecar actually holds. | **holds** — the epoch is checked on every session-dependent command |
+| C2 | `sidecarClockTick` equals the sidecar's clock. | **holds** — it is written only from replies the epoch has already vouched for |
+| C3 | At most one fetch chain runs against a session at a time. | **holds** — enforced by single-flight, not merely checked |
+| C4 | A reply is applied only to the simulation it was asked of. | **holds** — a superseded epoch is refused |
 
 ### C1, C2 and C4 — one mechanism: the session epoch
 
@@ -167,9 +167,9 @@ per wave, and is megabytes in size.
 
 | # | Invariant | Status |
 |---|---|---|
-| D1 | Every handle in `Rows` is also in `Asked`. | **holds** by construction; unchecked |
+| D1 | Every handle in `Rows` is also in `Asked`. | **holds** — and is checked |
 | D2 | `slice` answers only for the exact window the data was fetched for. | **holds** — an equality test, deliberately not a containment test |
-| D3 | The data received is `signals × samples` values long. | **taken on trust** |
+| D3 | The data received is `signals × samples` values long. | **holds** — and is checked, because a short reply is silent |
 
 D2 is stricter than it needs to be and that is intentional: a containment test would let the viewer
 draw a sub-window of stale data without anything noticing. The cost is a refetch on every view
@@ -260,26 +260,37 @@ An invariant that cannot be checked is a comment. These can be, cheaply.
 | Check | Where | Catches |
 |---|---|---|
 | epoch mismatch | sidecar, per session-dependent command | C1, C2, C4 |
-| more than one fetch chain in flight | `WaveProvider` | C3 |
-| request outstanding for longer than its command's bound | renderer tick, over `pending` | A6, and every hang above it |
-| pending entries dropped on close | `SidecarClient.onclose` | A4 |
+| request outstanding, or answered, past its budget | `SidecarClient`, on send and on receive | A6, and every hang above it |
+| pending requests failed rather than dropped on close | `SidecarClient.onclose` | A4 |
 | `Rows ⊆ Asked`, data length = signals × samples | `WaveData.setFetched` | D1, D3 |
 | correlation id already in `pending` | `SidecarClient.request` | A2 |
 
-### The tick
+C3 has no check because it is **enforced**: `fillFor` will not start a second chain. An invariant
+that cannot be broken needs no detector.
 
-The reply-time check needs to know that time has passed while nothing has happened, and nothing
-happening dispatches no message and causes no render. So time arrives as a message: **one
-continuous tick for the whole application**, an Elmish subscription started once and never stopped.
+### Timestamps, not a tick
 
-It is deliberately not started per wait. A recurrence started when a wait begins has, as its
-failure mode, *silence* — and silence is indistinguishable from success in the one mechanism whose
-job is to report that something has gone wrong. One always-on tick makes "has it started" a single
-application-level fact instead of one per wait.
+Every check here is a timestamp compared against the clock, or a comparison over data already in
+hand. Nothing is scheduled, nothing is counted, and no check holds state beyond what the thing being
+checked already carries.
 
-The same tick carries the memory check, which currently reads the clock on every render to decide
-whether to dispatch `CheckMemory`. That gives the tick a second customer whose failure is
-noticeable, so a tick that stops is a tick somebody discovers.
+For A6 that means a pending request records when it was sent and which command it was. Anything past
+its budget is reported, and so is a reply that arrives late - both when something HAPPENS, a request
+going out or a reply coming in, rather than on a timer. That is enough: an application with nothing
+happening reports nothing, and has nobody being misled by it either.
+
+A continuous application tick was considered for this and rejected. It would have to run always,
+costing a render of the whole application each time, to serve a check that a timestamp answers for
+free - and "has the tick been started" is itself a piece of state that can be wrong, in the one
+mechanism whose job is to notice when something is.
+
+The budget is one number, two seconds, and it is deliberately not a latency budget: a round trip is
+under a millisecond and a run chunk a tenth of a second, so this is the line past which a command is
+not slow but stuck. The interesting part is the exemptions - the two declared-long commands, and the
+three that measure the channel and can be asked for 64MB.
+
+Each warning is said once per request, by a flag inside the pending entry, which disappears when the
+request does.
 
 ### What is displayed
 
@@ -295,7 +306,8 @@ is not what you asked for*.
   against a four-million-cycle configuration would sit at zero forever.
 - **The stale screen** — one visual form of an invariant violation, and nothing more. It should
   never appear. It exists so that a violation is something a user sees rather than a log line
-  nobody reads.
+  nobody reads. Built the same way as the checks above: the moment the view last changed is
+  recorded, and how long ago that was is worked out where it is read.
 
 ### What cannot be checked
 

@@ -71,7 +71,31 @@ let setLocal (lookup: SignalHandle -> IOArray option) =
     localData <- lookup
     source <- Source.Local
 
-let setFetched (window: FetchedWindow) (cursor: FetchedWindow option) = source <- Source.Fetched(window, cursor)
+/// Make a fetched window what the viewer reads, checking that it is the shape it claims to be.
+///
+/// Both of these are silent when wrong, which is why they are checked rather than trusted. A row
+/// whose handle was never asked for is a row indexed against a reply that does not contain it; and
+/// a reply shorter than signals x samples gives every wave after the truncation point somebody
+/// else's data, drawn as confidently as the rest. Neither shows up as an error anywhere else.
+///
+/// Said rather than thrown: what is drawn will be wrong, but refusing to draw is not better, and
+/// the message names the invariant it broke.
+let setFetched (window: FetchedWindow) (cursor: FetchedWindow option) =
+    let rowsNotAsked =
+        window.Rows |> Map.filter (fun handle _ -> not (Set.contains handle window.Asked)) |> Map.count
+
+    if rowsNotAsked > 0 then
+        Log.error
+            $"waveform cache: {rowsNotAsked} rows of a fetched window were never asked for (invariant D1)"
+
+    let samplesPerRow = window.Window.SampleCount + (if window.LeadIn then 1 else 0)
+    let expected = Map.count window.Rows * samplesPerRow
+
+    if window.Data.Length < expected then
+        Log.error
+            $"waveform cache: a fetched window holds {window.Data.Length} values where {Map.count window.Rows} signals x {samplesPerRow} samples needs {expected} (invariant D3)"
+
+    source <- Source.Fetched(window, cursor)
 let current () = source
 
 /// Whether the fetched source already holds this view - the same window, the same cursor cycle,

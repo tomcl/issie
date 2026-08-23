@@ -118,13 +118,84 @@ let private readCorrId (frame: obj) : float = jsNative
 // (docs/mutableState.md) - the Elmish model never sees the socket, only promises.
 let mutable private socket: obj option = None
 
-/// Requests sent and not yet answered: how to resolve one, and how to fail it.
+/// A request that has been sent and not yet answered.
 ///
-/// Both halves, because a request that can never be answered has to be FAILED rather than
-/// forgotten - see the close handler below.
-let private pending = System.Collections.Generic.Dictionary<float, (obj -> unit) * (exn -> unit)>()
+/// It carries how to fail it as well as how to resolve it, because a request that can never be
+/// answered has to be FAILED rather than forgotten - see the close handler below. And it carries
+/// when it was sent, because a reply that never comes is the one failure nothing else reports:
+/// every other kind arrives as an error.
+type private Pending =
+    { Cmd: int
+      SentAtMs: float
+      /// said once, not once per event afterwards
+      Warned: bool
+      Resolve: obj -> unit
+      Fail: exn -> unit }
+
+let private pending = System.Collections.Generic.Dictionary<float, Pending>()
 
 let mutable private nextCorrId = 0.0
+
+/// How long a command may take before something is wrong, or None for one declared long.
+///
+/// Not a latency budget - a round trip is under a millisecond and a run chunk is a tenth of a
+/// second. This is the line past which a command is not slow but stuck, so one generous number
+/// serves every bounded command and the interesting part is the exemptions.
+///
+/// `SimBuild` and `SimDigest` are the two declared-long commands: a build has no cycle loop to
+/// bound it, and a digest builds and runs a simulation of its own for the two runtimes to be
+/// compared byte for byte. The three measurement commands can be asked for 64MB. See
+/// docs/dev/sidecarInvariants.md, section E.
+let private budgetMs (cmd: int) : float option =
+    match cmd with
+    | c when c = Constants.simBuildCmd -> None
+    | c when c = Constants.simDigestCmd -> None
+    | c when c = Constants.echoCmd || c = Constants.uploadCmd || c = Constants.downloadCmd -> None
+    | _ -> Some 2000.0
+
+/// What to call a command in a diagnostic. The numbers are in Protocol.fs and nobody reading a
+/// warning has them by heart.
+let private nameOf (cmd: int) =
+    match cmd with
+    | c when c = Constants.echoCmd -> "Echo"
+    | c when c = Constants.uploadCmd -> "Upload"
+    | c when c = Constants.downloadCmd -> "Download"
+    | c when c = Constants.sendDesignCmd -> "SendDesign"
+    | c when c = Constants.simBuildCmd -> "SimBuild"
+    | c when c = Constants.simRunCmd -> "SimRun"
+    | c when c = Constants.simDigestCmd -> "SimDigest"
+    | c when c = Constants.simEndCmd -> "SimEnd"
+    | c when c = Constants.simLogCmd -> "SimLog"
+    | c when c = Constants.simSetInputsCmd -> "SimSetInputs"
+    | c when c = Constants.simReadCmd -> "SimRead"
+    | c -> $"command {c}"
+
+/// Say so about any request that has outstripped its command's budget.
+///
+/// Timestamps against the clock, checked when something happens - a request going out, a reply
+/// coming in - rather than on a timer. Nothing is scheduled and nothing is counted: the table
+/// already holds when each request was sent, so this is a comparison over at most a handful of
+/// entries. An app with nothing happening reports nothing, which costs nothing, because there is
+/// also nobody being misled by it.
+let private reportOverdue () =
+    let now = TimeHelpers.getTimeMs ()
+
+    let late =
+        pending
+        |> Seq.filter (fun kv ->
+            not kv.Value.Warned
+            && (match budgetMs kv.Value.Cmd with
+                | Some budget -> now - kv.Value.SentAtMs > budget
+                | None -> false))
+        |> Seq.map (fun kv -> kv.Key, kv.Value)
+        |> List.ofSeq
+
+    late
+    |> List.iter (fun (corrId, entry) ->
+        Log.warn
+            $"sidecar {nameOf entry.Cmd} has not answered in %.0f{now - entry.SentAtMs}ms (invariant A6)"
+
+        pending[corrId] <- { entry with Warned = true })
 
 /// Resolves once the socket is open; rejects when the sidecar is not up (yet). One socket per
 /// renderer: a second connect while one is open resolves immediately.
@@ -161,7 +232,7 @@ let connect () : JS.Promise<unit> =
                         Log.warn $"sidecar connection closed with {dropped.Length} requests unanswered"
 
                     dropped
-                    |> List.iter (fun (_, fail) -> fail (System.Exception "the sidecar connection closed")))
+                    |> List.iter (fun entry -> entry.Fail (System.Exception "the sidecar connection closed")))
                 ws
 
             setOnMessage
@@ -170,9 +241,22 @@ let connect () : JS.Promise<unit> =
                     let corrId = readCorrId frame
 
                     match pending.TryGetValue corrId with
-                    | true, (resolveRequest, _) ->
+                    | true, entry ->
                         pending.Remove corrId |> ignore
-                        resolveRequest frame
+
+                        // a reply that came, but too slowly to be one of the bounded commands the
+                        // protocol says this is - reported as well as the ones that never come,
+                        // because it is the same invariant and this is the half that is testable
+                        let took = TimeHelpers.getTimeMs () - entry.SentAtMs
+
+                        match budgetMs entry.Cmd with
+                        | Some budget when took > budget && not entry.Warned ->
+                            Log.warn
+                                $"sidecar {nameOf entry.Cmd} answered after %.0f{took}ms, past its %.0f{budget}ms budget (invariant A6)"
+                        | _ -> ()
+
+                        reportOverdue ()
+                        entry.Resolve frame
                     | false, _ -> Log.error $"sidecar: unmatched response, command {commandOf frame}")
                 ws)
 
@@ -184,11 +268,26 @@ let request (cmd: int) (payload: obj) : JS.Promise<obj> =
         | None -> reject (System.Exception "sidecar is not connected - connect first")
         | Some ws ->
             nextCorrId <- nextCorrId + 1.0
+
+            if pending.ContainsKey nextCorrId then
+                // ids only ever increase, and are floats, so this cannot happen in any real
+                // session - but reusing one in flight would deliver a reply to the wrong caller,
+                // which is the kind of wrong that looks like a simulation bug
+                Log.error $"sidecar: correlation id {nextCorrId} is already in flight"
+
             let frame = makeBytes (Constants.headerSize + int (byteLength payload))
             setCommand frame cmd
             writeUint32At frame 1 nextCorrId
             blitPayload frame payload
-            pending[nextCorrId] <- (resolve, reject)
+
+            pending[nextCorrId] <-
+                { Cmd = cmd
+                  SentAtMs = TimeHelpers.getTimeMs ()
+                  Warned = false
+                  Resolve = resolve
+                  Fail = reject }
+
+            reportOverdue ()
             wsSend ws frame)
 
 /// Drop the connection; the next connect () makes a fresh one.

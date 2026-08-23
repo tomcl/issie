@@ -252,7 +252,12 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
         let runSimulationWithSpinner cyclesToDo model =
             let spinnerFunc = fun _dispatch model ->
                 let wsModel = getWSModel model
-                fst (refreshWaveSim false wsModel model)  // get model after refreshWaveSim has run
+                // A RunData callback can only return a model, so this DISCARDS whatever command the
+                // refresh wanted to issue - see the note on GenerateCurrentWaveforms below for what
+                // that costs. It is harmless here only because this path exists for the renderer's
+                // own simulator, which needs no command to fetch anything. Anything reached from
+                // here that does will need RunData to carry a command.
+                fst (refreshWaveSim false wsModel model)
             let model =
                 model
                 |> setProgressBar $"Extending Circuit Simulation..." spinnerFunc cyclesToDo
@@ -321,7 +326,18 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                             // wave with no data now keeps what it is showing and does not take the
                             // stamp, which removes the reason - and with it a flash of white across
                             // every waveform on every scroll.
-                            UpdateModel(fun m -> fst (refreshWaveSim false (getWSModel m) m))
+                            // GenerateCurrentWaveforms rather than UpdateModel, because a refresh
+                            // returns a model AND A COMMAND, and UpdateModel can only carry the
+                            // model. This was `UpdateModel(fun m -> fst (refreshWaveSim ...))`, and
+                            // that `fst` threw the command away.
+                            //
+                            // The command it threw away was the next fetch. When the view moved
+                            // while a fetch was in flight - two zoom clicks, a scroll, anything -
+                            // this refresh was the one thing that would ask for the view the user
+                            // had ended up on, and it computed the request and dropped it. The
+                            // waveforms then showed the older view for ever, with nothing running
+                            // and nothing to say so.
+                            GenerateCurrentWaveforms
                         | Error e -> failed e)
                     (fun exn -> failed exn.Message)
 
@@ -335,7 +351,10 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
         // What this refresh is working from, in one line: the view, what is selected, what is known
         // about it, and whether the data for it is already here. The waveform viewer's failures are
         // almost always a disagreement between two of those.
-        let heldOrNot = if viewIsHeld then "held" else "fetching"
+        let heldOrNot =
+            if viewIsHeld then "held"
+            elif WaveProvider.fetchInProgress () then "waiting on a fetch already running"
+            else "fetching"
 
         Log.dbg
             Log.Wave

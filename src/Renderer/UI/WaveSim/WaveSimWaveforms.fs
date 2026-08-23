@@ -370,9 +370,13 @@ let valueRows (wsModel: WaveSimModel) =
     selectedWaves wsModel
     |> List.map (fun wave -> getWaveValue wsModel.CursorExactClkCycle wave wave.Width)
     |> List.map (fun fd ->
-        match fd.Width, fd.Dat with
-        | 1, Word b -> $" {b}" 
-        | _ -> fastDataToPaddedString valueColNumChars wsModel.Radix fd)
+        match fd with
+        // the viewer does not have this value: say so rather than print a number that is not one
+        | None -> " ?"
+        | Some fd ->
+            match fd.Width, fd.Dat with
+            | 1, Word b -> $" {b}"
+            | _ -> fastDataToPaddedString valueColNumChars wsModel.Radix fd)
     |> List.map (fun value -> label [ valueLabelStyle wsModel] [ str value ])
     |> (fun rows -> valueColWidth, rows)
 

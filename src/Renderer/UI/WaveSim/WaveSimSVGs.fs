@@ -72,12 +72,13 @@ let xShift clkCycleWidth =
 /// At extra (sampling) zoom this allows detail clock cycles within one sample
 /// therefore clkCycleDetail IS NOT scaled the same as the sample numbers used
 /// everywhere else.
-let getWaveValue (clkCycleDetail: int) (wave: Wave) (width: int) : FastData =
-    // zero where the value cannot be had - past the end of the simulation, or outside the window
-    // fetched for this view where the sidecar is simulating. The value column has always shown
-    // something rather than nothing here.
+let getWaveValue (clkCycleDetail: int) (wave: Wave) (width: int) : FastData option =
+    // None where the value cannot be had - past the end of the simulation, or outside the window
+    // fetched for this view where the sidecar is simulating. This used to answer zero there, which
+    // is a NUMBER: a column of x0000 beside waveforms carrying real values reads as a design whose
+    // registers are clear, not as a viewer that has not been told. The caller shows that it does
+    // not know instead.
     WaveData.valueAt (SignalHandle wave.DriverIndex) clkCycleDetail
-    |> Option.defaultValue { Dat = Word 0u; Width = width }
 
 /// Make left and right x-coordinates for a clock cycle.
 let makeXCoords (clkCycleWidth: float) (clkCycle: int) (transition: Transition) =

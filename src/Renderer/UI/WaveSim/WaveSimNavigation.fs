@@ -170,21 +170,19 @@ let setClkCycleMsg (wsModel: WaveSimModel) (newRealClkCycle: int) : Msg =
         min newClkCycle wsModel.StartCycle
         |> (fun sc -> max sc (newClkCycle - wsModel.ShownCycles + 1))
 
-    if startCycle <> wsModel.StartCycle then
-        GenerateWaveforms
-            {wsModel with 
-                StartCycle = startCycle
-                CursorDisplayCycle = newClkCycle
-                ClkCycleBoxIsEmpty = false
-                CursorExactClkCycle = newDetail
-            }
-    else
-        SetWSModel
-            {wsModel with
-                CursorDisplayCycle = newClkCycle
-                ClkCycleBoxIsEmpty = false
-                CursorExactClkCycle = newDetail
-            }
+    // GenerateWaveforms either way, because the cursor is part of what a view asks for and not
+    // only of how it is drawn. Moving it inside the window used to be a plain model update, on the
+    // grounds that the waveforms do not change - but the value COLUMN is read at the cursor's
+    // exact cycle, and where the sidecar is simulating that cycle is fetched as a column of its
+    // own. Without a refresh nothing fetches the new one, and at a sampling zoom above 1 the
+    // drawn window has no sample there to fall back on, so the column had no value to show.
+    GenerateWaveforms
+        {wsModel with
+            StartCycle = startCycle
+            CursorDisplayCycle = newClkCycle
+            ClkCycleBoxIsEmpty = false
+            CursorExactClkCycle = newDetail
+        }
  
 
 

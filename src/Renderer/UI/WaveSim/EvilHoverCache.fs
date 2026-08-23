@@ -27,12 +27,25 @@ open SimGraphTypes
 /// A gap in the wave simulator, represented by a start cycle and a length.
 /// the only gaps that are stored are relevant are those that correspond to hatched
 /// parts of the waveform in which the wave value is not printed.
+/// A store with room for `maxGaps` runs and no run in progress.
+///
+/// GapStart and GapEnd are -1 for "nothing pending", not 0. Zero was indistinguishable from a run
+/// starting at cycle 0, so a view whose first hatched gap was anywhere else opened by storing a
+/// zero-length run - one slot spent on nothing. With the store sized for the most runs a view can
+/// hold, that one extra entry was one past the end: harmless in JavaScript, where writing past an
+/// array extends it, and an exception anywhere else.
 let initGapStore maxGaps =
-    {Gaps = Array.zeroCreate maxGaps; NextGap = 0 ; GapStart = 0; GapEnd = 0}
+    {Gaps = Array.zeroCreate maxGaps; NextGap = 0 ; GapStart = -1; GapEnd = -1}
 
-/// Add a gap to the store, merging it with the previous gap if it is adjacent.
+/// Add a gap to the store, extending the run in progress if this one continues it.
+///
+/// Gaps arrive in order, so a run ends as soon as one arrives that does not continue it.
 let addGapToStore (store:GapStore) (gap:Gap) =
-    if store.GapEnd = gap.Start then
+    if store.GapEnd < 0 then
+        // the first gap of the store begins a run rather than ending one
+        store.GapStart <- gap.Start
+        store.GapEnd <- gap.Start + gap.Length
+    elif store.GapEnd = gap.Start then
         store.GapEnd <- store.GapEnd + gap.Length
     else
         store.Gaps[store.NextGap] <- {Start = store.GapStart; Length = store.GapEnd - store.GapStart}
@@ -40,13 +53,17 @@ let addGapToStore (store:GapStore) (gap:Gap) =
         store.GapStart <- gap.Start
         store.GapEnd <- gap.Start + gap.Length
 
-/// Finalise the store by adding the last gap to the store.
+/// Store the run still in progress, if there is one.
+///
+/// There is nothing to merge with: a run is stored only when the gap that ended it started
+/// somewhere else, so the run in progress never touches the one before it. The branch that tried to
+/// merge them could not fire, and would have overwritten the stored run's start if it had.
 let finaliseStore (store:GapStore) =
-    if store.NextGap > 0 && store.GapStart = store.Gaps.[store.NextGap-1].Start + store.Gaps.[store.NextGap-1].Length then
-        store.Gaps.[store.NextGap-1] <- {Start = store.GapStart; Length = store.GapEnd - store.GapStart}
-    else
+    if store.GapEnd >= 0 then
         store.Gaps[store.NextGap] <- {Start = store.GapStart; Length = store.GapEnd - store.GapStart}
         store.NextGap <- store.NextGap + 1
+        store.GapStart <- -1
+        store.GapEnd <- -1
 
 /// Check if a wave is hatched at a given cycle.
 /// This is done by checking if the cycle is within any of the gaps in a mutable store,

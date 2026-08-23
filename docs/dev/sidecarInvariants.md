@@ -152,14 +152,25 @@ being strictly serial — will happily serve them in whatever order they arrive:
                                  simulation that no longer exists at the cycle it wants
 
 **Holds, by a single bit in the model.** `WaveSimModel.FetchInProgress` is set where the fetch is
-issued and cleared by the `WaveFetchDone` message that carries its reply. A refresh that finds it
+issued - the end of `update`, the one place that decides - and cleared by the `WaveFetchDone`
+message that carries its reply. A refresh that finds it
 set does nothing at all: the fetch in flight refreshes when it lands, and *that* refresh asks for
 whatever is missing by then — this view, or a later one, but never one the user has scrolled past.
 
-That bit is the only state in the waveform data path, and it is here because it is the only thing
-that cannot be derived. WHICH waves need fetching is a question about the cache and the view,
-answered afresh every time it is asked; whether a request is already in the air is a fact about the
-outside world.
+That bit is almost the only state in the waveform data path, and it is here because it cannot be
+derived. WHICH waves need fetching is a question about the cache and the view, answered afresh at
+the end of every update; whether a request is already in the air is a fact about the outside world.
+
+The other piece is `FetchFailedAtMs`, and it is there because deriving the ask makes failure
+self-perpetuating: a fetch that fails leaves exactly the state that asks for another, and the two
+spin as fast as the message queue will carry them. The same waves are not asked for again for a
+couple of seconds. It is a timestamp and not a flag because the fetch must be tried again
+eventually - the commonest failure is asking while the sidecar is still starting, which fixes itself
+a moment later, and a user action after that is what picks it up.
+
+A fetch that could not name a driver for every wave it was asked for **fails** rather than returning
+having done nothing, for the same reason: those waves would still be missing, and a missing wave is
+what asks for a fetch.
 
 With the epoch in place, a superseded chain's replies are rejected anyway, which makes the bit an
 optimisation of a correctness property rather than the correctness property itself. Both are worth

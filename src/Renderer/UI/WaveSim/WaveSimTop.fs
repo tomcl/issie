@@ -287,32 +287,6 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
         if newSimulation then
             WaveDrawn.forget ()
 
-        /// Ask the simulator for the waves that have not got the window they are drawn over, and
-        /// come back to draw when it answers. What is on screen stays there meanwhile - a wave
-        /// keeps the last data it was given until it is given more.
-        let fetchThisView (toFetch: int list) =
-            match model.CurrentProj with
-            | None -> Elmish.Cmd.none
-            | Some project ->
-                let design =
-                    ModelHelpers.designOf project (model.Sheet.GetCanvasState())
-                    |> CanvasExtractor.simpleDesignOfLoadedComponents
-                    |> fun d -> { d with TopSheet = fs.SimulatedTopSheet }
-
-                Elmish.Cmd.OfPromise.either
-                    (fun () -> WaveProvider.fetchWavesFor design fs.MaxArraySize fs toFetch window ignore)
-                    ()
-                    // WaveFetchDone rather than UpdateModel: clearing the bit and refreshing has to
-                    // happen in one message, and the refresh returns a model AND A COMMAND that
-                    // UpdateModel could not carry. This was `UpdateModel(fun m -> fst (refresh ...))`
-                    // and that `fst` threw the command away - which was the next fetch. When the
-                    // view moved while a fetch was in flight, this was the one thing that would ask
-                    // for the view the user had ended up on, and it computed the request and
-                    // dropped it: the waveforms then showed the older view for ever, with nothing
-                    // running and nothing to say so.
-                    WaveFetchDone
-                    (fun exn -> WaveFetchDone(Error exn.Message))
-
         // What this refresh is working from, in one line: the view, what is selected, what is known
         // about it, and how much of it is here. The waveform viewer's failures are almost always a
         // disagreement between two of those.
@@ -444,38 +418,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                         cancelSpinner model
                         |> dispatchFocusAfterRender
                         |> updateWSModel (fun _ -> {ws with DefaultCursor = Default})
-                        |> (fun model ->
-                                // Ask for the waves that have not got the window they are drawn
-                                // over. Worked out here, at the end, because here the view has
-                                // settled: the checks above re-enter this function when the viewer
-                                // width or the simulation moved under it, and a request sent before
-                                // that would be for a view nobody is looking at.
-                                //
-                                // The selection is the one that has just been drawn, `ws`, not the
-                                // one this refresh started with - reconciliation may have dropped
-                                // waves a rebuild no longer offers, and re-resolved the rest to
-                                // where their data now lies.
-                                let toFetch =
-                                    WaveProvider.wavesToFetch
-                                        model.SimulateInRenderer
-                                        (List.map SignalHandle (driversOf ws))
-                                        window
-
-                                match toFetch, ws.FetchInProgress with
-                                | [], _ ->
-                                    // everything drawn has its data
-                                    model, Elmish.Cmd.none
-                                | _, true ->
-                                    // A fetch is already running against this session, and a second
-                                    // would interleave with it. Do nothing: when the one in flight
-                                    // lands it refreshes, and that refresh asks for whatever is
-                                    // missing by then - which is this, or something later, but
-                                    // never a view the user has already scrolled past.
-                                    model, Elmish.Cmd.none
-                                | waves, false ->
-                                    model
-                                    |> updateWSModel (fun ws -> { ws with FetchInProgress = true }),
-                                    fetchThisView (waves |> List.map (fun (SignalHandle i) -> i))))
+                        |> (fun model -> model, Elmish.Cmd.none))
 
 /// Refresh, and issue the command the refresh returns, using a dispatch we already have.
 ///
@@ -487,6 +430,79 @@ and private refreshAndIssue (dispatch: Msg -> unit) (newSimulation: bool) (ws: W
     let model, cmd = refreshWaveSim newSimulation ws model
     cmd |> List.iter (fun sub -> sub dispatch)
     model
+
+/// Ask the .NET simulator for whatever the waveform viewer is missing, at the end of every update.
+///
+/// **The one place a fetch is decided**, and it decides from the model and the cache alone: the
+/// waves being drawn that have not got the window they are drawn over, and whether a request is
+/// already in the air. Nothing records that a fetch is owed, and no message has to remember to ask
+/// for one - which is why this is at the end of `update` rather than at the end of the refresh. The
+/// refresh is not the only thing that can leave a wave without its window: a cursor move inside the
+/// window does not refresh, a fetch that failed while the sidecar was still starting leaves
+/// everything missing, and either would have sat there until something else happened to refresh.
+///
+/// Cheap enough to run on every message: a map lookup per drawn wave, of which there are at most a
+/// hundred.
+let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd<Msg> =
+    let ws = model.WaveSimSheet |> Option.bind (fun sheet -> Map.tryFind sheet model.WaveSim)
+
+    /// Long enough after a failure to be worth trying again, rather than as fast as the message
+    /// queue will carry it.
+    let backedOff (ws: WaveSimModel) =
+        ws.FetchFailedAtMs > 0.0
+        && TimeHelpers.getTimeMs () - ws.FetchFailedAtMs < Constants.fetchRetryAfterMs
+
+    match ws, model.CurrentProj with
+    | Some ws, Some project when
+        ws.State = Success
+        && not ws.FetchInProgress
+        && not model.SimulateInRenderer
+        && not (backedOff ws)
+        ->
+        let fs = Simulator.getFastSim ()
+
+        let window: WaveSlice.Window =
+            { StartSample = ws.StartCycle
+              Multiplier = ws.SamplingZoom
+              SampleCount = ws.ShownCycles }
+
+        let toFetch =
+            ws.SelectedWaves
+            |> List.map (fun wi -> wi.SimArrayIndex)
+            |> List.filter (fun i -> i >= 0 && i < fs.Drivers.Length)
+            |> List.map SignalHandle
+            |> fun handles -> WaveProvider.wavesToFetch model.SimulateInRenderer handles window
+            |> List.map (fun (SignalHandle i) -> i)
+
+        if List.isEmpty toFetch || fs.NumStepArrays = 0 then
+            model, cmd
+        else
+            let design =
+                ModelHelpers.designOf project (model.Sheet.GetCanvasState())
+                |> CanvasExtractor.simpleDesignOfLoadedComponents
+                |> fun d -> { d with TopSheet = fs.SimulatedTopSheet }
+
+            Log.dbg
+                Log.Wave
+                $"fetching {toFetch.Length} waves over {window.StartSample}+{window.SampleCount}x{window.Multiplier}"
+
+            let fetch =
+                Elmish.Cmd.OfPromise.either
+                    (fun () -> WaveProvider.fetchWavesFor design fs.MaxArraySize fs toFetch window ignore)
+                    ()
+                    // WaveFetchDone rather than UpdateModel: clearing the bit and refreshing has to
+                    // happen in one message, and the refresh returns a model AND A COMMAND that
+                    // UpdateModel could not carry. This was `UpdateModel(fun m -> fst (refresh ...))`
+                    // and that `fst` threw the command away - which was the next fetch. When the
+                    // view moved while a fetch was in flight, this was the one thing that would ask
+                    // for the view the user had ended up on, and it computed the request and
+                    // dropped it: the waveforms then showed the older view for ever, with nothing
+                    // running and nothing to say so.
+                    WaveFetchDone
+                    (fun exn -> WaveFetchDone(Error exn.Message))
+
+            model |> updateWSModel (fun ws -> { ws with FetchInProgress = true }), Elmish.Cmd.batch [ cmd; fetch ]
+    | _ -> model, cmd
 
 /// Refresh the state of the wave simulator according to the model and canvas state.
 /// Redo a new simulation. Set inputs to default values. Then call refreshWaveSim via RefreshWaveSim message.

@@ -106,6 +106,13 @@ module Constants =
     /// initial time running simulation without spinner to check speed (in ms)
     let initSimulationTime = 100.
 
+    /// How long to leave a failed fetch of waveform data alone before asking again (in ms).
+    ///
+    /// Long enough that a sidecar which is not there costs one attempt every few seconds rather
+    /// than one per message, and short enough that a sidecar still starting up - which is the
+    /// commonest reason for a fetch to fail - is noticed as soon as the user does anything.
+    let fetchRetryAfterMs = 2000.
+
 
 
     /// The horizontal length of a transition cross-hatch for non-binary waveforms

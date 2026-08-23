@@ -340,6 +340,19 @@ type WaveSimModel = {
     ///
     /// Always false while the renderer is simulating - it fetches nothing.
     FetchInProgress: bool
+    /// When a fetch last failed, in ms on the performance clock, or 0 if none has.
+    ///
+    /// A fetch is asked for whenever a wave is missing the window it is drawn over, and that is
+    /// worked out afresh at the end of every update - so a fetch that fails leaves exactly the
+    /// state that asks for another, and the two spin as fast as the message queue will carry them.
+    /// This is the one thing that stops it: the same waves are not asked for again until a couple
+    /// of seconds have passed.
+    ///
+    /// A timestamp rather than a flag, because the fetch must be tried again eventually - the
+    /// commonest failure is asking while the sidecar is still starting, which fixes itself a moment
+    /// later - and "how long since" is the only way to say that without a second thing to remember
+    /// to clear.
+    FetchFailedAtMs: float
     /// Left-most visible clock cycle.
     /// this is scaled by CycleMultiplier, and therefore not the real clock cycle
     /// for sampling zoom > 1X.

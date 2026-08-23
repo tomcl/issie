@@ -7,6 +7,7 @@ Issie messages, asking what state it is in, and knowing when it has finished res
 node scripts/drive.js state                 # what the app currently is, as JSON
 node scripts/drive.js refs                  # what is holding a simulation, and heap use
 node scripts/drive.js waves                 # what the waveform viewer shows, holds and awaits
+node scripts/drive.js wait <expr> [secs]    # block until a condition of the app holds
 node scripts/drive.js commands              # the commands send accepts
 node scripts/drive.js send <name> [arg]     # send one, and wait for the render it causes
 node scripts/drive.js script <file.txt>     # a command per line, each awaiting its render
@@ -46,7 +47,46 @@ At rest, `missing` is 0 and `fetchInProgress` is false. `missing > 0` with no fe
 no update running is the fault the stale-waveform banner exists to make visible.
 
 Driving it: `startWaveSim` (the viewer's own Start button - `startSimulation` is the STEP
-simulator's), then `waveSelect <n>`, `waveView "<start> [shown] [zoom]"` and `waveCursor <n>`.
+simulator's), then `waveSelect <n>`, `waveView "<start> [shown] [zoom]"`, `waveCursor <n>` and
+`waveConfig <lastClock>` (the Configure dialog's cycle count, which takes effect on the next start).
+
+`node scripts/drive.js wait "sidecar.connected"` answers the other question a script needs: the app
+spawns the .NET simulator as it starts, and after a rebuild that process takes tens of seconds to be
+published, during which every fetch fails with "not running yet".
+
+## Waiting for a condition rather than for a duration
+
+`send` waits for the render its message causes, which settles most things. What it does not settle
+is anything that continues afterwards: a build that runs on after the message that started it, a
+fetch answered by another process, a sidecar that is still starting up. For those, `wait` blocks on
+what is actually being waited for.
+
+```bash
+node scripts/drive.js wait "sidecar.connected"
+node scripts/drive.js wait "waves.state === 'Success'"
+node scripts/drive.js wait "waves.missing === 0 && !waves.fetchInProgress" 300
+```
+
+The expression is JavaScript with `state`, `waves`, `refs` and `sidecar` in scope - the four
+reporters - and the optional last argument is a timeout in seconds (60 by default). A wait that
+times out prints what the app actually was, which is the thing worth knowing when a sequence has
+gone wrong. `wait` works as a line in a script too, so a whole setup runs with no sleeps in it:
+
+```
+openProject C:/Users/me/Desktop/myProject
+wait state.openSheet === 'eep1'
+simulateIn sidecar
+rightTab Simulation
+simSubTab WaveSim
+startWaveSim
+wait waves.state === 'Success'
+waveSelect 8
+wait sidecar.connected
+wait waves.missing === 0
+```
+
+That sequence takes about two seconds. Written with sleeps long enough to be safe it took thirty,
+and still needed a second `startWaveSim` when the first one raced the canvas.
 
 ## A script
 

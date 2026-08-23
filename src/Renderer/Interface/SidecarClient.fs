@@ -290,6 +290,13 @@ let request (cmd: int) (payload: obj) : JS.Promise<obj> =
             reportOverdue ()
             wsSend ws frame)
 
+/// Whether a socket is open, and how many requests are waiting on the sidecar.
+///
+/// For the development harness, which is the only thing that asks: "is the sidecar there yet" is
+/// otherwise unanswerable from outside, and the honest answer is what tells a test that has just
+/// started the app to wait rather than to conclude the simulator is broken.
+let connectionState () = Option.isSome socket, pending.Count
+
 /// Drop the connection; the next connect () makes a fresh one.
 let disconnect () =
     socket |> Option.iter wsClose

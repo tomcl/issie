@@ -6,6 +6,7 @@ Issie messages, asking what state it is in, and knowing when it has finished res
 ```bash
 node scripts/drive.js state                 # what the app currently is, as JSON
 node scripts/drive.js refs                  # what is holding a simulation, and heap use
+node scripts/drive.js waves                 # what the waveform viewer shows, holds and awaits
 node scripts/drive.js commands              # the commands send accepts
 node scripts/drive.js send <name> [arg]     # send one, and wait for the render it causes
 node scripts/drive.js script <file.txt>     # a command per line, each awaiting its render
@@ -27,6 +28,25 @@ ways that cost real time:
   open over the canvas, a button whose text is `See Problems` because the design has an error.
 - **Reading.** Text scraped from the DOM can be a frame out of date while looking authoritative.
   This is the one that causes wrong conclusions rather than slow ones.
+
+## What `waves` is for
+
+```json
+{ "open_": true, "startCycle": 0, "shownCycles": 66, "samplingZoom": 1, "cursor": 0,
+  "selected": 8, "detailed": 8, "missing": 0, "drawn": 8, "fetchInProgress": false }
+```
+
+Three separate questions the viewer's bugs live between: what the controls ask for (`startCycle`,
+`shownCycles`, `samplingZoom`), what the cache holds for the waves being drawn (`missing` is how
+many of them have not got that window), and whether a fetch is on its way to close the gap
+(`fetchInProgress`). `drawn` counts the waves with an SVG on screen, which may have been made for
+an older window - that is the deliberate fallback, not a fault.
+
+At rest, `missing` is 0 and `fetchInProgress` is false. `missing > 0` with no fetch in progress and
+no update running is the fault the stale-waveform banner exists to make visible.
+
+Driving it: `startWaveSim` (the viewer's own Start button - `startSimulation` is the STEP
+simulator's), then `waveSelect <n>`, `waveView "<start> [shown] [zoom]"` and `waveCursor <n>`.
 
 ## A script
 

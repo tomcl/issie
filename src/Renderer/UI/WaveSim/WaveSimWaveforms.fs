@@ -489,7 +489,7 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
                     // Which of the two it is matters more than the fact: a fetch in flight is slow,
                     // and no fetch at all is broken.
                     let waiting =
-                        if WaveProvider.fetchInProgress () then
+                        if wsModel.FetchInProgress then
                             "Data for it has been asked for and has not arrived."
                         else
                             "Nothing is fetching it, so this is a fault rather than a wait."

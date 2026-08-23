@@ -250,14 +250,9 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
         /// This function is called when the simulation is running and the spinner is needed.
         /// It dispatches a continuation which will recursively call refreshWaveSim
         let runSimulationWithSpinner cyclesToDo model =
-            let spinnerFunc = fun _dispatch model ->
+            let spinnerFunc = fun dispatch model ->
                 let wsModel = getWSModel model
-                // A RunData callback can only return a model, so this DISCARDS whatever command the
-                // refresh wanted to issue - see the note on GenerateCurrentWaveforms below for what
-                // that costs. It is harmless here only because this path exists for the renderer's
-                // own simulator, which needs no command to fetch anything. Anything reached from
-                // here that does will need RunData to carry a command.
-                fst (refreshWaveSim false wsModel model)
+                refreshAndIssue dispatch false wsModel model
             let model =
                 model
                 |> setProgressBar $"Extending Circuit Simulation..." spinnerFunc cyclesToDo
@@ -266,11 +261,11 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
         /// The view this refresh is for.
         let window = windowOf wsModel
 
-        /// the drivers the shown waves read. Taken from the selection as it stands: after a
-        /// rebuild it may name indices that no longer exist, which the re-resolution below
-        /// corrects - and the fetch then misses its cover check and is simply made again.
-        let shownDrivers =
-            wsModel.SelectedWaves
+        /// The drivers the shown waves read. Taken from the selection as it stands: after a rebuild
+        /// it may name indices that no longer exist, which the re-resolution below corrects - and
+        /// the waves then have no data under their new indices and are simply asked for.
+        let driversOf (ws: WaveSimModel) =
+            ws.SelectedWaves
             |> List.map (fun wi -> wi.SimArrayIndex)
             |> List.filter (fun i -> i >= 0 && i < fs.Drivers.Length)
 
@@ -285,10 +280,10 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
             localDriverData
             (fun () -> (Simulator.getFastSim()).ClockTick)
 
-        /// Ask the simulator for this view, and come back to draw when it answers. The waves on
-        /// screen stay as they are meanwhile; they are redrawn on re-entry, by which point
-        /// WaveData holds the window and every read below finds it there.
-        let fetchThisView () =
+        /// Ask the simulator for the waves that have not got the window they are drawn over, and
+        /// come back to draw when it answers. What is on screen stays there meanwhile - a wave
+        /// keeps the last data it was given until it is given more.
+        let fetchThisView (toFetch: int list) =
             match model.CurrentProj with
             | None -> Elmish.Cmd.none
             | Some project ->
@@ -297,210 +292,213 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                     |> CanvasExtractor.simpleDesignOfLoadedComponents
                     |> fun d -> { d with TopSheet = fs.SimulatedTopSheet }
 
-                let failed (why: string) =
-                    UpdateModel(fun m ->
-                        Log.error $"the .NET simulator could not answer for this view: {why}"
-                        cancelSpinner m)
-
                 Elmish.Cmd.OfPromise.either
-                    (fun () ->
-                        WaveProvider.fillFor
-                            design
-                            fs.MaxArraySize
-                            fs
-                            shownDrivers
-                            window
-                            wsModel.CursorExactClkCycle
-                            ignore)
+                    (fun () -> WaveProvider.fetchWavesFor design fs.MaxArraySize fs toFetch window ignore)
                     ()
-                    (function
-                        | Ok() ->
-                            // Just refresh: the waves on screen are the ones drawn for whatever
-                            // view they were last drawn for, and each carries that view's stamp, so
-                            // the refresh below finds them out of date and redraws them from what
-                            // has just arrived.
-                            //
-                            // This used to throw every SVG away first, because a wave that had been
-                            // regenerated while the data was in flight carried the CURRENT view's
-                            // stamp with nothing drawn under it, and so counted as up to date. A
-                            // wave with no data now keeps what it is showing and does not take the
-                            // stamp, which removes the reason - and with it a flash of white across
-                            // every waveform on every scroll.
-                            // GenerateCurrentWaveforms rather than UpdateModel, because a refresh
-                            // returns a model AND A COMMAND, and UpdateModel can only carry the
-                            // model. This was `UpdateModel(fun m -> fst (refreshWaveSim ...))`, and
-                            // that `fst` threw the command away.
-                            //
-                            // The command it threw away was the next fetch. When the view moved
-                            // while a fetch was in flight - two zoom clicks, a scroll, anything -
-                            // this refresh was the one thing that would ask for the view the user
-                            // had ended up on, and it computed the request and dropped it. The
-                            // waveforms then showed the older view for ever, with nothing running
-                            // and nothing to say so.
-                            GenerateCurrentWaveforms
-                        | Error e -> failed e)
-                    (fun exn -> failed exn.Message)
-
-        let viewIsHeld =
-            WaveProvider.covers
-                model.SimulateInRenderer
-                window
-                (List.map SignalHandle shownDrivers)
-                wsModel.CursorExactClkCycle
+                    // WaveFetchDone rather than UpdateModel: clearing the bit and refreshing has to
+                    // happen in one message, and the refresh returns a model AND A COMMAND that
+                    // UpdateModel could not carry. This was `UpdateModel(fun m -> fst (refresh ...))`
+                    // and that `fst` threw the command away - which was the next fetch. When the
+                    // view moved while a fetch was in flight, this was the one thing that would ask
+                    // for the view the user had ended up on, and it computed the request and
+                    // dropped it: the waveforms then showed the older view for ever, with nothing
+                    // running and nothing to say so.
+                    WaveFetchDone
+                    (fun exn -> WaveFetchDone(Error exn.Message))
 
         // What this refresh is working from, in one line: the view, what is selected, what is known
-        // about it, and whether the data for it is already here. The waveform viewer's failures are
-        // almost always a disagreement between two of those.
+        // about it, and how much of it is here. The waveform viewer's failures are almost always a
+        // disagreement between two of those.
+        let missing =
+            WaveProvider.wavesToFetch model.SimulateInRenderer (List.map SignalHandle (driversOf wsModel)) window
+
         let heldOrNot =
-            if viewIsHeld then "held"
-            elif WaveProvider.fetchInProgress () then "waiting on a fetch already running"
-            else "fetching"
+            match missing, wsModel.FetchInProgress with
+            | [], _ -> "held"
+            | m, true -> $"{m.Length} waves missing, a fetch is already running"
+            | m, false -> $"{m.Length} waves to fetch"
 
         Log.dbg
             Log.Wave
-            $"refresh: view {window.StartSample}+{window.SampleCount}x{window.Multiplier} cursor {wsModel.CursorExactClkCycle}, {wsModel.SelectedWaves.Length} selected, {wsModel.WaveDetails.Count} detailed, {shownDrivers.Length} drivers - {heldOrNot}"
+            $"refresh: view {window.StartSample}+{window.SampleCount}x{window.Multiplier} cursor {wsModel.CursorExactClkCycle}, {wsModel.SelectedWaves.Length} selected, {wsModel.WaveDetails.Count} detailed - {heldOrNot}"
 
-        if not viewIsHeld && WaveProvider.fetchInProgress () then
-            // A fetch is already running against this session, and a second would interleave with
-            // it. Do nothing at all: when the one in progress lands it refreshes, and that refresh
-            // asks for whatever view is current by then - which is this one, or a later one, but
-            // never one the user has already scrolled past.
-            model, Elmish.Cmd.none
-        elif not viewIsHeld then
-            model, fetchThisView ()
-        else
+        // Run the renderer's own simulator to the last cycle this view needs - if it is the one
+        // answering. The sidecar is run to that same cycle as part of fetching the view, so
+        // when it is simulating this ran the whole thing a SECOND time, in the process that is
+        // drawing, and threw every cycle of it away. With the cursor at 1.26M on 3cpu that is a
+        // renderer locked up for as long as the simulation takes, starting the moment the
+        // waveforms became correct - and it is the renderer's run, not the sidecar's, that the
+        // progress bar below is reporting.
+        //
+        // What still reads the renderer's own step arrays in .NET mode - the schematic probe
+        // and the RAM tables - therefore reads a simulation that has not been run. Those move
+        // to the sidecar next; showing them stale is better than running a 4,000,000 cycle
+        // simulation twice to keep them right.
+        (if model.SimulateInRenderer then
+             FastRun.runFastSimulation (Some Constants.initSimulationTime) (lastCycleNeeded wsModel) fs
+         else
+             RunCompleted)
+        |> (fun outcome ->
+                match outcome with
+                | RunStoppedAt clock ->
+                    // One budget was not enough, so this run is long enough to be worth saying
+                    // so - and that budget IS the delay before a progress bar appears. Nothing
+                    // is estimated: this used to divide the cycles left by a measured rate to
+                    // guess how much longer, which is inferring elapsed time from work done,
+                    // and is what collapses when a machine sleeps mid-run.
+                    runSimulationWithSpinner (lastCycleNeeded wsModel - clock) model
+                | RunCompleted ->
+                    // Completed means completed. A second forced run "in case it is not
+                    // finished" used to follow, from when the outcome could not say which.
 
-            // Run the renderer's own simulator to the last cycle this view needs - if it is the one
-            // answering. The sidecar is run to that same cycle as part of fetching the view, so
-            // when it is simulating this ran the whole thing a SECOND time, in the process that is
-            // drawing, and threw every cycle of it away. With the cursor at 1.26M on 3cpu that is a
-            // renderer locked up for as long as the simulation takes, starting the moment the
-            // waveforms became correct - and it is the renderer's run, not the sidecar's, that the
-            // progress bar below is reporting.
-            //
-            // What still reads the renderer's own step arrays in .NET mode - the schematic probe
-            // and the RAM tables - therefore reads a simulation that has not been run. Those move
-            // to the sidecar next; showing them stale is better than running a 4,000,000 cycle
-            // simulation twice to keep them right.
-            (if model.SimulateInRenderer then
-                 FastRun.runFastSimulation (Some Constants.initSimulationTime) (lastCycleNeeded wsModel) fs
-             else
-                 RunCompleted)
-            |> (fun outcome ->
-                    match outcome with
-                    | RunStoppedAt clock ->
-                        // One budget was not enough, so this run is long enough to be worth saying
-                        // so - and that budget IS the delay before a progress bar appears. Nothing
-                        // is estimated: this used to divide the cycles left by a measured rate to
-                        // guess how much longer, which is inferring elapsed time from work done,
-                        // and is what collapses when a machine sleeps mid-run.
-                        runSimulationWithSpinner (lastCycleNeeded wsModel - clock) model
-                    | RunCompleted ->
-                        // Completed means completed. A second forced run "in case it is not
-                        // finished" used to follow, from when the outcome could not say which.
+                    // Simulation has now always finished so we can generate the waves
+                    // this again may need to be done in a spinner if it takes too long.
+                    // That decision is made below with the help of makeWaveformsWithTimeOut.
 
-                        // Simulation has now always finished so we can generate the waves
-                        // this again may need to be done in a spinner if it takes too long.
-                        // That decision is made below with the help of makeWaveformsWithTimeOut.
+                    // Validate and update all parameters affecting waveforms.
+                    let model =
+                        updateViewerWidthInWaveSim model.WaveSimViewerWidth model
+                        // cancel any spinner so that when a new one is started
+                        // it will have teh correct total number of steps to do.
+                        //|> (fun model -> {model with SpinnerPayload = None})
+                    let wsModel =
+                        getWSModel model
+                    
+                    // Has the simulator been run far enough for what is now being drawn?
+                    //
+                    // Asked of the simulator that is RUNNING. The renderer's own answers with its
+                    // clock tick; the sidecar has been run to the last cycle this view needs as
+                    // part of fetching it, and `covers` above is what says that fetch has landed.
+                    // Reading the renderer's clock tick while the sidecar simulates asks a
+                    // simulation that is never run whether it has run - always no, and the branch
+                    // below calls this function again, which is an unbounded recursion inside one
+                    // message and locks the renderer up with no way back.
+                    let simulationIsStillUptodate =
+                        not model.SimulateInRenderer
+                        || Simulator.getFastSim().ClockTick >= lastCycleNeeded wsModel
 
-                        // Validate and update all parameters affecting waveforms.
-                        let model =
-                            updateViewerWidthInWaveSim model.WaveSimViewerWidth model
-                            // cancel any spinner so that when a new one is started
-                            // it will have teh correct total number of steps to do.
-                            //|> (fun model -> {model with SpinnerPayload = None})
-                        let wsModel =
-                            getWSModel model
-                        
-                        // Has the simulator been run far enough for what is now being drawn?
-                        //
-                        // Asked of the simulator that is RUNNING. The renderer's own answers with its
-                        // clock tick; the sidecar has been run to the last cycle this view needs as
-                        // part of fetching it, and `covers` above is what says that fetch has landed.
-                        // Reading the renderer's clock tick while the sidecar simulates asks a
-                        // simulation that is never run whether it has run - always no, and the branch
-                        // below calls this function again, which is an unbounded recursion inside one
-                        // message and locks the renderer up with no way back.
-                        let simulationIsStillUptodate =
-                            not model.SimulateInRenderer
-                            || Simulator.getFastSim().ClockTick >= lastCycleNeeded wsModel
+                    // Rendering can change the viewer's width - the panel divider moves, the
+                    // window is resized - and the width decides how many cycles are shown. When
+                    // it does, this refresh asked the simulator for a view that is no longer the
+                    // one being drawn, and what the sidecar sends back is one exact window that
+                    // covers no other. Everything a SELECTION changes is settled before the ask,
+                    // above, so this is left for what only a render can tell us.
+                    //
+                    // It cannot loop: it re-enters only when the view has ALREADY changed, and
+                    // the next pass asks for the view it now has.
+                    let viewIsUnchanged = windowOf wsModel = window
 
-                        // Rendering can change the viewer's width - the panel divider moves, the
-                        // window is resized - and the width decides how many cycles are shown. When
-                        // it does, this refresh asked the simulator for a view that is no longer the
-                        // one being drawn, and what the sidecar sends back is one exact window that
-                        // covers no other. Everything a SELECTION changes is settled before the ask,
-                        // above, so this is left for what only a render can tell us.
-                        //
-                        // It cannot loop: it re-enters only when the view has ALREADY changed, and
-                        // the next pass asks for the view it now has.
-                        let viewIsUnchanged = windowOf wsModel = window
+                    if not simulationIsStillUptodate || not viewIsUnchanged then
+                        // The simulation or the view has changed under this refresh. Do it again
+                        // for what we now have; we come back here when both are current.
+                        refreshWaveSim newSimulation wsModel model
+                    else
+                        // Read again rather than reusing what refreshWaveSim bound: this runs
+                        // after a render, and re-resolving a selection against the simulation is
+                        // exactly the case where it may not be the one we started with.
+                        let fs = Simulator.getFastSim()
 
-                        if not simulationIsStillUptodate || not viewIsUnchanged then
-                            // The simulation or the view has changed under this refresh. Do it again
-                            // for what we now have; we come back here when both are current.
-                            refreshWaveSim newSimulation wsModel model
-                        else
-                            // Read again rather than reusing what refreshWaveSim bound: this runs
-                            // after a render, and re-resolving a selection against the simulation is
-                            // exactly the case where it may not be the one we started with.
-                            let fs = Simulator.getFastSim()
+                        // Again, because this runs after a render: the viewer width check just
+                        // above can change the view, and a rebuild can land between the two.
+                        let wsModel = reconcileWaves fs wsModel
+                        let selectedWaves = wsModel.SelectedWaves
 
-                            // Again, because this runs after a render: the viewer width check just
-                            // above can change the view, and a rebuild can land between the two.
-                            let wsModel = reconcileWaves fs wsModel
-                            let selectedWaves = wsModel.SelectedWaves
+                        // Only generate waveforms for selected waves, and only where the SVG they
+                        // hold is not the one the current view calls for.
+                        let wavesToBeMade =
+                            selectedWaves
+                            |> List.filter (fun wi ->
+                                match Map.tryFind wi wsModel.WaveDetails with
+                                | Some wave -> not <| WaveSimSVGs.waveformIsUptodate wsModel wave
+                                | None -> false)
+                        if wsModel.StartCycle < 0 then
+                            failwithf $"Sanity check failed: wsModel.StartCycle = {wsModel.StartCycle}"
+                        let spinnerInfo =  
+                            let numToDo = wavesToBeMade.Length
+                            WaveSimSVGs.makeWaveformsWithTimeOut (Some <| Constants.initWaveformTime ) wsModel  wavesToBeMade
+                            |> (fun res ->
+                                    match wavesToBeMade.Length - res.NumberDone, res.TimeTaken with
+                                    | _, None | 0, _-> 
+                                        {| WSM=res.WSM; SpinnerPayload=None; NumToDo=numToDo|} // finished
+                                    | numToDo, Some t when float numToDo * t / float res.NumberDone < Constants.maxWaveCreationTimeWithoutSpinner ->
+                                        let res2 = WaveSimSVGs.makeWaveformsWithTimeOut None res.WSM wavesToBeMade
+                                        {| WSM= res2.WSM; SpinnerPayload=None; NumToDo = numToDo - res2.NumberDone|}
+                                    | numToDo, _ ->
+                                        if res.NumberDone = 0 && numToDo > 0 then
+                                            Log.warn $"no waves completed when {numToDo} are required - retrying refreshWaveSim"
+                                        let payload =
+                                            Some(
+                                                "Updating Waveform Display",
+                                                fun dispatch model -> refreshAndIssue dispatch false res.WSM model
+                                            )
+                                        {| WSM=res.WSM; SpinnerPayload=payload; NumToDo=numToDo|})
 
-                            // Only generate waveforms for selected waves, and only where the SVG they
-                            // hold is not the one the current view calls for.
-                            let wavesToBeMade =
-                                selectedWaves
-                                |> List.filter (fun wi ->
-                                    match Map.tryFind wi wsModel.WaveDetails with
-                                    | Some wave -> not <| WaveSimSVGs.waveformIsUptodate wsModel wave
-                                    | None -> false)
-                            if wsModel.StartCycle < 0 then
-                                failwithf $"Sanity check failed: wsModel.StartCycle = {wsModel.StartCycle}"
-                            let spinnerInfo =  
-                                let numToDo = wavesToBeMade.Length
-                                WaveSimSVGs.makeWaveformsWithTimeOut (Some <| Constants.initWaveformTime ) wsModel  wavesToBeMade
-                                |> (fun res ->
-                                        match wavesToBeMade.Length - res.NumberDone, res.TimeTaken with
-                                        | _, None | 0, _-> 
-                                            {| WSM=res.WSM; SpinnerPayload=None; NumToDo=numToDo|} // finished
-                                        | numToDo, Some t when float numToDo * t / float res.NumberDone < Constants.maxWaveCreationTimeWithoutSpinner ->
-                                            let res2 = WaveSimSVGs.makeWaveformsWithTimeOut None res.WSM wavesToBeMade
-                                            {| WSM= res2.WSM; SpinnerPayload=None; NumToDo = numToDo - res2.NumberDone|}
-                                        | numToDo, _ ->
-                                            if res.NumberDone = 0 && numToDo > 0 then
-                                                Log.warn $"no waves completed when {numToDo} are required - retrying refreshWaveSim"
-                                            let payload = Some ("Updating Waveform Display", refreshWaveSim false res.WSM >> fst)
-                                            {| WSM=res.WSM; SpinnerPayload=payload; NumToDo=numToDo|})
+                        let ramCompIds = ramCompIdsOf fs
+                        let ramCompIdSet = Set.ofList ramCompIds
+                        let selectedRams = Map.filter (fun ramfId _ -> Set.contains ramfId ramCompIdSet) wsModel.SelectedRams
 
-                            let ramCompIds = ramCompIdsOf fs
-                            let ramCompIdSet = Set.ofList ramCompIds
-                            let selectedRams = Map.filter (fun ramfId _ -> Set.contains ramfId ramCompIdSet) wsModel.SelectedRams
+                        let ws =  
+                            {
+                                wsModel with
+                                    State = Success
+                                    WaveDetails = spinnerInfo.WSM.WaveDetails
+                                    SelectedWaves = selectedWaves
+                                    RamComps = ramCompIds
+                                    SelectedRams = selectedRams
+                            }
 
-                            let ws =  
-                                {
-                                    wsModel with
-                                        State = Success
-                                        WaveDetails = spinnerInfo.WSM.WaveDetails
-                                        SelectedWaves = selectedWaves
-                                        RamComps = ramCompIds
-                                        SelectedRams = selectedRams
-                                }
+                        let model = putWaveSim ws model
 
-                            let model = putWaveSim ws model
+                        match spinnerInfo.SpinnerPayload with
+                        | None ->
+                            cancelSpinner model
+                            |> dispatchFocusAfterRender
+                        | Some (spinnerName, spinnerAction) ->
+                            setButtonSpinner spinnerAction model
+                        |> updateWSModel (fun _ -> {ws with DefaultCursor = Default})
+                        |> (fun model ->
+                                // Ask for the waves that have not got the window they are drawn
+                                // over. Worked out here, at the end, because here the view has
+                                // settled: the checks above re-enter this function when the viewer
+                                // width or the simulation moved under it, and a request sent before
+                                // that would be for a view nobody is looking at.
+                                //
+                                // The selection is the one that has just been drawn, `ws`, not the
+                                // one this refresh started with - reconciliation may have dropped
+                                // waves a rebuild no longer offers, and re-resolved the rest to
+                                // where their data now lies.
+                                let toFetch =
+                                    WaveProvider.wavesToFetch
+                                        model.SimulateInRenderer
+                                        (List.map SignalHandle (driversOf ws))
+                                        window
 
-                            match spinnerInfo.SpinnerPayload with
-                            | None ->
-                                cancelSpinner model
-                                |> dispatchFocusAfterRender
-                            | Some (spinnerName, spinnerAction) -> 
-                                setButtonSpinner (fun _dispatch model -> spinnerAction model)  model
-                            |> updateWSModel (fun _ -> {ws with DefaultCursor = Default})
-                            |> (fun model -> model, Elmish.Cmd.none))
+                                match toFetch, ws.FetchInProgress with
+                                | [], _ ->
+                                    // everything drawn has its data
+                                    model, Elmish.Cmd.none
+                                | _, true ->
+                                    // A fetch is already running against this session, and a second
+                                    // would interleave with it. Do nothing: when the one in flight
+                                    // lands it refreshes, and that refresh asks for whatever is
+                                    // missing by then - which is this, or something later, but
+                                    // never a view the user has already scrolled past.
+                                    model, Elmish.Cmd.none
+                                | waves, false ->
+                                    model
+                                    |> updateWSModel (fun ws -> { ws with FetchInProgress = true }),
+                                    fetchThisView (waves |> List.map (fun (SignalHandle i) -> i))))
+
+/// Refresh, and issue the command the refresh returns, using a dispatch we already have.
+///
+/// Spinner continuations can only return a model, and a refresh returns a model AND a command -
+/// which is how the next fetch is asked for, and which the model records as in flight before it is
+/// issued. Dropping it would leave the viewer waiting for a fetch that was never made. A command is
+/// a list of functions of dispatch, and these continuations are given one, so run it here.
+and private refreshAndIssue (dispatch: Msg -> unit) (newSimulation: bool) (ws: WaveSimModel) (model: Model) =
+    let model, cmd = refreshWaveSim newSimulation ws model
+    cmd |> List.iter (fun sub -> sub dispatch)
+    model
 
 /// Refresh the state of the wave simulator according to the model and canvas state.
 /// Redo a new simulation. Set inputs to default values. Then call refreshWaveSim via RefreshWaveSim message.

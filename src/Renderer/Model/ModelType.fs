@@ -337,6 +337,17 @@ type WaveSimModel = {
     /// cannot be worked out from anything, so it is recorded, once, where the view is settled.
     /// Everything downstream is a pure function of this and the clock, read where it is used.
     ViewSetAtMs: float
+    /// Whether a fetch of waveform data from the .NET simulator is in flight.
+    ///
+    /// The one piece of state in the waveform data path, and it is here because it is the one thing
+    /// that cannot be derived: WHICH waves need fetching is a question about the cache and the view,
+    /// answered afresh on every refresh, but whether a request is already in the air is a fact about
+    /// the outside world. Two requests against one session interleave build, run and read, so the
+    /// refresh that finds this set does nothing and waits: the fetch in flight refreshes when it
+    /// lands, and that refresh asks for whatever is missing by then.
+    ///
+    /// Always false while the renderer is simulating - it fetches nothing.
+    FetchInProgress: bool
     /// Left-most visible clock cycle.
     /// this is scaled by CycleMultiplier, and therefore not the real clock cycle
     /// for sampling zoom > 1X.
@@ -532,6 +543,9 @@ type Msg =
     | GenerateWaveforms of WaveSimModel
     /// Generate waveforms according to the model paramerts of Wavesim
     | GenerateCurrentWaveforms
+    /// A fetch of waveform data has landed, or failed. Carries nothing: what arrived is in the
+    /// waveform cache, and what is still missing is worked out from it.
+    | WaveFetchDone of Result<unit, string>
     /// The progress-bar popup's Cancel: stop the long simulation run it is reporting, keeping
     /// everything simulated so far, with the viewer moved to the last simulated cycle.
     | CancelWaveSimulation

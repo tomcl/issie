@@ -55,17 +55,11 @@ let mutable private built: (string * int * int) option = None
 /// which is where the sidecar says what it has reached.
 let mutable private sidecarClockTick = 0
 
-/// Whether a fetch is in progress. See fillFor, which is the only thing that reads it.
-let mutable private fetching = false
-
 /// Forget what the sidecar holds, so the next refresh builds again. Called when the waveform
 /// simulation ends or the design changes.
 let forget () =
     built <- None
     sidecarClockTick <- 0
-    // whatever is in flight belongs to a simulation that no longer exists; its reply is discarded
-    // when it lands, and the next view asks for itself
-    fetching <- false
 
 /// (component id, output port, access path) for each driver, taken from the wave index.
 ///
@@ -182,23 +176,30 @@ let private runTo (epoch: int) (cycle: int) (onProgress: int -> unit) : JS.Promi
 
     chunk ()
 
-/// Fetch the window the view draws, plus the cursor column, and make them what the viewer reads.
+/// Fetch some waves over the window they are about to be drawn over, and add them to the cache.
+///
+/// The waves asked for are the ones that have not got that window - not "all the waves in the
+/// view" - so a fetch after a wave is added to the selection carries just that wave, while a fetch
+/// after the window moves carries them all. Either way it is one request: `simRead` takes a list.
 ///
 /// A binary waveform's first drawn cycle needs the value before it, so where the window does not
 /// start at cycle 0 one extra sample is asked for and the slice is told it has a lead-in.
-let private fetchWindow
+///
+/// There is no separate cursor read. The value column and the tooltip are answered out of the
+/// samples the waveform beside them is drawn from, so they cannot disagree with it, and at a zoom
+/// where the cursor sits between drawn samples they say what the drawn sample says.
+let private fetchWaves
     (epoch: int)
     (fs: FastSimulation)
     (driverIndices: int list)
     (window: Window)
-    (cursorCycle: int)
     : JS.Promise<Result<unit, string>> =
     let signals = driverSignals fs
 
-    // Every driver the view draws, whatever its width - simRead carries a sample in as many words
-    // as it needs. This used to drop anything over 32 bits while still recording it as asked for,
-    // so coverage said yes, the wave came back with no row, and it kept whatever it had been
-    // showing before, silently and for ever.
+    // Every driver asked for, whatever its width - simRead carries a sample in as many words as it
+    // needs. This used to drop anything over 32 bits while still recording it as asked for, so
+    // coverage said yes, the wave came back with no row, and it kept whatever it had been showing
+    // before, silently and for ever.
     let wanted =
         driverIndices
         |> List.distinct
@@ -207,34 +208,16 @@ let private fetchWindow
             | Some sig_, Some(Some driver) -> Some(i, sig_, driver.DriverWidth)
             | _ -> None)
 
-    let asked = Set.ofList (List.distinct driverIndices)
-
     if List.isEmpty wanted then
-        // nothing the simulation can name a driver for - say so rather than fall back to local
-        // data, which in time will not be there to fall back to
-        WaveData.setFetched
-            { WaveData.Window = window
-              WaveData.LeadIn = false
-              WaveData.Rows = Map.empty
-              WaveData.Widths = Map.empty
-              WaveData.WordsPerSample = 1
-              WaveData.Asked = asked
-              WaveData.Data = Array.empty }
-            None
-
+        // nothing the simulation can name a driver for. Nothing is cached, so these waves stay
+        // ones that need fetching - which is true, and is what stops a blank being drawn as though
+        // it were simulation output
         Promise.lift (Ok())
     else
         let leadIn = window.StartSample > 0
         let firstCycle = if leadIn then window.FirstCycle - window.Multiplier else window.FirstCycle
         let samples = window.SampleCount + (if leadIn then 1 else 0)
         let requested = wanted |> List.map (fun (_, s, _) -> s)
-
-        /// Where each signal's row starts, in WORDS, and how wide that signal is. `perSignal` is
-        /// how many samples the row holds; each sample is `wordsPerSample` words.
-        let rowsAndWidths (perSignal: int) (wordsPerSample: int) =
-            wanted
-            |> List.mapi (fun row (i, _, width) -> i, (row * perSignal * wordsPerSample, width))
-            |> List.fold (fun (rows, widths) (i, (b, w)) -> Map.add i b rows, Map.add i w widths) (Map.empty, Map.empty)
 
         promise {
             let! frame = SidecarClient.simRead epoch firstCycle window.Multiplier samples requested
@@ -246,63 +229,51 @@ let private fetchWindow
                 // the reply states its own layout, so a signal whose width the renderer has stale
                 // is still read the way the sender wrote it
                 let wordsPerSample = SidecarClient.simReadWordsPerSample frame
-                let data = SidecarClient.viewSimReadData frame (List.length requested * samples * wordsPerSample)
-                let rows, widths = rowsAndWidths samples wordsPerSample
+                let data: uint32 array =
+                    unbox (SidecarClient.viewSimReadData frame (List.length requested * samples * wordsPerSample))
 
-                let drawn =
-                    { WaveData.Window = window
-                      WaveData.LeadIn = leadIn
-                      WaveData.Rows = rows
-                      WaveData.Widths = widths
-                      WaveData.WordsPerSample = wordsPerSample
-                      WaveData.Asked = asked
-                      WaveData.Data = unbox data }
+                // A build or a design change since this was asked for means the answer describes a
+                // simulation that is no longer the one being drawn. The cache was emptied with that
+                // design, so writing into it now would put waves of the old design beside waves of
+                // the new one, each looking exactly as trustworthy as the other. Drop it: the
+                // refresh that follows asks the session that now exists for everything.
+                match built with
+                | Some(_, _, current) when current = epoch ->
+                    // one array, shared: the reply is signal-major, and each wave records where its
+                    // own row starts rather than the rows being copied apart
+                    wanted
+                    |> List.mapi (fun row (i, _, width) ->
+                        i,
+                        { WaveData.Window = window
+                          WaveData.Width = width
+                          WaveData.LeadIn = leadIn
+                          WaveData.WordsPerSample = wordsPerSample
+                          WaveData.RowBase = row * samples * wordsPerSample
+                          WaveData.Data = data })
+                    |> WaveData.setFetched
+                | _ ->
+                    Log.dbg Log.Wave $"a fetch for session {epoch} landed after that session ended - dropped"
 
-                // the cursor sits on an exact cycle, which above zoom 1 is between drawn samples
-                let! cursorFrame = SidecarClient.simRead epoch cursorCycle 1 1 requested
-                let cursorText = SidecarClient.decodeText cursorFrame
-
-                let cursor =
-                    if cursorText.StartsWith "{" then
-                        None
-                    else
-                        let cursorWords = SidecarClient.simReadWordsPerSample cursorFrame
-                        let cursorData = SidecarClient.viewSimReadData cursorFrame (List.length requested * cursorWords)
-                        let cRows, cWidths = rowsAndWidths 1 cursorWords
-
-                        Some
-                            { WaveData.Window = { StartSample = cursorCycle; Multiplier = 1; SampleCount = 1 }
-                              WaveData.LeadIn = false
-                              WaveData.Rows = cRows
-                              WaveData.Widths = cWidths
-                              WaveData.WordsPerSample = cursorWords
-                              WaveData.Asked = asked
-                              WaveData.Data = unbox cursorData }
-
-                WaveData.setFetched drawn cursor
                 return Ok()
         }
 
-/// Everything the viewer needs for one view, in one promise: build if the sidecar does not hold
-/// the design, run to the last cycle the view shows, then fetch that window.
+/// Everything a fetch needs, in one promise: build if the sidecar does not hold the design, run to
+/// the last cycle the view shows, then read the waves asked for over that window.
 let private fetchForView
     (design: SimpleDesign)
     (arraySize: int)
     (fs: FastSimulation)
     (driverIndices: int list)
     (window: Window)
-    (cursorCycle: int)
     (onProgress: int -> unit)
     : JS.Promise<Result<unit, string>> =
     promise {
         match! ensureBuilt design arraySize with
         | Error e -> return Error e
         | Ok epoch ->
-            let lastNeeded = max window.LastCycle cursorCycle
-
-            match! runTo epoch (lastNeeded + 1) onProgress with
+            match! runTo epoch (window.LastCycle + 1) onProgress with
             | Error e -> return Error e
-            | Ok() -> return! fetchWindow epoch fs driverIndices window cursorCycle
+            | Ok() -> return! fetchWaves epoch fs driverIndices window
     }
 
 
@@ -317,11 +288,18 @@ let selectSimulator
     (localLookup: SignalHandle -> IOArray option)
     (localClock: unit -> int)
     =
-    if inRenderer then
-        WaveData.setLocal localLookup localClock
-    elif newSimulation then
+    match inRenderer, newSimulation, WaveData.current () with
+    | true, _, _ -> WaveData.setLocal localLookup localClock
+    | false, true, _ ->
+        // the design or its shape changed: what the sidecar holds is not it, and every wave already
+        // fetched was read from a simulation that no longer exists
         forget ()
-        WaveData.setLocal localLookup localClock
+        WaveData.holdNothing ()
+    | false, false, WaveData.Source.Local ->
+        // the sidecar is simulating and the cache is still reading the renderer's own step arrays -
+        // which in this mode are never run. Ask, rather than draw a simulation nobody has run.
+        WaveData.holdNothing ()
+    | false, false, _ -> ()
 
 /// How many cycles the simulation being shown has actually been run for.
 ///
@@ -331,51 +309,38 @@ let selectSimulator
 let cyclesSimulated (inRenderer: bool) (fs: FastSimulation) =
     if inRenderer then fs.ClockTick else sidecarClockTick
 
-/// Is a fetch already running?
+/// The waves that are not holding the window they are about to be drawn over, and so have to be
+/// asked for.
 ///
-/// A refresh that finds one has nothing to do. It must NOT ask for another - two chains against one
-/// session interleave build, run and read - and it must not pretend one was made either: the fetch
-/// in progress refreshes when it lands, and that refresh asks for whatever view is current by then,
-/// which is the one the user is looking at.
+/// Derived, on every refresh, from what the cache holds and what the view asks for. Nothing records
+/// which waves are outstanding, because nothing needs to: a wave needs fetching exactly when it has
+/// not got the cycles it is being drawn over.
 ///
-/// This used to be answered inside `fillFor`, which returned Ok when it dropped a request. The
-/// caller took that for "the data is here", refreshed, found the view still not covered, asked
-/// again, was dropped again - a refresh loop for as long as the real fetch took, which on a four
-/// million cycle run is half a minute of the renderer doing nothing else.
-let fetchInProgress () = fetching
+/// None of them, ever, when the renderer is simulating: its cache reads through to step arrays that
+/// are already in memory, so there is nothing to fetch and nothing to wait for. That asymmetry is
+/// the only thing that distinguishes the two simulators here, and it is why the caller needs no
+/// flag of its own.
+let wavesToFetch (inRenderer: bool) (handles: SignalHandle list) (window: Window) =
+    if inRenderer then [] else WaveData.needFetching handles window
 
-/// Is the data this view draws already where the viewer can read it?
+/// Fetch some waves over the window they are drawn over, and put them where the viewer reads them.
 ///
-/// Always, when the renderer is simulating: its cache reads through to step arrays that are
-/// already in memory, so there is nothing to fetch and nothing to wait for. That asymmetry is the
-/// only thing that distinguishes the two simulators here, and it is why the caller needs no flag.
-let covers (inRenderer: bool) (window: Window) (handles: SignalHandle list) (cursorCycle: int) =
-    inRenderer || WaveData.coversFetched window handles cursorCycle
-
-/// Put the data for this view where the viewer can read it, for a simulator that has to be asked.
-/// Only ever called when `covers` says no, which for the renderer's own simulator is never.
-///
-/// **One at a time**, which the CALLER enforces by asking `fetchInProgress` first. A fetch is asked
-/// for whenever the view is not held - every checkbox tick, scroll step and cursor move - so
-/// without that a second chain starts while the first is still running, and the two interleave
+/// **One fetch at a time**, which the CALLER enforces with `WaveSimModel.FetchInProgress`. A fetch
+/// is asked for whenever a wave is not holding its window - every checkbox tick and scroll step -
+/// so without that a second chain starts while the first is still running, and the two interleave
 /// build, run and read against one session: the second chain's build resets the simulation under
 /// the first chain's read. The sidecar serves them in arrival order and cannot tell that they
 /// belong to different views.
-let fillFor
+///
+/// One request covers every wave asked for, so the number of round trips is one per view rather
+/// than one per wave, and the waves that arrive together are drawable together.
+let fetchWavesFor
     (design: SimpleDesign)
     (arraySize: int)
     (fs: FastSimulation)
     (driverIndices: int list)
     (window: Window)
-    (cursorCycle: int)
     (onProgress: int -> unit)
     : JS.Promise<Result<unit, string>> =
-    fetching <- true
-
-    fetchForView design arraySize fs driverIndices window cursorCycle onProgress
-    |> Promise.map (fun result ->
-        fetching <- false
-        result)
-    |> Promise.catch (fun e ->
-        fetching <- false
-        Error e.Message)
+    fetchForView design arraySize fs driverIndices window onProgress
+    |> Promise.catch (fun e -> Error e.Message)

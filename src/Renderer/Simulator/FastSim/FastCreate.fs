@@ -377,13 +377,16 @@ let checkSimulationFits (arraySize: int) (cost: StepCost) : Result<unit, Simulat
       is what makes this safe; it went in first.
     - The custom-component output regions that linking replaces occupy arena space for the
       simulation's whole life instead of becoming garbage, which is the same ~quarter that
-      stepCostOfDesign has always charged for. What the budget counts, the arena keeps: the
-      estimate is now exact rather than a peak.
+      stepCostOfDesign has always charged for. What the budget counts, the arena keeps.
 
-    Slabs hold 64M uint32 steps (256MB) or 4M bigint steps; pages of a slab's unused tail are
-    never touched, so its cost is address space rather than memory. A single region bigger than
-    a slab (a step count no budget would ever allow for the uint32 path) gets a dedicated
-    exactly-sized slab instead of failing. Outside a build (stepArena None - odd one-off
+    The first slab is sized from that estimate and each one after it is twice the last, up to 64M
+    uint32 steps (256MB) or 4M bigint steps. It grows rather than starting at the maximum because
+    the maximum was ruinous for small builds - every simulation, however tiny, allocated and zeroed
+    256MB - and it doubles rather than trusting the estimate because the estimate is LOW: a
+    three-component build plans 200 words and asks for more. What the budget charges for and what
+    the build allocates are close but not equal, which is worth knowing wherever the budget is used
+    to decide what will fit. A single region bigger than a slab (a step count no budget would ever
+    allow for the uint32 path) gets a dedicated exactly-sized slab instead of failing. Outside a build (stepArena None - odd one-off
     allocations, some tests) every region is its own exactly-sized array with StepBase 0, which
     is also what every IOArray looks like to code reading it: nothing downstream knows whether
     an arena was open.

@@ -117,6 +117,7 @@ let private state () =
                sheets = sheetNames model
                rightTab = string model.RightPaneTabVisible
                simSubTab = string model.SimSubTabVisible
+               simulateIn = (if model.SimulateInRenderer then "renderer" else "sidecar")
                circuitCheck = circuitCheckOf model
                stepSimulationOpen = model.CurrentStepSimulationStep <> None
                truthTableOpen = model.CurrentTruthTable <> None
@@ -170,6 +171,16 @@ let private waveState () =
                    stale = WaveDrawn.staleCount ws (WaveSimStyle.selectedWaves ws)
                    fetchInProgress = ws.FetchInProgress
                    spinner = Option.isSome model.SpinnerPayload |}
+
+/// Whether the .NET sidecar is reachable, and how much is in flight to it.
+///
+/// The app spawns the sidecar as it starts, and after a rebuild that process has to be published
+/// before it can listen - tens of seconds, during which every fetch fails with "not running yet".
+/// Anything driving the app therefore has to be able to WAIT for it rather than sleep and hope,
+/// which is what `drive.js wait` uses this for.
+let private sidecar () =
+    let connected, pending = SidecarClient.connectionState ()
+    box {| connected = connected; pending = pending |}
 
 /// What is currently holding a simulation, and how large each one is.
 ///
@@ -461,6 +472,17 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
       fun _ model dispatch ->
           WaveSimTop.refreshButtonAction (model.Sheet.GetCanvasState()) model dispatch ()
           "waveform simulation started"
+
+      "waveConfig",
+      // "<lastClock>" - the cycle count the Configure dialog sets, without the dialog. The
+      // simulation has to be started again for it to take effect, which is what the dialog's OK
+      // does; this only records the intent, so that a long simulation can be driven from a script.
+      fun arg _ dispatch ->
+          match System.Int32.TryParse arg with
+          | false, _ -> $"waveConfig needs a number of clock cycles, not '{arg}'"
+          | true, n ->
+              dispatch (UpdateWSModel(fun ws -> { ws with WSConfig = { ws.WSConfig with LastClock = n } }))
+              $"last clock set to {n} - start the simulation for it to take effect"
 
       "waveSelect",
       // "<n>" - show the first n waves the simulation offers, as picking them in the selector would.
@@ -905,6 +927,7 @@ let publish (dispatch: Msg -> unit) =
             {| state = state
                simRefs = simRefs
                waveState = waveState
+               sidecar = sidecar
                simStats = simStats
                send = send
                commands = fun () -> commands |> List.map fst |> Array.ofList

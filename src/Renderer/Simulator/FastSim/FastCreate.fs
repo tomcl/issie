@@ -392,11 +392,27 @@ let checkSimulationFits (arraySize: int) (cost: StepCost) : Result<unit, Simulat
 type private StepArena =
     { mutable U32Slab: uint32 array
       mutable U32Next: int
+      /// how big to make the next uint32 slab: what this build was expected to need in total, then
+      /// twice the last one each time that turns out not to be enough
+      mutable U32Planned: int
       mutable BigSlab: bigint array
-      mutable BigNext: int }
+      mutable BigNext: int
+      mutable BigPlanned: int }
 
+/// The largest slab either store will take in one piece. A build needing more than this gets
+/// several, which is what makes a huge design possible at all; a build needing less takes what it
+/// needs, which is what makes a small one cheap.
 let private u32SlabSize = 64 * 1024 * 1024
 let private bigSlabSize = 4 * 1024 * 1024
+
+/// How many slab elements a build of this cost and length will use, or the slab limit if it is
+/// bigger than that. Computed in floating point because the byte count of a long simulation does
+/// not fit in an int.
+let private plannedElements (bytesPerStep: int) (steps: int) (elementBytes: int) (limit: int) =
+    float bytesPerStep * float steps / float elementBytes
+    |> min (float limit)
+    |> int
+    |> max 0
 
 /// The arena the build in progress is drawing step regions from, or None outside a build.
 /// Module-level for the same reason as stepArrayIndex just above: the allocation sites are
@@ -404,16 +420,32 @@ let private bigSlabSize = 4 * 1024 * 1024
 /// dozen signatures for the benefit of two call sites. Reset by every build.
 let mutable private stepArena: StepArena option = None
 
-/// Start drawing step regions from arena slabs. Callers must pair this with finishStepArena
-/// however the build ends, or the next truth-table build would draw from a slab nobody meant
-/// it to share.
-let startStepArena () =
+/// Start drawing step regions from arena slabs, sized for what this build is about to need.
+///
+/// The size matters more than it looks. A slab used to be a fixed 256MB whatever was being built,
+/// so EVERY simulation - a three-component test circuit as much as a CPU - allocated and zeroed
+/// 256MB before it could hold its first cycle. Under .NET that is a large-object allocation per
+/// build, and a test suite that builds a few thousand small simulations spent eight minutes of its
+/// twelve doing nothing else. The cost of a build is now the cost of what it holds.
+///
+/// The numbers come from `stepCostOfDesign`, which is computed for the memory budget before the
+/// arrays are allocated and charges for exactly what the arena keeps - so the first slab is the
+/// whole of an ordinary build. A build that needs more than a slab, or more than was planned for,
+/// simply takes another; nothing depends on the estimate being right.
+///
+/// Callers must pair this with finishStepArena however the build ends, or the next truth-table
+/// build would draw from a slab nobody meant it to share.
+let startStepArena (cost: StepCost) (steps: int) =
     stepArena <-
         Some
             { U32Slab = Array.empty
               U32Next = 0
+              U32Planned = plannedElements cost.TypedArrayBytes steps 4 u32SlabSize
               BigSlab = Array.empty
-              BigNext = 0 }
+              BigNext = 0
+              // the heap cost counts a reference and the BigInt behind it, where the slab holds
+              // one element per step per wide bus - so this over-estimates, which costs nothing
+              BigPlanned = plannedElements cost.HeapBytes steps 4 bigSlabSize }
 
 let finishStepArena () = stepArena <- None
 
@@ -423,7 +455,12 @@ let private makeU32Region (size: int) : uint32 array * int =
     match stepArena with
     | Some arena when size <= u32SlabSize ->
         if arena.U32Slab.Length - arena.U32Next < size then
-            arena.U32Slab <- Array.zeroCreate u32SlabSize
+            let slab = max size (min u32SlabSize arena.U32Planned)
+            arena.U32Slab <- Array.zeroCreate slab
+            // the next one is twice this: a build that needed more than was planned for reaches
+            // what it needs in a few doublings, where jumping to the maximum made a circuit of
+            // three components allocate 256MB
+            arena.U32Planned <- min u32SlabSize (slab * 2)
             arena.U32Next <- 0
 
         let regionBase = arena.U32Next
@@ -436,7 +473,9 @@ let private makeBigRegion (size: int) : bigint array * int =
     match stepArena with
     | Some arena when size <= bigSlabSize ->
         if arena.BigSlab.Length - arena.BigNext < size then
-            arena.BigSlab <- Array.create bigSlabSize 0I
+            let slab = max size (min bigSlabSize arena.BigPlanned)
+            arena.BigSlab <- Array.create slab 0I
+            arena.BigPlanned <- min bigSlabSize (slab * 2)
             arena.BigNext <- 0
 
         let regionBase = arena.BigNext

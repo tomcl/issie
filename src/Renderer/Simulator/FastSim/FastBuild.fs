@@ -109,7 +109,7 @@ let buildFastSimulation
         // allocation each - see the arena in FastCreate for what that buys and what it does not.
         // finally, so that a build that raises cannot leave its arena open for an unrelated
         // later build to draw from.
-        startStepArena ()
+        startStepArena cost simulationArraySize
 
         try
             let fs =

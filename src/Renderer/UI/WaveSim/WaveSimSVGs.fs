@@ -72,14 +72,6 @@ let xShift clkCycleWidth =
 /// At extra (sampling) zoom this allows detail clock cycles within one sample
 /// therefore clkCycleDetail IS NOT scaled the same as the sample numbers used
 /// everywhere else.
-let getWaveValue (clkCycleDetail: int) (wave: Wave) (width: int) : FastData option =
-    // None where the value cannot be had - past the end of the simulation, or outside the window
-    // fetched for this view where the sidecar is simulating. This used to answer zero there, which
-    // is a NUMBER: a column of x0000 beside waveforms carrying real values reads as a design whose
-    // registers are clear, not as a viewer that has not been told. The caller shows that it does
-    // not know instead.
-    WaveData.valueAt (SignalHandle wave.DriverIndex) clkCycleDetail
-
 /// Make left and right x-coordinates for a clock cycle.
 let makeXCoords (clkCycleWidth: float) (clkCycle: int) (transition: Transition) =
     match transition with
@@ -401,7 +393,11 @@ let private makeWaveform (ws: WaveSimModel) (wave: Wave) (spec: WaveDrawn.WaveSp
 
             svg (waveRowProps ws) (List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG), gapStore
 
-    Some { WaveDrawn.Spec = spec; WaveDrawn.Svg = waveform; WaveDrawn.Gaps = gaps }
+    Some
+        { WaveDrawn.Spec = spec
+          WaveDrawn.Svg = waveform
+          WaveDrawn.Gaps = gaps
+          WaveDrawn.Samples = sliceOfWave }
 
 /// The waveform to put on screen for one wave: the view the controls ask for where its data is
 /// here, and otherwise the one it is already showing.
@@ -417,20 +413,56 @@ let private makeWaveform (ws: WaveSimModel) (wave: Wave) (spec: WaveDrawn.WaveSp
 let drawnFor (ws: WaveSimModel) (wave: Wave) : WaveDrawn.Drawn option =
     let spec = WaveDrawn.specOf ws wave
 
+    let draw (ws: WaveSimModel) =
+        let spec = WaveDrawn.specOf ws wave
+
+        makeWaveform ws wave spec
+        |> Option.map (fun drawn ->
+            WaveDrawn.put drawn
+            drawn)
+
     match WaveDrawn.tryDrawn wave.DriverIndex with
     | Some drawn when drawn.Spec = spec -> Some drawn
     | onScreen ->
-        match makeWaveform ws wave spec with
-        | Some drawn ->
-            WaveDrawn.put drawn
-            Some drawn
-        | None -> onScreen
+        match draw ws with
+        | Some drawn -> Some drawn
+        | None ->
+            // The data for the view asked for is not here. Draw whatever data IS here, which is
+            // what the last fetch to land carried - a window somewhere between what is on screen
+            // and what the controls now say.
+            //
+            // Keeping what is on screen instead is what a single missing fetch calls for, and it is
+            // what this used to do always. Under a fast scroll it is wrong: fetch after fetch lands
+            // and none of them is ever the exact view being asked for by the time it arrives, so
+            // the waveforms freeze on the last window that happened to be current when its data
+            // came - while newer data for the design goes into the cache and is never looked at.
+            // Drawing what arrived keeps the picture moving, a window or so behind the numbers
+            // above it, which is what a viewer over a wire should look like.
+            match WaveData.heldWindow (SignalHandle wave.DriverIndex) with
+            | Some held when onScreen |> Option.forall (fun d -> d.Spec.Window <> held) ->
+                draw
+                    { ws with
+                        StartCycle = held.StartSample
+                        ShownCycles = held.SampleCount
+                        SamplingZoom = held.Multiplier }
+                |> Option.orElse onScreen
+            | _ -> onScreen
 
-
-
-
-
-
-
-
-
+/// The value the cursor is on, read from the waveform that is DRAWN beside it.
+///
+/// Not from the cache and not by clock cycle. The cursor is a column of the picture, so the value
+/// next to it is the sample that column was drawn from - which while the picture is a window behind
+/// the controls is not the cycle the numbers above it say. Reading by cycle instead answered
+/// nothing at all there, and a column of "?" beside perfectly good waveforms is a worse lie than a
+/// value that matches what is on screen.
+///
+/// None where nothing is drawn for this wave, or the cursor is off the end of what is: an empty row
+/// has no value, and neither has a column that is not there.
+///
+/// Goes through `drawnFor` rather than reading the memo, so that it does not matter whether the
+/// value column or the waveform column is built first: whichever gets there does the drawing and
+/// the other finds it done. Reading the memo instead was a render behind on any render that
+/// changed the picture.
+let getWaveValue (ws: WaveSimModel) (wave: Wave) : FastData option =
+    drawnFor ws wave
+    |> Option.bind (fun drawn -> WaveDrawn.valueAtSample drawn (ws.CursorDisplayCycle - ws.StartCycle))

@@ -675,25 +675,37 @@ let backgroundSVG (wsModel: WaveSimModel) count : ReactElement list =
 let setWaveToolTip (m: WaveSimModel) (ev:Browser.Types.MouseEvent) =
     let svgHighlight = Browser.Dom.document.getElementById "ClkCycleHighlight"
     let bcr = svgHighlight.getBoundingClientRect ()
-    let cycle = (int <| ((ev.clientX - bcr.left) / singleWaveWidth m)) + m.StartCycle
+    // Which column of the waveforms the pointer is over, counted from the left edge of what is
+    // drawn - not a clock cycle, because the picture under the pointer may be a window behind the
+    // numbers along the top while its data arrives.
+    let sample = int ((ev.clientX - bcr.left) / singleWaveWidth m)
     let waveNum = (int <| (ev.clientY - bcr.top) / float Constants.rowHeight) - 1
     // The row under the pointer, counted off the rows that are DRAWN. Every column of the viewer
     // is built from selectedWaves, so that is the only list a row number means anything against.
-    let numValText =
-        match List.tryItem waveNum (selectedWaves m) with
-        | None -> ""
-        | Some wave ->
+    let drawnHere =
+        List.tryItem waveNum (selectedWaves m)
+        |> Option.bind (fun wave ->
             // A row with nothing drawn has no tooltip: there is no waveform under the pointer to
             // say anything about. That is also what happens where data has not arrived, since the
             // row is then showing the last waveform it had and answers for THAT.
-            match WaveDrawn.tryDrawn wave.DriverIndex with
-            | None -> ""
-            | Some drawn -> EvilHoverCache.getWaveToolTip cycle drawn.Gaps wave m
-    let ttXPos = float (cycle - m.StartCycle) * singleWaveWidth m
+            WaveDrawn.tryDrawn wave.DriverIndex |> Option.map (fun drawn -> wave, drawn))
+
+    let numValText =
+        match drawnHere with
+        | None -> ""
+        | Some(wave, drawn) -> EvilHoverCache.getWaveToolTip sample drawn wave m
+    let ttXPos = float sample * singleWaveWidth m
     let ttYPos = ( float waveNum * float Constants.rowHeight + 16. / 2.)
     // getWaveToolTip labels the value itself, since what it has to say may be a hidden value, the
     // comment against the memory location a ROM is reading, or both
-    let ttText = if numValText = "" then "" else $"Cycle:{cycle*m.SamplingZoom}. {numValText}"
+    // The cycle the column under the pointer is OF, taken from the window that column was drawn
+    // from - which is the same as the one the controls ask for, except while its data is arriving.
+    let ttText =
+        match drawnHere with
+        | Some(_, drawn) when numValText <> "" ->
+            let window = drawn.Spec.Window
+            $"Cycle:{window.FirstCycle + sample * window.Multiplier}. {numValText}"
+        | _ -> ""
     // The tooltip may run on past the right of the waveforms and over the values column, which is
     // drawn under it - so that is where it has to fit, not within the waveforms alone. A ROM's
     // comment is a sentence rather than a number, and cutting it at the edge of the waveforms is

@@ -368,7 +368,7 @@ let valueRows (wsModel: WaveSimModel) =
     let valueColWidth, valueColNumChars =
         valuesColumnSize wsModel
     selectedWaves wsModel
-    |> List.map (fun wave -> getWaveValue wsModel.CursorExactClkCycle wave wave.Width)
+    |> List.map (getWaveValue wsModel)
     |> List.map (fun fd ->
         match fd with
         // the viewer does not have this value: say so rather than print a number that is not one

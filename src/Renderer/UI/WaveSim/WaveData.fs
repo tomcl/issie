@@ -156,6 +156,20 @@ let hasData (SignalHandle handle) (window: Window) =
         | Some held -> windowHeld held = window
         | None -> false
 
+/// The window this wave's samples cover, when it has some.
+///
+/// What the viewer can draw for it RIGHT NOW, which while a view is being scrolled is neither the
+/// window on screen nor the one the controls ask for: it is whatever the last fetch to land carried.
+/// Drawing that rather than keeping what is on screen is what makes a fast scroll move.
+let heldWindow (SignalHandle handle) =
+    match source with
+    | Source.Local -> None
+    | Source.Fetched waves ->
+        match Map.tryFind handle waves with
+        | Some(Samples c) -> Some c.Window
+        | Some(NoDriver _)
+        | None -> None
+
 /// The waves, of those being drawn, that do not hold the window they are drawn over.
 ///
 /// Derived, every time it is asked for, from the cache and the view. Nothing records which waves

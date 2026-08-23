@@ -28,6 +28,7 @@ module WaveDrawn
 open Fable.React
 open CommonTypes
 open ModelType
+open SimGraphTypes
 
 /// Everything a drawn waveform is a function of.
 ///
@@ -54,7 +55,13 @@ type Drawn =
       Svg: ReactElement
       /// where the value printed on the wave was left out for want of room, which is what the hover
       /// tooltip is for. Made while drawing, because that is when it is known.
-      Gaps: GapStore }
+      Gaps: GapStore
+      /// the samples this picture was drawn from, kept so that anything describing what is on
+      /// screen - the value column, the hover tooltip - reads the same numbers the pixels came
+      /// from. Not a copy: it points into the array the fetch delivered, which the cache may have
+      /// replaced with a newer window since. That is exactly why it is kept here rather than looked
+      /// up again.
+      Samples: WaveSlice.WaveSlice }
 
 /// The waveform drawn for each driver.
 ///
@@ -87,6 +94,27 @@ let keepOnly (drivers: Set<int>) =
 /// Forget everything. Called when the simulation is replaced: a driver index names a different
 /// signal in the next build, so every entry here is now a picture of something else.
 let forget () = drawn <- Map.empty
+
+/// The value of one drawn waveform at one of its samples, or None outside it.
+///
+/// Indexed by SAMPLE within the picture rather than by clock cycle, because that is what "under the
+/// cursor" means: the cursor is drawn at a column of the waveform, and the value beside it should
+/// be the one that column was drawn from. While the picture is a window behind the controls - the
+/// data for the view asked for is still on its way - reading it by absolute cycle instead says
+/// nothing at all, which is where the value column's row of "?" beside perfectly good waveforms
+/// came from.
+let valueAtSample (d: Drawn) (sample: int) =
+    if sample < 0 || sample >= d.Spec.Window.SampleCount then
+        None
+    else
+        let v = WaveSlice.sampleValue d.Samples sample
+
+        Some(
+            if d.Spec.Width > 32 then
+                { Dat = BigWord v; Width = d.Spec.Width }
+            else
+                { Dat = Word(uint32 v); Width = d.Spec.Width }
+        )
 
 /// How many of these waves are showing a view other than the one the controls ask for.
 ///

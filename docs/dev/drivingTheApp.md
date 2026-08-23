@@ -34,7 +34,8 @@ ways that cost real time:
 
 ```json
 { "open_": true, "startCycle": 0, "shownCycles": 66, "samplingZoom": 1, "cursor": 0,
-  "selected": 8, "detailed": 8, "missing": 0, "drawn": 8, "fetchInProgress": false }
+  "selected": 8, "detailed": 8, "missing": 0, "drawn": 8, "drawnStart": 0, "stale": 0,
+  "fetchInProgress": false }
 ```
 
 Three separate questions the viewer's bugs live between: what the controls ask for (`startCycle`,
@@ -46,9 +47,14 @@ an older window - that is the deliberate fallback, not a fault.
 At rest, `missing` is 0 and `fetchInProgress` is false. `missing > 0` with no fetch in progress and
 no update running is the fault the stale-waveform banner exists to make visible.
 
+`drawnStart` is where the first drawn waveform actually starts. Under a fast scroll it runs behind
+`startCycle` and should be seen to FOLLOW it: a picture that sticks while `startCycle` moves is data
+arriving and not being drawn.
+
 Driving it: `startWaveSim` (the viewer's own Start button - `startSimulation` is the STEP
-simulator's), then `waveSelect <n>`, `waveView "<start> [shown] [zoom]"`, `waveCursor <n>` and
-`waveConfig <lastClock>` (the Configure dialog's cycle count, which takes effect on the next start).
+simulator's), then `waveSelect <n>`, `ramSelect <n>`, `waveView "<start> [shown] [zoom]"`,
+`waveCursor <n>` and `waveConfig <lastClock>` (the Configure dialog's cycle count, which takes
+effect on the next start).
 
 `node scripts/drive.js wait "sidecar.connected"` answers the other question a script needs: the app
 spawns the .NET simulator as it starts, and after a rebuild that process takes tens of seconds to be

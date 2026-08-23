@@ -415,7 +415,16 @@ let updateUnpinned (msg : Msg) oldModel =
         // to ask for whatever is still missing. After a view that moved while this fetch was in the
         // air, that is the view the user is now looking at.
         let model =
-            model |> updateWSModel (fun ws -> { ws with FetchInProgress = false })
+            model
+            |> updateWSModel (fun ws ->
+                { ws with
+                    FetchInProgress = false
+                    // a fetch that worked clears the backoff, so the next failure gets the full
+                    // wait rather than whatever is left of an older one
+                    FetchFailedAtMs =
+                        match result with
+                        | Ok() -> 0.0
+                        | Error _ -> TimeHelpers.getTimeMs () })
 
         match result with
         | Ok() ->
@@ -972,3 +981,4 @@ let update (msg : Msg) oldModel =
     updateUnpinned msg oldModel
     |> map fst_ (ModelHelpers.pinIfReadOnly msg)
     |> scheduleAfterRender oldModel
+    |> WaveSimTop.fetchWhatIsMissing

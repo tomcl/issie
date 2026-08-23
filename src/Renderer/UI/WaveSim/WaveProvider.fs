@@ -208,11 +208,15 @@ let private fetchWaves
             | Some sig_, Some(Some driver) -> Some(i, sig_, driver.DriverWidth)
             | _ -> None)
 
-    if List.isEmpty wanted then
-        // nothing the simulation can name a driver for. Nothing is cached, so these waves stay
-        // ones that need fetching - which is true, and is what stops a blank being drawn as though
-        // it were simulation output
-        Promise.lift (Ok())
+    if List.length wanted < List.length (List.distinct driverIndices) then
+        // Some wave asked for has no driver in this simulation, so a reply could not carry it and
+        // it would stay missing however often it was asked for - which, since a missing wave is
+        // exactly what asks for a fetch, is a loop rather than a gap. Say so instead: an error is
+        // backed off and reported, and every wave selected should have a driver.
+        Promise.lift (
+            Error
+                $"{List.length (List.distinct driverIndices) - List.length wanted} of {List.length (List.distinct driverIndices)} waves have no driver in this simulation"
+        )
     else
         let leadIn = window.StartSample > 0
         let firstCycle = if leadIn then window.FirstCycle - window.Multiplier else window.FirstCycle

@@ -192,6 +192,7 @@ the caller sets — or **declared long**, and the declared-long list has one ent
 | `SimBuild` | **declared long** | the one carve-out |
 | `SimRun` | one polling interval of wall time | **to build** — see below |
 | `SimDigest` | component count, refused above a limit | **to build** — unbounded today; it builds and runs a simulation of its own |
+| `SimRam` | the mode: a count that short-circuits, a sparse limit, or a window length | **to build** |
 | `SimSetInputs`, `SimRead`, `SimLog`, `SimEnd` | payload size | **holds** |
 
 ### `SimRun` — the chunk boundary
@@ -303,7 +304,7 @@ designed for those would be machinery in the way of four round trips.
 | # | Invariant | Status |
 |---|---|---|
 | G1 | The panel shows values for the inputs the user set. | **violated** - a restart replaces them with the design's defaults |
-| G2 | A step backwards inside the held window costs no re-run. | **holds** - it is a read of cycles already computed |
+| G2 | A step backwards inside the live range costs no re-run. | **holds** - it is a read of cycles already computed |
 | G3 | A RAM is read at one cycle, in a shape bounded by how much it holds. | **to build** |
 
 ### The commands it needs
@@ -323,43 +324,55 @@ round trips per repaint.
 Making the reply to a **write** be the panel is what keeps the step simulator to one round trip per
 user action: setting an input is not a write followed by a read, and neither is stepping.
 
-### G1 - inputs are sticky, so a restart no longer loses them
+### G1 - inputs are sticky, and the history is not remembered
 
-An input set on the sidecar **stays set** - it is state of the session, not a value written into a
-step array at a cycle. Two things follow.
+An input set on the sidecar **stays set**. It is state of the session, not a value written into a
+step array at a cycle. That is right because inputs generally do not change; the step simulator is
+the one place a user may change them on any clock tick, and a changed value affects how the
+simulation evolves **from there onwards**.
+
+Two things follow.
 
 **A write is cheap and local.** Setting an input redoes only the combinational part of the
 simulation at the current cycle. The clocked history is untouched, so a write costs one cycle's
-combinational evaluation and not a re-run.
+combinational evaluation, not a re-run.
 
-**A restart re-applies them.** In the renderer today, `runFastSimulationCore` calls
-`restartSimulation` when a step needs a cycle the circular buffer no longer holds, and
-`restartSimulation` begins with `setInputstoDefault` - which puts every `Input1` back to the
-*design's* default. The user's inputs are not replayed, because they were never recorded anywhere
-to replay: changing an input writes into the very step arrays the restart is discarding. The panel
-then shows a simulation of a different input history, presented as the user's.
+**Going back does not restore the inputs that were in force then.** Past inputs are not remembered.
+What is seen when stepping back is the data still held in the buffer, which *was* computed under
+those inputs - so their effect is visible for as long as the cycles they produced are still alive,
+and not afterwards.
 
-Sticky inputs remove that rather than manage it. There is no history to lose: a session is its
-design plus its current input set, and a restart reconstructs the same simulation from both.
+**This is not entirely consistent, and that is accepted.** Stepping back inside the live buffer
+shows the real history; stepping back beyond it re-runs from zero under the inputs as they are now,
+which is a different history reaching the same cycle. Recording and replaying every input change
+would make the two agree, and would be more machinery than the inconsistency costs. It is written
+down here so that the next person to notice it finds a decision rather than a bug.
 
-*(An earlier draft of this document proposed recording a list of (cycle, component, value) and
-replaying it. Sticky inputs are simpler and are what the step simulator actually means - the
-displayed values are for the inputs as they are now, not for a reconstruction of what they once
-were.)*
+### G2 - what the step simulator has to know about its own arrays
 
-### G2 - the held window, and what falls outside it
+Three numbers, not one:
+
+| | |
+|---|---|
+| the circular array's **size** | fixed at build |
+| the **current clock tick** | where the panel is looking |
+| the cycle **after which the data is correct**, up to the current tick | a low-water mark |
+
+Stepping forwards and backwards moves the last two. The live range is not simply
+`(ClockTick - size, ClockTick]`: going back and then forward again with a changed input overwrites
+what follows, so how far back the data can be trusted is its own quantity and has to be carried
+rather than computed from the other two.
 
 `stepIndexOf` is `numStep % maxArraySize`, so **both** simulators index a circular buffer. The
-waveform simulator never reaches the wrap, because its array is sized for the whole configured run.
-The step simulator does, because it is sized short and stepping never has to stop.
+waveform simulator never reaches the wrap, because its array is sized for the whole configured run;
+the step simulator does, because it is sized short and stepping never has to stop.
 
-Stepping backwards is ordinary and cheap: a cycle inside `(ClockTick - MaxArraySize, ClockTick]` has
-already been computed, so showing it is a read. Only a step further back than that re-runs, and
-with sticky inputs the re-run reconstructs the same simulation rather than a different one.
+Stepping backwards inside the live range is ordinary and cheap - those cycles have been computed,
+so showing one is a read. Only a step past the low-water mark re-runs.
 
-So `MaxArraySize` decides how far back is free. It is worth carrying in the build reply beside the
-epoch, because over a wire "that cycle has been overwritten" and "that cycle has not been reached"
-would otherwise arrive as the same silence.
+All three numbers belong in the replies that change them, because over a wire "that cycle has been
+overwritten", "that cycle has not been reached" and "that cycle was never correct" would otherwise
+arrive as the same silence.
 
 ### G3 - RAM contents, for both simulators
 
@@ -385,6 +398,117 @@ that apply to them are those in sections A, B and C, unchanged.
 
 Because the two simulators are mutually exclusive, one session slot serves both and section C3 is
 unaffected: there is never a second caller, only a second *kind* of caller, one at a time.
+
+---
+
+## H. Tooltips - two of them, and only one is a cache read
+
+They are easy to conflate and have different answers.
+
+### The waveform tooltip
+
+Hovering a drawn waveform shows the value at that point. The signal is one the user selected, and
+the cycle is inside the window being drawn - both by construction, since the thing under the
+pointer is a waveform that was fetched to be drawn.
+
+**So the cache already holds it, and there is no command and no new invariant.** It is a read of
+data that had to be there for the pixel under the mouse to exist. `D2` covers it: the cache answers
+for the window it fetched, which is the window being pointed at.
+
+### The schematic tooltip
+
+Resting the mouse on a wire in the draw block shows the value on it. This is a different question
+with the same shape as the step simulator's reads:
+
+- **one signal, the current cycle** - the step simulator's tick, or the waveform simulator's cursor;
+- **any signal on the sheet.** The wire under the pointer is whatever the user is pointing at, so
+  it may well be one the cache does not track - nobody selected it as a wave;
+- **under either simulator.**
+
+**So it is a point read and not a cache read**, and it must not be written as one that happens to
+work when the signal is selected. Component, port, cycle: the degenerate `SimRead` of one signal
+and one sample, which the cursor column already sends.
+
+Caching it would be wrong as well as useless - a value under a moving mouse, wanted once, keyed by
+a signal that changes with every wire the pointer crosses.
+
+| # | Invariant | Status |
+|---|---|---|
+| H1 | A schematic tooltip is offered only for a design-time component with exactly ONE runtime instance. | **holds** - `copiesOfCanvasComp` returns a single id, or nothing is shown |
+| H2 | The value shown is from the simulator that is running. | **violated in .NET mode** |
+
+H1 is what makes the read expressible: a component on a sheet instantiated twice has two runtime
+signals and no answer to "the value on this wire", so the tooltip declines rather than choosing
+one. Worth noticing that this is a **design-time** question - how many times a sheet is
+instantiated - so the renderer answers it from the design alone, with no simulation and nothing
+asked of the sidecar.
+
+H2 is a consequence of the renderer no longer running a simulation the sidecar has already run. The
+probe read step arrays that are never written, so it showed what an unrun simulation holds; it has
+been made to show nothing instead, which is honest but is not the requirement.
+
+---
+
+## I. The whole command set
+
+Everything above asks for seven commands. Nothing needs an eighth, and each of the collapses below
+is worth stating because the obvious design has more.
+
+| command | payload | reply | used by |
+|---|---|---|---|
+| `SendDesign` | one sheet | ok | both |
+| `SimBuild` | top sheet, array size | epoch, array size, ok or error | both |
+| `SimRun` | target cycle, time budget | epoch, clock tick, done, first valid cycle, **and the panel when done** | both |
+| `SimRead` | start, rep, samples, signals | values, signal-major | both |
+| `SimSetInputs` | inputs | epoch, **the panel** | step |
+| `SimRam` | component, cycle, mode | count, or sparse pairs, or a window | both |
+| `SimEnd` | - | ok | both |
+
+Plus `Echo`/`Upload`/`Download`, which measure the channel, and `SimDigest`/`SimLog`, which exist
+for development. None of the five participates in a simulation, and they are outside these
+invariants.
+
+### Why there is no separate "read the panel" command
+
+`SimRun` to the tick it is already on completes immediately and answers with the panel. So the
+first display after a build, a step forwards, a step backwards and a jump are one command, and the
+step simulator needs one round trip per user action rather than a move followed by four reads.
+
+The panel rides on the reply only **when the run is done**, so a chunked waveform run does not carry
+one per chunk. It is bounded by the top sheet - all top-level outputs, all top-level viewers, and
+the clocked state the panel shows - which is one sheet's worth however large the design.
+
+### Why there is no separate point-read command
+
+A schematic tooltip is `SimRead` with one signal and one sample. So is the waveform viewer's cursor
+column. The window read, the cursor column and the tooltip are one command at three sizes.
+
+### Why RAM is one command and not three
+
+Count, sparse and window differ in what comes back, not in what is being asked - the contents of one
+RAM at one cycle. One command with a mode keeps the two sides in step where three would drift, and
+the caller still chooses: ask the count, then ask for whichever shape fits it.
+
+### What the cache must expose
+
+Unchanged, and small - it serves the waveform viewer's drawing and nothing else:
+
+| | |
+|---|---|
+| `covers window handles cursor` | is the data for this view here yet |
+| `slice handle window` | the samples to draw |
+| `valueAt handle cycle` | the cursor column, and the waveform tooltip |
+| `setFetched` | fill it |
+
+The interface does not change; what changes is that nothing else goes through it. The step
+simulator, the RAM tables and the schematic tooltip are command-response, because each wants one
+answer once rather than a window read repeatedly from `view`.
+
+### What this leaves unbounded
+
+`SimBuild`, and only `SimBuild`. Every other command is bounded by something the caller sets: a
+sheet, a time budget, a sample count, an input count, a window length. That is what makes the
+reply-time invariant of section A6 a property of the protocol rather than a hope about it.
 
 ---
 

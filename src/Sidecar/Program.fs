@@ -213,7 +213,8 @@ let private serve (ws: WebSocket) (ct: CancellationToken) =
 
                     do! send ws (textResponse header reply) ct
                 | Protocol.SimRun ->
-                    do! send ws (textResponse header (SimSession.run (argAt body 0) (argAt body 4))) ct
+                    // epoch first, then target cycle and time budget - see Protocol.fs
+                    do! send ws (textResponse header (SimSession.run (argAt body 0) (argAt body 4) (argAt body 8))) ct
                 | Protocol.SimDigest ->
                     let reply =
                         match lastDesign with
@@ -222,14 +223,14 @@ let private serve (ws: WebSocket) (ct: CancellationToken) =
 
                     do! send ws (textResponse header reply) ct
                 | Protocol.SimEnd ->
-                    do! send ws (textResponse header (SimSession.endSession ())) ct
+                    do! send ws (textResponse header (SimSession.endSession (argAt body 0))) ct
                 | Protocol.SimLog ->
                     do! send ws (textResponse header (SimLog.recentJson ())) ct
                 | Protocol.SimSetInputs ->
-                    do! send ws (textResponse header (SimSession.setInputs body)) ct
+                    do! send ws (textResponse header (SimSession.setInputs (argAt body 0) (body[4..]))) ct
                 | Protocol.SimRead ->
                     let frame =
-                        match SimSession.read body with
+                        match SimSession.read (argAt body 0) (body[4..]) with
                         | Ok payload -> bytesResponse header payload
                         | Error e -> textResponse header (sprintf """{"error":"%s"}""" (e.Replace("\"", "'")))
 

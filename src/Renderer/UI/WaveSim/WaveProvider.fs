@@ -34,7 +34,14 @@ module Constants =
 /// What the sidecar has been told to build: the top sheet, and the step-array size it was built
 /// for. Process state about another process, not model state - the model cannot know what a
 /// separate program is holding, and nothing in the model would be a better place to say so.
-let mutable private built: (string * int) option = None
+/// What the sidecar holds: the top sheet, the array size it was built for, and the epoch that
+/// build issued.
+///
+/// The epoch is the part that makes the other two checkable. Without it this record is a belief -
+/// the sidecar could have restarted, or been built over - and every command sent on the strength of
+/// it would be answered as though the belief were true. With it, a command that names a session the
+/// sidecar does not hold is refused by name.
+let mutable private built: (string * int * int) option = None
 
 /// How far the sidecar's simulation has been run, as it last reported.
 ///
@@ -48,11 +55,17 @@ let mutable private built: (string * int) option = None
 /// which is where the sidecar says what it has reached.
 let mutable private sidecarClockTick = 0
 
+/// Whether a fetch is in progress. See fillFor, which is the only thing that reads it.
+let mutable private fetching = false
+
 /// Forget what the sidecar holds, so the next refresh builds again. Called when the waveform
 /// simulation ends or the design changes.
 let forget () =
     built <- None
     sidecarClockTick <- 0
+    // whatever is in flight belongs to a simulation that no longer exists; its reply is discarded
+    // when it lands, and the next view asks for itself
+    fetching <- false
 
 /// (component id, output port, access path) for each driver, taken from the wave index.
 ///
@@ -98,9 +111,9 @@ let private errorIn (reply: string) =
     if reply.StartsWith "{\"error\"" then Some reply else None
 
 /// Build the design on the sidecar if it does not already hold it at a big enough array size.
-let private ensureBuilt (design: SimpleDesign) (arraySize: int) : JS.Promise<Result<unit, string>> =
+let private ensureBuilt (design: SimpleDesign) (arraySize: int) : JS.Promise<Result<int, string>> =
     match built with
-    | Some(top, size) when top = design.TopSheet && size >= arraySize -> Promise.lift (Ok())
+    | Some(top, size, epoch) when top = design.TopSheet && size >= arraySize -> Promise.lift (Ok epoch)
     | _ ->
         promise {
             do! SidecarClient.connect ()
@@ -119,8 +132,15 @@ let private ensureBuilt (design: SimpleDesign) (arraySize: int) : JS.Promise<Res
                     built <- None
                     return Error e
                 | None ->
-                    built <- Some(design.TopSheet, arraySize)
-                    return Ok()
+                    let epoch = SidecarClient.epochOf reply
+
+                    if epoch = 0 then
+                        // a build that issued no epoch built nothing, whatever else the reply said
+                        built <- None
+                        return Error $"the sidecar's build reply named no session: {reply}"
+                    else
+                        built <- Some(design.TopSheet, arraySize, epoch)
+                        return Ok epoch
         }
 
 [<Emit("JSON.parse($0)")>]
@@ -140,10 +160,10 @@ let private parseJson (text: string) : obj = jsNative
 /// which works the bound out from the same view a slightly different way and lands one sample
 /// further on. Both cover what is drawn. When building and running are eventually shared, the
 /// two should become one expression rather than two that agree by inspection.
-let private runTo (cycle: int) (onProgress: int -> unit) : JS.Promise<Result<unit, string>> =
+let private runTo (epoch: int) (cycle: int) (onProgress: int -> unit) : JS.Promise<Result<unit, string>> =
     let rec chunk () =
         promise {
-            let! reply = SidecarClient.simRun cycle Constants.runChunkMs
+            let! reply = SidecarClient.simRun epoch cycle Constants.runChunkMs
 
             match errorIn reply with
             | Some e -> return Error e
@@ -167,6 +187,7 @@ let private runTo (cycle: int) (onProgress: int -> unit) : JS.Promise<Result<uni
 /// A binary waveform's first drawn cycle needs the value before it, so where the window does not
 /// start at cycle 0 one extra sample is asked for and the slice is told it has a lead-in.
 let private fetchWindow
+    (epoch: int)
     (fs: FastSimulation)
     (driverIndices: int list)
     (window: Window)
@@ -211,7 +232,7 @@ let private fetchWindow
             |> List.fold (fun (rows, widths) (i, (b, w)) -> Map.add i b rows, Map.add i w widths) (Map.empty, Map.empty)
 
         promise {
-            let! frame = SidecarClient.simRead firstCycle window.Multiplier samples requested
+            let! frame = SidecarClient.simRead epoch firstCycle window.Multiplier samples requested
             let asText = SidecarClient.decodeText frame
 
             if asText.StartsWith "{" then
@@ -229,7 +250,7 @@ let private fetchWindow
                       WaveData.Data = unbox data }
 
                 // the cursor sits on an exact cycle, which above zoom 1 is between drawn samples
-                let! cursorFrame = SidecarClient.simRead cursorCycle 1 1 requested
+                let! cursorFrame = SidecarClient.simRead epoch cursorCycle 1 1 requested
                 let cursorText = SidecarClient.decodeText cursorFrame
 
                 let cursor =
@@ -265,12 +286,12 @@ let private fetchForView
     promise {
         match! ensureBuilt design arraySize with
         | Error e -> return Error e
-        | Ok() ->
+        | Ok epoch ->
             let lastNeeded = max window.LastCycle cursorCycle
 
-            match! runTo (lastNeeded + 1) onProgress with
+            match! runTo epoch (lastNeeded + 1) onProgress with
             | Error e -> return Error e
-            | Ok() -> return! fetchWindow fs driverIndices window cursorCycle
+            | Ok() -> return! fetchWindow epoch fs driverIndices window cursorCycle
     }
 
 
@@ -304,6 +325,17 @@ let covers (inRenderer: bool) (window: Window) (handles: SignalHandle list) (cur
 
 /// Put the data for this view where the viewer can read it, for a simulator that has to be asked.
 /// Only ever called when `covers` says no, which for the renderer's own simulator is never.
+///
+/// **One at a time.** A fetch is asked for whenever the view is not held, which is every checkbox
+/// tick, scroll step and cursor move - so without this a second chain starts while the first is
+/// still running, and the two interleave build, run and read against one session: the second
+/// chain's build resets the simulation under the first chain's read. The sidecar serves them in
+/// arrival order and cannot tell that they belong to different views.
+///
+/// A request arriving while one is in progress is DROPPED rather than queued, and that is safe
+/// because of what happens when the one in progress finishes: it refreshes, the refresh finds the
+/// current view is still not held, and asks again - for the view as it is by then, which is the
+/// one the user is looking at. A queue would fetch the views they scrolled through on the way.
 let fillFor
     (design: SimpleDesign)
     (arraySize: int)
@@ -313,4 +345,15 @@ let fillFor
     (cursorCycle: int)
     (onProgress: int -> unit)
     : JS.Promise<Result<unit, string>> =
-    fetchForView design arraySize fs driverIndices window cursorCycle onProgress
+    if fetching then
+        Promise.lift (Ok())
+    else
+        fetching <- true
+
+        fetchForView design arraySize fs driverIndices window cursorCycle onProgress
+        |> Promise.map (fun result ->
+            fetching <- false
+            result)
+        |> Promise.catch (fun e ->
+            fetching <- false
+            Error e.Message)

@@ -18,11 +18,50 @@ open CommonTypes
 /// SimSetInputs can look up widths without re-deriving them.
 let mutable private session: (SimTypes.FastSimulation * (ComponentId * ComponentLabel * int) list) option = None
 
+/// Which session this is: bumped by every successful build, and never reused.
+///
+/// The renderer cannot see inside this process, so everything it believes about the session here -
+/// that one exists, that it is of the design it last sent, how far its clock has run - is a belief
+/// with nothing to check it against. A build that failed after the renderer thought it succeeded, a
+/// sidecar restarted underneath it, a reply from a design that has since been replaced: all of them
+/// look exactly like agreement.
+///
+/// So every command that depends on a session says which session it means, and this is what it is
+/// checked against. One integer turns three unverifiable beliefs into one exact test: there is no
+/// case where the epochs match and the two sides do not.
+///
+/// Zero is "no session", and no build ever issues it, so a renderer that has not built cannot name
+/// one by accident.
+let mutable private epoch = 0
+
 let private escape (text: string) =
     text.Replace("\\", "/").Replace("\"", "'").Replace("\n", " ").Replace("\r", " ")
 
 let private errorReply (message: string) =
     sprintf """{"error":"%s"}""" (escape message)
+
+/// The epoch a session-dependent command must carry, or 0 when there is no session.
+let currentEpoch () = if session.IsSome then epoch else 0
+
+/// The earliest cycle whose data is still correct.
+///
+/// The step arrays are a circular buffer - stepIndexOf is numStep % maxArraySize - so a simulation
+/// run past its array length has overwritten its own beginning. The waveform simulator sizes its
+/// array for the whole configured run and never reaches that; the step simulator is sized short and
+/// does. The renderer cannot work this out for itself without knowing both numbers, and over a wire
+/// "overwritten" and "not yet reached" would otherwise arrive as the same silence.
+let private firstValidCycle (fs: SimTypes.FastSimulation) =
+    max 0 (fs.ClockTick - fs.MaxArraySize + 1)
+
+/// Ok when a command names the session that exists, an error reply when it does not.
+///
+/// The message says both numbers because the two failures need telling apart: 0 from a caller that
+/// has not built, against a stale number from one whose session was replaced underneath it.
+let private checkEpoch (asked: int) =
+    if asked = currentEpoch () then
+        Ok()
+    else
+        Error(errorReply $"stale session: command names epoch {asked}, this sidecar holds {currentEpoch ()}")
 
 /// Build a simulation of the design's top sheet. Replaces any previous session.
 let build (design: SimpleDesign) (maxArraySize: int) : string =
@@ -41,9 +80,13 @@ let build (design: SimpleDesign) (maxArraySize: int) : string =
             sw.Stop()
             let fs = simData.FastSim
             session <- Some(fs, simData.Inputs)
+            // only a build that produced a session takes the next number, so an epoch always names
+            // a simulation that once existed
+            epoch <- epoch + 1
 
             sprintf
-                """{"sheet":"%s","components":%d,"maxArraySize":%d,"buildMs":%.2f}"""
+                """{"epoch":%d,"sheet":"%s","components":%d,"maxArraySize":%d,"buildMs":%.2f}"""
+                epoch
                 (escape design.TopSheet)
                 (fs.FComps.Count + fs.FCustomComps.Count)
                 fs.MaxArraySize
@@ -52,18 +95,21 @@ let build (design: SimpleDesign) (maxArraySize: int) : string =
 /// Run the session's simulation towards `targetCycle`, giving up after `timeoutMs` (0 = no
 /// budget). The reply says where the clock got to; the caller repeats until done - each call
 /// is one SimLog record, mirroring the renderer's progress loop.
-let run (targetCycle: int) (timeoutMs: int) : string =
-    match session with
-    | None -> errorReply "no simulation built - send SimBuild first"
-    | Some(fs, _) ->
+let run (askedEpoch: int) (targetCycle: int) (timeoutMs: int) : string =
+    match checkEpoch askedEpoch, session with
+    | Error reply, _ -> reply
+    | _, None -> errorReply "no simulation built - send SimBuild first"
+    | Ok(), Some(fs, _) ->
         let timeout = if timeoutMs <= 0 then None else Some(float timeoutMs)
         let sw = System.Diagnostics.Stopwatch.StartNew()
         FastRun.runFastSimulation timeout targetCycle fs |> ignore
         sw.Stop()
 
         sprintf
-            """{"clockTick":%d,"done":%b,"ms":%.2f}"""
+            """{"epoch":%d,"clockTick":%d,"firstValidCycle":%d,"done":%b,"ms":%.2f}"""
+            epoch
             fs.ClockTick
+            (firstValidCycle fs)
             (fs.ClockTick >= targetCycle)
             sw.Elapsed.TotalMilliseconds
 
@@ -79,9 +125,12 @@ let digest (design: SimpleDesign) (ticks: int) : string =
     | Error e -> errorReply e
 
 /// Drop the session so its (potentially large) step arrays can be collected.
-let endSession () : string =
-    session <- None
-    """{"ended":true}"""
+let endSession (askedEpoch: int) : string =
+    match checkEpoch askedEpoch with
+    | Error reply -> reply
+    | Ok() ->
+        session <- None
+        """{"ended":true}"""
 
 // ---------------------------------------------------------------------------------------------
 // Binary step data. Payload layouts are in Protocol.fs; both functions take the raw command
@@ -94,10 +143,11 @@ let private u32 (body: byte array) (offset: int) =
 /// Set top-level input values at a cycle: uint32 cycle, uint32 count, then per input uint32
 /// component id + value as two uint32 words. The value reaches the simulator through the same
 /// changeInput call the renderer uses, masked to the input's width by FastData construction.
-let setInputs (body: byte array) : string =
-    match session with
-    | None -> errorReply "no simulation built - send SimBuild first"
-    | Some(fs, inputs) ->
+let setInputs (askedEpoch: int) (body: byte array) : string =
+    match checkEpoch askedEpoch, session with
+    | Error reply, _ -> reply
+    | _, None -> errorReply "no simulation built - send SimBuild first"
+    | Ok(), Some(fs, inputs) ->
         let cycle = u32 body 0
         let count = u32 body 4
 
@@ -127,10 +177,12 @@ let setInputs (body: byte array) : string =
 /// one-signal one-sample special case. The reply payload is uint32 signal count, uint32 sample
 /// count, then signal-major uint32 values - which the renderer views as a Uint32Array with no
 /// copy, the reason the frame header is 8 bytes. Errors come back as JSON text instead.
-let read (body: byte array) : Result<byte array, string> =
-    match session with
-    | None -> Error "no simulation built - send SimBuild first"
-    | Some(fs, _) ->
+let read (askedEpoch: int) (body: byte array) : Result<byte array, string> =
+    match checkEpoch askedEpoch, session with
+    | Error _, _ ->
+        Error $"stale session: command names epoch {askedEpoch}, this sidecar holds {currentEpoch ()}"
+    | _, None -> Error "no simulation built - send SimBuild first"
+    | Ok(), Some(fs, _) ->
         let startCycle = u32 body 0
         let rep = u32 body 4
         let samples = u32 body 8

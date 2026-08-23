@@ -17,6 +17,18 @@ a slow one. Performance is elsewhere. Each is marked:
 
 ---
 
+## The fact everything else rests on
+
+**At most one simulation exists at a time.** Starting a step simulation, a truth table or a
+waveform simulation calls `removeAllSimulationsFromModel`, which drops the other two. The three are
+mutually exclusive, and `ModelHelpers.simulationIsOpen` is the predicate that already says so.
+
+That is why the sidecar needs **one session slot** and not one per simulator, why the epoch of
+section C is a counter rather than an identifier, and why "requests do not overlap" is a question
+about one caller at a time rather than about several callers agreeing.
+
+---
+
 ## 0. What wall-clock time may decide
 
 Several invariants below depend on getting this line in the right place, so it comes first.
@@ -291,9 +303,8 @@ designed for those would be machinery in the way of four round trips.
 | # | Invariant | Status |
 |---|---|---|
 | G1 | The panel shows values for the inputs the user set. | **violated** - a restart replaces them with the design's defaults |
-| G2 | A session is read only for cycles it still holds. | **holds**, and becomes unobservable once only the current cycle is read |
+| G2 | A step backwards inside the held window costs no re-run. | **holds** - it is a read of cycles already computed |
 | G3 | A RAM is read at one cycle, in a shape bounded by how much it holds. | **to build** |
-| G4 | Each simulator has a session of its own. | **to build** - the sidecar has one slot |
 
 ### The commands it needs
 
@@ -336,20 +347,19 @@ replaying it. Sticky inputs are simpler and are what the step simulator actually
 displayed values are for the inputs as they are now, not for a reconstruction of what they once
 were.)*
 
-### G2 - the circular buffer becomes invisible
+### G2 - the held window, and what falls outside it
 
 `stepIndexOf` is `numStep % maxArraySize`, so **both** simulators index a circular buffer. The
-waveform simulator never reaches the wrap because its array is sized for the whole configured run;
-the step simulator does, because it is sized short and stepping never has to stop.
+waveform simulator never reaches the wrap, because its array is sized for the whole configured run.
+The step simulator does, because it is sized short and stepping never has to stop.
 
-But if the only cycle ever read is the current one, and inputs are sticky, the wrap stops being
-observable. A backward step past the buffer restarts and re-runs, which costs time and changes no
-answer. So the range a session can answer for is a **performance** property for the step simulator
-and a **correctness** one only for the waveform simulator, where it is `[0, ClockTick]` by
-construction.
+Stepping backwards is ordinary and cheap: a cycle inside `(ClockTick - MaxArraySize, ClockTick]` has
+already been computed, so showing it is a read. Only a step further back than that re-runs, and
+with sticky inputs the re-run reconstructs the same simulation rather than a different one.
 
-That is worth stating because it is the opposite of what the code's shape suggests: the simulator
-with the small circular array is the one for which the array size does not affect what is shown.
+So `MaxArraySize` decides how far back is free. It is worth carrying in the build reply beside the
+epoch, because over a wire "that cycle has been overwritten" and "that cycle has not been reached"
+would otherwise arrive as the same silence.
 
 ### G3 - RAM contents, for both simulators
 
@@ -367,30 +377,14 @@ The renderer chooses between the last two using the count. That is the decision
 `RamStore.liveCountExceeds` makes locally today, and it has to move because it needs the store: a
 64K RAM displayed densely means materialising 65,536 words to show fifty.
 
-### G4 - two sessions, not one
-
-`SimSession.session` is a single slot, and the two simulators are independent things each wanting a
-built simulation. They are also live at the same time - a running Issie holds both a step
-simulation and a waveform simulation, on separate renderer caches (`simCache` and `simCacheWS`).
-
-So the sidecar needs to hold both, and the **epoch of section C becomes a session identifier**
-rather than a counter: every session-dependent command names which session it means, and a
-mismatch is an error. One slot would mean rebuilding whichever simulator was touched last, on every
-switch between the two panes.
-
-This is small to do now and awkward to retrofit, which is the argument for settling it before
-either half is built.
-
 ### What this leaves the cache doing
 
 Mediating the waveform simulator's reads, and nothing else. The step simulator's commands are
-command-response sequences - read the panel, advance, restart, stop - and the invariants that apply
-to them are the ones in sections A, B and C, unchanged.
+command-response sequences - read the panel, advance, step back, restart, stop - and the invariants
+that apply to them are those in sections A, B and C, unchanged.
 
-Section C3 (one chain at a time) then has to hold across **two** callers rather than within one.
-With two sessions that is easier than it sounds: the two callers drive different sessions, so they
-cannot corrupt each other's state - they only queue behind each other on the sidecar's serial loop,
-which is a latency question and not a correctness one.
+Because the two simulators are mutually exclusive, one session slot serves both and section C3 is
+unaffected: there is never a second caller, only a second *kind* of caller, one at a time.
 
 ---
 

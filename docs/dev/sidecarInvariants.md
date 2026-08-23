@@ -188,10 +188,10 @@ the caller sets — or **declared long**, and the declared-long list has one ent
 | Command | Bound | Status |
 |---|---|---|
 | `Echo`, `Upload`, `Download` | payload size | **holds** |
-| `SendDesign` | one sheet per message | **to build** — framed per sheet, but all sheets travel in one message |
-| `SimBuild` | **declared long** | the one carve-out |
-| `SimRun` | one polling interval of wall time | **to build** — see below |
-| `SimDigest` | component count, refused above a limit | **to build** — unbounded today; it builds and runs a simulation of its own |
+| `SendDesign` | one sheet per message | **holds** |
+| `SimBuild` | **declared long** | see below |
+| `SimRun` | one polling interval of wall time | **holds** |
+| `SimDigest` | **declared long** | see below |
 | `SimRam` | the mode: a count that short-circuits, a sparse limit, or a window length | **to build** |
 | `SimSetInputs`, `SimRead`, `SimLog`, `SimEnd` | payload size | **holds** |
 
@@ -218,13 +218,38 @@ because the loop it guards is written out twice.
 call the same function. Its return type stops being `float option`, whose `None` means both
 "nothing to do" and "finished" and whose `Some` is a rate nobody should be inferring anything from.
 
-### `SimBuild` — why it is carved out
+### `SendDesign` — one sheet per message, and what that settles
+
+Decoding is the cost - the whole 18-sheet 3cpu design takes ~300ms, its largest single sheet ~25ms
+- and it happens on the serve loop, which handles one message at a time. One message per sheet
+makes each handler bounded by the largest sheet rather than by the largest design.
+
+The sheets become a design only when the last of them has arrived, so the sidecar stages them and
+`lastDesign` is replaced in one step. That is not defensive: **a design is only ever sent with every
+simulation closed** - Start and Refresh both do it on a closed simulation, Refresh by stopping
+first - so an upload never races a session, and nothing can observe a half-built design. The
+staging exists because an upload is several messages, not because something might look at it in the
+middle.
+
+The first sheet of an upload therefore also **drops the session**. Nothing is taken from a caller
+that is using it, and afterwards a command left over from before the design changed names an epoch
+that no longer exists and is refused - rather than being answered from a simulation of a design
+that has been replaced.
+
+### `SimBuild` and `SimDigest` — why they are carved out
 
 A build has no cycle loop to poll in; it is a sequence of phases. Bounding it means either yielding
 mid-phase, which needs partial construction state, or moving it off the serve loop, which needs a
 thread and costs every invariant in section B. Neither is worth it before the build itself is made
 faster, so it is **declared long** and the reply-time check exempts it by name — an exemption that
 is visible in the code rather than an unexplained outlier in a log.
+
+`SimDigest` is declared long for a different reason, and permanently. It renders a design's whole
+observable behaviour as text for the two runtimes to be compared byte for byte, which means
+building and running a simulation of its own. It is a **development and test command** - `simCompare`
+and the golden-model tests are its only callers - and bounding it would refuse exactly the large
+designs a divergence hunt most wants to check. It touches no session, so however long it runs it
+can only occupy the serve loop, never disturb a simulation.
 
 ---
 
@@ -456,7 +481,7 @@ is worth stating because the obvious design has more.
 
 | command | payload | reply | used by |
 |---|---|---|---|
-| `SendDesign` | one sheet | ok | both |
+| `SendDesign` | sheet index, sheet count, top sheet name, one sheet's JSON | which sheet, whether it decoded, whether the design is complete | both |
 | `SimBuild` | top sheet, array size | epoch, array size, ok or error | both |
 | `SimRun` | target cycle, time budget | epoch, clock tick, done, first valid cycle, **and the panel when done** | both |
 | `SimRead` | start, rep, samples, signals | values, signal-major | both |
@@ -506,9 +531,10 @@ answer once rather than a window read repeatedly from `view`.
 
 ### What this leaves unbounded
 
-`SimBuild`, and only `SimBuild`. Every other command is bounded by something the caller sets: a
-sheet, a time budget, a sample count, an input count, a window length. That is what makes the
-reply-time invariant of section A6 a property of the protocol rather than a hope about it.
+`SimBuild` and `SimDigest`, both declared. Every other command is bounded by something the caller
+sets: a sheet, a time budget, a sample count, an input count, a window length. That is what makes
+the reply-time invariant of section A6 a property of the protocol rather than a hope about it - and
+what makes the two exemptions worth naming in the code rather than discovering in a log.
 
 ---
 

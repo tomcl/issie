@@ -224,12 +224,49 @@ let private packStrings (strings: string list) : obj =
 
     payload
 
-/// Send a design as its top sheet name plus one JSON string per sheet - per-sheet rather than
-/// one design JSON so the sidecar can reuse sheets it has already decoded (an unchanged sheet
-/// serialises to the identical string). Resolves with the sidecar's JSON report.
+/// Send a design as ONE MESSAGE PER SHEET: which sheet of how many, then the top sheet's name
+/// and that sheet's JSON.
+///
+/// Per sheet because decoding is the cost and it happens on the sidecar's serve loop, which
+/// serves one message at a time - so a whole design in one message is one handler holding that
+/// loop for ~300ms on 3cpu, against ~25ms for its largest single sheet. Per-sheet framing also
+/// lets the sidecar reuse sheets it has already decoded, since an unchanged sheet serialises to
+/// the identical string.
+///
+/// Sent in order, awaited one at a time. The sheets are a design only once the last has landed,
+/// which is what the reply's `complete` says; sending them at once would arrive in any order and
+/// give the sidecar no way to know when it had them all.
+///
+/// A design is only ever sent with every simulation closed - Start and Refresh both do it on a
+/// closed one - so an upload never races a session. The sidecar drops whatever session it holds
+/// when the first sheet arrives, so a command left over from before the design changed names an
+/// epoch that no longer exists.
+///
+/// Resolves with the last reply, or stops at the first error and resolves with that.
 let sendDesign (topSheet: string) (sheetJsons: string list) : JS.Promise<string> =
-    request Constants.sendDesignCmd (packStrings (topSheet :: sheetJsons))
-    |> Promise.map decodeTextPayload
+    let count = List.length sheetJsons
+
+    let sendOne (index: int) (json: string) : JS.Promise<string> =
+        let strings = packStrings [ topSheet; json ]
+        let payload = makeBytes (8 + int (byteLength strings))
+        writeUint32At payload 0 (float index)
+        writeUint32At payload 4 (float count)
+        blitAt payload strings 8
+        request Constants.sendDesignCmd payload |> Promise.map decodeTextPayload
+
+    let rec sendFrom (index: int) (remaining: string list) : JS.Promise<string> =
+        match remaining with
+        | [] -> Promise.lift (sprintf "{\"error\":\"a design with no sheets\"}")
+        | [ last ] -> sendOne index last
+        | json :: rest ->
+            sendOne index json
+            |> Promise.bind (fun reply ->
+                if reply.StartsWith "{\"error" then
+                    Promise.lift reply
+                else
+                    sendFrom (index + 1) rest)
+
+    sendFrom 0 sheetJsons
 
 /// A request whose payload is uint32 LE arguments and whose reply is text.
 let private requestArgs (cmd: int) (args: int list) : JS.Promise<string> =

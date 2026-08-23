@@ -114,6 +114,15 @@ let mutable private sheetCache: Map<string, CommonTypes.SimpleSheet> = Map.empty
 /// The last design assembled from a SendDesign, which is what the Sim* commands operate on.
 let mutable private lastDesign: CommonTypes.SimpleDesign option = None
 
+/// An upload in progress: the top sheet it names, and the (json, sheet) pairs received so far.
+///
+/// Sheets arrive one per message so that no handler occupies the serve loop for a whole design's
+/// decode, which means a design exists in pieces for as long as the upload lasts. It is assembled
+/// here rather than into `lastDesign`, so that what the Sim* commands see is only ever a design
+/// that arrived completely. The first sheet of an upload discards whatever was staged before it,
+/// so an abandoned upload costs nothing and needs no timeout.
+let mutable private staged: (string * (string * CommonTypes.SimpleSheet) list) option = None
+
 /// A response frame carrying a binary payload.
 let private bytesResponse (header: byte array) (payload: byte array) =
     let frame = Array.zeroCreate (Protocol.HeaderSize + payload.Length)
@@ -166,41 +175,67 @@ let private serve (ws: WebSocket) (ct: CancellationToken) =
                     Random.Shared.NextBytes(Span(frame, Protocol.HeaderSize, n))
                     do! send ws frame ct
                 | Protocol.SendDesign ->
-                    // per-sheet framing so an unchanged sheet costs a lookup, not a decode -
-                    // see DesignCache; the reply says how much work was actually done, as a
-                    // little JSON built by hand since nothing here warrants an encoder
+                    // One sheet per message: the whole 18-sheet 3cpu design decodes in ~300ms and
+                    // its largest sheet in ~25ms, and a handler holds the serve loop for as long as
+                    // it runs - so the design is uploaded in pieces and assembled when the last one
+                    // lands. Per-sheet framing also means an unchanged sheet costs a string
+                    // comparison rather than a decode (DesignCache).
                     let stopwatch = Diagnostics.Stopwatch.StartNew()
+                    let sheetIndex = argAt body 0
+                    let sheetCount = argAt body 4
 
                     let outcome =
-                        DesignCache.parsePayload body
+                        DesignCache.parsePayload body[8..]
                         |> Result.bind (fun (topSheet, sheetJsons) ->
-                            DesignCache.decodeSheets sheetCache sheetJsons
-                            |> Result.map (fun (sheets, decoded, newCache) ->
+                            match sheetJsons with
+                            | [ json ] -> Ok(topSheet, json)
+                            | other -> Error $"expected one sheet in a SendDesign message, got {other.Length}")
+                        |> Result.bind (fun (topSheet, json) ->
+                            DesignCache.decodeSheet sheetCache json
+                            |> Result.map (fun (sheet, wasDecoded, newCache) ->
                                 sheetCache <- newCache
 
-                                let design: CommonTypes.SimpleDesign =
-                                    { TopSheet = topSheet; Sheets = sheets }
+                                // The first sheet starts an upload, discarding any abandoned one -
+                                // and the session with it. A design only ever arrives with every
+                                // simulation closed, so nothing is taken away from a caller that is
+                                // using it; saying so here is what makes a command left over from
+                                // before the design changed name an epoch that no longer exists.
+                                let soFar =
+                                    match sheetIndex, staged with
+                                    | 0, _ ->
+                                        SimSession.discardForNewDesign ()
+                                        []
+                                    | _, Some(_, pairs) -> pairs
+                                    | _, None -> []
 
-                                design, decoded))
+                                let pairs = soFar @ [ json, sheet ]
+                                staged <- Some(topSheet, pairs)
+                                topSheet, pairs, wasDecoded))
 
                     stopwatch.Stop()
 
                     let reply =
                         match outcome with
-                        | Ok(design, decoded) ->
-                            lastDesign <- Some design
-                            let comps = design.Sheets |> List.sumBy (fun sheet -> sheet.Components.Length)
-                            let conns = design.Sheets |> List.sumBy (fun sheet -> sheet.Connections.Length)
+                        | Ok(topSheet, pairs, wasDecoded) ->
+                            let complete = List.length pairs = sheetCount
+
+                            if complete then
+                                let sheets = pairs |> List.map snd
+
+                                lastDesign <- Some { TopSheet = topSheet; Sheets = sheets }
+                                // the cache grew across the upload; keep exactly this design
+                                sheetCache <- DesignCache.keepOnly (pairs |> List.map fst) sheetCache
+                                staged <- None
 
                             sprintf
-                                """{"sheets":%d,"decoded":%d,"cached":%d,"components":%d,"connections":%d,"deserialiseMs":%.2f}"""
-                                design.Sheets.Length
-                                decoded
-                                (design.Sheets.Length - decoded)
-                                comps
-                                conns
+                                """{"sheet":%d,"of":%d,"decoded":%b,"complete":%b,"deserialiseMs":%.2f}"""
+                                sheetIndex
+                                sheetCount
+                                wasDecoded
+                                complete
                                 stopwatch.Elapsed.TotalMilliseconds
                         | Error e ->
+                            staged <- None
                             let safe = e.Replace("\\", "/").Replace("\"", "'").Replace("\n", " ").Replace("\r", " ")
                             sprintf """{"error":"%s"}""" safe
 

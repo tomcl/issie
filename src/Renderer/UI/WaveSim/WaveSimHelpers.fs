@@ -291,8 +291,8 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
     let startEndMsg, startEndColor =
         match running, errored with
         | false, true -> "View Problems", IsWarning
-        | false, false -> "Start Simulation", IsSuccess
-        | true, _ -> "EndSimulation", IsDanger
+        | false, false -> "Start Simulation" + ModelHelpers.simulatorLabel model, IsSuccess
+        | true, _ -> "EndSimulation" + ModelHelpers.simulatorLabel model, IsDanger
 
 
     

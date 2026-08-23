@@ -168,9 +168,11 @@ couple of seconds. It is a timestamp and not a flag because the fetch must be tr
 eventually - the commonest failure is asking while the sidecar is still starting, which fixes itself
 a moment later, and a user action after that is what picks it up.
 
-A fetch that could not name a driver for every wave it was asked for **fails** rather than returning
-having done nothing, for the same reason: those waves would still be missing, and a missing wave is
-what asks for a fetch.
+A wave the simulation cannot name is recorded as such - `NoDriver`, against the window it was asked
+over - rather than left missing, for the same reason: a missing wave is what asks for a fetch, so
+one that can never be fetched would be asked for by every update for as long as it stayed selected.
+It draws blank and says so once. The rest of the view is fetched as usual; refusing the whole
+request over it left the viewer white.
 
 With the epoch in place, a superseded chain's replies are rejected anyway, which makes the bit an
 optimisation of a correctness property rather than the correctness property itself. Both are worth
@@ -194,6 +196,7 @@ could only say all or none, and so refetched every wave to get the one that had 
 | D1 | A wave answers only for the exact window it was fetched for. | **holds** — an equality test, deliberately not a containment test |
 | D2 | A wave is in the cache only if its data is. | **holds** — by construction: the entry and the data are put there together |
 | D3 | The data received is `signals × samples × wordsPerSample` values long. | **holds** — and is checked, because a short reply is silent |
+| D5 | A wave asked for over a window holds an answer for it - samples, or "no driver". | **holds** — by construction, and it is what stops an unfetchable wave being asked for for ever |
 | D4 | Nothing fetched under a session that has ended is ever written. | **holds** — and is checked, by epoch, on receipt |
 
 D1 is stricter than it needs to be and that is intentional: a containment test would let the viewer

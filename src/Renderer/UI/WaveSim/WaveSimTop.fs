@@ -526,6 +526,20 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
         let wsModel =
             getWSModel model
             |> fun wsModel -> {wsModel with ScrollbarBkgRepCycs= Constants.scrollbarBkgRepCyclesInit}
+            // A simulation that is being STARTED starts at the beginning. The WaveSimModel outlives
+            // the simulation it was made for - ending one leaves it in the map, marked Ended, so
+            // that the selection and the configuration survive - and the cursor and the scroll
+            // position were surviving with them, which put a brand new simulation's cursor wherever
+            // the last one happened to be left. A Refresh keeps its place, which is the point of a
+            // Refresh.
+            |> fun wsModel ->
+                match wsModel.State with
+                | Success -> wsModel
+                | _ ->
+                    { wsModel with
+                        StartCycle = 0
+                        CursorDisplayCycle = 0
+                        CursorExactClkCycle = 0 }
             // A simulation being started at the untouched default clock count is given one its
             // design can be started in - an explicitly configured count is honoured exactly, see
             // startingLastClock. Only on starting: a Refresh of a running simulation keeps what

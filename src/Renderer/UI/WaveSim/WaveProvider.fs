@@ -63,41 +63,71 @@ let forget () =
 
 /// (component id, output port, access path) for each driver, taken from the wave index.
 ///
-/// A driver is a component OUTPUT and `WaveIndexT.SimArrayIndex` says which driver a wave reads,
-/// so an output-port entry names its own driver. An INPUT-port entry names the driven component
-/// instead, and has to be followed back through `InputDrivers` to the output feeding it - most
-/// drivers are only reachable that way. Measured on 3cpu: taking output entries alone found 167
-/// of 1,094 drivers, and the waves a user actually picks were mostly among the other 927.
+/// A driver is a component OUTPUT, so the components name them all: every output carries the index
+/// of the driver it is (`IOArray.Index`). That is where this starts, and it is why a waveform the
+/// user picks can be asked for whatever kind of port it was picked as.
+///
+/// It used to work the other way round, from the wave index alone - an output-port entry names its
+/// own driver, an input-port entry has to be followed back through `InputDrivers` to the output
+/// feeding it - and a driver reachable by neither could not be named at all. Four of thirty
+/// waveforms on one design were, and the fetch that could not name them refused the whole view.
+/// The wave index is still read afterwards, for anything the components did not account for.
+///
+/// Memoised on the simulation, like the viewer's other indices, because it walks every component
+/// and is asked for on every fetch. Cleared with them by `Helpers.clearIdentityMemos`.
 ///
 /// A ComponentId IS an integer here - the whole design is reduced to integer ids when a project
 /// is opened (Helpers.RegenerateIds), which is what lets the sidecar name components at all - so
 /// this is a rename rather than a conversion.
-let private driverSignals (fs: FastSimulation) : Map<int, int * int * int list> =
-    let ofFId ((ComponentId comp), path) port =
-        comp, port, path |> List.map (fun (ComponentId p) -> p)
+let private driverSignals: FastSimulation -> Map<int, int * int * int list> =
+    Helpers.memoizeByIdentity (fun (fs: FastSimulation) ->
+        let ofFId ((ComponentId comp), path) port =
+            comp, port, path |> List.map (fun (ComponentId p) -> p)
 
-    let componentAt fId =
-        match Map.tryFind fId fs.FComps with
-        | Some fc -> Some fc
-        | None -> Map.tryFind fId fs.FCustomComps
+        let componentAt fId =
+            match Map.tryFind fId fs.FComps with
+            | Some fc -> Some fc
+            | None -> Map.tryFind fId fs.FCustomComps
 
-    (Map.empty, fs.WaveIndex)
-    ||> Array.fold (fun found wi ->
-        if Map.containsKey wi.SimArrayIndex found then
-            found
-        else
-            let signal =
-                match wi.PortType with
-                | PortType.Output -> Some(ofFId wi.Id wi.PortNumber)
-                | PortType.Input ->
-                    componentAt wi.Id
-                    |> Option.bind (fun fc -> Array.tryItem wi.PortNumber fc.InputDrivers)
-                    |> Option.flatten
-                    |> Option.map (fun (fId, OutputPortNumber port) -> ofFId fId port)
+        // Every driver IS a component output, and an output knows which driver it is - `IOArray.Index`
+        // is that index. So the components between them name every driver there is, without anything
+        // having to be followed back. This is the whole answer; the wave index below only fills in
+        // what a custom component's output aliases.
+        let fromComponents =
+            (Map.empty, fs.FComps)
+            ||> Map.fold (fun found fId fc ->
+                (found, fc.Outputs |> Array.mapi (fun port io -> io.Index, ofFId fId port))
+                ||> Array.fold (fun found (index, signal) -> Map.add index signal found))
 
-            match signal with
-            | Some s -> Map.add wi.SimArrayIndex s found
-            | None -> found)
+        // Anything left: a driver no ordinary component owns an output for. Taken from the wave
+        // index, where an output-port entry names its own driver and an input-port entry has to be
+        // followed back through InputDrivers to the output feeding it.
+        let named =
+            (fromComponents, fs.WaveIndex)
+            ||> Array.fold (fun found wi ->
+                if Map.containsKey wi.SimArrayIndex found then
+                    found
+                else
+                    let signal =
+                        match wi.PortType with
+                        | PortType.Output -> Some(ofFId wi.Id wi.PortNumber)
+                        | PortType.Input ->
+                            componentAt wi.Id
+                            |> Option.bind (fun fc -> Array.tryItem wi.PortNumber fc.InputDrivers)
+                            |> Option.flatten
+                            |> Option.map (fun (fId, OutputPortNumber port) -> ofFId fId port)
+
+                    match signal with
+                    | Some s -> Map.add wi.SimArrayIndex s found
+                    | None -> found)
+
+        // Once per simulation, since this is memoised on it. Any driver named by neither route is a
+        // waveform that cannot be fetched, so it is worth being able to see the number.
+        Log.dbg
+            Log.Wave
+            $"drivers nameable for the .NET simulator: {Map.count fromComponents} from components, {Map.count named} in all, of {fs.Drivers.Length}"
+
+        named)
 
 /// The error text of a sidecar reply, or None when it is not an error. Every reply that can fail
 /// answers with a JSON object whose only key is "error".
@@ -200,23 +230,39 @@ let private fetchWaves
     // needs. This used to drop anything over 32 bits while still recording it as asked for, so
     // coverage said yes, the wave came back with no row, and it kept whatever it had been showing
     // before, silently and for ever.
+    let asked = List.distinct driverIndices
+
     let wanted =
-        driverIndices
-        |> List.distinct
+        asked
         |> List.choose (fun i ->
             match Map.tryFind i signals, Array.tryItem i fs.Drivers with
             | Some sig_, Some(Some driver) -> Some(i, sig_, driver.DriverWidth)
             | _ -> None)
 
-    if List.length wanted < List.length (List.distinct driverIndices) then
-        // Some wave asked for has no driver in this simulation, so a reply could not carry it and
-        // it would stay missing however often it was asked for - which, since a missing wave is
-        // exactly what asks for a fetch, is a loop rather than a gap. Say so instead: an error is
-        // backed off and reported, and every wave selected should have a driver.
-        Promise.lift (
-            Error
-                $"{List.length (List.distinct driverIndices) - List.length wanted} of {List.length (List.distinct driverIndices)} waves have no driver in this simulation"
-        )
+    // Waves this simulation offers no way to name. `simRead` asks by component and port, and a
+    // driver reachable only through a wave index the renderer cannot follow back to an output - a
+    // custom component's input port is the case that exists - has neither. They are recorded as
+    // having no driver rather than left missing: a missing wave is what asks for a fetch, so
+    // leaving them would ask again on every update, for ever. The rest of the view is fetched as
+    // usual, which is the point - refusing the whole request over them left the viewer blank.
+    let unnameable =
+        let named = wanted |> List.map (fun (i, _, _) -> i) |> Set.ofList
+        asked |> List.filter (fun i -> not (Set.contains i named))
+
+    if not (List.isEmpty unnameable) then
+        WaveData.setNoDriver unnameable window
+
+        let plural = if List.length unnameable = 1 then "waveform" else "waveforms"
+
+        Log.warnOnce
+            $"no-driver-{fs.SimulatedTopSheet}-{List.length unnameable}"
+            ($"{List.length unnameable} of {List.length asked} {plural} cannot be read from the .NET simulator:"
+             + " it has no driver to name them by, which a custom component's input port does not have."
+             + " They are left blank; every other waveform is unaffected.")
+
+    if List.isEmpty wanted then
+        // nothing left to ask for once those are out
+        Promise.lift (Ok())
     else
         let leadIn = window.StartSample > 0
         let firstCycle = if leadIn then window.FirstCycle - window.Multiplier else window.FirstCycle

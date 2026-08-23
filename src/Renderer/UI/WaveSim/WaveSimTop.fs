@@ -217,7 +217,11 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
         (wsModel.ShownCycles + wsModel.StartCycle)*wsModel.SamplingZoom //last shown cycle + 1, to get transitions
         |> min (wsModel.WSConfig.LastClock + Constants.maxStepsOverflow - 1 + wsModel.SamplingZoom) // cannot go beyond the array
 
-    if cycleLimit >= fs.MaxArraySize then
+    // Only of the simulator that is RUNNING. The renderer's own arrays are sized for the run when it
+    // is simulating, and for nothing at all when the sidecar is - so past the first few hundred
+    // cycles this would refuse every view of a .NET simulation, which is exactly the case the small
+    // arrays exist for.
+    if model.SimulateInRenderer && cycleLimit >= fs.MaxArraySize then
         failwithf $"Sanity check failed: lastCycleNeeded = {cycleLimit} >= fs.MaxArraySize = {fs.MaxArraySize}"
 
     if fs.NumStepArrays = 0 then
@@ -227,10 +231,11 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
         // and for as long as the user keeps moving the cursor rather than the window, since only a
         // window move refreshes again.
         //
-        // It happens when a build failed after a simulation was already on screen. The commonest
-        // reason is running out of memory for the step arrays, which the renderer still allocates
-        // in full even when the sidecar is doing the simulating - four million cycles of 3cpu is
-        // 7.1GB - and which fails once the heap is fragmented even where it succeeded before.
+        // It happens when a build failed after a simulation was already on screen, which in
+        // practice means running out of memory for the step arrays. The renderer's own are sized
+        // for what it will read - a few hundred cycles when the sidecar is simulating - so what
+        // remains is a design too big to hold at the cycle count it is configured for, in the mode
+        // that holds it here.
         Log.error
             "the waveform viewer has no simulation to draw from - what is on screen is whatever was drawn last, and will not update"
 
@@ -482,13 +487,18 @@ let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd
                 |> CanvasExtractor.simpleDesignOfLoadedComponents
                 |> fun d -> { d with TopSheet = fs.SimulatedTopSheet }
 
+            // What the SIDECAR allocates, from the configuration - not from the renderer's own
+            // arrays, which in this mode are sized for their structure and hold a few hundred
+            // cycles whatever the configuration says.
+            let arraySize = ModelHelpers.Constants.waveSimRequiredArraySize ws
+
             Log.dbg
                 Log.Wave
                 $"fetching {toFetch.Length} waves over {window.StartSample}+{window.SampleCount}x{window.Multiplier}"
 
             let fetch =
                 Elmish.Cmd.OfPromise.either
-                    (fun () -> WaveProvider.fetchWavesFor design fs.MaxArraySize fs toFetch window ignore)
+                    (fun () -> WaveProvider.fetchWavesFor design arraySize fs toFetch window ignore)
                     ()
                     // WaveFetchDone rather than UpdateModel: clearing the bit and refreshing has to
                     // happen in one message, and the refresh returns a model AND A COMMAND that
@@ -563,12 +573,19 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
                         dispatch <| SetSimulationNotification (Notifications.warningSimNotification message)
                         Optic.set (wSConfig_ >-> lastClock_) lastClock wsModel
         let simRes =
-            // Here is where the new fast simulation is created
-            ModelHelpers.simulateModel
-                true
-                model.WaveSimSheet
-                (Constants.waveSimRequiredArraySize wsModel)
-                canvasState model
+            // Here is where the new fast simulation is created.
+            //
+            // Sized for what THIS process will read from it, which where the .NET simulator is
+            // simulating is none of it: the waveforms come off the wire, and the renderer's copy is
+            // built for its structure. What the sidecar allocates is a separate decision, made from
+            // the configuration where the fetch is issued.
+            let arraySize =
+                if model.SimulateInRenderer then
+                    Constants.waveSimRequiredArraySize wsModel
+                else
+                    min (Constants.waveSimRequiredArraySize wsModel) Constants.rendererArraySizeWhenSidecarSimulates
+
+            ModelHelpers.simulateModel true model.WaveSimSheet arraySize canvasState model
 
         match simRes with
         | (Error e, _) ->

@@ -348,10 +348,13 @@ type WaveSimModel = {
     /// This is the one thing that stops it: the same waves are not asked for again until a couple
     /// of seconds have passed.
     ///
-    /// A timestamp rather than a flag, because the fetch must be tried again eventually - the
-    /// commonest failure is asking while the sidecar is still starting, which fixes itself a moment
-    /// later - and "how long since" is the only way to say that without a second thing to remember
-    /// to clear.
+    /// A timestamp rather than a flag, because the fetch must be tried again eventually, and "how
+    /// long since" says that without a second thing to remember to clear.
+    ///
+    /// It should never be doing any work: a sidecar that is still starting up is waited for by the
+    /// transport, so a failure here means a fault - a session that no longer exists, a design that
+    /// would not build, a sidecar that has died - and those do not fix themselves. This is what
+    /// stops one of them being asked as fast as the message queue will carry it.
     FetchFailedAtMs: float
     /// Left-most visible clock cycle.
     /// this is scaled by CycleMultiplier, and therefore not the real clock cycle

@@ -56,9 +56,10 @@ simulator's), then `waveSelect <n>`, `ramSelect <n>`, `waveView "<start> [shown]
 `waveCursor <n>` and `waveConfig <lastClock>` (the Configure dialog's cycle count, which takes
 effect on the next start).
 
-`node scripts/drive.js wait "sidecar.connected"` answers the other question a script needs: the app
-spawns the .NET simulator as it starts, and after a rebuild that process takes tens of seconds to be
-published, during which every fetch fails with "not running yet".
+`sidecar.connected` says whether a socket is open, which it is once anything has fetched. Nothing
+needs to wait for the sidecar to start any more - the transport does that - so a script can ask for
+data as soon as the viewer is running and simply wait for it to arrive:
+`wait "waves.missing === 0" 90`.
 
 ## Waiting for a condition rather than for a duration
 

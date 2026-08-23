@@ -106,25 +106,28 @@ let getRomCommentAtStep (fs: FastSimulation) (step: int) (wave: Wave) : string =
 /// the selected waves that WaveDetails still HOLDS - see WaveSimStyle.selectedWaves, which the three
 /// columns are all built from - so counting rows off SelectedWaves itself answered for a different
 /// row wherever the two differ, and indexed WaveDetails with a key it might not have.
-/// The gaps are those of the waveform AS DRAWN, passed in rather than looked up, because they are a
-/// fact about the picture on screen and not about the wave: where the row is showing an older view
-/// - its data has not arrived yet - the gaps of that older view are the ones the pointer is over.
-let getWaveToolTip (cycle:int) (gaps: GapStore) (wave: Wave) (ws:WaveSimModel) =
-    let arrayIndex = cycle * ws.SamplingZoom
+/// Everything is asked of the waveform AS DRAWN - the gaps in it, the samples it was drawn from,
+/// and the cycle they are of. What is under the pointer is a column of a picture, and the picture
+/// may be a window behind the controls while its data is still on its way; the tooltip describes
+/// what is there rather than what has been asked for.
+///
+/// `sample` is therefore an index into that picture, counted from its left edge, and NOT a clock
+/// cycle. It used to be given the absolute display cycle and to test it against gaps recorded from
+/// the window's left edge, so a viewer scrolled anywhere but cycle 0 asked about the wrong column.
+let getWaveToolTip (sample: int) (drawn: WaveDrawn.Drawn) (wave: Wave) (ws: WaveSimModel) =
+    let window = drawn.Spec.Window
+    let cycle = window.FirstCycle + sample * window.Multiplier
+
     let hiddenValue =
-        if checkIfHatched gaps cycle then
-            // The cursor can rest past the end of what has been simulated, and where the sidecar
-            // is simulating it can rest outside the window fetched for this view, so the value is
-            // ASKED for rather than taken - a read off the end of a JS typed array is undefined,
-            // which would be written into the tooltip as one.
-            WaveData.valueAt (SignalHandle wave.DriverIndex) arrayIndex
+        if checkIfHatched drawn.Gaps sample then
+            WaveDrawn.valueAtSample drawn sample
             |> Option.map (fun fd ->
                 match fd.Dat with
                 | Word v -> NumberHelpers.UInt32ToPaddedString Constants.waveLegendMaxChars ws.Radix fd.Width v
                 | BigWord v -> NumberHelpers.BigIntToPaddedString Constants.waveLegendMaxChars ws.Radix fd.Width v)
             |> Option.defaultValue ""
         else ""
-    match hiddenValue, getRomCommentAtStep Simulator.simCacheWS.FastSim arrayIndex wave with
+    match hiddenValue, getRomCommentAtStep Simulator.simCacheWS.FastSim cycle wave with
     | "", "" -> ""
     | value, "" -> $"Value:{value}"
     | "", comment -> comment

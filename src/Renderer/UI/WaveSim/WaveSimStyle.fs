@@ -650,7 +650,15 @@ let clkLineStyle = Style [
     StrokeWidth Constants.clkLineWidth
 ]
 
-/// Grid lines separating clock cycles
+/// Grid lines separating clock cycles.
+///
+/// Placed relative to the FIRST SHOWN cycle, like the cursor highlight beside them, because the
+/// SVG they are drawn in starts at x = 0 whatever the view is scrolled to (`viewBoxMinX`). Drawing
+/// them at the absolute cycle number instead put them StartCycle cycles to the right of where they
+/// belong - off the end of the waveforms, and only visible at all because that SVG does not clip
+/// (it must not, or a tooltip could not run out over the columns beside it). Scrolled to cycle 0
+/// they were right, which is why this survived: what it looked like further along was a grid that
+/// came and went with the scroll position.
 let backgroundSVG (wsModel: WaveSimModel) count : ReactElement list =
     let clkLine x = 
         line [
@@ -660,7 +668,7 @@ let backgroundSVG (wsModel: WaveSimModel) count : ReactElement list =
             X2 x
             Y2 (Constants.viewBoxHeight * float (count + 1))
         ] []
-    [ wsModel.StartCycle + 1 .. endCycle wsModel + 1 ] 
+    [ 1 .. wsModel.ShownCycles ]
     |> List.map (fun x -> clkLine (float x * singleWaveWidth wsModel))
 
 /// Change Tooltip SVG element based on mouse position.

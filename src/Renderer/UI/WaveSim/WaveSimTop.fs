@@ -752,16 +752,17 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
     let wsModel = getWSModel model
 
     let top, needsBottomHalf = topHalf canvasState model dispatch
-    let needsRAMs = not <| Map.isEmpty wsModel.SelectedRams
-    let height = calcWaveformAndScrollBarHeight wsModel
-    let bottomHalf() = // this has fixed height
-        div [HTMLAttr.Id "BottomHalf" ; showWaveformsAndRamStyle (if needsRAMs then screenHeight() else height)] (
+    let bottomHalf () = // the space under the controls, filled by what is shown in it
+        div [HTMLAttr.Id "BottomHalf" ; showWaveformsAndRamStyle] (
             if wsModel.SelectedWaves.Length > 0 then [
                 WaveSimWaveforms.showWaveforms model wsModel dispatch               
                 makeScrollbar wsModel dispatch ]
             else []
             @
-            [WaveSimRams.ramTables dispatch wsModel model] 
+            [ div
+                  [ HTMLAttr.Id "RamTables"
+                    ramTablesStyle (wsModel.SelectedWaves.Length > 0) ]
+                  [ WaveSimRams.ramTables dispatch wsModel model ] ]
         )
     div [
         Style [

@@ -90,6 +90,11 @@ module Constants =
 
     let wsButtonHeight = 30
     let wsButtonWidth = 120
+
+    /// The width of the top-row buttons in a development build, where the one that starts a
+    /// simulation also says which simulator it will start. "Start Simulation (renderer)" does not
+    /// fit in the width the shipped label was measured for.
+    let wsButtonWidthDev = 200
     let wsButtonFontSize = 16
 
     /// initial number of clock cycles navigated by the scrollbar.

@@ -155,6 +155,16 @@ let endSession (askedEpoch: int) : string =
 let private u32 (body: byte array) (offset: int) =
     if body.Length >= offset + 4 then int (BitConverter.ToUInt32(body, offset)) else 0
 
+/// The uint32 at an offset, unsigned.
+///
+/// u32 above returns an int, which is what counts, ids and cycle numbers want and is wrong for a
+/// VALUE: a word with its top bit set is a NEGATIVE int, and shifting that into a bigint gives a
+/// negative number, which then masks to a value with every high bit set. Any input word of 2^31 or
+/// more arrived corrupted by exactly that, silently, and only for values large enough that nothing
+/// in a 16-bit test design ever produced one.
+let private word (body: byte array) (offset: int) : uint32 =
+    if body.Length >= offset + 4 then BitConverter.ToUInt32(body, offset) else 0u
+
 /// Set top-level input values at a cycle: uint32 cycle, uint32 count, then per input uint32
 /// component id + value as two uint32 words. The value reaches the simulator through the same
 /// changeInput call the renderer uses, masked to the input's width by FastData construction.
@@ -175,7 +185,7 @@ let setInputs (askedEpoch: int) (body: byte array) : string =
                 sprintf """{"cycle":%d,"inputsSet":%d}""" cycle count
             else
                 let compId = u32 body offset
-                let value = bigint (u32 body (offset + 4)) + (bigint (u32 body (offset + 8)) <<< 32)
+                let value = bigint (word body (offset + 4)) + (bigint (word body (offset + 8)) <<< 32)
 
                 match widthOf compId with
                 | None -> errorReply $"component {compId} is not a top-level input of the simulation"
@@ -189,9 +199,21 @@ let setInputs (askedEpoch: int) (body: byte array) : string =
 /// Read sampled output data: for each signal, `samples` values taken every `rep` cycles from
 /// `start` - the (StartCycle, SamplingZoom, ShownCycles) triple the waveform viewer's own
 /// generation runs on, so one request serves a view at any zoom, and a tooltip is the
-/// one-signal one-sample special case. The reply payload is uint32 signal count, uint32 sample
-/// count, then signal-major uint32 values - which the renderer views as a Uint32Array with no
-/// copy, the reason the frame header is 8 bytes. Errors come back as JSON text instead.
+/// one-signal one-sample special case.
+///
+/// Reply payload: uint32 signal count, uint32 sample count, uint32 words per sample, four bytes
+/// of padding, then signal-major values - each sample `wordsPerSample` uint32s, least significant
+/// word first. The renderer views the whole thing as a Uint32Array with no copy, which is what the
+/// 8-byte frame header and that padding are for: values start at byte 24 of the frame and stay
+/// 8-aligned.
+///
+/// **Any width.** `wordsPerSample` is `ceil(widest / 32)` over the signals asked for, so a request
+/// of ordinary buses costs exactly what it did and one wide bus widens the samples for that
+/// request alone. Refusing wide signals instead - which this did - was not a limitation the caller
+/// could see: the viewer asked for them, was given a reply that silently omitted them, and drew
+/// whatever those waveforms had shown before, for ever.
+///
+/// Errors come back as JSON text instead.
 let read (askedEpoch: int) (body: byte array) : Result<byte array, string> =
     match checkEpoch askedEpoch, session with
     | Error _, _ ->
@@ -215,6 +237,18 @@ let read (askedEpoch: int) (body: byte array) : Result<byte array, string> =
 
         let lastWanted = startCycle + (samples - 1) * rep
 
+        /// How wide the widest signal asked for is, in uint32 words. Read from the simulation
+        /// rather than taken from the request: the renderer knows the widths too, but a reply that
+        /// states its own layout cannot be misread by a caller whose idea of a width is stale.
+        let wordsPerSample =
+            signals
+            |> List.fold
+                (fun widest (cid, path, outPort) ->
+                    match FastExtract.extractFastSimulationOutput fs (max 0 startCycle) (cid, path) (OutputPortNumber outPort) with
+                    | SimGraphTypes.IData fd -> max widest ((fd.Width + 31) / 32)
+                    | SimGraphTypes.IAlg _ -> widest)
+                1
+
         if rep < 1 || samples <= 0 || count <= 0 then
             Error "SimRead needs rep >= 1 and at least one sample and one signal"
         elif fs.ClockTick < lastWanted then
@@ -222,9 +256,12 @@ let read (askedEpoch: int) (body: byte array) : Result<byte array, string> =
         elif lastWanted - startCycle >= fs.MaxArraySize || fs.ClockTick - startCycle >= fs.MaxArraySize then
             Error $"cycles {startCycle}..{lastWanted} are outside the {fs.MaxArraySize}-entry circular buffer"
         else
-            let reply = Array.zeroCreate (8 + 4 * count * samples)
+            // 16 bytes of header - three counts and four bytes of padding - so that the values
+            // begin 8-aligned once the frame's own 8-byte header is in front of them
+            let reply = Array.zeroCreate (16 + 4 * count * samples * wordsPerSample)
             BitConverter.GetBytes(uint32 count).CopyTo(reply, 0)
             BitConverter.GetBytes(uint32 samples).CopyTo(reply, 4)
+            BitConverter.GetBytes(uint32 wordsPerSample).CopyTo(reply, 8)
 
             let mutable error = None
 
@@ -235,11 +272,15 @@ let read (askedEpoch: int) (body: byte array) : Result<byte array, string> =
                         let cycle = startCycle + j * rep
 
                         match FastExtract.extractFastSimulationOutput fs cycle (cid, path) (OutputPortNumber outPort) with
-                        | SimGraphTypes.IData fd when fd.Width <= 32 ->
-                            let offset = 8 + 4 * (signalIndex * samples + j)
-                            BitConverter.GetBytes(uint32 fd.GetBigInt).CopyTo(reply, offset)
                         | SimGraphTypes.IData fd ->
-                            error <- Some $"signal on component %A{cid} is {fd.Width} bits wide - only widths up to 32 are readable for now"
+                            // least significant word first, so a reader that wants only the low 32
+                            // bits reads word 0 whatever the width
+                            let value = fd.GetBigInt
+                            let sampleAt = 16 + 4 * ((signalIndex * samples + j) * wordsPerSample)
+
+                            for w in 0 .. wordsPerSample - 1 do
+                                let word = uint32 ((value >>> (32 * w)) &&& 4294967295I)
+                                BitConverter.GetBytes(word).CopyTo(reply, sampleAt + 4 * w)
                         | SimGraphTypes.IAlg _ ->
                             error <- Some "algebraic values cannot be read")
 

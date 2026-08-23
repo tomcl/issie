@@ -408,9 +408,16 @@ let simLog () = requestArgs Constants.simLogCmd []
 [<Emit("new DataView($0.buffer, $0.byteOffset).getUint32($1, true)")>]
 let readUint32At (bytes: obj) (offset: int) : float = jsNative
 
-/// A zero-copy Uint32Array view over `count` values starting at byte 16 of a SimRead response
-/// frame (8-byte header + the two uint32 counts) - which is 8-aligned by construction.
-[<Emit("new Uint32Array($0.buffer, $0.byteOffset + 16, $1)")>]
+/// How many uint32 words each sample of a SimRead reply occupies - ceil(widest signal / 32), so
+/// one for a reply of ordinary buses. At byte 16 of the frame: 8 of frame header, then the signal
+/// and sample counts.
+[<Emit("new DataView($0.buffer, $0.byteOffset).getUint32(16, true)")>]
+let simReadWordsPerSample (frame: obj) : int = jsNative
+
+/// A zero-copy Uint32Array view over `count` words starting at byte 24 of a SimRead response
+/// frame - 8 of frame header, three uint32 counts and four bytes of padding, which is what keeps
+/// the values 8-aligned.
+[<Emit("new Uint32Array($0.buffer, $0.byteOffset + 24, $1)")>]
 let viewSimReadData (frame: obj) (count: int) : obj = jsNative
 
 /// Read an element of a Uint32Array view.
@@ -467,4 +474,4 @@ let simReadPoint
     simRead epoch clock 1 1 [ compId, outPort, path ]
     |> Promise.map (fun frame ->
         let asText = decodeText frame
-        if asText.StartsWith "{" then Error asText else Ok(readUint32At frame 16))
+        if asText.StartsWith "{" then Error asText else Ok(readUint32At frame 24))

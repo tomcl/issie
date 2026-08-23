@@ -57,6 +57,25 @@ module Constants =
     /// shortStartClock rather than at what it was configured for.
     let bigDesignHeapShare = 0.2
 
+    /// How many clock cycles the RENDERER's own step arrays hold while the .NET simulator is the
+    /// one simulating.
+    ///
+    /// Enough to be a working simulation and no more. In that mode the renderer builds a
+    /// FastSimulation for its STRUCTURE - the wave index, the drivers, the names and widths the
+    /// selector and the viewer are built from - and reads none of its data: the waveforms come off
+    /// the wire, and what still reads the local arrays (the RAM tables, the schematic probe) is
+    /// reading a simulation that is never run whatever its size.
+    ///
+    /// Sizing them for the configured run instead cost the whole run twice over. Four million
+    /// cycles of 3cpu is 9GB of typed arrays in the renderer, allocated to be left at zero, and
+    /// stopping and starting such a simulation asked for the second 9GB while the first was still
+    /// held - which fails, with `RangeError: Array buffer allocation failed` from inside the step
+    /// arena, on a machine that has the memory for either one alone.
+    ///
+    /// The .NET side is unaffected: it is sized from the configuration, which is what it is
+    /// simulating.
+    let rendererArraySizeWhenSidecarSimulates = shortStartClock + maxStepsOverflow + 1000
+
     let defaultWSConfig = {
             LastClock = 2000; // Simulation array limit during wave simulation
             FirstClock = 0; // first clock accessible - limits scroll range. NOT IMPLEMENTED

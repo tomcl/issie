@@ -6,6 +6,7 @@
 
         node scripts/drive.js state                  what the app currently is, as JSON
         node scripts/drive.js refs                   what is holding a simulation, and heap use
+        node scripts/drive.js waves                  what the waveform viewer shows, holds and awaits
         node scripts/drive.js commands               the commands send accepts
         node scripts/drive.js send <name> [arg]      send one, and wait for the render it causes
         node scripts/drive.js script <file.txt>      a command per line, each awaiting its render
@@ -129,6 +130,9 @@ function parseScript(text) {
             case 'refs':
                 console.log(JSON.stringify(await evaluate(cdp, 'window.issieDev.simRefs()'), null, 2));
                 break;
+            case 'waves':
+                console.log(JSON.stringify(await evaluate(cdp, 'window.issieDev.waveState()'), null, 2));
+                break;
             case 'commands':
                 console.log((await evaluate(cdp, 'window.issieDev.commands()')).join('\n'));
                 break;
@@ -150,7 +154,7 @@ function parseScript(text) {
                 break;
             }
             default:
-                throw new Error(`unknown command '${cmd}': state | refs | commands | send | script`);
+                throw new Error(`unknown command '${cmd}': state | refs | waves | commands | send | script`);
         }
     } finally {
         cdp.close();

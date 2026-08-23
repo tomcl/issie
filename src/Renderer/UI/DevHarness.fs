@@ -123,6 +123,53 @@ let private state () =
                waveSimSheet = model.WaveSimSheet |> Option.defaultValue ""
                popupOpen = Option.isSome model.PopupViewFunc |}
 
+/// What the waveform viewer is showing, what it has, and what it is waiting for.
+///
+/// The three are separate questions and the viewer's failures are almost always a disagreement
+/// between two of them: the view says one window, the cache holds another, and a fetch either is or
+/// is not on its way to close the gap. None of it can be read off the DOM - a waveform drawn for an
+/// older window looks exactly like one drawn for this one.
+let private waveState () =
+    match latestModel with
+    | None -> box {| open_ = false |}
+    | Some model ->
+        match model.WaveSimSheet |> Option.bind (fun sheet -> Map.tryFind sheet model.WaveSim) with
+        | None -> box {| open_ = false |}
+        | Some ws ->
+            let window: WaveSlice.Window =
+                { StartSample = ws.StartCycle
+                  Multiplier = ws.SamplingZoom
+                  SampleCount = ws.ShownCycles }
+
+            let handles =
+                ws.SelectedWaves |> List.map (fun wi -> SignalHandle wi.SimArrayIndex)
+
+            box
+                {| open_ = true
+                   sheet = model.WaveSimSheet |> Option.defaultValue ""
+                   state = string ws.State
+                   inRenderer = model.SimulateInRenderer
+                   startCycle = ws.StartCycle
+                   shownCycles = ws.ShownCycles
+                   samplingZoom = ws.SamplingZoom
+                   cursor = ws.CursorExactClkCycle
+                   lastClock = ws.WSConfig.LastClock
+                   selected = List.length ws.SelectedWaves
+                   detailed = Map.count ws.WaveDetails
+                   // waves whose data is not the window they are about to be drawn over. Zero is
+                   // the resting state; anything else should be accompanied by fetchInProgress, or
+                   // by a fetch on the way out of the update that is running now
+                   missing = List.length (WaveData.needFetching handles window)
+                   // waves with an SVG, which is what is actually on screen. A wave can have one
+                   // drawn for an older window - that is the fallback, not a fault
+                   drawn =
+                    ws.WaveDetails
+                    |> Map.toList
+                    |> List.filter (fun (_, w) -> Option.isSome w.SVG)
+                    |> List.length
+                   fetchInProgress = ws.FetchInProgress
+                   spinner = Option.isSome model.SpinnerPayload |}
+
 /// What is currently holding a simulation, and how large each one is.
 ///
 /// The question a heap snapshot was needed for once, which is once more than it should be. A
@@ -405,6 +452,57 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
       fun _ _ dispatch ->
           dispatch EndWaveSim
           "ended the waveform simulation"
+
+      "startWaveSim",
+      // What the waveform viewer's Start button does. `startSimulation` is the STEP simulator's
+      // button and does not open this one, which is a difference that costs an hour to notice from
+      // a screenshot.
+      fun _ model dispatch ->
+          WaveSimTop.refreshButtonAction (model.Sheet.GetCanvasState()) model dispatch ()
+          "waveform simulation started"
+
+      "waveSelect",
+      // "<n>" - show the first n waves the simulation offers, as picking them in the selector would.
+      // Which waves those are does not matter for driving the data path; how many there are does.
+      fun arg _ dispatch ->
+          match System.Int32.TryParse arg with
+          | false, _ -> $"waveSelect needs a number, not '{arg}'"
+          | true, n ->
+              let waves = (Simulator.getFastSim ()).WaveIndex |> Array.truncate n |> Array.toList
+              dispatch (UpdateWSModel(fun ws -> { ws with SelectedWaves = waves }))
+              dispatch GenerateCurrentWaveforms
+              $"selected {List.length waves} waves"
+
+      "waveView",
+      // "<startCycle> [shownCycles] [samplingZoom]" - move the window, as scrolling and zooming do.
+      // Set directly rather than through the navigation helpers so that a view can be asked for
+      // exactly, including ones the buttons would round.
+      fun arg _ dispatch ->
+          let parts = arg.Split(' ') |> Array.filter (fun p -> p <> "") |> Array.map int
+
+          match parts with
+          | [||] -> "waveView needs '<startCycle> [shownCycles] [samplingZoom]'"
+          | _ ->
+              dispatch (
+                  UpdateWSModel(fun ws ->
+                      { ws with
+                          StartCycle = parts[0]
+                          ShownCycles = (if parts.Length > 1 then parts[1] else ws.ShownCycles)
+                          SamplingZoom = (if parts.Length > 2 then parts[2] else ws.SamplingZoom) })
+              )
+
+              dispatch GenerateCurrentWaveforms
+              $"view set to {arg}"
+
+      "waveCursor",
+      // "<cycle>" - move the cursor, which is what the value column and the tooltips read.
+      fun arg model dispatch ->
+          match System.Int32.TryParse arg with
+          | false, _ -> $"waveCursor needs a number, not '{arg}'"
+          | true, n ->
+              let ws = getWSModel model
+              dispatch (WaveSimNavigation.setClkCycleMsg ws n)
+              $"cursor to {n}"
 
       "rightTab",
       fun arg _ dispatch ->
@@ -805,6 +903,7 @@ let publish (dispatch: Msg -> unit) =
         Browser.Dom.window?issieDev <-
             {| state = state
                simRefs = simRefs
+               waveState = waveState
                simStats = simStats
                send = send
                commands = fun () -> commands |> List.map fst |> Array.ofList

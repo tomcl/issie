@@ -410,6 +410,25 @@ let updateUnpinned (msg : Msg) oldModel =
         let ws = getWSModel model
         WaveSimTop.refreshWaveSim false ws model
 
+    | WaveFetchDone result ->
+        // Clear the bit FIRST, whether the fetch worked or not, so that the refresh below is free
+        // to ask for whatever is still missing. After a view that moved while this fetch was in the
+        // air, that is the view the user is now looking at.
+        let model =
+            model |> updateWSModel (fun ws -> { ws with FetchInProgress = false })
+
+        match result with
+        | Ok() ->
+            // What arrived is in the cache. The refresh redraws from it, and asks for anything the
+            // current view still needs - a wave just selected, or the window the user scrolled to
+            // while this was in flight.
+            WaveSimTop.refreshWaveSim false (getWSModel model) model
+        | Error e ->
+            // Do NOT refresh: the waves are still missing, so a refresh would ask again, and a
+            // session error asked again is an error again. The next thing the user does refreshes.
+            Log.error $"the .NET simulator could not answer for this view: {e}"
+            WaveSimTop.cancelSpinner model, Elmish.Cmd.none
+
     | CancelWaveSimulation ->
         // The simulation-extension loop re-arms itself through RunAfterRenderWithSpinner, so
         // cancelling means clearing that continuation along with the spinner - nothing else

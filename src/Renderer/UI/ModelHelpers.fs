@@ -108,6 +108,7 @@ let initWSModel  : WaveSimModel = {
     WaveDetails = Map.empty
     SelectedWaves = List.empty
     ViewSetAtMs = 0.0
+    FetchInProgress = false
     StartCycle = 0
     ShownCycles = 5
     SamplingZoom = 1

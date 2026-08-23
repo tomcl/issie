@@ -26,28 +26,33 @@ open SimTypes
 open SimGraphTypes
 open WaveSlice
 
-/// One fetched window: the samples of every wave the view is drawing, signal-major, exactly as
-/// `SidecarClient.simRead` returns them and viewed with no copy.
-type FetchedWindow =
+/// One wave's samples, and the window they cover.
+///
+/// Per WAVE, not per view. What the viewer needs to know is "does this wave have the cycles it is
+/// being drawn over", and that is a question about one wave: a wave just added to the selection is
+/// missing while every other wave is fine, and a window that has moved leaves them all missing
+/// together. Keying by wave says both without a special case, where one entry for the whole view
+/// could only say "all" or "none".
+///
+/// Waves fetched together share one array - a reply is signal-major and copying it apart would be
+/// the only copy in the path - so each entry carries where its own row starts.
+type CachedWave =
     { Window: Window
-      /// whether a sample before the window was fetched too, for the first drawn transition
+      Width: int
+      /// whether the row begins with the sample BEFORE the window, for the first drawn transition
       LeadIn: bool
-      /// where each driver's row starts in `Data`, by driver index
-      Rows: Map<int, int>
-      /// bus width per driver index, since a slice needs to know which store it is
-      Widths: Map<int, int>
-      /// how many uint32 words each sample occupies - ceil(widest asked for / 32). A reply of
-      /// ordinary buses has one, and one wide bus widens the samples of that reply alone
+      /// uint32 words per sample: one for an ordinary bus, more for a wide one
       WordsPerSample: int
-      /// every driver this fetch was for
-      Asked: Set<int>
+      RowBase: int
       Data: uint32 array }
 
 type Source =
     /// the renderer's own simulation - read its step arrays where they lie
     | Local
-    /// a window fetched from the sidecar, plus the cursor column that goes with it
-    | Fetched of window: FetchedWindow * cursor: FetchedWindow option
+    /// waves fetched from the sidecar, by driver index. A wave is here when it has been fetched,
+    /// whatever window it was fetched over; whether that window is the one being drawn is the
+    /// caller's question and is answered by `hasData`
+    | Fetched of Map<int, CachedWave>
 
 /// What the viewer is currently drawing from. Local until the waveform simulator says otherwise.
 let mutable private source = Source.Local
@@ -77,45 +82,56 @@ let setLocal (lookup: SignalHandle -> IOArray option) (clock: unit -> int) =
     localClock <- clock
     source <- Source.Local
 
-/// Make a fetched window what the viewer reads, checking that it is the shape it claims to be.
+/// Read from the sidecar, holding nothing yet: every wave has to be asked for.
 ///
-/// Both of these are silent when wrong, which is why they are checked rather than trusted. A row
-/// whose handle was never asked for is a row indexed against a reply that does not contain it; and
-/// a reply shorter than signals x samples gives every wave after the truncation point somebody
-/// else's data, drawn as confidently as the rest. Neither shows up as an error anywhere else.
+/// NOT the same as Local, which is what the renderer's own simulation is. In .NET mode the
+/// renderer's step arrays exist but are never run, so reading through to them would draw a column
+/// of zeros with the confidence of simulation output. This says "ask", where Local says "look".
+let holdNothing () = source <- Source.Fetched Map.empty
+
+/// Add fetched waves to what the viewer reads, keeping any it already had that this fetch did not
+/// carry - a fetch asks only for the waves that were missing, so the rest are still current.
 ///
-/// Said rather than thrown: what is drawn will be wrong, but refusing to draw is not better, and
-/// the message names the invariant it broke.
-let setFetched (window: FetchedWindow) (cursor: FetchedWindow option) =
-    let rowsNotAsked =
-        window.Rows |> Map.filter (fun handle _ -> not (Set.contains handle window.Asked)) |> Map.count
+/// The length is checked because a short reply is silent: every wave after the truncation point
+/// would read somebody else's samples, drawn as confidently as the rest.
+let setFetched (waves: (int * CachedWave) list) =
+    waves
+    |> List.iter (fun (handle, cached) ->
+        let samples = cached.Window.SampleCount + (if cached.LeadIn then 1 else 0)
+        let needs = cached.RowBase + samples * cached.WordsPerSample
 
-    if rowsNotAsked > 0 then
-        Log.error
-            $"waveform cache: {rowsNotAsked} rows of a fetched window were never asked for (invariant D1)"
+        if cached.Data.Length < needs then
+            Log.error
+                $"waveform cache: wave {handle} needs {needs} values and the reply holds {cached.Data.Length} (invariant D3)")
 
-    let samplesPerRow = window.Window.SampleCount + (if window.LeadIn then 1 else 0)
-    let expected = Map.count window.Rows * samplesPerRow * window.WordsPerSample
+    let existing =
+        match source with
+        | Source.Fetched held -> held
+        | Source.Local -> Map.empty
 
-    if window.Data.Length < expected then
-        Log.error
-            $"waveform cache: a fetched window holds {window.Data.Length} values where {Map.count window.Rows} signals x {samplesPerRow} samples needs {expected} (invariant D3)"
+    source <- Source.Fetched((existing, waves) ||> List.fold (fun m (h, c) -> Map.add h c m))
 
-    source <- Source.Fetched(window, cursor)
 let current () = source
 
-/// Whether the fetched source already holds this view - the same window, the same cursor cycle,
-/// and every wave now being drawn among those it was fetched for. A local source is never
-/// "covered": it needs no fetch at all.
-let coversFetched (window: Window) (handles: SignalHandle list) (cursorCycle: int) =
+/// Does this wave hold the window it is about to be drawn over?
+///
+/// The renderer's own simulation always does - it is read in place - so only a fetched source can
+/// answer no, and a no is what makes a wave one that needs fetching.
+let hasData (SignalHandle handle) (window: Window) =
     match source with
-    | Source.Local -> false
-    | Source.Fetched(fetched, cursor) ->
-        fetched.Window = window
-        && (match cursor with
-            | Some c -> c.Window.StartSample = cursorCycle
-            | None -> true)
-        && handles |> List.forall (fun (SignalHandle i) -> Set.contains i fetched.Asked)
+    | Source.Local -> true
+    | Source.Fetched waves ->
+        match Map.tryFind handle waves with
+        | Some cached -> cached.Window = window
+        | None -> false
+
+/// The waves, of those being drawn, that do not hold the window they are drawn over.
+///
+/// Derived, every time it is asked for, from the cache and the view. Nothing records which waves
+/// are outstanding: a wave needs fetching exactly when it has not got the cycles it is being drawn
+/// over, and that is a question with an answer at any moment.
+let needFetching (handles: SignalHandle list) (window: Window) =
+    handles |> List.filter (fun h -> not (hasData h window))
 
 /// A slice of one wave over `window`, or None where the data is not held - which for a fetched
 /// source means the view has moved and the fetch for it has not landed yet, and for a local one
@@ -123,16 +139,14 @@ let coversFetched (window: Window) (handles: SignalHandle list) (cursorCycle: in
 let slice (SignalHandle handle as h) (window: Window) : WaveSlice option =
     match source with
     | Source.Local -> localData h |> Option.bind (fun io -> ofLocalDriver io (localClock ()) window)
-    | Source.Fetched(fetched, _) ->
-        if fetched.Window <> window then
-            None
-        else
-            match Map.tryFind handle fetched.Rows, Map.tryFind handle fetched.Widths with
-            | Some rowBase, Some width when width <= 32 ->
-                Some(ofFetchedWords fetched.Data rowBase fetched.WordsPerSample width window fetched.LeadIn)
-            | Some rowBase, Some width ->
-                Some(ofFetchedBigs fetched.Data rowBase fetched.WordsPerSample width window fetched.LeadIn)
-            | _ -> None
+    | Source.Fetched waves ->
+        match Map.tryFind handle waves with
+        | Some c when c.Window = window ->
+            if c.Width <= 32 then
+                Some(ofFetchedWords c.Data c.RowBase c.WordsPerSample c.Width window c.LeadIn)
+            else
+                Some(ofFetchedBigs c.Data c.RowBase c.WordsPerSample c.Width window c.LeadIn)
+        | _ -> None
 
 /// The value of one wave at one clock cycle, for the value column, the hover tooltip and the
 /// schematic probe. None where it cannot be answered.
@@ -154,31 +168,27 @@ let valueAt (SignalHandle handle as h) (cycle: int) : FastData option =
                 io.TryBig cycle |> Option.map (fun v -> { Dat = BigWord v; Width = io.Width })
             else
                 io.TryU32 cycle |> Option.map (fun v -> { Dat = Word v; Width = io.Width }))
-    | Source.Fetched(fetched, cursor) ->
-        // the cursor column first, since that is the cycle the value readouts almost always want,
-        // then the drawn window, whose samples are only every Multiplier cycles
-        let fromWindow (f: FetchedWindow) =
-            match Map.tryFind handle f.Rows, Map.tryFind handle f.Widths with
-            | Some rowBase, Some w ->
-                let offset = cycle - f.Window.FirstCycle
+    | Source.Fetched waves ->
+        // Answered from the window this wave HOLDS, which is the window it is drawn over - so the
+        // value column and the tooltip say what the waveform beside them says, whether or not that
+        // is the view the controls now ask for.
+        match Map.tryFind handle waves with
+        | None -> None
+        | Some c ->
+            let offset = cycle - c.Window.FirstCycle
 
-                if offset < 0 || offset % f.Window.Multiplier <> 0 then
+            if offset < 0 || offset % c.Window.Multiplier <> 0 then
+                None
+            else
+                let i = offset / c.Window.Multiplier
+
+                if i >= c.Window.SampleCount then
                     None
                 else
-                    let i = offset / f.Window.Multiplier
+                    let s =
+                        if c.Width <= 32 then
+                            ofFetchedWords c.Data c.RowBase c.WordsPerSample c.Width c.Window c.LeadIn
+                        else
+                            ofFetchedBigs c.Data c.RowBase c.WordsPerSample c.Width c.Window c.LeadIn
 
-                    if i >= f.Window.SampleCount then
-                        None
-                    else
-                        let s =
-                            if w <= 32 then
-                                ofFetchedWords f.Data rowBase f.WordsPerSample w f.Window f.LeadIn
-                            else
-                                ofFetchedBigs f.Data rowBase f.WordsPerSample w f.Window f.LeadIn
-
-                        Some(asWidth w (sampleValue s i))
-            | _ -> None
-
-        match cursor |> Option.bind fromWindow with
-        | Some v -> Some v
-        | None -> fromWindow fetched
+                    Some(asWidth c.Width (sampleValue s i))

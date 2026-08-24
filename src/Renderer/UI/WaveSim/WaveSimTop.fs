@@ -529,63 +529,87 @@ let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd
             let alsoRam =
                 if List.isEmpty ramToFetch then "" else $", and one RAM at cycle {(snd ramToFetch.Head).Cycle}"
 
-            Log.dbg
-                Log.Wave
-                $"fetching {toFetch.Length} waves over {window.StartSample}+{window.SampleCount}x{window.Multiplier}{alsoRam}"
-
-
             /// Everything this update wants from the sidecar, in order, in one promise.
             ///
-            /// The waves first, because that is what builds the session and runs it to the view;
-            /// the RAM rows after, by which time both are done and its own ensureBuilt returns at
-            /// once. Sequential, so there is never a second thing asking the sidecar to build.
-            let fetchAll () =
+            /// The waves first, then the RAM rows. Sequential, so there is never a second thing
+            /// commanding the sidecar. The session is already built - whether it needed building
+            /// was settled from the model above, before any of this was started.
+            let fetchAll epoch () =
                 promise {
                     let! waves =
                         if List.isEmpty toFetch then
                             Promise.lift (Ok())
                         else
-                            WaveProvider.fetchWavesFor design arraySize fs toFetch window ignore
+                            WaveProvider.fetchWavesFor epoch fs toFetch window ignore
 
                     let! rows =
                         match ramToFetch with
                         | [] -> Promise.lift None
                         | (ramId, key) :: _ ->
                             promise {
-                                match! SidecarSession.ensureBuilt design arraySize with
+                                match! SidecarSession.runTo epoch key.Cycle ignore with
                                 | Error e ->
-                                    Log.warn $"building for a RAM table: {e}"
+                                    Log.warn $"running to cycle {key.Cycle} for a RAM table: {e}"
                                     return None
-                                | Ok epoch ->
-                                    match! SidecarSession.runTo epoch key.Cycle ignore with
-                                    | Error e ->
-                                        Log.warn $"running to cycle {key.Cycle} for a RAM table: {e}"
-                                        return None
-                                    | Ok() ->
-                                        return!
-                                            RamData.fetch epoch ramId key WaveSimTypes.Constants.maxRamRowsDisplayed
+                                | Ok() ->
+                                    return!
+                                        RamData.fetch epoch ramId key WaveSimTypes.Constants.maxRamRowsDisplayed
                             }
 
                     return waves, rows
                 }
 
-            let fetch =
-                Elmish.Cmd.OfPromise.either
-                    fetchAll
-                    ()
-                    // WaveFetchDone rather than UpdateModel: clearing the bit and refreshing has to
-                    // happen in one message, and the refresh returns a model AND A COMMAND that
-                    // UpdateModel could not carry. This was `UpdateModel(fun m -> fst (refresh ...))`
-                    // and that `fst` threw the command away - which was the next fetch. When the
-                    // view moved while a fetch was in flight, this was the one thing that would ask
-                    // for the view the user had ended up on, and it computed the request and
-                    // dropped it: the waveforms then showed the older view for ever, with nothing
-                    // running and nothing to say so.
-                    WaveFetchDone
-                    (fun exn -> WaveFetchDone(Error exn.Message, None))
+            match model.SidecarBuild with
+            | SidecarBuilding _ ->
+                // the build this fetch needs is already in flight; its completion redraws, and the
+                // refresh that follows asks for whatever the view then shows
+                model, cmd
 
-            model |> updateWSModel (fun ws -> { ws with FetchInProgress = true }),
-            Elmish.Cmd.batch [ cmd; fetch ]
+            | build when build.Holds(fs.SimulatedTopSheet, arraySize) ->
+                // Said here and not above: the branches below decide to BUILD rather than fetch,
+                // and every message that arrives while a build runs comes through this function.
+                // Said before the decision, it announced a fetch once per message for the whole
+                // of a build, none of which happened.
+                Log.dbg
+                    Log.Wave
+                    $"fetching {toFetch.Length} waves over {window.StartSample}+{window.SampleCount}x{window.Multiplier}{alsoRam}"
+
+                let fetch =
+                    Elmish.Cmd.OfPromise.either
+                        (fetchAll (Option.get build.Epoch))
+                        ()
+                        // WaveFetchDone rather than UpdateModel: clearing the bit and refreshing has to
+                        // happen in one message, and the refresh returns a model AND A COMMAND that
+                        // UpdateModel could not carry. This was `UpdateModel(fun m -> fst (refresh ...))`
+                        // and that `fst` threw the command away - which was the next fetch. When the
+                        // view moved while a fetch was in flight, this was the one thing that would ask
+                        // for the view the user had ended up on, and it computed the request and
+                        // dropped it: the waveforms then showed the older view for ever, with nothing
+                        // running and nothing to say so.
+                        WaveFetchDone
+                        (fun exn -> WaveFetchDone(Error exn.Message, None))
+
+                model |> updateWSModel (fun ws -> { ws with FetchInProgress = true }),
+                Elmish.Cmd.batch [ cmd; fetch ]
+
+            | _ ->
+                // The sidecar does not hold this design. Building it is the one thing here slow
+                // enough to be worth saying out loud: a message that it started, a message when it
+                // answers, and Model.SidecarBuild in between - which is what stops a second build
+                // and what lets everything drawn from this simulator answer "nothing yet" at once
+                // meanwhile. The fetch above is not re-issued here; the next message runs this
+                // function again, and by then the model says the session is ready.
+                Log.dbg Log.Wave $"building {design.TopSheet} on the .NET simulator for {arraySize} cycles"
+                let startBuild () = SidecarSession.build design arraySize
+
+                model |> Optic.set sidecarBuild_ (SidecarBuilding(fs.SimulatedTopSheet, arraySize)),
+                Elmish.Cmd.batch
+                    [ cmd
+                      Elmish.Cmd.OfPromise.either
+                          startBuild
+                          ()
+                          SidecarBuildFinished
+                          (fun exn -> SidecarBuildFinished(Error exn.Message)) ]
     | _ -> model, cmd
 
 /// Refresh the state of the wave simulator according to the model and canvas state.

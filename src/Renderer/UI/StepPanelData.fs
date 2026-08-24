@@ -1,4 +1,4 @@
-/// What the step simulator's panel shows, when the .NET sidecar is the one simulating.
+﻿/// What the step simulator's panel shows, when the .NET sidecar is the one simulating.
 ///
 /// The same shape as the waveform viewer's cache and for the same reason: view code must read
 /// values synchronously, on every render, and a separate process cannot be asked synchronously.
@@ -79,20 +79,16 @@ let fill (epoch: int) (cycle: int) (signals: PanelSignal list) : JS.Promise<Resu
                     (0I, [ wordsPerSample - 1 .. -1 .. 0 ])
                     ||> List.fold (fun acc w -> (acc <<< 32) + bigint (data[row * wordsPerSample + w]))
 
-                match SidecarSession.current () with
-                | Some(_, _, held) when held = epoch ->
-                    snapshot <-
-                        Some(
-                            epoch,
-                            cycle,
-                            signals
-                            |> List.mapi (fun row s -> (s.Comp, s.Path, s.Port), valueOf row)
-                            |> Map.ofList
-                        )
-                | _ ->
-                    // the session this was asked of ended while it was in flight, so these values
-                    // are of a simulation that is no longer the one on screen
-                    Log.dbg Log.Sim $"a step-panel read for session {epoch} landed after that session ended - dropped"
+                // Stored unconditionally: whether this is still the session on screen is a
+                // question about the model, asked where the model is when this promise finishes.
+                snapshot <-
+                    Some(
+                        epoch,
+                        cycle,
+                        signals
+                        |> List.mapi (fun row s -> (s.Comp, s.Path, s.Port), valueOf row)
+                        |> Map.ofList
+                    )
 
                 return Ok()
         }

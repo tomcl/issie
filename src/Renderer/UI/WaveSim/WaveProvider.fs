@@ -175,48 +175,42 @@ let private fetchWaves
                 let data: uint32 array =
                     unbox (SidecarClient.viewSimReadData frame (List.length requested * samples * wordsPerSample))
 
-                // A build or a design change since this was asked for means the answer describes a
-                // simulation that is no longer the one being drawn. The cache was emptied with that
-                // design, so writing into it now would put waves of the old design beside waves of
-                // the new one, each looking exactly as trustworthy as the other. Drop it: the
-                // refresh that follows asks the session that now exists for everything.
-                match SidecarSession.current () with
-                | Some(_, _, current) when current = epoch ->
-                    // one array, shared: the reply is signal-major, and each wave records where its
-                    // own row starts rather than the rows being copied apart
-                    wanted
-                    |> List.mapi (fun row (i, _, width) ->
-                        i,
-                        { WaveData.Window = window
-                          WaveData.Width = width
-                          WaveData.LeadIn = leadIn
-                          WaveData.WordsPerSample = wordsPerSample
-                          WaveData.RowBase = row * samples * wordsPerSample
-                          WaveData.Data = data })
-                    |> WaveData.setFetched
-                | _ ->
-                    Log.dbg Log.Wave $"a fetch for session {epoch} landed after that session ended - dropped"
+                // Written unconditionally. Whether this answer is still of the simulation being
+                // drawn is a question about the model - which session it believes is live - and it
+                // is asked where the model is, when this promise's completion message lands
+                // (Update.discardIfSessionMoved). A promise reaching for that belief through a
+                // side channel is what put a fact the UI must draw somewhere the UI could not read.
+                //
+                // one array, shared: the reply is signal-major, and each wave records where its
+                // own row starts rather than the rows being copied apart
+                wanted
+                |> List.mapi (fun row (i, _, width) ->
+                    i,
+                    { WaveData.Window = window
+                      WaveData.Width = width
+                      WaveData.LeadIn = leadIn
+                      WaveData.WordsPerSample = wordsPerSample
+                      WaveData.RowBase = row * samples * wordsPerSample
+                      WaveData.Data = data })
+                |> WaveData.setFetched
 
                 return Ok()
         }
 
-/// Everything a fetch needs, in one promise: build if the sidecar does not hold the design, run to
-/// the last cycle the view shows, then read the waves asked for over that window.
+/// Everything a fetch needs, in one promise: run the session to the last cycle the view shows,
+/// then read the waves asked for over that window. The session is already built - whether it
+/// needed building was settled from the model before this was started.
 let private fetchForView
-    (design: SimpleDesign)
-    (arraySize: int)
+    (epoch: int)
     (fs: FastSimulation)
     (driverIndices: int list)
     (window: Window)
     (onProgress: int -> unit)
     : JS.Promise<Result<unit, string>> =
     promise {
-        match! SidecarSession.ensureBuilt design arraySize with
+        match! SidecarSession.runTo epoch (window.LastCycle + 1) onProgress with
         | Error e -> return Error e
-        | Ok epoch ->
-            match! SidecarSession.runTo epoch (window.LastCycle + 1) onProgress with
-            | Error e -> return Error e
-            | Ok() -> return! fetchWaves epoch fs driverIndices window
+        | Ok() -> return! fetchWaves epoch fs driverIndices window
     }
 
 
@@ -278,12 +272,11 @@ let wavesToFetch (inRenderer: bool) (handles: SignalHandle list) (window: Window
 /// One request covers every wave asked for, so the number of round trips is one per view rather
 /// than one per wave, and the waves that arrive together are drawable together.
 let fetchWavesFor
-    (design: SimpleDesign)
-    (arraySize: int)
+    (epoch: int)
     (fs: FastSimulation)
     (driverIndices: int list)
     (window: Window)
     (onProgress: int -> unit)
     : JS.Promise<Result<unit, string>> =
-    fetchForView design arraySize fs driverIndices window onProgress
+    fetchForView epoch fs driverIndices window onProgress
     |> Promise.catch (fun e -> Error e.Message)

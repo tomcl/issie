@@ -265,6 +265,7 @@ let init() = {
     OpenLibrary = None
     CatalogueSearch = ""
     SimulateInRenderer = false
+    SidecarBuild = SidecarIdle
     ShowLibrarySheets = false
     OpenedLibrarySheets = Set.empty
     ReadOnlyBaseline = None

@@ -344,8 +344,9 @@ let rendererStepArraySize (model: Model) : Result<int, SimulationError> =
 /// Advance whichever simulator is running to `cycle`, and make that cycle's values readable.
 ///
 /// Local: the FastSimulation is run here and `whenReady` is called at once, exactly as before.
-/// Sidecar: the design is built there if it does not already hold it, run to `cycle`, and the
-/// panel's signals read back into StepPanelData - then `whenReady`. The caller dispatches from
+/// Sidecar: the session is run to `cycle` and the panel's signals read back into StepPanelData,
+/// then `whenReady`. If the sidecar does not hold the design, a build is STARTED - which is a
+/// message, and a second message when it answers, with Model.SidecarBuild saying so in between. The caller dispatches from
 /// `whenReady` either way, so it does not have to know which happened.
 ///
 /// The sidecar holds ONE session, shared with the waveform simulator. That is mostly a saving -
@@ -354,7 +355,7 @@ let rendererStepArraySize (model: Model) : Result<int, SimulationError> =
 /// simulation of the same design would show. They are different tabs and starting a waveform
 /// simulation runs it again from its own inputs, so nothing stale is drawn; it is written down
 /// because "one session" is the thing that makes it true.
-let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (whenReady: unit -> unit) : unit =
+let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (dispatch: Msg -> unit) (whenReady: unit -> unit) : unit =
     if model.SimulateInRenderer then
         FastRun.runFastSimulation None cycle simData.FastSim |> ignore
         StepPanelData.forget ()
@@ -363,10 +364,12 @@ let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (whenReady: 
         match model.CurrentProj with
         | None -> whenReady ()
         | Some project ->
+            let top = simData.FastSim.SimulatedTopSheet
+
             let design =
                 ModelHelpers.designOf project (model.Sheet.GetCanvasState())
                 |> CanvasExtractor.simpleDesignOfLoadedComponents
-                |> fun d -> { d with TopSheet = simData.FastSim.SimulatedTopSheet }
+                |> fun d -> { d with TopSheet = top }
 
             let signals = panelSignals simData
 
@@ -382,10 +385,9 @@ let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (whenReady: 
             let sidecarArraySize =
                 stepSimArraySize model |> Result.defaultValue Constants.maxArraySize
 
-            promise {
-                match! SidecarSession.ensureBuilt design sidecarArraySize with
-                | Error e -> failed "build the design" e
-                | Ok epoch ->
+            /// Run the session to `cycle` and read the panel's signals back from it.
+            let runAndRead epoch =
+                promise {
                     match! SidecarSession.runTo epoch cycle ignore with
                     | Error e -> failed $"run to cycle {cycle}" e
                     | Ok() ->
@@ -393,9 +395,37 @@ let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (whenReady: 
                         | Error e -> failed $"read cycle {cycle}" e
                         | Ok() -> ()
 
+                    whenReady ()
+                }
+
+            match model.SidecarBuild with
+            | build when build.Holds(top, sidecarArraySize) ->
+                // the session is there to be commanded, so nothing here is slow enough to need
+                // saying: run it and read it
+                runAndRead (Option.get build.Epoch) |> Promise.start
+
+            | SidecarBuilding _ ->
+                // Another advance already started the build this one would start. Its completion
+                // will redraw, and the refresh that follows asks again for the cycle then shown.
                 whenReady ()
-            }
-            |> Promise.start
+
+            | _ ->
+                // The one slow thing, said out loud: a message that a build has started, a message
+                // when it answers, and Model.SidecarBuild between the two - which is what lets
+                // everything that draws from this simulator answer at once meanwhile.
+                dispatch (SidecarBuildStarted(top, sidecarArraySize))
+
+                promise {
+                    let! result = SidecarSession.build design sidecarArraySize
+                    dispatch (SidecarBuildFinished result)
+
+                    match result with
+                    | Error e ->
+                        failed "build the design" e
+                        whenReady ()
+                    | Ok epoch -> return! runAndRead epoch
+                }
+                |> Promise.start
 
 /// Set a top-level input at the shown cycle, on whichever simulator is running, and make the
 /// panel's values for that cycle current again.
@@ -416,7 +446,7 @@ let setInput (model: Model) (simData: SimulationData) (compId: ComponentId) (val
         let cycle = simData.ClockTickNumber
         let asBigInt = value.GetBigInt
 
-        match SidecarSession.current () with
+        match model.SidecarBuild.Epoch with
         | _ when asBigInt > 9007199254740992I ->
             Log.error
                 $"the .NET simulator cannot yet be given a {value.Width}-bit input value this large - Development > Simulate In Renderer can set it"
@@ -424,7 +454,7 @@ let setInput (model: Model) (simData: SimulationData) (compId: ComponentId) (val
         | None ->
             Log.error "there is no .NET simulation to set an input on"
             whenReady ()
-        | Some(_, _, epoch) ->
+        | Some epoch ->
             promise {
                 let! reply = SidecarClient.simSetInputs epoch cycle [ cid, float asBigInt ]
 
@@ -537,9 +567,9 @@ let openRemoteRamDiff (fc: FastComponent) (cycle: int) (model: Model) (dispatch:
         | AsyncRAM1 m -> m
         | _ -> failwithf $"what? openRemoteRamDiff expected a RAM but got {fc.FType}"
 
-    match SidecarSession.current () with
+    match model.SidecarBuild.Epoch with
     | None -> Log.error "there is no .NET simulation to read a memory from"
-    | Some(_, _, epoch) ->
+    | Some epoch ->
         let (ComponentId cid), path = fc.fId
 
         promise {
@@ -1044,7 +1074,7 @@ let simulateWithProgressBar (simProg: SimulationProgress) (model:Model) =
         // chunk is a round trip, so the messages that report it can only be sent once it lands.
         // The local path still runs synchronously inside advanceTo and dispatches immediately.
         model, Elmish.Cmd.ofEffect (fun dispatch ->
-            advanceTo model simData clock (fun () ->
+            advanceTo model simData clock dispatch (fun () ->
                 let t2 = getTimeMs()
                 let speed = if t2 = t1 then 0. else (float clock - float oldClock) * nComps / (t2 - t1)
                 let messages =
@@ -1131,7 +1161,7 @@ let simulationClockChangeAction dispatch simData (model': Model) =
         |> ExecCmdAsynch
         |> dispatch
     else
-        advanceTo model' simData clock (fun () ->
+        advanceTo model' simData clock dispatch (fun () ->
             [
                 SetSimulationGraph(simData.Graph, simData.FastSim)
                 IncrementSimulationClockTick (clock - simData.ClockTickNumber)
@@ -1167,7 +1197,7 @@ let viewSimulationData (step: int) (simData : SimulationData) model dispatch =
                     Button.Color IsSuccess
                     Button.Disabled (simData.ClockTickNumber = 0)
                     Button.OnClick (fun _ ->
-                        advanceTo model simData (simData.ClockTickNumber-1) (fun () ->
+                        advanceTo model simData (simData.ClockTickNumber-1) dispatch (fun () ->
                             dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)
                             IncrementSimulationClockTick -1 |> dispatch)
                     )
@@ -1197,7 +1227,7 @@ let viewSimulationData (step: int) (simData : SimulationData) model dispatch =
                 Button.button [
                     Button.Color IsSuccess
                     Button.OnClick (fun _ ->
-                        advanceTo model simData (simData.ClockTickNumber+1) (fun () ->
+                        advanceTo model simData (simData.ClockTickNumber+1) dispatch (fun () ->
                             dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)
                             IncrementSimulationClockTick 1 |> dispatch)
                     )

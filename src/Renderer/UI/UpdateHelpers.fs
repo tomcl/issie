@@ -70,6 +70,9 @@ let shortDWSM (ws: WaveSimModel) =
 let shortDisplayMsg (msg:Msg) =
     match msg with
     | AnyKeyPress code -> Some $"AnyKeyPress %A{code}"
+    | SidecarBuildStarted(top, arraySize) -> Some $"SidecarBuildStarted {top} for {arraySize} cycles"
+    | SidecarBuildFinished(Ok epoch) -> Some $"SidecarBuildFinished session {epoch}"
+    | SidecarBuildFinished(Error e) -> Some $"SidecarBuildFinished failed: {e}"
     | WaveSimKeyPress _ -> None
     | ChangeWaveSimMultiplier n ->
         List.tryItem n Constants.multipliers

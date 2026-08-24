@@ -263,6 +263,45 @@ type GapStore = {
 /// been made under, so the model held a picture of the screen that had to be kept in step with the
 /// screen, and "is this waveform up to date" was a question about the model rather than about what
 /// is drawn.
+/// What the .NET simulator is doing, as far as the renderer knows - and therefore what a
+/// synchronous question about it can be answered with.
+///
+/// **This is the "is building" state that keeps everything else synchronous.** Building a design
+/// and running it are the only things a simulator does that take long enough not to be answerable
+/// while a frame is drawn, and both are commands the renderer issues. So they are modelled the
+/// Elmish way - a message that starts one, a message that says it finished, and this in the model
+/// in between - and every other question about the simulator is answered at once, with "nothing
+/// yet" exactly while this says a build is in flight. See the module note on SimInterface.
+///
+/// It was module-level state in SidecarSession, on the argument that what another process holds
+/// is not model state. It is: what the renderer BELIEVES about that process is a fact about the
+/// renderer, the UI has to draw it, and a belief the view can only reach through a side channel
+/// is one the view cannot draw from.
+type SidecarBuild =
+    /// nothing is built: none has been asked for, or the last simulation ended
+    | SidecarIdle
+    /// a build was started for this top sheet at this array size and has not answered yet
+    | SidecarBuilding of top: string * arraySize: int
+    /// the sidecar holds this design, at this array size, under this session epoch
+    | SidecarReady of top: string * arraySize: int * epoch: int
+    /// the last build failed, saying this. Kept so the UI can show it rather than retry for ever
+    | SidecarBuildFailed of string
+
+    /// The session to command, when there is one. None while idle, building or failed - which is
+    /// exactly when there is nothing to command.
+    member this.Epoch =
+        match this with
+        | SidecarReady(_, _, epoch) -> Some epoch
+        | _ -> None
+
+    /// Whether the sidecar already holds what a caller is about to ask for. An array size bigger
+    /// than the one built for needs a new build; a smaller one does not, since the arrays it wants
+    /// are inside the ones there are.
+    member this.Holds(top: string, arraySize: int) =
+        match this with
+        | SidecarReady(built, size, _) -> built = top && size >= arraySize
+        | _ -> false
+
 type Wave = {
     /// Uniquely identifies a waveform
     WaveId: WaveIndexT
@@ -589,6 +628,11 @@ type Msg =
     | EndSimulation
     /// Clears the Model.WaveSim and Model.WaveSimSheet fields.
     | EndWaveSim
+    /// A build of the design on the .NET simulator has been started, for this top sheet at this
+    /// array size. Nothing else may start one until it answers.
+    | SidecarBuildStarted of top: string * arraySize: int
+    /// That build answered: the session it issued, or why there is not one.
+    | SidecarBuildFinished of Result<int, string>
     | TruthTableMsg of TTMsg // all the messages used by the truth table code
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
@@ -1023,6 +1067,9 @@ type Model = {
     /// changing it throws away every simulation in flight, since the two backends do not share
     /// so much as a step array.
     SimulateInRenderer : bool
+    /// What the .NET simulator is believed to be doing: nothing, building, ready, or failed. The
+    /// one thing about it that cannot be answered at once, held where the view can read it.
+    SidecarBuild : SidecarBuild
     ShowLibrarySheets : bool
     /// The library sheets the user has asked to look inside, by name. A library component is an
     /// abstraction and its sheet is not normally reachable at all, but understanding how one
@@ -1106,6 +1153,7 @@ let topSheetChoiceDeclined_ = Lens.create (fun a -> a.TopSheetChoiceDeclined) (f
 let openLibrary_ = Lens.create (fun a -> a.OpenLibrary) (fun s a -> {a with OpenLibrary = s})
 let catalogueSearch_ = Lens.create (fun a -> a.CatalogueSearch) (fun s a -> {a with CatalogueSearch = s})
 let simulateInRenderer_ = Lens.create (fun a -> a.SimulateInRenderer) (fun s a -> {a with SimulateInRenderer = s})
+let sidecarBuild_ = Lens.create (fun a -> a.SidecarBuild) (fun s a -> {a with SidecarBuild = s})
 let showLibrarySheets_ = Lens.create (fun a -> a.ShowLibrarySheets) (fun s a -> {a with ShowLibrarySheets = s})
 let openedLibrarySheets_ = Lens.create (fun a -> a.OpenedLibrarySheets) (fun s a -> {a with OpenedLibrarySheets = s})
 let readOnlyBaseline_ = Lens.create (fun a -> a.ReadOnlyBaseline) (fun s a -> {a with ReadOnlyBaseline = s})

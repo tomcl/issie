@@ -542,6 +542,10 @@ let private releaseWaveSimData (ws: WaveSimModel) : WaveSimModel =
 let removeAllSimulationsFromModel (model:Model) =
     model
     |> Optic.set currentStepSimulationStep_ None
+    // Whatever the sidecar was holding is no longer wanted. Saying so here rather than in each
+    // caller is what makes "one simulation stopped means the other rebuilds from scratch" true of
+    // both of them: this is the one place both of them go through.
+    |> Optic.set sidecarBuild_ SidecarIdle
     |> Optic.map waveSim_ (Map.map (fun _ -> releaseWaveSimData))
 
 /// Which simulator a button is about to start, or is running, for its label - development builds

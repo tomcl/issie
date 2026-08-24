@@ -566,6 +566,27 @@ let updateUnpinned (msg : Msg) oldModel =
             endWaveSimulation model, Cmd.none
         | Some _ -> endWaveSimulation model, Cmd.none
 
+    | SidecarBuildStarted(top, arraySize) ->
+        // The one state a synchronous question about the simulator cannot be answered in, and the
+        // reason it is in the model rather than beside it: everything that draws from the .NET
+        // simulator reads this to know that "nothing yet" is the honest answer, and reads it in
+        // view, at once.
+        model |> set sidecarBuild_ (SidecarBuilding(top, arraySize)) |> withNoMsg
+
+    | SidecarBuildFinished result ->
+        let built =
+            match model.SidecarBuild, result with
+            | SidecarBuilding(top, arraySize), Ok epoch -> SidecarReady(top, arraySize, epoch)
+            | _, Ok _ ->
+                // the simulation this was for ended while its build was in flight - the session
+                // exists on the sidecar but nothing here wants it, and the next build replaces it
+                SidecarIdle
+            | _, Error e ->
+                Log.error $"the .NET simulator could not build the design: {e}"
+                SidecarBuildFailed e
+
+        model |> set sidecarBuild_ built |> withNoMsg
+
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editMsgs = [inferMsg; ClosePropertiesNotification]

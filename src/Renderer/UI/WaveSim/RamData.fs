@@ -57,9 +57,10 @@ let needed (model: Model) (ram: FComponentId) = (held model ram).IsNone
 
 /// Read one RAM's rows from the sidecar, for the update function to put in the model.
 ///
-/// The reply carries the epoch it was asked of. A build since then means it describes a simulation
-/// that is no longer the one on screen, so it is dropped rather than shown beside rows of the one
-/// that is - both would look equally trustworthy.
+/// The reply carries the epoch it was asked of, and whether that is still the session on screen is
+/// settled where the model is, when the completion message lands. A build since then means these
+/// rows describe a simulation that is no longer the one being drawn, and they would look exactly
+/// as trustworthy as ones that did.
 let fetch
     (epoch: int)
     (ram: FComponentId)
@@ -76,10 +77,5 @@ let fetch
         | Error e ->
             Log.warn $"reading a RAM from the .NET simulator: {e}"
             return None
-        | Ok view ->
-            match SidecarSession.current () with
-            | Some(_, _, current) when current = epoch -> return Some(ram, (key, view))
-            | _ ->
-                Log.dbg Log.Wave $"a RAM read for session {epoch} landed after that session ended - dropped"
-                return None
+        | Ok view -> return Some(ram, (key, view))
     }

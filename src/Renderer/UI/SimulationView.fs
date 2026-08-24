@@ -323,7 +323,7 @@ let setInput (model: Model) (simData: SimulationData) (compId: ComponentId) (val
         match SidecarSession.current () with
         | _ when asBigInt > 9007199254740992I ->
             Log.error
-                $"the .NET simulator cannot yet be given a {value.Width}-bit input value this large -                   Development > Simulate In Renderer can set it"
+                $"the .NET simulator cannot yet be given a {value.Width}-bit input value this large - Development > Simulate In Renderer can set it"
             whenReady ()
         | None ->
             Log.error "there is no .NET simulation to set an input on"
@@ -1050,7 +1050,8 @@ let viewSimulationData (step: int) (simData : SimulationData) model dispatch =
         let memoryNote =
             if ramsAreLocalOnly model simData then
                 [ div [ Style [ Margin "10px"; MaxWidth "40em" ] ] [
-                    str "Memory contents are not shown while the .NET simulator is running the                          simulation. Development > Simulate In Renderer shows them again." ] ]
+                    str "Memory contents are not shown while the .NET simulator is running the simulation. \
+                         Development > Simulate In Renderer shows them again." ] ]
             else []
         match List.isEmpty stateful && List.isEmpty memoryNote with
         | true -> div [] []
@@ -1110,13 +1111,65 @@ let viewSimulationData (step: int) (simData : SimulationData) model dispatch =
     ]
 
 
+/// How many clock cycles of history the step simulator can afford on this design, or why it
+/// cannot be simulated at all.
+///
+/// The waveform simulator has a configuration dialog that prices the design and refuses a last
+/// clock that will not fit (`FastCreate.maxLastClockFor`, `UIPopups`); the step simulator has no
+/// dialog and used to take `Constants.maxArraySize` whatever the design cost - so a design too
+/// big for it was refused by the build's own memory check, in words about a waveform
+/// configuration the user was not looking at.
+///
+/// The budget binds here instead, on the one number this simulator has. It asks for the full
+/// array - enough past to step back through - and takes what fits if that is too much, down to
+/// `minStepArraySize`. Below that the design is refused, with a message about the design.
+///
+/// Priced from the design's merged graph, so this allocates nothing: the check happens before the
+/// arrays it is deciding the size of exist, which is the whole point of it.
+let stepSimArraySize (model: Model) : Result<int, SimulationError> =
+    let sheet =
+        model.CurrentProj
+        |> Option.map (fun p -> p.OpenFileName)
+        |> Option.defaultValue ""
+
+    match ModelHelpers.designStepCost model sheet with
+    // a design that will not price is one that will not build; let the build say why, in its own
+    // words, rather than reporting a pricing failure as a size problem
+    | Error _ -> Ok Constants.maxArraySize
+    | Ok cost ->
+        match ModelHelpers.stepSimCycles Constants.maxArraySize cost with
+        | Some size ->
+            if size < Constants.maxArraySize then
+                let perCycle = SimTypes.SimulationBudget.formatBytes (float cost.TotalBytes)
+                Log.dbg Log.Sim $"step simulation of '{sheet}' shortened to {size} cycles of history: {perCycle} a cycle"
+
+            Ok size
+        | None ->
+            let least = ModelHelpers.Constants.minStepArraySize
+            let perCycle = SimTypes.SimulationBudget.formatBytes (float cost.TotalBytes)
+            let needed = SimTypes.SimulationBudget.formatBytes (float cost.TotalBytes * float least)
+
+            Error
+                { ErrType =
+                    GenericSimError(
+                        $"This design needs {perCycle} of simulation memory for every clock cycle, so even "
+                        + $"the {least} clock cycles the step simulator keeps would need {needed} - more "
+                        + "than Issie will risk. Simulate one subsheet rather than the whole design."
+                    )
+                  InDependency = None
+                  ComponentsAffected = []
+                  ConnectionsAffected = [] }
+
 let tryGetSimData isWaveSim canvasState model =
     let model = MemoryEditorView.updateAllMemoryComps model
     if isWaveSim then
         simCacheWS <- simCacheInit ()
     else
         simCache <- simCacheInit ()
-    simulateModel isWaveSim None Constants.maxArraySize canvasState model
+    match stepSimArraySize model with
+    | Error e -> Error e
+    | Ok arraySize ->
+    simulateModel isWaveSim None arraySize canvasState model
     |> function
         | Ok (simData), state -> 
             if simData.FastSim.ClockTick = 0 then 

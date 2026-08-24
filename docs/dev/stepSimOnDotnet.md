@@ -85,6 +85,30 @@ simulation, so setting an input here moves what a waveform simulation of the sam
 show. They are different tabs and starting a waveform simulation runs it again from its own
 inputs, so nothing stale is drawn.
 
+## How big a design it will take
+
+The waveform simulator has a configuration dialog that prices the design and refuses a last clock
+that will not fit (`FastCreate.maxLastClockFor`, `UIPopups`). The step simulator has no dialog: it
+picks one number, how many cycles of history to keep, and used to take `Constants.maxArraySize`
+whatever the design cost - so a design too big for it was refused by the build's own memory check,
+in words about a waveform configuration the user was not looking at.
+
+`ModelHelpers.stepSimCycles` binds the same budget to that one number:
+
+| the design can afford | what happens |
+| --- | --- |
+| the full 550 cycles | it gets them |
+| fewer, but at least `minStepArraySize` (20) | shortened to what it can afford, logged under `sim` |
+| fewer than 20 | refused, in words about the design |
+
+Measured against `maxCyclesFor`, which is the budget WITHOUT the runtime headroom
+`checkSimulationFits` allows itself - deliberately the stricter of the two, so a size chosen here
+is certain to pass the build's own check and the refusal happens where it can be explained.
+
+Nothing real is shortened: every sheet of `largeTest` fits at 550, main6 included, at 2.4 MB a
+cycle against the 968 cycles its budget allows. A generated hierarchy of 2048-bit buses is
+shortened (4 MB a cycle, 250 cycles); one of 65536-bit buses is refused (116 MB a cycle, 8).
+
 ## What it measured
 
 `largeTest/main5`, 120,084 components, step simulator, Run to clock 1000, read off the progress

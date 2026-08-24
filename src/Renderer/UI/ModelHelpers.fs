@@ -50,6 +50,11 @@ module Constants =
         wsModel.WSConfig.LastClock + maxStepsOverflow + waveSimZoomMargin wsModel
 
 
+    /// The fewest clock cycles of history the step simulator will build for. A design whose
+    /// per-cycle cost leaves room for fewer than this is refused rather than simulated: below it
+    /// there is not enough past to step back through, and every step would be a rebuild.
+    let minStepArraySize = 20
+
     /// Where a waveform simulation of a big design starts, in clock cycles. Enough to watch a
     /// design work; short enough that starting one is seconds rather than minutes.
     let shortStartClock = 200
@@ -767,6 +772,25 @@ let startingLastClock (configured: int) (heapEstimate: float) =
     else
         configured
 
+/// How many cycles of history the step simulator may build for a design costing this much, or
+/// None when it may not be simulated at all.
+///
+/// The waveform simulator gets its bound from a configuration dialog that prices the design and
+/// refuses a last clock that will not fit. The step simulator has no dialog - it just picks a
+/// length - so the same budget has to bind on that one number. `wanted` is what it would like;
+/// this lowers it to what the design can afford, and refuses below `minStepArraySize`, where
+/// there is not enough past to step back through.
+///
+/// Measured against maxCyclesFor, which is the budget WITHOUT the runtime headroom
+/// checkSimulationFits allows itself. Deliberately the stricter of the two: a size chosen here is
+/// then certain to pass the build's own check, so this decides the outcome rather than moving a
+/// refusal to somewhere that explains it worse.
+let stepSimCycles (wanted: int) (cost: SimTypes.StepCost) : int option =
+    match FastCreate.maxCyclesFor cost with
+    | affordable when affordable >= wanted -> Some wanted
+    | affordable when affordable >= Constants.minStepArraySize -> Some affordable
+    | _ -> None
+
 let simulateModel (isWaveSim: bool) (simulatedSheet: string option) (simulationArraySize: int) openSheetCanvasState model =
     let start = TimeHelpers.getTimeMs()
     match openSheetCanvasState, model.CurrentProj with
@@ -879,14 +903,17 @@ let mutable private waveSimCostMemo: (string * LoadedComponent list * Result<Sim
 /// evicted on the way. The cost is a fact about the design's merged graph, so this stops there:
 /// check the circuit, price its graph, allocate nothing - not even the flattening, which
 /// stepCostOfGraph no longer needs.
-let waveSimStepCost (model: Model) : Result<SimTypes.StepCost, SimulationError> =
+/// The per-cycle cost of one sheet of the open design. `waveSimStepCost` below is this for the
+/// sheet the waveform simulator is on; the step simulator asks for the open one, to decide how
+/// many cycles of history it can afford (SimulationView.stepSimArraySize).
+///
+/// One memo entry, keyed by sheet: two callers asking about different sheets re-price rather than
+/// share, which costs a graph walk. That is the right trade - the dialog asks per keystroke about
+/// one sheet, and the step simulator asks once per build.
+let designStepCost (model: Model) (simSheet: string) : Result<SimTypes.StepCost, SimulationError> =
     match model.CurrentProj with
     | None -> Error (Simulator.makeDummySimulationError "No project is open")
     | Some project ->
-        let simSheet =
-            match model.WaveSimSheet with
-            | Some s when s <> "" -> s
-            | _ -> project.OpenFileName
         let ldcs = designOf project (model.Sheet.GetCanvasState())
         match waveSimCostMemo with
         | Some(memoSheet, memoLdcs, result) when memoSheet = simSheet && designIsUnchanged memoLdcs ldcs ->
@@ -903,6 +930,15 @@ let waveSimStepCost (model: Model) : Result<SimTypes.StepCost, SimulationError> 
                     Error (Simulator.makeDummySimulationError $"exception while pricing the design: {e.Message}")
             waveSimCostMemo <- Some(simSheet, ldcs, result)
             result
+
+let waveSimStepCost (model: Model) : Result<SimTypes.StepCost, SimulationError> =
+    match model.CurrentProj with
+    | None -> Error (Simulator.makeDummySimulationError "No project is open")
+    | Some project ->
+        match model.WaveSimSheet with
+        | Some s when s <> "" -> s
+        | _ -> project.OpenFileName
+        |> designStepCost model
 
 
 //------------------------------------------------------------------------------------------------//

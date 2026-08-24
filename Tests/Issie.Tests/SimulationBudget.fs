@@ -352,6 +352,64 @@ let tests =
                 "and below the threshold, however large the value"
         }
 
+        //--------------------------------------------------------------------------------------//
+        // The step simulator, which has no configuration dialog to hold the user to a budget.
+        //
+        // It picks one number - how many cycles of history to keep - so the budget binds on that.
+        // It asks for what it wants, takes what the design can afford, and refuses a design that
+        // cannot afford even the minimum, where there would be no past to step back through.
+        //--------------------------------------------------------------------------------------//
+
+        test "a design that fits gets the history the step simulator asked for" {
+            let cheap = { TypedArrayBytes = 100; HeapBytes = 0 }
+            Expect.equal (ModelHelpers.stepSimCycles 550 cheap) (Some 550)
+                "a design of a hundred bytes a cycle can afford far more than 550 of them"
+        }
+
+        test "a design too big for the full history is shortened, not refused" {
+            // priced so that the budget allows somewhere between the minimum and what was asked
+            let target = 100
+            let perCycle = int (SimulationBudget.maxTypedArrayBytes / float target)
+            let cost = { TypedArrayBytes = perCycle; HeapBytes = 0 }
+            match ModelHelpers.stepSimCycles 550 cost with
+            | None -> failtest "a design that can afford 100 cycles must be simulated, not refused"
+            | Some size ->
+                Expect.isLessThan size 550 "it cannot have what it asked for"
+                Expect.isGreaterThanOrEqual size ModelHelpers.Constants.minStepArraySize
+                    "but it keeps at least the minimum history"
+                Expect.equal size (FastCreate.maxCyclesFor cost)
+                    "and it takes exactly what the budget allows"
+        }
+
+        test "a design that cannot afford the minimum history is refused" {
+            // one cycle of this costs a fifth of the whole budget, so twenty of them cannot fit
+            let perCycle = int (SimulationBudget.maxTypedArrayBytes / 5.0)
+            let cost = { TypedArrayBytes = perCycle; HeapBytes = 0 }
+            Expect.isLessThan (FastCreate.maxCyclesFor cost) ModelHelpers.Constants.minStepArraySize
+                "this design really cannot hold the minimum history"
+            Expect.equal (ModelHelpers.stepSimCycles 550 cost) None
+                "so it is refused rather than simulated with almost no history"
+        }
+
+        test "the size the step simulator chooses is one its own build will accept" {
+            // The choice is made against maxCyclesFor, which is the budget without the headroom
+            // checkSimulationFits allows itself - so whatever is chosen here passes there, and the
+            // refusal happens where it can be explained rather than inside the build.
+            [ 10; 1000; 100_000; 5_000_000 ]
+            |> List.iter (fun perCycle ->
+                let cost = { TypedArrayBytes = perCycle; HeapBytes = perCycle / 4 }
+                match ModelHelpers.stepSimCycles 550 cost with
+                | None -> ()
+                | Some size ->
+                    Expect.isOk (FastCreate.checkSimulationFits size cost)
+                        $"a step simulation of {size} cycles at {perCycle} bytes a cycle must build")
+        }
+
+        test "a design with nothing to store keeps the whole history" {
+            Expect.equal (ModelHelpers.stepSimCycles 550 { TypedArrayBytes = 0; HeapBytes = 0 }) (Some 550)
+                "no step arrays means no reason to shorten"
+        }
+
         test "a design is never started at more cycles than it asked for" {
             let budget = SimulationBudget.maxHeapBytes
             Expect.equal (ModelHelpers.startingLastClock 50 (0.5 * budget)) 50

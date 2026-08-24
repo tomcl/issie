@@ -1,17 +1,47 @@
 ﻿/// What the waveform viewer and the step simulator ask of a simulator, and what a simulator
 /// promises them - whichever process it runs in.
 ///
-/// **The layering, because it is the point of this file.**
+/// **Interrogating a simulator is synchronous, and there is no cache between.**
 ///
-/// ```
-///   view code  --reads-->  the cache (synchronous)  <--fills--  ISimulator (asynchronous)
-///                                                                 |- in the renderer
-///                                                                 '- in the .NET sidecar
-/// ```
+/// Almost everything the UI asks a simulator is a small question about structure - which instances
+/// are inside this one, which ports does this instance offer, what is this port called and how
+/// wide is it - and the answer is wanted from inside `view`, where nothing can await.
 ///
-/// The UI talks only to the cache and never awaits, because `getWaveValue`, the cursor column,
-/// the hover tooltip, the schematic probe and the whole step panel are called from inside `view`.
-/// Only the update function calls an `ISimulator`, and only to fill that cache.
+/// Only three things take long enough that they cannot be answered while a frame is being drawn,
+/// and none of them is a question:
+///
+///   PRE-BUILD, where there is no simulation yet to ask;
+///   BUILD, which elaborates the design;
+///   RUN, which simulates it.
+///
+/// All three are commands, the renderer issues them, and so the renderer knows perfectly well when
+/// it is in one. That is the whole of the problem: every synchronous interrogation answers
+/// immediately in those three states - nothing yet - and the UI draws what it has, which is what
+/// it must do anyway while a build is running. Everywhere else the answer is there to be given.
+///
+/// So there is no read-through cache, no per-question "not yet", and no await in view code. An
+/// earlier design here had all three, on the assumption that talking to another process must make
+/// every question asynchronous. It does not: what makes a question asynchronous is being unable to
+/// answer it, and the three states above are exactly the ones where that is true and are known in
+/// advance.
+///
+/// **What makes that possible is WHERE the answers live.** A question the renderer answers from
+/// what it holds is synchronous by construction. It holds two things:
+///
+///   the DESIGN (`SimTypes.SimulatedDesign`), which settles every question about structure - which
+///   sheet an instance is a copy of, what it is labelled, what is inside it, how many of it there
+///   are - all by walking the design, none by expanding it;
+///
+///   and what the last BUILD produced about ports: which of them carry a waveform, what each is
+///   called, and how wide it is. Widths are why this cannot come from the design alone - a
+///   parameterised sheet resolves them per instance - but they are settled by the build, so they
+///   are known before the first frame that asks.
+///
+/// The one thing that is genuinely per-instance AND per-build is where a port's data LIES. That is
+/// only ever needed twice: to issue a fetch, which happens in the update function where an await
+/// is already happening, and thereafter as a KEY into what the fetch returned - `Wave.DriverIndex`
+/// indexing `WaveData` and `WaveDrawn`, both of which are renderer-side stores of data already in
+/// hand. Neither is a question put to a simulator during a render.
 ///
 /// **Why this interface is narrow and the old one was not.** What the renderer uses today is not
 /// an interface at all: it is field access into a `FastSimulation` - `FComps`, `Drivers`,
@@ -21,13 +51,6 @@
 /// asks small questions - which instances are inside this one, which ports does this instance
 /// offer, read me this window - and a `FastSimulation` becomes the private business of the
 /// implementation that has one.
-///
-/// **A local implementation costs nothing.** Its cache is read-through: `WaveSlice.ofLocalDriver`
-/// names a step array where it lies rather than copying it, so "filling the cache" is recording
-/// references. The only thing that differs between implementations is what a MISS does - a local
-/// one reads through and always hits, so the UI never sees "not yet", while a remote one answers
-/// None and schedules a fetch. That is what keeps one code path in the UI with no
-/// `SimulateInRenderer` fork in view code.
 ///
 /// **Widths come from here and nowhere else.** Parameters are resolved when a design is
 /// elaborated and can change widths, so a width is a fact about the elaborated INSTANCE, not

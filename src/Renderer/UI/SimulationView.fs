@@ -394,8 +394,20 @@ let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (dispatch: M
                 let seq = ModelHelpers.newSeq ()
                 dispatch (SidecarOpStarted(seq, OpStep cycle))
 
+                /// One chunk at a time, until the session reaches the cycle. The step panel's
+                /// run is a sequence like the waveform simulator's; unlike that one it is not
+                /// re-entered from the update function, because nothing can cancel a step - the
+                /// cycles a step moves by are one or a few, so a chunk always finishes it.
+                let rec runToCycle () =
+                    promise {
+                        match! SidecarSession.runChunk epoch cycle with
+                        | Error e -> return Error e
+                        | Ok(_, true) -> return Ok()
+                        | Ok(_, false) -> return! runToCycle ()
+                    }
+
                 promise {
-                    match! SidecarSession.runTo epoch cycle ignore with
+                    match! runToCycle () with
                     | Error e -> failed $"run to cycle {cycle}" e
                     | Ok() ->
                         match! StepPanelData.fill epoch cycle signals with

@@ -463,7 +463,7 @@ let updateUnpinned (msg : Msg) oldModel =
             // is zero however far the sidecar has run, so cancelling threw the cursor back to
             // cycle 0 rather than leaving it on the last cycle that exists.
             model
-            |> withMsg (WaveSimNavigation.setClkCycleMsg (getWSModel model) (WaveProvider.cyclesSimulated model.SimulateInRenderer fs))
+            |> withMsg (WaveSimNavigation.setClkCycleMsg (getWSModel model) (WaveProvider.cyclesSimulated model.SimulateInRenderer model.SidecarSession.Clock fs))
 
     | SetWaveGroupSelectionOpen (fIdL, show) ->
         model
@@ -548,7 +548,25 @@ let updateUnpinned (msg : Msg) oldModel =
             model |> withNoMsg
 
         | Some(OpBuild(top, arraySize)), AnsBuilt(Ok epoch) ->
-            model |> set sidecarSession_ (Session(top, arraySize, epoch)) |> withNoMsg
+            model |> set sidecarSession_ (Session(top, arraySize, epoch, 0)) |> withNoMsg
+
+        | Some(OpRunForWaves _), AnsRan(Ok(clock, _)) ->
+            // The clock it reached, and nothing else. Whether another chunk is needed is worked
+            // out where every other decision about this session is - fetchWhatIsMissing, which
+            // runs after this message like it runs after every other, compares this clock with
+            // what the view needs and issues the next chunk or the read. So cancelling a run is
+            // not a thing that has to reach into anything: it is this function no longer being
+            // asked for another chunk.
+            model
+            |> Optic.map sidecarSession_ (fun session ->
+                match session with
+                | Session(top, size, epoch, _) -> Session(top, size, epoch, clock)
+                | other -> other)
+            |> withNoMsg
+
+        | Some(OpRunForWaves _), AnsRan(Error e) ->
+            Log.error $"the .NET simulator could not run the design: {e}"
+            model |> withNoMsg
 
         | Some(OpBuild _), AnsBuilt(Error e) ->
             Log.error $"the .NET simulator could not build the design: {e}"

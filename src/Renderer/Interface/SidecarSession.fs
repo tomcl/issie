@@ -21,23 +21,19 @@ open Fable.SimpleJson // Json.serialize, the renderer's wire encoder (an extensi
 open CommonTypes
 
 module Constants =
-    /// How long one SimRun chunk may take. The renderer does nothing while the sidecar simulates,
-    /// so this is what keeps a progress bar moving and Cancel answerable.
-    let runChunkMs = 100
+    /// How long one SimRun chunk may take.
+    ///
+    /// A second, not a tenth of one. The renderer does nothing while the sidecar simulates, so
+    /// this is the granularity at which a progress bar moves and at which a Cancel is noticed -
+    /// and a second is fine for both: a bar that steps once a second is a bar, and cancelling is
+    /// rare enough that waiting out the chunk in progress costs nobody anything. Ten times a
+    /// second bought no more of either, and cost ten times the messages.
+    let runChunkMs = 1000
 
-/// How far the sidecar's simulation has been run, as it last reported. The renderer keeps its own
-/// simulator's clock in the FastSimulation; the sidecar's is in the sidecar, and this is the
-/// renderer's copy of it. Written only from the chunk replies of `runTo`, which is where the
-/// sidecar says what it has reached.
-let mutable private clockTick = 0
-
-/// How far the current session has been run.
-let clockReached () = clockTick
-
-/// Forget how far the sidecar has run, so the next use starts from nothing. Called when a
-/// simulation ends or the design changes. WHICH session the sidecar holds is model state -
-/// `Model.SidecarBuild` - and is not touched here.
-let forget () = clockTick <- 0
+/// Nothing here is state. What the sidecar holds and how far it has been run are both model
+/// facts - `Model.SidecarSession` - because both have to be drawn, and a belief the view can only
+/// reach through a side channel is one the view cannot draw from.
+let forget () = ()
 
 /// The error text of a sidecar reply, or None when it is not an error. Every reply that can fail
 /// answers with a JSON object whose only key is "error".
@@ -85,32 +81,37 @@ let build (design: SimpleDesign) (arraySize: int) : JS.Promise<Result<int, strin
                     // a build that issued no epoch built nothing, whatever else the reply said
                     return Error $"the sidecar's build reply named no session: {reply}"
                 else
-                    clockTick <- 0
                     return Ok epoch
     }
 
-/// Advance the sidecar's simulation to `cycle`, a chunk at a time so the renderer stays live.
-/// `onProgress` is told the clock tick after each chunk, which is what lets a progress bar move
-/// and a Cancel be answered - the same contract the renderer's own progress loop uses against
-/// local simulation.
-let runTo (epoch: int) (cycle: int) (onProgress: int -> unit) : JS.Promise<Result<unit, string>> =
-    let rec chunk () =
-        promise {
-            let! reply = SidecarClient.simRun epoch cycle Constants.runChunkMs
+/// Run the session towards `cycle` for one chunk, and answer with the clock it reached and
+/// whether it got there.
+///
+/// **One chunk, not a loop.** A run is a SEQUENCE of these and the sequence belongs in the update
+/// function, which is where the sequencing of everything else on this protocol lives.
+///
+/// **No operation is ever cancelled in the middle.** Every one runs to completion and answers -
+/// this one answers with the clock it reached and whether that was the cycle asked for. Cancelling
+/// a run is deciding not to ask for the next chunk, which needs nothing of the protocol, nothing
+/// of the sidecar, and nothing of the promise already running. Reaching into an operation in
+/// flight would be a mechanism this protocol has nowhere else, and the whole reason a run is
+/// chunked at all is so that it does not need one.
+///
+/// It is also what lets the clock be model state - `SidecarSession`, updated by each answer - so
+/// that a progress bar is drawn from it like anything else.
+///
+/// The loop that used to be here reported progress through a callback and checked no cancellation.
+/// Every caller passed `ignore`, so ten round trips a second bought neither of the two things
+/// chunking is for.
+let runChunk (epoch: int) (cycle: int) : JS.Promise<Result<int * bool, string>> =
+    promise {
+        let! reply = SidecarClient.simRun epoch cycle Constants.runChunkMs
 
-            match errorIn reply with
-            | Some e -> return Error e
-            | None ->
-                let parsed = parseJson reply
-                let tick: int = unbox parsed?clockTick
-                let finished: bool = unbox parsed?``done``
-                clockTick <- tick
-                onProgress tick
-
-                if finished then
-                    return Ok()
-                else
-                    return! chunk ()
-        }
-
-    chunk ()
+        match errorIn reply with
+        | Some e -> return Error e
+        | None ->
+            let parsed = parseJson reply
+            let tick: int = unbox parsed?clockTick
+            let finished: bool = unbox parsed?``done``
+            return Ok(tick, finished)
+    }

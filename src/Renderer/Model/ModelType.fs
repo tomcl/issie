@@ -300,6 +300,10 @@ type SeqNum = SeqNum of uint32
 type SidecarOp =
     /// elaborate the design on the sidecar and start a session
     | OpBuild of top: string * arraySize: int
+    /// run the session one chunk towards this cycle, so the waveform view can be read from it.
+    /// A run is a sequence of these: the answer says how far it got, and the update function
+    /// issues the next unless it has arrived or the user has cancelled
+    | OpRunForWaves of toCycle: int
     /// run to the cycle the view shows and read waveforms over its window, and at most one RAM's
     /// rows after them - one operation because it is one promise, in order, over one connection
     | OpFetch of waves: int * ram: FComponentId option
@@ -310,6 +314,8 @@ type SidecarOp =
 /// though it were the answer to something else.
 type SidecarAnswer =
     | AnsBuilt of Result<int, string>
+    /// the clock the chunk reached, and whether it reached the cycle asked for
+    | AnsRan of Result<int * bool, string>
     | AnsFetched of Result<unit, string> * (FComponentId * (RamView.RamKey * RamView.RamView)) option
     | AnsStepped
 
@@ -322,23 +328,32 @@ type SidecarAnswer =
 type SidecarSessionState =
     /// nothing built: none has been asked for, or the last simulation ended
     | NoSession
-    /// the sidecar holds this design, at this array size, under this session epoch
-    | Session of top: string * arraySize: int * epoch: int
+    /// the sidecar holds this design, at this array size, under this session epoch, and has been
+    /// run as far as this clock. The clock is here because a run is a sequence of operations and
+    /// what each one reports is how far it got - so the progress of a run is model state, drawn
+    /// like anything else, rather than a callback threaded down to a caller that ignored it
+    | Session of top: string * arraySize: int * epoch: int * clock: int
     /// the last build failed, saying this. Kept so the UI can show it rather than retry for ever
     | SessionFailed of string
 
     /// The session to command, when there is one.
     member this.Epoch =
         match this with
-        | Session(_, _, epoch) -> Some epoch
+        | Session(_, _, epoch, _) -> Some epoch
         | _ -> None
 
     /// Whether the sidecar already holds what a caller is about to ask for. An array size bigger
     /// than the one built for needs a new build; a smaller one does not, since the arrays it wants
     /// are inside the ones there are.
+    /// How far the session has been run, or 0 when there is not one.
+    member this.Clock =
+        match this with
+        | Session(_, _, _, clock) -> clock
+        | _ -> 0
+
     member this.Holds(top: string, arraySize: int) =
         match this with
-        | Session(built, size, _) -> built = top && size >= arraySize
+        | Session(built, size, _, _) -> built = top && size >= arraySize
         | _ -> false
 
 type Wave = {

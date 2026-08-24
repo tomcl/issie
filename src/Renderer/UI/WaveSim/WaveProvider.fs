@@ -197,22 +197,18 @@ let private fetchWaves
                 return Ok()
         }
 
-/// Everything a fetch needs, in one promise: run the session to the last cycle the view shows,
-/// then read the waves asked for over that window. The session is already built - whether it
-/// needed building was settled from the model before this was started.
+/// Read the waves asked for over that window, from a session that has already been run far enough.
+///
+/// Running it that far is a separate operation, or rather a sequence of them, sequenced by the
+/// update function - see WaveSimTop.fetchWhatIsMissing. Nothing here decides anything about the
+/// session: it is handed one that is ready and reads from it.
 let private fetchForView
     (epoch: int)
     (fs: FastSimulation)
     (driverIndices: int list)
     (window: Window)
-    (onProgress: int -> unit)
     : JS.Promise<Result<unit, string>> =
-    promise {
-        match! SidecarSession.runTo epoch (window.LastCycle + 1) onProgress with
-        | Error e -> return Error e
-        | Ok() -> return! fetchWaves epoch fs driverIndices window
-    }
-
+    fetchWaves epoch fs driverIndices window
 
 /// Choose the simulator for this refresh, and say what the renderer's own one reads through.
 ///
@@ -243,8 +239,8 @@ let selectSimulator
 /// Whichever simulator is running is the one that knows. Asking the renderer's FastSimulation
 /// while the sidecar simulates gives zero however far the sidecar has gone, which is not a number
 /// anything should act on: it put the cursor back to cycle 0 when a progress bar was cancelled.
-let cyclesSimulated (inRenderer: bool) (fs: FastSimulation) =
-    if inRenderer then fs.ClockTick else SidecarSession.clockReached ()
+let cyclesSimulated (inRenderer: bool) (sidecarClock: int) (fs: FastSimulation) =
+    if inRenderer then fs.ClockTick else sidecarClock
 
 /// The waves that are not holding the window they are about to be drawn over, and so have to be
 /// asked for.
@@ -276,7 +272,6 @@ let fetchWavesFor
     (fs: FastSimulation)
     (driverIndices: int list)
     (window: Window)
-    (onProgress: int -> unit)
     : JS.Promise<Result<unit, string>> =
-    fetchForView epoch fs driverIndices window onProgress
+    fetchForView epoch fs driverIndices window
     |> Promise.catch (fun e -> Error e.Message)

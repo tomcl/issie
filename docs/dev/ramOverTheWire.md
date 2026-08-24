@@ -74,14 +74,14 @@ So of the three requirements:
 
 - **(a) keep a set of written locations** - already kept, no new state.
 - **(b) when the count passes the maximum, stop updating it** - nothing is being paid to update, so
-  nothing stops. What the threshold governs is *reading*: past `maxSparse` distinct written
-  addresses the slot walk is no longer worth doing, and the viewer takes a window instead.
+  nothing stops. What the maximum governs is *reading*: past `Constants.maxSlotsForWholeRead`
+  written addresses the walk is not worth doing, and the viewer takes a window instead.
 - **(c) below the maximum, use the set to return sparse data** - walk the slots, evaluate each at
-  the step, emit the non-zero ones. `SlotCount <= maxSparse` decides it without any walk at all,
-  and the walk that follows is bounded by `maxSparse`.
+  the step, emit the non-zero ones. The walk is bounded by the same number, so the cost is the
+  same whatever the memory holds.
 
-That is a strictly cheaper rule than the one in the code today, which asks the right question
-(`liveCountExceeds`) and then answers it the expensive way (`toMemory`).
+That is a strictly cheaper rule than the one it replaced, which asked the right question
+(`liveCountExceeds`) and then answered it the expensive way (`toMemory`).
 
 ## What was done
 

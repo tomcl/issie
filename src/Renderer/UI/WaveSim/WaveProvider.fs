@@ -1,4 +1,4 @@
-/// Which simulator answers the waveform viewer, and - when it is the .NET sidecar - fetching
+﻿/// Which simulator answers the waveform viewer, and - when it is the .NET sidecar - fetching
 /// what the view draws.
 ///
 /// The shape of it: the sidecar builds and runs the simulation, and the renderer asks it for one
@@ -26,40 +26,10 @@ open CommonTypes
 open SimTypes
 open WaveSlice
 
-module Constants =
-    /// How long one SimRun chunk may take. The renderer does nothing while the sidecar simulates,
-    /// so this is what keeps the progress bar moving and Cancel answerable.
-    let runChunkMs = 100
-
-/// What the sidecar has been told to build: the top sheet, and the step-array size it was built
-/// for. Process state about another process, not model state - the model cannot know what a
-/// separate program is holding, and nothing in the model would be a better place to say so.
-/// What the sidecar holds: the top sheet, the array size it was built for, and the epoch that
-/// build issued.
-///
-/// The epoch is the part that makes the other two checkable. Without it this record is a belief -
-/// the sidecar could have restarted, or been built over - and every command sent on the strength of
-/// it would be answered as though the belief were true. With it, a command that names a session the
-/// sidecar does not hold is refused by name.
-let mutable private built: (string * int * int) option = None
-
-/// How far the sidecar's simulation has been run, as it last reported.
-///
-/// This and `built` above are the only state this module keeps, and neither is a copy of anything
-/// in the model: they are the renderer's picture of a process it cannot see inside. WHICH
-/// simulator is running is a model fact - Model.SimulateInRenderer - and is passed in rather than
-/// mirrored here, because a second copy of a model fact is a thing that can disagree with it.
-///
-/// The renderer keeps its own simulator's clock in the FastSimulation; the sidecar's is in the
-/// sidecar, and this is the renderer's copy of it. Written only from the chunk replies of runTo,
-/// which is where the sidecar says what it has reached.
-let mutable private sidecarClockTick = 0
-
 /// Forget what the sidecar holds, so the next refresh builds again. Called when the waveform
-/// simulation ends or the design changes.
-let forget () =
-    built <- None
-    sidecarClockTick <- 0
+/// simulation ends or the design changes. The session itself is SidecarSession's, which the step
+/// simulator shares: the sidecar holds one simulation at a time, so one module knows what it is.
+let forget () = SidecarSession.forget ()
 
 /// (component id, output port, access path) for each driver, taken from the wave index.
 ///
@@ -128,83 +98,6 @@ let private driverSignals: FastSimulation -> Map<int, int * int * int list> =
             $"drivers nameable for the .NET simulator: {Map.count fromComponents} from components, {Map.count named} in all, of {fs.Drivers.Length}"
 
         named)
-
-/// The error text of a sidecar reply, or None when it is not an error. Every reply that can fail
-/// answers with a JSON object whose only key is "error".
-let private errorIn (reply: string) =
-    if reply.StartsWith "{\"error\"" then Some reply else None
-
-/// Build the design on the sidecar if it does not already hold it at a big enough array size.
-let private ensureBuilt (design: SimpleDesign) (arraySize: int) : JS.Promise<Result<int, string>> =
-    match built with
-    | Some(top, size, epoch) when top = design.TopSheet && size >= arraySize -> Promise.lift (Ok epoch)
-    | _ ->
-        promise {
-            do! SidecarClient.connect ()
-            let sheetJsons = design.Sheets |> List.map Json.serialize<SimpleSheet>
-            let! sent = SidecarClient.sendDesign design.TopSheet sheetJsons
-
-            match errorIn sent with
-            | Some e ->
-                built <- None
-                return Error e
-            | None ->
-                let! reply = SidecarClient.simBuild arraySize
-
-                match errorIn reply with
-                | Some e ->
-                    built <- None
-                    return Error e
-                | None ->
-                    let epoch = SidecarClient.epochOf reply
-
-                    if epoch = 0 then
-                        // a build that issued no epoch built nothing, whatever else the reply said
-                        built <- None
-                        return Error $"the sidecar's build reply named no session: {reply}"
-                    else
-                        built <- Some(design.TopSheet, arraySize, epoch)
-                        return Ok epoch
-        }
-
-[<Emit("JSON.parse($0)")>]
-let private parseJson (text: string) : obj = jsNative
-
-/// Advance the sidecar's simulation to `cycle`, a chunk at a time so the renderer stays live.
-/// `onProgress` is told the clock tick after each chunk.
-///
-/// **Only ever as far as the view needs.** A waveform simulation is run LAZILY and extended on
-/// demand as the user scrolls or zooms out; it is never run to the end of its step arrays because
-/// it was configured for a long one. That is deliberate UX - a design configured for four million
-/// cycles must not make the user wait for four million cycles to look at the first ten - and it
-/// is the reason `arraySize` above and the cycle here are different numbers with different jobs:
-/// the first ALLOCATES for the configured length, this one RUNS for the shown length.
-///
-/// The renderer's own simulator does the same thing through `lastCycleNeeded` in WaveSimTop,
-/// which works the bound out from the same view a slightly different way and lands one sample
-/// further on. Both cover what is drawn. When building and running are eventually shared, the
-/// two should become one expression rather than two that agree by inspection.
-let private runTo (epoch: int) (cycle: int) (onProgress: int -> unit) : JS.Promise<Result<unit, string>> =
-    let rec chunk () =
-        promise {
-            let! reply = SidecarClient.simRun epoch cycle Constants.runChunkMs
-
-            match errorIn reply with
-            | Some e -> return Error e
-            | None ->
-                let parsed = parseJson reply
-                let tick: int = unbox parsed?clockTick
-                let finished: bool = unbox parsed?``done``
-                sidecarClockTick <- tick
-                onProgress tick
-
-                if finished then
-                    return Ok()
-                else
-                    return! chunk ()
-        }
-
-    chunk ()
 
 /// Fetch some waves over the window they are about to be drawn over, and add them to the cache.
 ///
@@ -287,7 +180,7 @@ let private fetchWaves
                 // design, so writing into it now would put waves of the old design beside waves of
                 // the new one, each looking exactly as trustworthy as the other. Drop it: the
                 // refresh that follows asks the session that now exists for everything.
-                match built with
+                match SidecarSession.current () with
                 | Some(_, _, current) when current = epoch ->
                     // one array, shared: the reply is signal-major, and each wave records where its
                     // own row starts rather than the rows being copied apart
@@ -318,10 +211,10 @@ let private fetchForView
     (onProgress: int -> unit)
     : JS.Promise<Result<unit, string>> =
     promise {
-        match! ensureBuilt design arraySize with
+        match! SidecarSession.ensureBuilt design arraySize with
         | Error e -> return Error e
         | Ok epoch ->
-            match! runTo epoch (window.LastCycle + 1) onProgress with
+            match! SidecarSession.runTo epoch (window.LastCycle + 1) onProgress with
             | Error e -> return Error e
             | Ok() -> return! fetchWaves epoch fs driverIndices window
     }
@@ -357,7 +250,7 @@ let selectSimulator
 /// while the sidecar simulates gives zero however far the sidecar has gone, which is not a number
 /// anything should act on: it put the cursor back to cycle 0 when a progress bar was cancelled.
 let cyclesSimulated (inRenderer: bool) (fs: FastSimulation) =
-    if inRenderer then fs.ClockTick else sidecarClockTick
+    if inRenderer then fs.ClockTick else SidecarSession.clockReached ()
 
 /// The waves that are not holding the window they are about to be drawn over, and so have to be
 /// asked for.

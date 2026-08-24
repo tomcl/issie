@@ -374,6 +374,15 @@ type SimulatedDesign =
         |> List.map (fun (cid, _) -> InstancePath(ap @ [ cid ]))
         |> List.sort
 
+    /// The design component one component of one instance is a copy of.
+    ///
+    /// What it gives is the component as DRAWN. Its kind, its label and its .ram-file comments are
+    /// facts about that; its widths are not, since a parameterised sheet resolves those per
+    /// instance - for a width, ask `PortView` for the port.
+    member this.ComponentOfInstance((compId, ap): FComponentId) : Component option =
+        Map.tryFind (this.SheetOfInstance(InstancePath ap)) this.DesignComponentsById
+        |> Option.bind (Map.tryFind compId)
+
     /// The design-time sheet a component was drawn on, found by its id. None for an id this design
     /// does not hold - one left over from a simulation of an earlier version of it.
     member this.SheetOfComponent(compId: ComponentId) : string option =

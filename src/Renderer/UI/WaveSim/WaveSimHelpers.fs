@@ -360,21 +360,13 @@ let librarySheetsOf: FastSimulation -> Set<string> =
 /// opaque, so no instance inside one is ever on show. It is for the two places that reach a
 /// component without going through the hierarchy - the default selection, which looks for Viewers
 /// anywhere in the design, and the schematic's right-click menu.
-let isInsideLibraryComponent (fs: FastSimulation) (fc: FastComponent) =
+let isInsideLibraryComponent (fs: FastSimulation) (InstancePath ap) =
     let librarySheets = librarySheetsOf fs
 
-    match Set.isEmpty librarySheets with
-    | true -> false
-    | false ->
-        fc.AccessPath
-        |> List.mapi (fun i cid -> cid, fc.AccessPath[0 .. i - 1])
-        |> List.exists (fun fid ->
-            match Map.tryFind fid fs.FCustomComps with
-            | Some customComp ->
-                match customComp.FType with
-                | Custom cc -> Set.contains cc.Name librarySheets
-                | _ -> false
-            | None -> false)
+    not (Set.isEmpty librarySheets)
+    // every sheet entered on the way down, which is the sheet of each prefix of the path
+    && [ 1 .. ap.Length ]
+       |> List.exists (fun i -> Set.contains (fs.Design.SheetOfInstance(InstancePath ap[0 .. i - 1])) librarySheets)
 
 /// The ports of one elaborated component that carry a waveform, as wave indices into the
 /// simulation as it is now.
@@ -407,18 +399,11 @@ let waveIndicesOfFComp (fs: FastSimulation) (fId: FComponentId) : WaveIndexT lis
 /// that map's 208,896 keys. The component knows where its own ports are, so a selection of a
 /// hundred waves is a hundred lookups.
 let reResolveWave (fs: FastSimulation) (wi: WaveIndexT) : WaveIndexT option =
-    match Map.tryFind wi.Id fs.WaveComps with
-    | Some fc when FastCreate.portCarriesWave fs fc wi.PortType ->
-        let arrays =
-            match wi.PortType with
-            | PortType.Output -> fc.Outputs
-            | PortType.Input -> fc.InputLinks
+    let compId, ap = wi.Id
 
-        if wi.PortNumber < arrays.Length then
-            Some { wi with SimArrayIndex = arrays[wi.PortNumber].Index }
-        else
-            None
-    | _ -> None
+    (PortView.ofInstanceCached fs (InstancePath ap)).ViewPorts
+    |> List.tryFind (fun p -> p.PortComp = compId && p.PortIs = wi.PortType && p.PortNum = wi.PortNumber)
+    |> Option.map (fun port -> { wi with SimArrayIndex = port.PortArrayIndex })
 
 /// Build a wave map in a scope that holds nothing.
 ///

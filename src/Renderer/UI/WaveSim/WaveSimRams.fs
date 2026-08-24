@@ -37,9 +37,13 @@ let ramTableRow (hasComments: bool) ((addr, data, comment, rowType): string * st
 let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ramId, ramLabel): FComponentId * string) : ReactElement =
     let wanted = calcWaveformAndScrollBarHeight wsModel
     let fs = Simulator.getFastSim()
-    match Map.tryFind ramId fs.FComps with
+    // The memory as the component was DRAWN. Which kind of memory it is and what its .ram file
+    // said about each location are facts about the component somebody placed, so they are read
+    // from the design in both modes. Its WIDTHS are not - a parameterised sheet resolves those
+    // per instance - so those come from the instance's own ports below.
+    match fs.Design.ComponentOfInstance ramId with
     | None -> div [] []
-    | Some fc -> 
+    | Some comp -> 
         let step = wsModel.CursorExactClkCycle
         if fs.ClockTick < step then
             Log.dbg Log.Wave $"extending the fast simulation to cycle {step} for the RAM table"
@@ -50,14 +54,27 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
         /// builds a simulation for structure whichever simulator is running. Only the contents
         /// come from the simulator that has them.
         let mem =
-            match fc.FType with
+            match comp.Type with
             | ROM1 m
             | AsyncROM1 m
             | RAM1 m
             | AsyncRAM1 m -> m
-            | _ -> failwithf $"Given a component {fc.FType} which is not a vaild RAM"
+            | _ -> failwithf $"Given a component {comp.Type} which is not a vaild RAM"
 
-        let aWidth,dWidth = mem.AddressWidth,mem.WordWidth
+        /// The address and data widths of THIS instance of the memory, taken from its ports -
+        /// input 0 is the address it is read at and output 0 is the word it gives back. Falling
+        /// back on the declaration for a simulation that does not offer them, which is what an
+        /// unbuilt one looks like.
+        let aWidth, dWidth =
+            let ports = (PortView.ofInstanceCached fs (InstancePath(snd ramId))).ViewPorts
+
+            let widthOf portType num =
+                ports
+                |> List.tryFind (fun p -> p.PortComp = fst ramId && p.PortIs = portType && p.PortNum = num)
+                |> Option.map (fun p -> p.PortWidth)
+
+            widthOf PortType.Input 0 |> Option.defaultValue mem.AddressWidth,
+            widthOf PortType.Output 0 |> Option.defaultValue mem.WordWidth
 
         let print w (a:bigint) = NumberHelpers.valToPaddedString w wsModel.Radix (((1I <<< w) - 1I) &&& a)
 

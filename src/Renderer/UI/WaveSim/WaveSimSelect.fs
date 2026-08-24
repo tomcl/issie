@@ -264,7 +264,7 @@ let wavesOfComponent
     | Error copies -> [], copies
     // the innards of a library component are not offered here any more than they are in the
     // selector, whose hierarchy makes one opaque
-    | Ok fId when Map.tryFind fId fs.WaveComps |> Option.exists (isInsideLibraryComponent fs) -> [], 1
+    | Ok((_, ap) as fId) when isInsideLibraryComponent fs (InstancePath ap) -> [], 1
     | Ok fId ->
         let waves = waveIndicesOfFComp fs fId |> List.map (makeWave ws fs)
 

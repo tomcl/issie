@@ -1,4 +1,4 @@
-(*
+﻿(*
 These are types used throughout the application
 *)
 
@@ -1402,26 +1402,84 @@ let lcParameterDefs_ =
 
 let isTopSheet_ = Lens.create (fun a -> a.IsTopSheet) (fun s a -> {a with IsTopSheet = s})
 
-/// Returns true if a component is clocked
-let rec isClocked (visitedSheets: string list) (ldcs: LoadedComponent list) (comp: Component) =
-    match comp.Type with
-    | Custom ct ->
-        let ldcOpt =
-            ldcs
-            |> List.tryFind (fun ldc -> ldc.Name = ct.Name)
-        match ldcOpt, List.contains ct.Name visitedSheets with
-        | _, true -> false
-        | None, _ -> false
-        | Some ldc, _ ->
-            let (comps, _) = ldc.CanvasState
-            List.exists (isClocked (ct.Name :: visitedSheets) ldcs) comps
-                        
-
-                            
+/// Whether a component is clocked in itself - without looking inside a custom component, which is
+/// a question about the sheet it names rather than about the component.
+let isClockedPrimitive (compType: ComponentType) =
+    match compType with
     | DFF | DFFE | Register _ | RegisterE _ | RAM _ | ROM _
-    | Counter _ |CounterNoEnable _ | CounterNoLoad _  |CounterNoEnableLoad _ ->
-        true
+    | Counter _ | CounterNoEnable _ | CounterNoLoad _ | CounterNoEnableLoad _ -> true
     | _ -> false
+
+/// Which SHEETS of a design hold something clocked, at any depth.
+///
+/// A fact about a sheet and not about any instance of it: a sheet's components are the same
+/// wherever it is placed, and parameters change widths rather than kinds. So it is worked out once
+/// for a design, and every symbol drawn on it is then a set lookup.
+///
+/// Settled in one pass over sheets ordered so that each comes after everything inside it. Working
+/// it out per component instead re-walked the whole subtree for every custom component drawn -
+/// twice, since a symbol asks once for its colour and once for its own record - and that walk
+/// follows every ROUTE through the design rather than every sheet, so a design whose sheets
+/// instantiate one another costs paths rather than sheets.
+let clockedSheets (ldcs: LoadedComponent list) : Set<string> =
+    let byName = ldcs |> List.map (fun ldc -> ldc.Name, ldc) |> Map.ofList
+
+    let subSheetsOf name =
+        match Map.tryFind name byName with
+        | None -> []
+        | Some ldc ->
+            fst ldc.CanvasState
+            |> List.choose (fun comp ->
+                match comp.Type with
+                | Custom ct -> Some ct.Name
+                | _ -> None)
+            |> List.distinct
+
+    /// Every sheet, ordered so that a sheet comes after all the sheets it instantiates. The
+    /// reverse of a parents-first walk; a sheet reached several ways is placed once, and the
+    /// visited set is also what stops a design that wrongly contains a cycle from hanging.
+    let sorted =
+        let rec walk (seen: Set<string>, acc) name =
+            if Set.contains name seen then
+                seen, acc
+            else
+                let seen, acc = ((Set.add name seen, acc), subSheetsOf name) ||> List.fold walk
+                seen, name :: acc
+
+        ((Set.empty, []), ldcs |> List.map (fun ldc -> ldc.Name))
+        ||> List.fold walk
+        |> snd
+        |> List.rev
+
+    (Set.empty, sorted)
+    ||> List.fold (fun clocked name ->
+        let holdsSomethingClocked =
+            match Map.tryFind name byName with
+            | None -> false
+            | Some ldc ->
+                fst ldc.CanvasState
+                |> List.exists (fun comp ->
+                    match comp.Type with
+                    | Custom ct -> Set.contains ct.Name clocked
+                    | compType -> isClockedPrimitive compType)
+
+        if holdsSomethingClocked then Set.add name clocked else clocked)
+
+/// Whether a component is clocked, given which sheets of the design are.
+let isClockedGiven (clocked: Set<string>) (comp: Component) =
+    match comp.Type with
+    | Custom ct -> Set.contains ct.Name clocked
+    | compType -> isClockedPrimitive compType
+
+/// Returns true if a component is clocked.
+///
+/// For ONE component. Anything asking about many should work out `clockedSheets` once and use
+/// `isClockedGiven` - which is what the draw block does, since it asks about every symbol on a
+/// sheet twice over.
+let isClocked (_visitedSheets: string list) (ldcs: LoadedComponent list) (comp: Component) =
+    match comp.Type with
+    | Custom _ -> isClockedGiven (clockedSheets ldcs) comp
+    | compType -> isClockedPrimitive compType
 
 /// Type for an open project which represents a complete design.
 /// ProjectPath is directory containing project files.

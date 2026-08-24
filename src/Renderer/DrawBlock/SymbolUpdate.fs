@@ -428,7 +428,7 @@ let inline colorSymbols (model: Model) compList colour =
 
 /// Initialises a symbol containing the component and returns the updated symbol map containing the new symbol
 let createSymbolRecord ldcs theme comp =
-        let clocked = isClocked [] ldcs comp
+        let clocked = isClockedGiven (clockedSheetsOf ldcs) comp
         let portMaps = 
             match comp.SymbolInfo with
                 | None -> 
@@ -524,6 +524,7 @@ let createAnnotation (theme: ThemeType) (a:Annotation) (pos: XYPos)  =
 let loadComponents loadedComponents model comps=
     let symbolMap =
         (model.Symbols, comps) ||> List.fold (createSymbol loadedComponents model.Theme)
+
     let addPortsToModel currModel _ sym =
         { currModel with Ports = addToPortModel currModel sym }
         

@@ -43,6 +43,6 @@ let loadProject (projectName: string) : LoadedComponent list =
 let allWavesOf (ws: WaveSimModel) (fs: FastSimulation) : Map<WaveIndexT, Wave> =
     fs.WaveIndex
     |> Array.toList
-    |> List.filter (fun wi -> not (WaveSimHelpers.isInsideLibraryComponent fs fs.WaveComps[wi.Id]))
+    |> List.filter (fun wi -> not (WaveSimHelpers.isInsideLibraryComponent fs (InstancePath (snd wi.Id))))
     |> List.map (fun wi -> wi, WaveSimHelpers.makeWave ws fs wi)
     |> WaveSimHelpers.makeWaveMap

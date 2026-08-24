@@ -678,11 +678,18 @@ let makeComponent (pos: XYPos) (compType: ComponentType) (id:int) (label:string)
 
 
 /// Function to generate a new symbol
+/// Which sheets of a design hold something clocked, worked out once per design rather than once
+/// per symbol. Keyed on the LoadedComponent list by identity: it is replaced rather than mutated
+/// when the project changes, so a new one is exactly the signal that this is stale.
+let clockedSheetsOf: LoadedComponent list -> Set<string> =
+    Helpers.memoizeByIdentity clockedSheets
+
 let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: ComponentType) (label:string) (theme:ThemeType) =
     let id = Helpers.IdAllocator.newComponentId ()
     let style = Constants.componentLabelStyle
     let comp = makeComponent pos comptype id label
     let transform = {Rotation= Degree0; flipped= false}
+    let clocked = isClockedGiven (clockedSheetsOf ldcs) comp
 
     { 
       Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
@@ -697,7 +704,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
             HighlightLabel = false
             ShowPorts = ShowNone
             ShowCorners = DontShow // HLP23 AUTHOR: BRYAN TAN
-            Colour = getSymbolColour comptype (isClocked [] ldcs comp) theme
+            Colour = getSymbolColour comptype clocked theme
             Opacity = 1.0
           }
       InWidth0 = None // set by BusWire
@@ -710,7 +717,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       STransform = transform
       ReversedInputPorts = Some false
       MovingPort = None
-      IsClocked = isClocked [] ldcs comp
+      IsClocked = clocked
       MovingPortTarget = None
       HScale = None
       VScale = None

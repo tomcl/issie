@@ -562,8 +562,7 @@ type MenuCommand =
 type SimulationProgress =
     {
         InitialClock: int
-        FinalClock: int
-        ClocksPerChunk: int       
+        FinalClock: int       
     }
 
 type PopupProgress =

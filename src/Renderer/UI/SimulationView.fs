@@ -341,28 +341,36 @@ let rendererStepArraySize (model: Model) : Result<int, SimulationError> =
         else
             ModelHelpers.Constants.rendererArraySizeWhenSidecarSimulates)
 
-/// Advance whichever simulator is running to `cycle`, and make that cycle's values readable.
+/// Advance whichever simulator is running TOWARDS `cycle`, for at most one chunk, and say what
+/// clock it reached.
+///
+/// **One chunk, not a run.** A second of simulation, or the cycle asked for, whichever comes
+/// first. Getting all the way there is the caller's business: `simulateWithProgressBar` asks
+/// again until it arrives, which is the same shape the waveform simulator's run has and for the
+/// same reasons - the loop is in the update function, nothing is ever interrupted, and stopping is
+/// not asking for the next chunk.
+///
+/// Both simulators can do this. `FastRun.runFastSimulation` takes a time budget and says where it
+/// stopped; `SidecarSession.runChunk` does the same over the wire. So there is nothing to estimate
+/// and no per-simulator arithmetic: how far a second gets is measured, by running for a second.
 ///
 /// Local: the FastSimulation is run here and `whenReady` is called at once, exactly as before.
-/// Sidecar: the session is run to `cycle` and the panel's signals read back into StepPanelData,
-/// then `whenReady`. If the sidecar does not hold the design, a build is STARTED - which is a
-/// message, and a second message when it answers, with Model.SidecarBuild saying so in between. The caller dispatches from
-/// `whenReady` either way, so it does not have to know which happened.
-///
-/// The sidecar holds ONE session, shared with the waveform simulator. That is mostly a saving -
-/// a session built for a long waveform run is reused here rather than rebuilt - but it does mean
-/// the two are stepping the same simulation, so setting an input here moves what a waveform
-/// simulation of the same design would show. They are different tabs and starting a waveform
-/// simulation runs it again from its own inputs, so nothing stale is drawn; it is written down
-/// because "one session" is the thing that makes it true.
-let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (dispatch: Msg -> unit) (whenReady: unit -> unit) : unit =
+/// Sidecar: the session is run a chunk and the panel's signals read back into StepPanelData, then
+/// `whenReady`. If the sidecar does not hold the design, a build is STARTED - an operation, with
+/// the model saying so until it answers - and this advance does nothing; the next one finds a
+/// session and runs it.
+let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (dispatch: Msg -> unit) (whenReady: int -> unit) : unit =
     if model.SimulateInRenderer then
-        FastRun.runFastSimulation None cycle simData.FastSim |> ignore
+        let reached =
+            match FastRun.runFastSimulation (Some(float Constants.advanceChunkMs)) cycle simData.FastSim with
+            | RunCompleted -> cycle
+            | RunStoppedAt clock -> clock
+
         StepPanelData.forget ()
-        whenReady ()
+        whenReady reached
     else
         match model.CurrentProj with
-        | None -> whenReady ()
+        | None -> whenReady simData.ClockTickNumber
         | Some project ->
             let top = simData.FastSim.SimulatedTopSheet
 
@@ -385,53 +393,40 @@ let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (dispatch: M
             let sidecarArraySize =
                 stepSimArraySize model |> Result.defaultValue Constants.maxArraySize
 
-            /// Run the session to `cycle` and read the panel's signals back from it.
-            ///
-            /// In the in-flight table like every other asynchronous operation, and not because
-            /// anything draws it: a synchronous operation may go out only when that table is
-            /// EMPTY, so an operation missing from it is one a synchronous caller would talk over.
+            /// Run one chunk towards `cycle` and read the panel's signals at whatever it reached.
             let runAndRead epoch =
                 let seq = ModelHelpers.newSeq ()
                 dispatch (SidecarOpStarted(seq, OpStep cycle))
 
-                /// One chunk at a time, until the session reaches the cycle. The step panel's
-                /// run is a sequence like the waveform simulator's; unlike that one it is not
-                /// re-entered from the update function, because nothing can cancel a step - the
-                /// cycles a step moves by are one or a few, so a chunk always finishes it.
-                let rec runToCycle () =
-                    promise {
-                        match! SidecarSession.runChunk epoch cycle with
-                        | Error e -> return Error e
-                        | Ok(_, true) -> return Ok()
-                        | Ok(_, false) -> return! runToCycle ()
-                    }
-
                 promise {
-                    match! runToCycle () with
-                    | Error e -> failed $"run to cycle {cycle}" e
-                    | Ok() ->
-                        match! StepPanelData.fill epoch cycle signals with
-                        | Error e -> failed $"read cycle {cycle}" e
-                        | Ok() -> ()
+                    let! reached =
+                        promise {
+                            match! SidecarSession.runChunk epoch cycle with
+                            | Error e ->
+                                failed $"run to cycle {cycle}" e
+                                return simData.ClockTickNumber
+                            | Ok(reached, _) ->
+                                match! StepPanelData.fill epoch reached signals with
+                                | Error e -> failed $"read cycle {reached}" e
+                                | Ok() -> ()
+
+                                return reached
+                        }
 
                     dispatch (SidecarReply(seq, AnsStepped))
-                    whenReady ()
+                    whenReady reached
                 }
 
             match model.SidecarSession with
             | session when session.Holds(top, sidecarArraySize) ->
-                // the session is there to be commanded, so nothing here is slow enough to need
-                // saying: run it and read it
                 runAndRead (Option.get session.Epoch) |> Promise.start
 
-            | _ when ModelHelpers.sidecarIsBuilding model ->
-                // Another advance already started the build this one would start. Its answer
-                // redraws, and the refresh that follows asks again for the cycle then shown.
-                whenReady ()
+            | _ when ModelHelpers.sidecarIsBusy model ->
+                // something is already outstanding - a build, or another advance's chunk. Its
+                // answer redraws, and the next advance picks up from where that left the session.
+                whenReady simData.ClockTickNumber
 
             | _ ->
-                // The one slow thing, said out loud: a number, an entry in the in-flight table
-                // saying what is being waited for, and one reply message when it answers.
                 let seq = ModelHelpers.newSeq ()
                 dispatch (SidecarOpStarted(seq, OpBuild(top, sidecarArraySize)))
 
@@ -440,10 +435,12 @@ let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (dispatch: M
                     dispatch (SidecarReply(seq, AnsBuilt result))
 
                     match result with
-                    | Error e ->
-                        failed "build the design" e
-                        whenReady ()
-                    | Ok epoch -> return! runAndRead epoch
+                    | Error e -> failed "build the design" e
+                    | Ok _ -> ()
+
+                    // Nothing is run here: a build IS this advance's chunk of work. The clock has
+                    // not moved, so the caller asks again and that ask finds a session.
+                    whenReady simData.ClockTickNumber
                 }
                 |> Promise.start
 
@@ -1066,11 +1063,6 @@ let private simulationClockChangePopup (simData: SimulationData) (dispatch: Msg 
 
         ]
 
-let simulateWithTime timeOut steps (simData: SimulationData) =
-    let startTime = getTimeMs()
-    FastRun.runFastSimulation None steps simData.FastSim |> ignore
-    getTimeMs() - startTime
-
 let cmd block =
     Elmish.Cmd.OfAsyncWith.perform block
 
@@ -1088,28 +1080,32 @@ let simulateWithProgressBar (simProg: SimulationProgress) (model:Model) =
     | Some (Ok simData), Some barData ->
         let nComps = float simData.FastSim.FComps.Count
         let oldClock = clockNow model simData
-        let clock = min simProg.FinalClock (simProg.ClocksPerChunk + oldClock)
         let t1 = getTimeMs()
         // Cmd.ofEffect rather than a run and a batch of messages: with the .NET simulator the
         // chunk is a round trip, so the messages that report it can only be sent once it lands.
         // The local path still runs synchronously inside advanceTo and dispatches immediately.
         model, Elmish.Cmd.ofEffect (fun dispatch ->
-            advanceTo model simData clock dispatch (fun () ->
+            advanceTo model simData simProg.FinalClock dispatch (fun reached ->
                 let t2 = getTimeMs()
-                let speed = if t2 = t1 then 0. else (float clock - float oldClock) * nComps / (t2 - t1)
+                let speed = if t2 = t1 then 0. else (float reached - float oldClock) * nComps / (t2 - t1)
+                // Where it GOT to, not where it was aimed. A chunk is a second of simulation, so
+                // how many clocks it covers is measured rather than predicted - which is why there
+                // is nothing here estimating a chunk size, and why a design that turns out slower
+                // than expected simply takes more chunks.
                 let messages =
-                    if clock - oldClock < simProg.ClocksPerChunk then [
+                    if reached >= simProg.FinalClock then [
                         SetSimulationGraph(simData.Graph, simData.FastSim)
-                        IncrementSimulationClockTick (clock - oldClock);
+                        IncrementSimulationClockTick (reached - oldClock);
                         SetPopupProgress None ]
                     else [
                         SetSimulationGraph(simData.Graph, simData.FastSim)
-                        IncrementSimulationClockTick simProg.ClocksPerChunk
-                        UpdatePopupProgress (fun barData -> {barData with Value = clock - simProg.InitialClock; Speed = speed})
+                        IncrementSimulationClockTick (reached - oldClock)
+                        UpdatePopupProgress (fun barData -> {barData with Value = reached - simProg.InitialClock; Speed = speed})
                         SimulateWithProgressBar simProg ]
                 messages |> List.iter dispatch))
     | _ -> 
         model, Elmish.Cmd.ofMsg (SetPopupProgress None)
+
     
     
 
@@ -1119,6 +1115,8 @@ let simulationClockChangeAction dispatch simData (model': Model) =
         match dialog.Int with
         | None -> failwithf "What - must have some number from dialog"
         | Some clock -> clock
+    // Going back restarts from nothing, so the run to watch is the whole of it; going forward it
+    // is the part not already simulated.
     let initClock = 
         if clock > simData.ClockTickNumber then 
             simData.ClockTickNumber
@@ -1129,68 +1127,42 @@ let simulationClockChangeAction dispatch simData (model': Model) =
             clock - simData.ClockTickNumber
         else 
             clock
-    let numComps = simData.FastSim.FComps.Count
-    // Both floors matter. A design with more components than the sample budget got a sample of no
-    // clocks, which divides into an estimate of infinite time and a chunk of no clocks, and
-    // simulateWithProgressBar then redispatched itself for ever without advancing: "goto tick"
-    // hung the application on any design of more than 20000 components. A short run whose chunk
-    // rounds down to none hangs it the same way.
-    let initChunk = max 1 (min steps (20000/(numComps + 1)))
-    // How long the run will take is worked out by SAMPLING it - running the first few clocks and
-    // scaling - which needs the simulation to be the local one. With the .NET simulator it is
-    // not: sampling would do in the renderer exactly the work this mode exists to move, and would
-    // leave the renderer's clock ahead of the sidecar's. There is nothing to estimate for
-    // either - SidecarSession.runTo chunks by TIME internally, so the chunk below only decides
-    // how often the bar moves, and the bar's speed figure comes from the first chunk that lands.
-    let sampled = model'.SimulateInRenderer
-    let estimatedTime = 
-        if not sampled then 0.0 else
-        match clock - simData.FastSim.ClockTick with
-        | n when n > 0 -> 
-            (float steps / float initChunk) * (simulateWithTime None (initChunk+initClock) simData + 0.0000001)
-        | n when n <= -simData.FastSim.MaxArraySize -> 
-            (float steps / float initChunk) * (simulateWithTime None initChunk simData + 0.0000001)
-        | _ -> 
-            (float steps / float initChunk) * (simulateWithTime None steps simData + 0.0000001)
-    let chunkTime = min 2000. (estimatedTime / 5.)
-    let chunk =
-        if not sampled then max 1 (steps / 20) else max 1 (int <| float steps * chunkTime / estimatedTime)
-    let showProgress =
-        if not sampled then steps > chunk else steps > 2*initChunk && estimatedTime > 500.
-    if showProgress then 
-        dispatch <| SetPopupProgress 
-            (Some {
-                Speed = if sampled then float (numComps * steps) / estimatedTime else 0.0
-                Value = if sampled then initChunk else 0
-                Max=steps; 
-                Title= "running simulation..."
-                })
+    let numComps = float simData.FastSim.FComps.Count
+    let t1 = getTimeMs ()
+
+    // ONE CHUNK FIRST, then decide whether there is anything to show a bar for.
+    //
+    // Nothing is estimated. This used to SAMPLE the design - run the first few clocks, time them,
+    // scale up - and from that estimate both how long the run would take and how many clocks a
+    // chunk should be. Two floors had to be defended (a design of more than 20,000 components
+    // sampled no clocks, which divides into an infinite estimate and a chunk of none, and the
+    // progress loop then redispatched itself for ever without advancing), the estimate was wrong
+    // whenever a design's speed was not uniform, and it could not be made at all for the .NET
+    // simulator without doing in the renderer exactly the work that mode exists to move.
+    //
+    // A chunk is a second of simulation. How far a second gets is measured by running for one, so
+    // a run that finishes inside the first chunk never shows a bar, and one that does not shows a
+    // bar whose speed is what the last chunk actually did.
+    advanceTo model' simData clock dispatch (fun reached ->
+        let t2 = getTimeMs ()
+        let speed = if t2 = t1 then 0. else (float reached - float simData.ClockTickNumber) * numComps / (t2 - t1)
+
         [
             SetSimulationGraph(simData.Graph, simData.FastSim)
-            // only the sampled path has already run initChunk clocks
-            if sampled then IncrementSimulationClockTick (initChunk-simData.ClockTickNumber+initClock)
+            IncrementSimulationClockTick (reached - simData.ClockTickNumber)
             ClosePopup
-            SimulateWithProgressBar {
-                FinalClock = clock; 
-                InitialClock = if sampled then initChunk + initClock else simData.ClockTickNumber
-                ClocksPerChunk = chunk 
-                }
+            if reached < clock then
+                SetPopupProgress(Some {
+                    Speed = speed
+                    Value = reached - initClock
+                    Max = steps
+                    Title = "running simulation..." })
+                SimulateWithProgressBar { FinalClock = clock; InitialClock = initClock }
         ]
-        |> Seq.map Elmish.Cmd.ofMsg 
+        |> Seq.map Elmish.Cmd.ofMsg
         |> Elmish.Cmd.batch
         |> ExecCmdAsynch
-        |> dispatch
-    else
-        advanceTo model' simData clock dispatch (fun () ->
-            [
-                SetSimulationGraph(simData.Graph, simData.FastSim)
-                IncrementSimulationClockTick (clock - simData.ClockTickNumber)
-                ClosePopup
-            ]
-            |> Seq.map Elmish.Cmd.ofMsg
-            |> Elmish.Cmd.batch
-            |> ExecCmdAsynch
-            |> dispatch)
+        |> dispatch)
 
 
 
@@ -1217,7 +1189,7 @@ let viewSimulationData (step: int) (simData : SimulationData) model dispatch =
                     Button.Color IsSuccess
                     Button.Disabled (simData.ClockTickNumber = 0)
                     Button.OnClick (fun _ ->
-                        advanceTo model simData (simData.ClockTickNumber-1) dispatch (fun () ->
+                        advanceTo model simData (simData.ClockTickNumber-1) dispatch (fun _ ->
                             dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)
                             IncrementSimulationClockTick -1 |> dispatch)
                     )
@@ -1247,7 +1219,7 @@ let viewSimulationData (step: int) (simData : SimulationData) model dispatch =
                 Button.button [
                     Button.Color IsSuccess
                     Button.OnClick (fun _ ->
-                        advanceTo model simData (simData.ClockTickNumber+1) dispatch (fun () ->
+                        advanceTo model simData (simData.ClockTickNumber+1) dispatch (fun _ ->
                             dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)
                             IncrementSimulationClockTick 1 |> dispatch)
                     )

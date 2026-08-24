@@ -141,8 +141,12 @@ let viewSimulation canvasState model dispatch =
                             // panel reading a clock nothing had reached.
                             let clock = simCache.ClockTickRefresh
                             simCache <- {simCache with ClockTickRefresh = 0}
-                            advanceTo model simData clock dispatch (fun () ->
-                                IncrementSimulationClockTick clock |> dispatch)
+                            // Where it GOT to: a refresh restores the clock the panel was showing,
+                            // and one chunk covers that unless the design is slow and the clock
+                            // large - in which case the panel shows what was reached and the next
+                            // refresh carries on, rather than claiming a cycle nothing ran to.
+                            advanceTo model simData clock dispatch (fun reached ->
+                                IncrementSimulationClockTick reached |> dispatch)
                         viewSimulationData simData.ClockTickNumber simData model dispatch
         let setDefaultButton =
             match sim with

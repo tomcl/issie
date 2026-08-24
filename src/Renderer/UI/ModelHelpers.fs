@@ -50,6 +50,14 @@ module Constants =
         wsModel.WSConfig.LastClock + maxStepsOverflow + waveSimZoomMargin wsModel
 
 
+    /// How long one chunk of a step simulation's run may take, in ms.
+    ///
+    /// The same second the .NET simulator's chunk takes, and for the same reasons: it is how often
+    /// a progress bar moves and how soon a cancellation is noticed. Applied to the renderer's own
+    /// simulator too, so that a run is the same sequence of chunks whichever is running and
+    /// nothing has to estimate how many clocks a chunk should be.
+    let advanceChunkMs = 1000
+
     /// The fewest clock cycles of history the step simulator will build for. A design whose
     /// per-cycle cost leaves room for fewer than this is refused rather than simulated: below it
     /// there is not enough past to step back through, and every step would be a rebuild.

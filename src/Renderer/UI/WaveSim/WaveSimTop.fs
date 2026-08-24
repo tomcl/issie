@@ -196,6 +196,9 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
     // A RAM's rows are of a cycle of a session; a new simulation is a new session, and rows kept
     // across it would be drawn under the new one's clock. Cleared here, where the new wsModel is
     // put into the model, rather than beside WaveDrawn.forget below - these live in the model.
+    // A new simulation is a new session: rows kept across it would be drawn under the new one's
+    // clock, and a read still out belongs to the session that has gone - its reply is dropped, so
+    // clear the flag here rather than wait for one that will not count.
     let wsModel = if newSimulation then { wsModel with RamRows = Map.empty } else wsModel
     let model = updateWSModel (fun _ -> wsModel) model |> updateViewerWidthInWaveSim model.WaveSimViewerWidth
 
@@ -494,62 +497,74 @@ let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd
         // cycles whatever the configuration says.
         let arraySize = ModelHelpers.Constants.waveSimRequiredArraySize ws
 
-        // The RAM tables are drawn from a cache, so their reads are asked for here rather than
-        // from the render that shows them: a fetch started from a render happens on every render
-        // and cannot be told whether it is still wanted.
+        // The one RAM table, if any, whose rows are not the ones it is about to draw.
         //
-        // Only for the RAMs whose rows are not already held. A command that always resolved would
-        // dispatch a render, which would ask again - so "nothing to ask" has to mean no command,
-        // not a command that does nothing. It builds the session if the sidecar does not hold the
-        // design, because a RAM table can be the only thing on screen: with no waves selected
-        // nothing else would ever have built it.
-        let ramFetch =
+        // ONE, and fetched by the same command as the waves below rather than a command of its
+        // own. Two commands would be two things asking the sidecar to build at once, and a design
+        // is uploaded one sheet per message with index 0 beginning an upload - so interleaving
+        // them leaves it holding half of each. The way not to have that problem is not to have two
+        // askers: whatever this update decides to fetch, it fetches in order, in one promise, under
+        // the one FetchInProgress bit that already stops the next message asking again.
+        //
+        // A round trip is sub-millisecond, so taking one RAM per update is no slower in any way a
+        // user could see - the next update picks up the next.
+        let ramToFetch =
             ws.SelectedRams
             |> Map.toList
             |> List.filter (fun (ramId, _) -> RamData.needed model ramId)
-            |> List.map (fun (ramId, _) ->
-                let key = RamData.keyOf model ramId
+            |> List.truncate 1
+            |> List.map (fun (ramId, _) -> ramId, RamData.keyOf model ramId)
 
-                Elmish.Cmd.OfPromise.either
-                    (fun () ->
-                        promise {
-                            match! SidecarSession.ensureBuilt design arraySize with
-                            | Error e ->
-                                Log.warn $"building for a RAM table: {e}"
-                                return None
-                            | Ok epoch ->
-                                match! SidecarSession.runTo epoch key.Cycle ignore with
-                                | Error e ->
-                                    Log.warn $"running to cycle {key.Cycle} for a RAM table: {e}"
-                                    return None
-                                | Ok() ->
-                                    return! RamData.fetch epoch ramId key WaveSimTypes.Constants.maxRamRowsDisplayed
-                        })
-                    ()
-                    // the rows go into the model, which is what makes the table redraw with them
-                    (fun rows ->
-                        match rows with
-                        | Some(ram, held) ->
-                            UpdateModel(Optic.map (waveSimModel_ >-> ramRows_) (Map.add ram held))
-                        | None -> UpdateModel id)
-                    // a rejected promise here would otherwise be swallowed, and an empty table
-                    // looks exactly like one whose reply has not arrived yet
-                    (fun exn ->
-                        Log.error $"reading a RAM from the .NET simulator: {exn.Message}"
-                        UpdateModel id))
-            |> Elmish.Cmd.batch
-
-        if List.isEmpty toFetch || fs.NumStepArrays = 0 then
-            model, Elmish.Cmd.batch [ cmd; ramFetch ]
+        if (List.isEmpty toFetch && List.isEmpty ramToFetch) || fs.NumStepArrays = 0 then
+            model, cmd
         else
+
+            let alsoRam =
+                if List.isEmpty ramToFetch then "" else $", and one RAM at cycle {(snd ramToFetch.Head).Cycle}"
 
             Log.dbg
                 Log.Wave
-                $"fetching {toFetch.Length} waves over {window.StartSample}+{window.SampleCount}x{window.Multiplier}"
+                $"fetching {toFetch.Length} waves over {window.StartSample}+{window.SampleCount}x{window.Multiplier}{alsoRam}"
+
+
+            /// Everything this update wants from the sidecar, in order, in one promise.
+            ///
+            /// The waves first, because that is what builds the session and runs it to the view;
+            /// the RAM rows after, by which time both are done and its own ensureBuilt returns at
+            /// once. Sequential, so there is never a second thing asking the sidecar to build.
+            let fetchAll () =
+                promise {
+                    let! waves =
+                        if List.isEmpty toFetch then
+                            Promise.lift (Ok())
+                        else
+                            WaveProvider.fetchWavesFor design arraySize fs toFetch window ignore
+
+                    let! rows =
+                        match ramToFetch with
+                        | [] -> Promise.lift None
+                        | (ramId, key) :: _ ->
+                            promise {
+                                match! SidecarSession.ensureBuilt design arraySize with
+                                | Error e ->
+                                    Log.warn $"building for a RAM table: {e}"
+                                    return None
+                                | Ok epoch ->
+                                    match! SidecarSession.runTo epoch key.Cycle ignore with
+                                    | Error e ->
+                                        Log.warn $"running to cycle {key.Cycle} for a RAM table: {e}"
+                                        return None
+                                    | Ok() ->
+                                        return!
+                                            RamData.fetch epoch ramId key WaveSimTypes.Constants.maxRamRowsDisplayed
+                            }
+
+                    return waves, rows
+                }
 
             let fetch =
                 Elmish.Cmd.OfPromise.either
-                    (fun () -> WaveProvider.fetchWavesFor design arraySize fs toFetch window ignore)
+                    fetchAll
                     ()
                     // WaveFetchDone rather than UpdateModel: clearing the bit and refreshing has to
                     // happen in one message, and the refresh returns a model AND A COMMAND that
@@ -560,10 +575,10 @@ let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd
                     // dropped it: the waveforms then showed the older view for ever, with nothing
                     // running and nothing to say so.
                     WaveFetchDone
-                    (fun exn -> WaveFetchDone(Error exn.Message))
+                    (fun exn -> WaveFetchDone(Error exn.Message, None))
 
             model |> updateWSModel (fun ws -> { ws with FetchInProgress = true }),
-            Elmish.Cmd.batch [ cmd; fetch; ramFetch ]
+            Elmish.Cmd.batch [ cmd; fetch ]
     | _ -> model, cmd
 
 /// Refresh the state of the wave simulator according to the model and canvas state.

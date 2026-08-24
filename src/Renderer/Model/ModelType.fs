@@ -565,7 +565,12 @@ type Msg =
     | GenerateCurrentWaveforms
     /// A fetch of waveform data has landed, or failed. Carries nothing: what arrived is in the
     /// waveform cache, and what is still missing is worked out from it.
-    | WaveFetchDone of Result<unit, string>
+    /// A fetch for the .NET simulator has come back: whether the waveform data arrived, and the
+    /// rows of the one RAM table that was read alongside it, if any.
+    ///
+    /// One message because it is one request: waves and RAM rows are fetched by a single command,
+    /// in order, so that nothing has to arbitrate between two of them - see fetchWhatIsMissing.
+    | WaveFetchDone of Result<unit, string> * (FComponentId * (RamView.RamKey * RamView.RamView)) option
     /// The progress-bar popup's Cancel: stop the long simulation run it is reporting, keeping
     /// everything simulated so far, with the viewer moved to the last simulated cycle.
     | CancelWaveSimulation

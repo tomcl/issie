@@ -410,7 +410,7 @@ let updateUnpinned (msg : Msg) oldModel =
         let ws = getWSModel model
         WaveSimTop.refreshWaveSim false ws model
 
-    | WaveFetchDone result ->
+    | WaveFetchDone(result, ramRows) ->
         // Clear the bit FIRST, whether the fetch worked or not, so that the refresh below is free
         // to ask for whatever is still missing. After a view that moved while this fetch was in the
         // air, that is the view the user is now looking at.
@@ -419,6 +419,13 @@ let updateUnpinned (msg : Msg) oldModel =
             |> updateWSModel (fun ws ->
                 { ws with
                     FetchInProgress = false
+                    // whatever RAM rows came back with the waves. Held in the model rather than
+                    // beside it because the pane is memoised on the model: rows arriving anywhere
+                    // else would not redraw the table they belong to.
+                    RamRows =
+                        match ramRows with
+                        | Some(ram, held) -> Map.add ram held ws.RamRows
+                        | None -> ws.RamRows
                     // a fetch that worked clears the backoff, so the next failure gets the full
                     // wait rather than whatever is left of an older one
                     FetchFailedAtMs =

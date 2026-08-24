@@ -43,11 +43,16 @@ let mutable private clockTick = 0
 /// A build that has been started and not yet finished, so that callers arriving while one is in
 /// flight wait for it instead of starting another.
 ///
-/// Necessary, not tidiness. A design is uploaded one sheet per message and index 0 begins an
-/// upload, discarding any abandoned one - so two builds interleaving their uploads leave the
-/// sidecar with half of each and a design that has no top sheet in it. That is exactly what
-/// happened when the RAM tables started asking for their own build alongside the waveform
-/// viewer's: "no sheet called eep1 in the design", and the waveform fetch broken with it.
+/// What this guards against is silent and total: a design is uploaded one sheet per message and
+/// index 0 begins an upload, discarding any abandoned one, so two builds interleaving leave the
+/// sidecar holding half of each and a design with no top sheet in it - "no sheet called eep1 in
+/// the design", and every fetch on that session broken with it.
+///
+/// It is NOT how the waveform viewer's own fetches are kept apart. Those are one command that
+/// asks for everything in order, under one FetchInProgress bit (WaveSimTop.fetchWhatIsMissing);
+/// the concurrency was removed rather than managed. This remains because the step simulator can
+/// build too (SimulationView.advanceTo), and it and a live waveform simulation are not sequenced
+/// with each other.
 let mutable private building: JS.Promise<Result<int, string>> option = None
 
 /// The session the sidecar is believed to hold, or None.

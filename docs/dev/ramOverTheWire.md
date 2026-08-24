@@ -145,24 +145,43 @@ Two things had to be got right for that, and neither is obvious:
 
 - **A command that always resolves is a loop.** `RamData.needed` decides whether to issue one at
   all; a command that resolved to "nothing changed" would still dispatch, and dispatching redraws,
-  and redrawing asks again.
+  and redrawing asks again. That is necessary but not sufficient on its own - see the next section
+  for why "not held yet" is not the same question as "not asked for yet".
 - **The key must be computed once.** `RamData.keyOf` builds it for both the request and the read,
   through `waveSimModel_` in both cases. `getWSModel` indexes the WaveSim map by `WaveSimSheet`
   and the lens by `WaveSimOrCurrentSheet`; where those disagree the rows are written to one entry
   and looked for in the other, which reads exactly like a reply that never came - and then asks
   again, on every render.
 
-## One build at a time
+## One asker, not two managed ones
 
-`SidecarSession.ensureBuilt` now holds the promise of a build in flight and hands it to anyone
-arriving while it runs. A design is uploaded one sheet per message and index 0 begins an upload,
-discarding any abandoned one - so two builds interleaving leave the sidecar with half of each.
-That is not theoretical: it is what happened the moment the RAM tables started asking for their
-own build alongside the waveform viewer's, and it broke the waveform fetch too
-(`{"error":"no sheet called eep1 in the design"}`).
+The first version gave the RAM tables a command of their own, alongside the waveform viewer's.
+Both call `SidecarSession.ensureBuilt`, and a design is uploaded one sheet per message with index
+0 beginning an upload and discarding any abandoned one - so the two interleaved and left the
+sidecar holding half of each: `{"error":"no sheet called eep1 in the design"}`, and the waveform
+fetch broken with it. Silent, total, and nothing about it looks like a race from the UI.
 
-A RAM table has to be able to build, because it can be the only thing on screen: with no waves
-selected, nothing else would ever have done it.
+There were two routes to it, and the second is the one worth remembering:
+
+- several RAMs in one `Cmd.batch`, each starting its promise before any await resolves;
+- and no in-flight guard at all on the RAM command, so *every message* arriving while a read was
+  outstanding started another one - because what decides whether to ask is whether the rows are
+  held, and they are not held until the reply lands. The waveform path has `FetchInProgress` for
+  exactly this; the RAM path had nothing.
+
+The fix is not to arbitrate between two askers but to have one. `fetchWhatIsMissing` now issues a
+single command that fetches whatever this update wants **in order**: the waves, which build the
+session and run it to the view, and then at most one RAM's rows, by which time the session exists
+and its own `ensureBuilt` returns at once. One command, under the one `FetchInProgress` bit that
+already stops the next message asking again. A round trip is sub-millisecond, so one RAM per
+update is not a delay anyone can see; the next update takes the next.
+
+`ensureBuilt` keeps its in-flight guard, but it is no longer what makes this correct: it is there
+because the step simulator builds too (`SimulationView.advanceTo`) and is not sequenced with a
+live waveform simulation.
+
+A RAM table has to be able to build at all, because it can be the only thing on screen: with no
+waves selected, nothing else would ever have done it.
 
 ## 2. What a viewer asks for
 

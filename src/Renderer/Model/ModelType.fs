@@ -277,6 +277,46 @@ type GapStore = {
 /// is not model state. It is: what the renderer BELIEVES about that process is a fact about the
 /// renderer, the UI has to draw it, and a belief the view can only reach through a side channel
 /// is one the view cannot draw from.
+/// **What replaces this: a table of the async operations in flight.**
+///
+/// `SidecarBuild` says whether ONE operation - the build - is running, because the build was the
+/// only one that had to be drawn. That is too narrow. Several async operations can be outstanding
+/// at once, and the model should say which: not a bool but
+///
+///     SidecarInFlight : Map<SeqNum, SidecarOp>
+///
+/// `SidecarOp` (`WhatIsBusy` in the note this comes from - the operation is what it names, so
+/// `SidecarOp` reads better at a use site) is a discriminated union with one case per operation,
+/// carrying that operation's parameters: a build with its top sheet and array size, a run with the
+/// cycle it is running to, a wave read with its drivers and window, a RAM read with its component
+/// and key. Carrying the parameters is what lets the update function handle an answer without a
+/// message type per feature: the answer names its operation, and the operation says what to do
+/// with it. That is the common response format - one `SidecarReply of SeqNum * payload`, one
+/// update, dispatching on what the map says the operation was.
+///
+/// `SeqNum` is a wrapped uint32 identifying one operation, sent with the request and echoed in the
+/// response. It need only be unique among the operations OUTSTANDING, not for all time: an entry
+/// is removed when its answer arrives, and there are never many, so wrapping cannot collide with
+/// anything still in the map.
+///
+/// **Use the correlation id the wire already carries.** `SidecarClient` puts a uint32 correlation
+/// id in bytes 1-4 of every request and the sidecar echoes it (Protocol.fs). A second numbering
+/// beside it would be two ids for one operation, which can disagree. `SeqNum` should BE that id -
+/// what the model adds is not identity but MEANING: `SidecarClient.pending` knows a promise is
+/// outstanding, and this knows what it is for and can be drawn.
+///
+/// **One source of truth for "is it building".** With the map in place, building is
+/// `SidecarInFlight |> Map.exists (fun _ op -> op is OpBuild)` rather than a state of its own.
+/// What must stay is the SESSION - the epoch a completed build issued - because that is not an
+/// operation in flight but the thing the next operation commands. So the two halves of this type
+/// separate: `SidecarBuilding` becomes an entry in the map, `SidecarReady` stays as the session.
+///
+/// **What the map is for.** A synchronous operation may go out only when the wire is idle -
+/// `Map.isEmpty` - and two synchronous operations cannot overlap, because one runs to completion
+/// on the renderer's single thread before anything else runs. Those two facts together are why no
+/// priority queue, no dispatch lock and no preemption are needed anywhere: a synchronous operation
+/// never has to wait behind an asynchronous one, because it is never issued while one exists.
+///
 type SidecarBuild =
     /// nothing is built: none has been asked for, or the last simulation ended
     | SidecarIdle

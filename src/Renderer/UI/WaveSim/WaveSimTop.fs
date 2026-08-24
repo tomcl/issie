@@ -1,4 +1,4 @@
-
+﻿
 /// Top-level functions for Waveform Simulator
 module WaveSimTop
 
@@ -193,6 +193,10 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
     /// does not - which is the difference between a wait that starts now and one already running.
     let previousWindow = windowOf (getWSModel model)
 
+    // A RAM's rows are of a cycle of a session; a new simulation is a new session, and rows kept
+    // across it would be drawn under the new one's clock. Cleared here, where the new wsModel is
+    // put into the model, rather than beside WaveDrawn.forget below - these live in the model.
+    let wsModel = if newSimulation then { wsModel with RamRows = Map.empty } else wsModel
     let model = updateWSModel (fun _ -> wsModel) model |> updateViewerWidthInWaveSim model.WaveSimViewerWidth
 
     // The one write of this timestamp. Everything that asks how long the waveforms have been
@@ -291,6 +295,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
         // drawn, under the new signal's name, for as long as the view did not change.
         if newSimulation then
             WaveDrawn.forget ()
+
 
         // What this refresh is working from, in one line: the view, what is selected, what is known
         // about it, and how much of it is here. The waveform viewer's failures are almost always a
@@ -479,18 +484,64 @@ let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd
             |> fun handles -> WaveProvider.wavesToFetch model.SimulateInRenderer handles window
             |> List.map (fun (SignalHandle i) -> i)
 
-        if List.isEmpty toFetch || fs.NumStepArrays = 0 then
-            model, cmd
-        else
-            let design =
-                ModelHelpers.designOf project (model.Sheet.GetCanvasState())
-                |> CanvasExtractor.simpleDesignOfLoadedComponents
-                |> fun d -> { d with TopSheet = fs.SimulatedTopSheet }
+        let design =
+            ModelHelpers.designOf project (model.Sheet.GetCanvasState())
+            |> CanvasExtractor.simpleDesignOfLoadedComponents
+            |> fun d -> { d with TopSheet = fs.SimulatedTopSheet }
 
-            // What the SIDECAR allocates, from the configuration - not from the renderer's own
-            // arrays, which in this mode are sized for their structure and hold a few hundred
-            // cycles whatever the configuration says.
-            let arraySize = ModelHelpers.Constants.waveSimRequiredArraySize ws
+        // What the SIDECAR allocates, from the configuration - not from the renderer's own
+        // arrays, which in this mode are sized for their structure and hold a few hundred
+        // cycles whatever the configuration says.
+        let arraySize = ModelHelpers.Constants.waveSimRequiredArraySize ws
+
+        // The RAM tables are drawn from a cache, so their reads are asked for here rather than
+        // from the render that shows them: a fetch started from a render happens on every render
+        // and cannot be told whether it is still wanted.
+        //
+        // Only for the RAMs whose rows are not already held. A command that always resolved would
+        // dispatch a render, which would ask again - so "nothing to ask" has to mean no command,
+        // not a command that does nothing. It builds the session if the sidecar does not hold the
+        // design, because a RAM table can be the only thing on screen: with no waves selected
+        // nothing else would ever have built it.
+        let ramFetch =
+            ws.SelectedRams
+            |> Map.toList
+            |> List.filter (fun (ramId, _) -> RamData.needed model ramId)
+            |> List.map (fun (ramId, _) ->
+                let key = RamData.keyOf model ramId
+
+                Elmish.Cmd.OfPromise.either
+                    (fun () ->
+                        promise {
+                            match! SidecarSession.ensureBuilt design arraySize with
+                            | Error e ->
+                                Log.warn $"building for a RAM table: {e}"
+                                return None
+                            | Ok epoch ->
+                                match! SidecarSession.runTo epoch key.Cycle ignore with
+                                | Error e ->
+                                    Log.warn $"running to cycle {key.Cycle} for a RAM table: {e}"
+                                    return None
+                                | Ok() ->
+                                    return! RamData.fetch epoch ramId key WaveSimTypes.Constants.maxRamRowsDisplayed
+                        })
+                    ()
+                    // the rows go into the model, which is what makes the table redraw with them
+                    (fun rows ->
+                        match rows with
+                        | Some(ram, held) ->
+                            UpdateModel(Optic.map (waveSimModel_ >-> ramRows_) (Map.add ram held))
+                        | None -> UpdateModel id)
+                    // a rejected promise here would otherwise be swallowed, and an empty table
+                    // looks exactly like one whose reply has not arrived yet
+                    (fun exn ->
+                        Log.error $"reading a RAM from the .NET simulator: {exn.Message}"
+                        UpdateModel id))
+            |> Elmish.Cmd.batch
+
+        if List.isEmpty toFetch || fs.NumStepArrays = 0 then
+            model, Elmish.Cmd.batch [ cmd; ramFetch ]
+        else
 
             Log.dbg
                 Log.Wave
@@ -511,7 +562,8 @@ let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd
                     WaveFetchDone
                     (fun exn -> WaveFetchDone(Error exn.Message))
 
-            model |> updateWSModel (fun ws -> { ws with FetchInProgress = true }), Elmish.Cmd.batch [ cmd; fetch ]
+            model |> updateWSModel (fun ws -> { ws with FetchInProgress = true }),
+            Elmish.Cmd.batch [ cmd; fetch; ramFetch ]
     | _ -> model, cmd
 
 /// Refresh the state of the wave simulator according to the model and canvas state.

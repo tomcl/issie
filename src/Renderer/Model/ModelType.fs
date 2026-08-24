@@ -397,6 +397,17 @@ type WaveSimModel = {
     /// The first component of the tuple is the text used to define the location.
     /// The second component is the actual location.
     RamStartLocation: Map<FComponentId, string * bigint>
+    /// The rows each open RAM table draws, and the cycle and window they are of.
+    ///
+    /// Model state, not a cache beside it, because it is small - at most a hundred rows a table -
+    /// and because a table redrawn from something the model does not hold is a table that does not
+    /// redraw when it arrives: the view is memoised on the model, so a reply landing in a module
+    /// of its own changes nothing the renderer can see. The waveform data proper is different and
+    /// does live outside (WaveData): it is megabytes of typed arrays read on every render.
+    ///
+    /// Empty while the renderer is the one simulating - the tables read its simulation directly -
+    /// and filled by SimReadRam when the .NET simulator is.
+    RamRows: Map<FComponentId, RamView.RamKey * RamView.RamView>
     /// Which nodes of the design hierarchy the wave selector has open, each named by its path of
     /// design-time sheet names from the top sheet down. An open node shows its signals, and - for
     /// a sheet that more than one route reaches, whose contents are otherwise suppressed - shows
@@ -447,6 +458,7 @@ let showOnlySelected_ = Lens.create (fun a -> a.ShowOnlySelected) (fun s a -> {a
 let sheetSearchString_ = Lens.create (fun a -> a.SheetSearchString) (fun s a -> {a with SheetSearchString = s})
 let wSConfig_ = Lens.create (fun a -> a.WSConfig) (fun s a -> {a with WSConfig = s})
 let ramStartLocation_ = Lens.create (fun a -> a.RamStartLocation) (fun s a -> {a with RamStartLocation = s})
+let ramRows_ = Lens.create (fun a -> a.RamRows) (fun s a -> {a with RamRows = s})
 let wSConfigDialog_ = Lens.create (fun a -> a.WSConfigDialog) (fun s a -> {a with WSConfigDialog = s})
 let defaultCursor_ = Lens.create (fun a -> a.DefaultCursor) (fun s a -> {a with DefaultCursor = s})
 

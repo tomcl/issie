@@ -17,6 +17,7 @@ open WaveSimTypes
 open WaveSimStyle
 open SimGraphTypes
 open SimTypes
+open RamView
 open Optics
 open Optics.Operators
 
@@ -38,47 +39,29 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
     let fs = Simulator.getFastSim()
     match Map.tryFind ramId fs.FComps with
     | None -> div [] []
-    // A RAM's contents come out of the renderer's own simulation, and with the sidecar simulating
-    // that one is never run - so this would show the memory as it was before the first clock edge,
-    // under a heading naming whatever cycle the cursor is on. Wrong contents look exactly like
-    // right ones, so say it plainly instead. Reading a RAM over the wire is what gives this back.
-    // (asked of the model rather than of WaveProvider, which compiles after this; switching
-    // simulators ends the simulation, so the two cannot disagree while a RAM table is up)
-    | Some _ when not model.SimulateInRenderer ->
-        div [ Style [ Margin "10px"; MaxWidth "40em" ] ] [
-            str $"The contents of '{ramLabel}' are not available while the .NET simulator is running \
-                  the waveform simulation. Development > Simulate In Renderer shows them again."
-        ]
     | Some fc -> 
         let step = wsModel.CursorExactClkCycle
         if fs.ClockTick < step then
             Log.dbg Log.Wave $"extending the fast simulation to cycle {step} for the RAM table"
         //FastRun.runFastSimulation None step fs |> ignore // not sure why this is needed
         // in some cases fast sim is run for one cycle less than currClockCycle
-        /// The store the memory keeps its contents in. Reading one word out of it is a search of
-        /// that address's own writes, so the table asks for the fifty words it is showing rather
-        /// than materialising the whole memory - which for a 64K RAM meant building and throwing
-        /// away 65536 words on every render. A ROM has no store of its own, its contents being
-        /// part of its type, so it gets a read-only one here.
-        let ram =
+        /// The memory as the component declares it. Its widths and its .ram-file comments are
+        /// facts about the component's TYPE, so they are read here in both modes - the renderer
+        /// builds a simulation for structure whichever simulator is running. Only the contents
+        /// come from the simulator that has them.
+        let mem =
             match fc.FType with
-            | ROM1 mem
-            | AsyncROM1 mem -> RamStore.fixedOf mem
-            | RAM1 _
-            | AsyncRAM1 _ ->
-                match FastExtract.extractFastSimulationState fs wsModel.CursorExactClkCycle ramId with
-                | RamState ram -> ram
-                | x ->
-                    Log.warn $"unexpected state {x} from cycle {wsModel.CursorExactClkCycle} in RAM \
-                               component '{ramLabel}' (fast sim step {fs.ClockTick})"
-                    failwithf $"unexpected state in the RAM table for '{ramLabel}'"
-            | _ ->
-                failwithf $"Given a component {fc.FType} which is not a vaild RAM"
-        let aWidth,dWidth = ram.AddressWidth,ram.WordWidth
+            | ROM1 m
+            | AsyncROM1 m
+            | RAM1 m
+            | AsyncRAM1 m -> m
+            | _ -> failwithf $"Given a component {fc.FType} which is not a vaild RAM"
+
+        let aWidth,dWidth = mem.AddressWidth,mem.WordWidth
 
         let print w (a:bigint) = NumberHelpers.valToPaddedString w wsModel.Radix (((1I <<< w) - 1I) &&& a)
 
-        let lastLocation = (1I <<< ram.AddressWidth) - 1I
+        let lastLocation = (1I <<< aWidth) - 1I
 
         let opticPath fc = waveSimModel_ >-> ramStartLocation_ >-> Optics.Map.valueWithDefault_ ("",0I) fc
         let loc = {
@@ -86,30 +69,36 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
             ValOptic_ = opticPath ramId >-> Optics.snd_
             }
 
-        /// Every non-zero location, when there are few enough to list them - one bounded walk of
-        /// the memory's written addresses. It used to ask whether there were few enough
-        /// (liveCountExceeds, bounded) and then build the list with toMemory (not bounded): a
-        /// 64K RAM with fifty non-zero words took the sparse branch and read all 65,536 of its
-        /// slots for it, on every render. See docs/dev/ramOverTheWire.md.
-        ///
-        /// Not asked for at all when the user has typed a start address, since that is a request
-        /// for a window whatever the memory holds.
-        let sparseLocations =
-            match Optic.get loc.TextOptic_ model with
-            | "" -> RamStore.sparseUpTo ram step Constants.maxRamLocsWithSparseDisplay
-            | _ -> None
+        /// What this table is asking for. RamData computes it for the fetch too, so the request
+        /// that goes out and the cache this reads cannot be of different questions.
+        let key = RamData.keyOf model ramId
 
-        let startDisplayLoc, windowedDisplay =
-            match Optic.get loc.ValOptic_ model, sparseLocations with
-            | _, Some _ -> 0I, false
-            | start, None -> start, true
+        /// The rows, from whichever simulator holds the memory. `None` from the remote one means
+        /// the reply for this cycle has not landed yet - the request goes out from the update
+        /// function, and this render draws what it has.
+        let view =
+            if model.SimulateInRenderer then
+                RamView.ofFastSim fs ramId step key.SparseUpTo key.Start Constants.maxRamRowsDisplayed
+                |> function
+                    | Ok v -> Some v
+                    | Error e ->
+                        Log.warn $"reading RAM '{ramLabel}' at cycle {step}: {e}"
+                        None
+            else
+                RamData.held model ramId
+
+        let startDisplayLoc, windowedDisplay, viewRows =
+            match view with
+            | Some(RamSparse rows) -> 0I, false, rows
+            | Some(RamWindow(start, rows)) -> start, true, rows
+            | None -> key.Start, true, []
 
         let maxHeight =
             max (screenHeight() - (min wanted (screenHeight()/2.)) - 300.) 30.
             |> (fun h -> h - 40.)
 
         /// Comments written against locations in the .ram file this memory came from.
-        let comments = Option.defaultValue Map.empty ram.Comments
+        let comments = Option.defaultValue Map.empty mem.Comments
         let hasComments = not (Map.isEmpty comments)
 
         /// print a single 0 location as one table row
@@ -131,69 +120,6 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
                 failwithf $"What? gEnd={gEnd},gStart={gStart}: negative or zero gaps are impossible..."
 
 
-
-        /// Add a RAMNormal RamRowType value to every location in mem.
-        /// Add in additional locations for read and/or write if needed.
-        /// Set RamRowValue type to RAMWritten or RAMRead for thse locations.
-        /// Write is always 1 cycle after WEN=1 and address.
-        /// Read is 1 (0) cycles after address for sync (asynch) memories.
-        let addReadWrite (fc:FastComponent) (step:int) (mem: Map<bigint,bigint>) =
-
-
-            let readStep =
-                match fc.FType with
-                | AsyncROM1 _ | AsyncRAM1 _ -> step
-                | ROM1 _ | RAM1 _ -> step - 1
-                | _ -> failwithf $"What? {fc.FullName} should be a memory component"
-
-            let addrSteps step = getFastComponentInput fc 0 step
-
-            let readOpt =
-                match step, fc.FType with
-                | 0,ROM1 _ | 0, RAM1 _ -> None
-                | _ -> 
-                    addrSteps readStep
-                    |> Some
-            let writeOpt =
-                match step, fc.FType with
-                | _, ROM1 _ 
-                | _, AsyncROM1 _
-                | 0, _ -> None
-                | _, RAM1 _ | _, AsyncRAM1 _ when getFastComponentInput fc 2 (step-1) = 1I -> 
-                    addrSteps (step-1)
-                    |> Some
-                | _ ->  
-                    None
-
-            /// Mark addr in memory map as being rType
-            /// if addr does not exist - create it
-            let addToMap rType addr mem:Map<bigint,bigint*RamRowType> =
-                match Map.tryFind addr mem with
-                | Some (d,_) -> Map.add addr (d,rType) mem
-                | None  ->  Map.add addr (0I,rType) mem
-    
-
-            Map.map (fun k v -> v,RAMNormal) mem
-            |> (fun mem ->
-                match readOpt with
-                | Some addr -> addToMap RAMRead addr mem
-                | None -> mem
-                |> (fun mem ->
-                    match writeOpt with // overwrite RAMRead here is need be
-                    | Some addr -> addToMap RAMWritten addr mem
-                    | None -> mem))
-
-
-        /// The rows of a windowed (not-sparse) display: one lookup per row, straight out of the
-        /// store, with no map of the whole memory in between.
-        let generatewindowlocations (startLoc:bigint) (numOfLocs:int) =
-            [| startLoc .. min lastLocation (startLoc + bigint numOfLocs - 1I) |]
-            |> Array.map (fun loc -> loc, RamStore.wordAt ram step loc)
-            |> Map.ofArray
-             
-
-
-                
 
         /// add fake locations beyond normal address range so that
         /// addGapLines fills these (if need be). These locations are then removed
@@ -224,22 +150,14 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
             
         let lineItems =
             let isInWindow loc = loc >= startDisplayLoc && loc < startDisplayLoc + bigint Constants.maxRamRowsDisplayed
+            let triples = viewRows |> List.map (fun r -> r.Addr, r.Value, r.Row)
             if windowedDisplay then
-                generatewindowlocations startDisplayLoc Constants.maxRamRowsDisplayed
-                |> addReadWrite fc step
-                |> Map.toList
-                |> List.map (fun (a,(d,rw)) -> a,d,rw)
+                triples
                 |> List.sort
                 |> List.sortBy (fun (start,_,_) -> if  isInWindow start then 0 else 1) // put read and write at bottom if outside window
                 |> List.map print1
             else
-                // chosen only when sparseUpTo answered, so this is that answer
-                sparseLocations
-                |> Option.defaultValue []
-                |> Map.ofList
-                |> addReadWrite fc step
-                |> Map.toList
-                |> List.map (fun (a,(d,rw)) -> a,d,rw)
+                triples
                 |> List.filter (fun (a,d,rw) -> d<>0I || rw <> RAMNormal)
                 |> List.sort
                 |> addEndPoints

@@ -1,4 +1,4 @@
-/// The renderer's half of the sidecar transport: connect, then correlated request -> response.
+﻿/// The renderer's half of the sidecar transport: connect, then correlated request -> response.
 ///
 /// Wire protocol, shared with src/Sidecar/Protocol.fs - the two files change together:
 ///
@@ -55,6 +55,7 @@ module Constants =
 
     [<Literal>]
     let simReadCmd = 11
+    let simReadRamCmd = 12
 
     /// Command byte, uint32 correlation id, three bytes of padding - 8, so binary response
     /// payloads start 8-aligned for zero-copy typed-array views.
@@ -168,6 +169,7 @@ let private nameOf (cmd: int) =
     | c when c = Constants.simLogCmd -> "SimLog"
     | c when c = Constants.simSetInputsCmd -> "SimSetInputs"
     | c when c = Constants.simReadCmd -> "SimRead"
+    | c when c = Constants.simReadRamCmd -> "SimReadRam"
     | c -> $"command {c}"
 
 /// Say so about any request that has outstripped its command's budget.
@@ -497,6 +499,64 @@ let simRead
 
 /// The response payload as text, for reading an error reply from a binary command.
 let decodeText (frame: obj) : string = decodeTextPayload frame
+
+/// One memory's contents at one clock, as a RAM table shows them.
+///
+/// `sparseUpTo` is the most non-zero locations worth listing; past that a window of `rows` from
+/// `start` comes back instead, and zero asks for a window whatever the memory holds. Which of the
+/// two arrives is the sidecar's decision - only it knows how much the memory holds - so the reply
+/// says which it is and the caller draws accordingly.
+let simReadRam
+    (epoch: int)
+    (cycle: int)
+    (compId: int)
+    (path: int list)
+    (sparseUpTo: int)
+    (start: bigint)
+    (rows: int)
+    : JS.Promise<Result<RamView.RamView, string>> =
+    let lowWord (v: bigint) = int (v &&& 4294967295I)
+    let highWord (v: bigint) = int ((v >>> 32) &&& 4294967295I)
+
+    let args =
+        [ epoch; cycle; compId; List.length path ]
+        @ path
+        @ [ sparseUpTo; lowWord start; highWord start; rows ]
+
+    let payload = makeBytes (4 * List.length args)
+    args |> List.iteri (fun i value -> writeUint32At payload (4 * i) (float value))
+
+    request Constants.simReadRamCmd payload
+    |> Promise.map (fun frame ->
+        let asText = decodeTextPayload frame
+
+        if asText.StartsWith "{" then
+            Error asText
+        else
+            let isSparse = readUint32At frame 8 = 1.0
+            let rowCount = int (readUint32At frame 12)
+            let wordsPerValue = int (readUint32At frame 16)
+            // 8 bytes of frame header, then the reply's own 16
+            let rowBase i = 24 + (12 + 4 * wordsPerValue) * i
+
+            let row i =
+                let at = rowBase i
+                let addr = bigint (readUint32At frame at) + (bigint (readUint32At frame (at + 4)) <<< 32)
+
+                let value =
+                    (0I, [ wordsPerValue - 1 .. -1 .. 0 ])
+                    ||> List.fold (fun acc w -> (acc <<< 32) + bigint (readUint32At frame (at + 12 + 4 * w)))
+
+                { RamView.Addr = addr
+                  RamView.Value = value
+                  RamView.Row =
+                    match int (readUint32At frame (at + 8)) with
+                    | 1 -> RamView.RAMRead
+                    | 2 -> RamView.RAMWritten
+                    | _ -> RamView.RAMNormal }
+
+            let allRows = [ for i in 0 .. rowCount - 1 -> row i ]
+            Ok(if isSparse then RamView.RamSparse allRows else RamView.RamWindow(start, allRows)))
 
 /// One signal at one clock - the tooltip case, which is simRead's degenerate form: one signal,
 /// one sample, rep 1.

@@ -1,4 +1,4 @@
-/// Functions to style the DOM elements used in waveform simulator
+﻿/// Functions to style the DOM elements used in waveform simulator
 module WaveSimStyle
 
 //---------------------------------------------------------------------------------------//
@@ -6,6 +6,7 @@ module WaveSimStyle
 //---------------------------------------------------------------------------------------//
 
 open Fulma
+open RamView
 open Fable.React
 open Fable.React.Props
 open CommonTypes
@@ -175,7 +176,8 @@ let ramRowStyle = Style [
     BorderBottom "1px solid rgb(219,219,219)"
 ]
 
-type RamRowType = RAMWritten | RAMRead | RAMNormal 
+// RamRowType moved to Simulator/FastSim/RamView.fs, which both simulators produce rows with -
+// see the note at the top of that file. The styling of a row stays here.
 
 /// Style for each row of ramTable
 let ramTableRowStyle (rowType:RamRowType) =

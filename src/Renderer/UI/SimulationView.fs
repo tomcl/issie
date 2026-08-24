@@ -409,18 +409,72 @@ let statefulValues (model: Model) (simData: SimulationData) =
 
             fc, RegisterState(convertBigintToFastData width value))
 
-/// Whether this design has memories whose contents the panel cannot show, because the .NET
-/// simulator is the one holding them. Says the same thing WaveSimRams says, for the same reason.
-let ramsAreLocalOnly (model: Model) (simData: SimulationData) =
-    not model.SimulateInRenderer
-    && simData.FastSim.FClockedComps
-       |> Array.exists (fun fc ->
-           fc.AccessPath = []
-           && (match fc.FType with
-               | RAM1 _
-               | AsyncRAM1 _
-               | ROM1 _ -> true
-               | _ -> false))
+/// The top-level memories the stateful panel offers a View button for.
+///
+/// They are not part of `statefulValues` in sidecar mode - a memory's contents live in its store
+/// rather than on a wire, so they are not a signal to be read with the rest - and are listed here
+/// instead, to be read only when the button is pressed.
+let ramComponents (simData: SimulationData) =
+    simData.FastSim.FClockedComps
+    |> Array.filter (fun fc ->
+        fc.AccessPath = []
+        && (match fc.FType with
+            | RAM1 _
+            | AsyncRAM1 _ -> true
+            | _ -> false))
+    |> Array.toList
+
+/// Read one memory from the .NET simulator and open the diff against its initial contents.
+///
+/// No cache and no held state, unlike the waveform simulator's RAM table: this happens when a
+/// button is pressed, and a button press can wait for a reply the way any other click can. What
+/// makes the table different is that it is drawn from `view`, which cannot wait for anything.
+///
+/// A diff needs the whole memory on both sides, so the request asks for a listing and nothing
+/// else. A window coming back means the memory is written in too many places to read whole -
+/// `RamStore.Constants.maxSlotsForWholeRead` - which is the same answer the local button gives by
+/// disabling itself, said after the fact because only the far side knows.
+let openRemoteRamDiff (fc: FastComponent) (cycle: int) (model: Model) (dispatch: Msg -> unit) =
+    let initial =
+        match fc.FType with
+        | RAM1 m
+        | AsyncRAM1 m -> m
+        | _ -> failwithf $"what? openRemoteRamDiff expected a RAM but got {fc.FType}"
+
+    match SidecarSession.current () with
+    | None -> Log.error "there is no .NET simulation to read a memory from"
+    | Some(_, _, epoch) ->
+        let (ComponentId cid), path = fc.fId
+
+        promise {
+            let! reply =
+                SidecarClient.simReadRam
+                    epoch
+                    cycle
+                    cid
+                    (path |> List.map (fun (ComponentId p) -> p))
+                    RamStore.Constants.maxSlotsForWholeRead
+                    0I
+                    0
+
+            match reply with
+            | Error e -> Log.error $"the .NET simulator could not read memory '{fc.FLabel}': {e}"
+            | Ok(RamView.RamWindow _) ->
+                errorNotification
+                    $"'{fc.FLabel}' has been written in too many places to compare with its initial                       contents. The waveform simulator's RAM table shows a window of it."
+                    CloseSimulationNotification
+                |> SetSimulationNotification
+                |> dispatch
+            | Ok(RamView.RamSparse rows) ->
+                let data =
+                    rows
+                    |> List.filter (fun r -> r.Value <> 0I)
+                    |> List.map (fun r -> r.Addr, r.Value)
+                    |> Map.ofList
+
+                openMemoryDiffViewer initial { initial with Data = data } model dispatch
+        }
+        |> Promise.start
 
 /// Pretty print a label with its width.
 let makeIOLabel label width =
@@ -558,7 +612,8 @@ let private viewStatefulComponents step comps numBase model dispatch =
                         simulationBitStyle
                         if not fits then
                             Tooltip.dataTooltip
-                                "This memory has been written in too many places to compare with its                                  initial contents. The waveform simulator's RAM table shows a window of it."
+                                "This memory has been written in too many places to compare with its \
+                                 initial contents. The waveform simulator's RAM table shows a window of it."
                     ]
                     Button.Color (if fits then IsPrimary else IsGreyLight)
                     Button.Disabled (not fits)
@@ -1056,22 +1111,28 @@ let viewSimulationData (step: int) (simData : SimulationData) model dispatch =
         let stateful = 
             statefulValues model simData
             |> Array.toList
-        // A memory's contents live in its store rather than on a wire, and there is no command to
-        // read one over the wire yet - so with the .NET simulator this would show the memory as it
-        // was before the first clock edge, under a heading naming whatever cycle is on screen.
-        // Wrong contents look exactly like right ones. WaveSimRams says the same thing.
-        let memoryNote =
-            if ramsAreLocalOnly model simData then
-                [ div [ Style [ Margin "10px"; MaxWidth "40em" ] ] [
-                    str "Memory contents are not shown while the .NET simulator is running the simulation. \
-                         Development > Simulate In Renderer shows them again." ] ]
-            else []
-        match List.isEmpty stateful && List.isEmpty memoryNote with
+        // With the .NET simulator a memory is not in the stateful list above - its contents are in
+        // its store rather than on a wire, so they are not read with the signals - and it gets its
+        // own row here, whose View button reads it over the wire when pressed.
+        let remoteRams =
+            if model.SimulateInRenderer then []
+            else
+                ramComponents simData
+                |> List.map (fun fc ->
+                    splittedLine
+                        (str $"RAM: %s{fc.FullName}")
+                        (Button.button [
+                            Button.Props [ simulationBitStyle ]
+                            Button.Color IsPrimary
+                            Button.OnClick (fun _ -> dispatch <| ExecFuncInMessage(
+                                (fun model _ -> openRemoteRamDiff fc simData.ClockTickNumber model dispatch), dispatch))
+                         ] [ str "View" ]))
+        match List.isEmpty stateful && List.isEmpty remoteRams with
         | true -> div [] []
         | false -> div [] [
             Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Stateful components" ]
             viewStatefulComponents step stateful simData.NumberBase model dispatch
-            yield! memoryNote
+            yield! remoteRams
         ]
     let questionIcon = str "\u003F"
 

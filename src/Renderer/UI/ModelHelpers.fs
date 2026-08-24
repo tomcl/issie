@@ -155,6 +155,7 @@ let initWSModel  : WaveSimModel = {
     RamComps = []
     SelectedRams = Map.empty
     RamStartLocation = Map.empty
+    RamRows = Map.empty
     ShowSheetDetail = Set.empty
     SelectedSheetInstance = Map.empty
     ShowGroupDetail = Set.empty

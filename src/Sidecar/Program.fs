@@ -1,4 +1,4 @@
-/// A dotnet process Issie's main process runs beside the app, serving a WebSocket on loopback.
+﻿/// A dotnet process Issie's main process runs beside the app, serving a WebSocket on loopback.
 ///
 /// The server lives here rather than in Electron because the renderer is sandboxed: it can open
 /// a browser WebSocket to 127.0.0.1 but cannot host anything, and putting the server in main
@@ -266,6 +266,13 @@ let private serve (ws: WebSocket) (ct: CancellationToken) =
                 | Protocol.SimRead ->
                     let frame =
                         match SimSession.read (argAt body 0) (body[4..]) with
+                        | Ok payload -> bytesResponse header payload
+                        | Error e -> textResponse header (sprintf """{"error":"%s"}""" (e.Replace("\"", "'")))
+
+                    do! send ws frame ct
+                | Protocol.SimReadRam ->
+                    let frame =
+                        match SimSession.readRam (argAt body 0) (body[4..]) with
                         | Ok payload -> bytesResponse header payload
                         | Error e -> textResponse header (sprintf """{"error":"%s"}""" (e.Replace("\"", "'")))
 

@@ -116,6 +116,25 @@ let SimSetInputs = 0x0Auy
 [<Literal>]
 let SimRead = 0x0Buy
 
+/// One memory's contents at one clock, as a RAM table shows them. Payload: uint32 LE epoch,
+/// uint32 LE cycle, uint32 LE component id, uint32 LE access-path length, that many uint32 LE
+/// path component ids (root first), uint32 LE sparseUpTo, uint32 LE window start low word,
+/// uint32 LE window start high word, uint32 LE window rows.
+///
+/// `sparseUpTo` is the most non-zero locations worth listing; past that a window of `rows`
+/// locations from `start` comes back instead, and a caller wanting a window whatever the memory
+/// holds asks for zero. **Which of the two is sent is decided here, not by the caller**: only
+/// this side knows how much the memory holds, and finding that out is the walk being decided
+/// about (RamView.ofFastSim, and docs/dev/ramOverTheWire.md for why it is bounded).
+///
+/// Reply payload on success: uint32 LE 1 for a sparse listing or 0 for a window, uint32 LE row
+/// count, uint32 LE words per value, four bytes of padding, then per row uint32 LE address low
+/// word, uint32 LE address high word, uint32 LE row type (0 normal, 1 read, 2 written), and
+/// `words` uint32 LE value words least significant first. Bounded by construction: at most
+/// max(sparseUpTo, rows) rows. An error reply is JSON text (starts with '{').
+[<Literal>]
+let SimReadRam = 0x0Cuy
+
 [<Literal>]
 let ResponseFlag = 0x80uy
 

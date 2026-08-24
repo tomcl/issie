@@ -1,8 +1,6 @@
 # Reading a RAM from either simulator
 
-**Steps 1-3 are done**: the sparse view is bounded and both viewers use it, still against the
-renderer's own simulation. What is left is the wire - `SimReadRam`, its cache, and the two
-viewers taking whichever simulator is running.
+**Done.** Both RAM viewers work under either simulator. What is left is listed at the end.
 
 ## Why
 
@@ -125,6 +123,47 @@ that clock - `WaveSimRams.addReadWrite` does it today - so it belongs on the far
 rather than being worked out again by the caller. The sidecar has the `FastComponent`; it can
 answer exactly as the local simulator does, from one place.
 
+## There is no cache, and there did not need to be
+
+The plan above said the wire would need one, and it does not. The rows are small - at most a
+hundred a table - so they live in the model, in `WaveSimModel.RamRows`, and the view reads them
+the way it reads everything else.
+
+That is not tidiness. **The waveform pane is memoised on the model**, so a reply landing in a
+module of its own changes nothing the renderer can see: the first version held the rows in
+`RamData` and dispatched `UpdateModel id` to provoke a redraw, and the table stayed empty because
+an unchanged model is not redrawn. Held in the model, arriving IS the redraw.
+
+The waveform data proper is the case that genuinely cannot do this and stays outside (`WaveData`):
+megabytes of typed arrays, read per render, per wave. That is the distinction - not "cache versus
+model" but how much there is and how often it is read.
+
+What is left in `RamData` is the asking, which belongs in the update function: a fetch started
+from a render happens on every render and cannot be told whether it is still wanted.
+
+Two things had to be got right for that, and neither is obvious:
+
+- **A command that always resolves is a loop.** `RamData.needed` decides whether to issue one at
+  all; a command that resolved to "nothing changed" would still dispatch, and dispatching redraws,
+  and redrawing asks again.
+- **The key must be computed once.** `RamData.keyOf` builds it for both the request and the read,
+  through `waveSimModel_` in both cases. `getWSModel` indexes the WaveSim map by `WaveSimSheet`
+  and the lens by `WaveSimOrCurrentSheet`; where those disagree the rows are written to one entry
+  and looked for in the other, which reads exactly like a reply that never came - and then asks
+  again, on every render.
+
+## One build at a time
+
+`SidecarSession.ensureBuilt` now holds the promise of a build in flight and hands it to anyone
+arriving while it runs. A design is uploaded one sheet per message and index 0 begins an upload,
+discarding any abandoned one - so two builds interleaving leave the sidecar with half of each.
+That is not theoretical: it is what happened the moment the RAM tables started asking for their
+own build alongside the waveform viewer's, and it broke the waveform fetch too
+(`{"error":"no sheet called eep1 in the design"}`).
+
+A RAM table has to be able to build, because it can be the only thing on screen: with no waves
+selected, nothing else would ever have done it.
+
 ## 2. What a viewer asks for
 
 ```fsharp
@@ -197,11 +236,20 @@ Decide this before writing it, because it is the one place the answer is not obv
 
 1. ~~`RamStore.sparseUpTo` and `toMemoryIfSmall`, with tests.~~ Done.
 2. ~~The local viewers move onto them.~~ Done - this is where the 80 ms sparse read was fixed.
-3. `RamRowType` and `RamRow`/`RamView` move below the UI; `WaveSimStyle` keeps its styling
-   function and aliases the type. Left until the wire needs it: moving a type with no second
-   reader is churn.
-4. `SimReadRam` in the sidecar, `SidecarClient` and the cache.
-5. The viewers take whichever simulator is running, and the two "not available" messages go.
+3. ~~`RamRowType` and `RamRow`/`RamView` move below the UI.~~ Done, as `Simulator/FastSim/RamView.fs`,
+   which is where both simulators build their rows - the sidecar answers `SimReadRam` from exactly
+   the same function the renderer calls.
+4. ~~`SimReadRam`, `SidecarClient.simReadRam`, and the rows in the model.~~ Done.
+5. ~~The viewers take whichever simulator is running.~~ Done, and both "not available" messages
+   are gone.
+
+### Still to do
+
+- **A window is fetched at 50 rows whatever is on screen.** `maxRamRowsDisplayed` is the display's
+  number and travels with the request, so this is right - but a viewer that grew a taller table
+  would need the request to follow it.
+- **`SimInterface.ISimulator` still has no `ReadRam`.** `RamView.ofFastSim` and
+  `SidecarClient.simReadRam` are the two implementations of it in all but name.
 
 ## Verification
 

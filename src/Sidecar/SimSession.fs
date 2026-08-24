@@ -1,4 +1,4 @@
-/// The sidecar's simulation session: the existing Issie simulator, run under .NET on a design
+﻿/// The sidecar's simulation session: the existing Issie simulator, run under .NET on a design
 /// that arrived as SimpleSheets. This is the BASELINE - today's simulation code, unchanged,
 /// reached through SimpleDesignShim - that rewrites and the Electron simulator are compared
 /// against, via SimDigest (byte-identical observable-behaviour text) and SimLog (identical
@@ -214,6 +214,73 @@ let setInputs (askedEpoch: int) (body: byte array) : string =
 /// whatever those waveforms had shown before, for ever.
 ///
 /// Errors come back as JSON text instead.
+/// One memory's contents at one clock, as a RAM table shows them - the same rows the renderer's
+/// own simulator produces, from the same code (RamView.ofFastSim). The alternative is this side
+/// deciding for itself which row counts as read and which as written, and two answers that agree
+/// until they do not.
+let readRam (askedEpoch: int) (body: byte array) : Result<byte array, string> =
+    match checkEpoch askedEpoch, session with
+    | Error _, _ ->
+        Error $"stale session: command names epoch {askedEpoch}, this sidecar holds {currentEpoch ()}"
+    | _, None -> Error "no simulation built - send SimBuild first"
+    | Ok(), Some(fs, _) ->
+        let cycle = u32 body 0
+        let compId = u32 body 4
+        let pathLen = u32 body 8
+        let path = List.init pathLen (fun i -> ComponentId(u32 body (12 + 4 * i)))
+        let after = 12 + 4 * pathLen
+        let sparseUpTo = u32 body after
+        let start = bigint (uint32 (u32 body (after + 4))) + (bigint (uint32 (u32 body (after + 8))) <<< 32)
+        let rows = u32 body (after + 12)
+
+        if fs.ClockTick < cycle then
+            Error $"simulation has only reached cycle {fs.ClockTick} - run to {cycle} first"
+        else
+            RamView.ofFastSim fs (ComponentId compId, path) cycle sparseUpTo start rows
+            |> Result.map (fun view ->
+                let isSparse, viewRows =
+                    match view with
+                    | RamView.RamSparse rs -> 1, rs
+                    | RamView.RamWindow(_, rs) -> 0, rs
+
+                // the widest value decides the layout, and the reply states it - so a caller whose
+                // idea of the word width is stale still reads what was sent
+                let wordsPerValue =
+                    (1, viewRows)
+                    ||> List.fold (fun widest r ->
+                        let mutable bits = 0
+                        let mutable v = r.Value
+                        while v > 0I do
+                            bits <- bits + 1
+                            v <- v >>> 1
+                        max widest ((max 1 bits + 31) / 32))
+
+                let perRow = 12 + 4 * wordsPerValue
+                let reply = Array.zeroCreate (16 + perRow * List.length viewRows)
+                BitConverter.GetBytes(uint32 isSparse).CopyTo(reply, 0)
+                BitConverter.GetBytes(uint32 (List.length viewRows)).CopyTo(reply, 4)
+                BitConverter.GetBytes(uint32 wordsPerValue).CopyTo(reply, 8)
+
+                viewRows
+                |> List.iteri (fun i r ->
+                    let at = 16 + perRow * i
+                    BitConverter.GetBytes(uint32 (r.Addr &&& 4294967295I)).CopyTo(reply, at)
+                    BitConverter.GetBytes(uint32 ((r.Addr >>> 32) &&& 4294967295I)).CopyTo(reply, at + 4)
+
+                    let rowType =
+                        match r.Row with
+                        | RamView.RAMNormal -> 0u
+                        | RamView.RAMRead -> 1u
+                        | RamView.RAMWritten -> 2u
+
+                    BitConverter.GetBytes(rowType).CopyTo(reply, at + 8)
+
+                    for w in 0 .. wordsPerValue - 1 do
+                        let word = uint32 ((r.Value >>> (32 * w)) &&& 4294967295I)
+                        BitConverter.GetBytes(word).CopyTo(reply, at + 12 + 4 * w))
+
+                reply)
+
 let read (askedEpoch: int) (body: byte array) : Result<byte array, string> =
     match checkEpoch askedEpoch, session with
     | Error _, _ ->

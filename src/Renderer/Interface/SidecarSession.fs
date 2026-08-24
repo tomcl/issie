@@ -1,4 +1,4 @@
-/// The one simulation session the sidecar holds, and the renderer's picture of it.
+﻿/// The one simulation session the sidecar holds, and the renderer's picture of it.
 ///
 /// The sidecar simulates one design at a time - `SimSession` keeps a single session and every
 /// build replaces it - so there is one place here that knows what it is holding, rather than one
@@ -40,6 +40,16 @@ let mutable private built: (string * int * int) option = None
 /// sidecar says what it has reached.
 let mutable private clockTick = 0
 
+/// A build that has been started and not yet finished, so that callers arriving while one is in
+/// flight wait for it instead of starting another.
+///
+/// Necessary, not tidiness. A design is uploaded one sheet per message and index 0 begins an
+/// upload, discarding any abandoned one - so two builds interleaving their uploads leave the
+/// sidecar with half of each and a design that has no top sheet in it. That is exactly what
+/// happened when the RAM tables started asking for their own build alongside the waveform
+/// viewer's: "no sheet called eep1 in the design", and the waveform fetch broken with it.
+let mutable private building: JS.Promise<Result<int, string>> option = None
+
 /// The session the sidecar is believed to hold, or None.
 let current () = built
 
@@ -50,6 +60,7 @@ let clockReached () = clockTick
 /// the design changes.
 let forget () =
     built <- None
+    building <- None
     clockTick <- 0
 
 /// The error text of a sidecar reply, or None when it is not an error. Every reply that can fail
@@ -60,39 +71,50 @@ let errorIn (reply: string) =
 [<Emit("JSON.parse($0)")>]
 let parseJson (text: string) : obj = jsNative
 
-/// Build the design on the sidecar if it does not already hold it at a big enough array size.
+
+/// Build the design on the sidecar if it does not already hold it at a big enough array size,
+/// or wait for the build already running.
 let ensureBuilt (design: SimpleDesign) (arraySize: int) : JS.Promise<Result<int, string>> =
-    match built with
-    | Some(top, size, epoch) when top = design.TopSheet && size >= arraySize -> Promise.lift (Ok epoch)
+    match built, building with
+    | Some(top, size, epoch), _ when top = design.TopSheet && size >= arraySize -> Promise.lift (Ok epoch)
+    | _, Some inFlight -> inFlight
     | _ ->
-        promise {
-            do! SidecarClient.connect ()
-            let sheetJsons = design.Sheets |> List.map Json.serialize<SimpleSheet>
-            let! sent = SidecarClient.sendDesign design.TopSheet sheetJsons
+        let started =
+            promise {
+                do! SidecarClient.connect ()
+                let sheetJsons = design.Sheets |> List.map Json.serialize<SimpleSheet>
+                let! sent = SidecarClient.sendDesign design.TopSheet sheetJsons
 
-            match errorIn sent with
-            | Some e ->
-                built <- None
-                return Error e
-            | None ->
-                let! reply = SidecarClient.simBuild arraySize
-
-                match errorIn reply with
+                match errorIn sent with
                 | Some e ->
                     built <- None
                     return Error e
                 | None ->
-                    let epoch = SidecarClient.epochOf reply
+                    let! reply = SidecarClient.simBuild arraySize
 
-                    if epoch = 0 then
-                        // a build that issued no epoch built nothing, whatever else the reply said
+                    match errorIn reply with
+                    | Some e ->
                         built <- None
-                        return Error $"the sidecar's build reply named no session: {reply}"
-                    else
-                        built <- Some(design.TopSheet, arraySize, epoch)
-                        clockTick <- 0
-                        return Ok epoch
-        }
+                        return Error e
+                    | None ->
+                        let epoch = SidecarClient.epochOf reply
+
+                        if epoch = 0 then
+                            // a build that issued no epoch built nothing, whatever else the reply said
+                            built <- None
+                            return Error $"the sidecar's build reply named no session: {reply}"
+                        else
+                            built <- Some(design.TopSheet, arraySize, epoch)
+                            clockTick <- 0
+                            return Ok epoch
+            }
+
+        building <- Some started
+
+        started
+        |> Promise.map (fun result ->
+            building <- None
+            result)
 
 /// Advance the sidecar's simulation to `cycle`, a chunk at a time so the renderer stays live.
 /// `onProgress` is told the clock tick after each chunk, which is what lets a progress bar move

@@ -188,6 +188,19 @@ let private forkProject: Project =
       WorkingFileName = Some "fork"
       LoadedComponents = [ forkSheet; leftSheet; rightSheet; sharedSheet ] }
 
+/// The fork design's simulation, for the design-time queries - the hierarchy below is built from
+/// it, but these ask the design rather than what the selector drew.
+let private forkSimulation =
+    lazy
+        (match
+            Simulator.startCircuitSimulation
+                maxArraySize "fork" forkSheet.CanvasState forkProject.LoadedComponents
+         with
+         | Error e -> failwith $"Simulation setup failed: %A{e}"
+         | Ok simData -> simData.FastSim)
+
+let private forkSimulationFor () = forkSimulation.Force()
+
 let private forkHierarchy =
     lazy
         (match
@@ -311,9 +324,20 @@ let tests =
                                   (Some wi)
                                   $"{name}/{top.Name}: %A{wi.PortType}[%d{wi.PortNumber}] resolves to itself")
 
-                          Expect.isNonEmpty
-                              (WaveSimSelect.defaultSelectedWaves fs)
-                              $"{name}/{top.Name}: a first start offers something to look at")
+                          let defaults = WaveSimSelect.defaultSelectedWaves fs
+
+                          Expect.isNonEmpty defaults $"{name}/{top.Name}: a first start offers something to look at"
+
+                          // The default selection goes straight into reconcileWaves, which drops
+                          // anything that does not resolve against the simulation - so a default
+                          // that cannot be resolved is a viewer that opens empty, and says nothing
+                          // about why.
+                          defaults
+                          |> List.iter (fun wi ->
+                              Expect.equal
+                                  (WaveSimHelpers.reResolveWave fs wi)
+                                  (Some wi)
+                                  $"{name}/{top.Name}: a default wave survives being resolved"))
 
           testCase "every wave the simulation offers re-resolves to itself"
           <| fun () ->
@@ -838,12 +862,11 @@ let tests =
               // MID1 and MID2, are named "1" and "2", and a design whose labels share no
               // distinguishing suffix gets bare ordinals. Neither is something to show a user.
               let fs, _ = deepSimulation.Force()
-              let labels = WaveSimHierarchy.instanceLabels fs
               let _, hierarchy = hierarchyWith []
               let labelsOf (node: WaveSimHierarchy.SelectorNode) =
                   node.NodeInstances
                   |> List.map (fun instance ->
-                      Map.tryFind instance labels
+                      fs.Design.LabelOfInstance instance
                       |> Option.defaultValue (WaveSimHierarchy.pathKey instance))
                   |> List.sort
               Expect.equal (labelsOf hierarchy.HierNodes[midKey]) [ "MID1"; "MID2" ]
@@ -929,4 +952,70 @@ let tests =
                     WaveSimSelectHelpers.SelectionWarn
                     WaveSimSelectHelpers.SelectionWarn
                     WaveSimSelectHelpers.SelectionRefuse ]
-                  "both limits are the number that may be selected, not the first that may not" ]
+                  "both limits are the number that may be selected, not the first that may not"
+
+          //---------------------------------------------------------------------------------//
+          // The design-time queries the selector is built on. Each of these used to be answered
+          // by a map over every instance in the simulation; they are answered by walking the
+          // sheets somebody drew, so they must give the same answers on a design that expands.
+          //---------------------------------------------------------------------------------//
+
+          testCase "a sheet's instances are counted from the sheet graph, not by expanding it"
+          <| fun () ->
+              // deep holds two mids, and each mid holds two leaves - so four leaves, from a
+              // design of three sheets.
+              let fs, _ = deepSimulation.Force()
+              let counts = fs.Design.SheetInstanceCounts
+              Expect.equal (Map.tryFind "deep" counts) (Some 1) "the top sheet is instantiated once"
+              Expect.equal (Map.tryFind "mid" counts) (Some 2) "a sheet placed twice has two instances"
+              Expect.equal (Map.tryFind "leaf" counts) (Some 4) "and a sheet inside that one has four"
+              Expect.equal
+                  (Map.tryFind "leaf" counts)
+                  (Some(
+                      allInstances fs
+                      |> List.filter (fun i -> fs.Design.SheetOfInstance i = "leaf")
+                      |> List.length))
+                  "which is what the expansion holds"
+
+          testCase "a sheet reached two ways is counted once per route"
+          <| fun () ->
+              // fork instantiates left and right, and each of those instantiates shared - so
+              // shared has two instances although nothing is placed twice on any one sheet.
+              let fs = forkSimulationFor ()
+              let counts = fs.Design.SheetInstanceCounts
+              Expect.equal (Map.tryFind "left" counts) (Some 1) "left is reached one way"
+              Expect.equal (Map.tryFind "shared" counts) (Some 2) "shared is reached by both of them"
+
+          testCase "the sole instance of a sheet is found where there is one, and not where there is not"
+          <| fun () ->
+              let fs, _ = deepSimulation.Force()
+              Expect.equal
+                  (fs.Design.SoleInstanceOfSheet "deep")
+                  (Some(InstancePath []))
+                  "the top sheet's one instance is the one nothing contains"
+              Expect.isNone (fs.Design.SoleInstanceOfSheet "mid") "a sheet placed twice has no sole instance"
+              Expect.isNone (fs.Design.SoleInstanceOfSheet "leaf") "nor has one inside it"
+              Expect.isNone (fs.Design.SoleInstanceOfSheet "absent") "nor has a sheet the design does not hold"
+
+          testCase "the sole instance is the route the expansion actually took"
+          <| fun () ->
+              let fs = forkSimulationFor ()
+              match fs.Design.SoleInstanceOfSheet "left" with
+              | None -> failtest "left is instantiated once and should have a sole instance"
+              | Some instance ->
+                  Expect.equal (fs.Design.SheetOfInstance instance) "left" "and it is an instance of left"
+                  Expect.isTrue
+                      (List.contains instance (allInstances fs))
+                      "and it is one the simulation holds, not a path assembled out of nothing"
+              Expect.isNone (fs.Design.SoleInstanceOfSheet "shared") "shared is reached twice, so has none"
+
+          testCase "one instance of each sheet is enough to find what the design has"
+          <| fun () ->
+              // The fallback default selection reads Viewers off these, so what it must not do is
+              // miss a sheet or return the same sheet twice.
+              let fs, _ = deepSimulation.Force()
+              let sheets = WaveSimSelectHelpers.defaultInstanceOfEachSheet fs |> List.map fs.Design.SheetOfInstance
+              Expect.equal (List.sort sheets) [ "deep"; "leaf"; "mid" ] "every sheet of the design, once each"
+              Expect.isTrue
+                  (WaveSimSelectHelpers.defaultInstanceOfEachSheet fs |> List.forall (fun i -> List.contains i (allInstances fs)))
+                  "and each is an instance the simulation holds" ]

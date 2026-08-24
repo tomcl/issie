@@ -162,30 +162,57 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
 /// The copies of each canvas component the simulation holds, by the id that component has on the
 /// canvas it was drawn on.
 ///
-/// A component drawn once has one copy per instantiation of the sheet it is on, so this is keyed on
-/// the DESIGN's components and its values run over the EXPANSION. Everything asking about a
-/// component picked on the schematic wants exactly this and had no way to ask for it: it read the
-/// whole of WaveComps and threw all but a handful of entries away. main6 of largeTest holds about
-/// 480,000 components, and the probe below asks on every render while the mouse rests on a wire.
+/// The copies of one canvas component that the simulation holds, in no particular order - or, when
+/// there are several, how many rather than which.
 ///
-/// Keyed on the simulation, which is rebuilt rather than mutated, so a new one is the signal that
-/// this is stale. Emptied when a simulation ends - see Helpers.clearIdentityMemos.
-let private waveCompIdsOfCanvasComp: FastSimulation -> Map<ComponentId, FComponentId list> =
-    Helpers.memoizeByIdentity (fun fs ->
-        fs.WaveComps
-        |> Map.toList
-        |> List.map fst
-        |> List.groupBy (fun (compId, _accessPath) -> compId)
-        |> Map.ofList)
+/// Everything asking this wants to know whether there is exactly one, because a component in a
+/// sheet placed twice has no single wave to offer. So it is answered from the DESIGN: which sheet
+/// the component was drawn on, and how many instances that sheet has. Both come off the sheet
+/// graph, which is the size of what somebody drew.
+///
+/// It used to be an index of every component in the simulation grouped by the canvas component it
+/// is a copy of. main6 of largeTest holds about 480,000 of them, and the probe below asks on every
+/// render while the mouse rests on a wire.
+///
+/// Not every copy has waves: an Input or Output inside a subsheet is simulated by the port of the
+/// instance holding it and gets no step array of its own, which is the case waveOfInstancePort
+/// exists for. So a component with no waves is still a copy, which is why this counts instances of
+/// its sheet rather than waves.
+/// Worked out once per simulation, not once per render: the probe asks on every frame while the
+/// mouse rests on a wire, and while each of these questions is now the size of the design, the
+/// design is not nothing. Keyed on the simulation, which is rebuilt rather than mutated, so a new
+/// one is the signal that this is stale. Emptied when a simulation ends - see
+/// Helpers.clearIdentityMemos.
+let private canvasCompCopies: FastSimulation -> (ComponentId -> Result<FComponentId, int>) =
+    Helpers.memoizeByIdentity (fun (fs: FastSimulation) ->
+        let counts = fs.Design.SheetInstanceCounts
 
-/// The copies of one canvas component that the simulation holds, in no particular order.
-///
-/// Not every one of them has waves: an Input or Output inside a subsheet is simulated by the port
-/// of the instance holding it and gets no step array of its own, which is the case
-/// waveOfInstancePort exists for. So counting waves cannot stand in for counting copies, which is
-/// why this index is over WaveComps rather than over WaveIndex.
-let private copiesOfCanvasComp (fs: FastSimulation) (compId: ComponentId) : FComponentId list =
-    Map.tryFind compId (waveCompIdsOfCanvasComp fs) |> Option.defaultValue []
+        let sheetOfComp =
+            fs.Design.DesignComponentsById
+            |> Map.toList
+            |> List.collect (fun (sheet, comps) -> comps |> Map.toList |> List.map (fun (cid, _) -> cid, sheet))
+            |> Map.ofList
+
+        let soleInstance =
+            counts
+            |> Map.toList
+            |> List.choose (fun (sheet, n) ->
+                if n = 1 then
+                    fs.Design.SoleInstanceOfSheet sheet |> Option.map (fun path -> sheet, path)
+                else
+                    None)
+            |> Map.ofList
+
+        fun compId ->
+            match Map.tryFind compId sheetOfComp with
+            | None -> Error 0
+            | Some sheet ->
+                match Map.tryFind sheet soleInstance with
+                | Some(InstancePath ap) -> Ok(compId, ap)
+                | None -> Error(Map.tryFind sheet counts |> Option.defaultValue 0))
+
+let private copiesOfCanvasComp (fs: FastSimulation) (compId: ComponentId) : Result<FComponentId, int> =
+    canvasCompCopies fs compId
 
 /// The custom component instance a component sits directly inside, if any.
 /// An access path is ordered from the root of the simulation, so its last element is the instance
@@ -233,20 +260,22 @@ let wavesOfComponent
         (compId: ComponentId)
             : Wave list * int =
     match copiesOfCanvasComp fs compId with
+    | Error copies -> [], copies
     // the innards of a library component are not offered here any more than they are in the
     // selector, whose hierarchy makes one opaque
-    | [ fId ] when isInsideLibraryComponent fs fs.WaveComps[fId] -> [], 1
-    | [ fId ] ->
+    | Ok fId when Map.tryFind fId fs.WaveComps |> Option.exists (isInsideLibraryComponent fs) -> [], 1
+    | Ok fId ->
         let waves = waveIndicesOfFComp fs fId |> List.map (makeWave ws fs)
-        (if waves = [] then waveOfInstancePort fs ws fs.WaveComps[fId] else waves), 1
-    | copies ->
-        [], copies.Length
+
+        match waves, Map.tryFind fId fs.WaveComps with
+        | [], Some fc -> waveOfInstancePort fs ws fc, 1
+        | _ -> waves, 1
 
 /// The label the simulation gives one component on the canvas, when it holds exactly one of it.
 let private simLabelOfComponent (fs: FastSimulation) (compId: ComponentId) : string option =
-    copiesOfCanvasComp fs compId
-    |> List.tryHead
-    |> Option.map (fun fId -> fs.WaveComps[fId].FLabel)
+    match copiesOfCanvasComp fs compId with
+    | Error _ -> None
+    | Ok fId -> Map.tryFind fId fs.WaveComps |> Option.map (fun fc -> fc.FLabel)
 
 /// The waves to offer on the schematic's right-click menu for the component clicked on: none
 /// unless a wave simulation is running and holds exactly one copy of that component.
@@ -290,11 +319,11 @@ let waveIndexOfWire
             | None -> None
             | Some portNum ->
                 match copiesOfCanvasComp fs (ComponentId port.HostId) with
-                | [ fId ] ->
+                | Ok fId ->
                     waveIndicesOfFComp fs fId
                     |> List.tryFind (fun wi ->
                         wi.PortType = PortType.Output && wi.PortNumber = portNum)
-                | _ -> None
+                | Error _ -> None
 
 /// The value of one wave at one cycle, written as the waveform viewer's value column writes it.
 ///
@@ -355,58 +384,50 @@ let probeLabelForWire
 /// click away for the rest.
 let private maxDefaultWaves = 12
 
-/// The waves of every component of the simulation that `rank` gives a place to, in that order and
-/// then by label, capped.
-let private wavesRanked
-        (rank: FastComponent -> int option)
-        (fs: FastSimulation)
-            : WaveIndexT list =
-    fs.WaveIndex
-    |> Array.toList
-    |> List.choose (fun wi ->
-        Map.tryFind wi.Id fs.WaveComps
-        |> Option.filter (isInsideLibraryComponent fs >> not)
-        |> Option.bind (fun fc -> rank fc |> Option.map (fun r -> (r, fc.FLabel, wi))))
-    |> List.sortBy (fun (r, label, _) -> r, label)
-    |> List.truncate maxDefaultWaves
-    |> List.map (fun (_, _, wi) -> wi)
-
 /// The waves to show when a wave simulation starts with nothing chosen.
 ///
 /// An empty viewer is never what the user wants: it makes the first thing they see after pressing
 /// Start a sentence telling them to press a different button.
 ///
 /// First choice is the simulated top sheet's own ports - inputs, then outputs, then Viewers. They
-/// are the signals every design has and the ones a beginner came to look at. An access path is
-/// empty exactly for components that are not inside any custom component instance, which is how
-/// "on the top sheet" is decided.
+/// are the signals every design has and the ones a beginner came to look at.
 ///
 /// A top sheet can have no ports at all: a whole CPU is often a ROM, a RAM and a couple of
 /// subsystem instances, wired to each other and to nothing outside. The `3cpu` demo's `eep1` is
-/// exactly that. Falling back to Viewers **anywhere in the design** answers it, because a Viewer is
-/// placed for one reason only - somebody wanted to watch that net - so wherever they are, they are
-/// the signals the author of the design thought were worth looking at.
+/// exactly that. Falling back to Viewers **anywhere in the design** answers it, because a Viewer
+/// is placed for one reason only - somebody wanted to watch that net - so wherever they are, they
+/// are the signals the author of the design thought were worth looking at.
+///
+/// Both are read off the DESIGN: the top sheet's own components for the first, and one instance of
+/// each sheet for the second, since which Viewers a sheet has is a fact about the sheet. This used
+/// to be one pass over every wave in the simulation - 208,896 of them on largeTest, to choose
+/// twelve - and it was the last thing the wave selector did that grew with the expansion.
 let defaultSelectedWaves (fs: FastSimulation) : WaveIndexT list =
     /// Ports of the simulated top sheet: inputs, then outputs, then Viewers - the order they are
-    /// read in, and the order a schematic is drawn in.
-    let topSheetPort (fc: FastComponent) =
-        match fc.AccessPath, fc.FType with
-        | [], Input1 _ -> Some 0
-        | [], Output _ -> Some 1
-        | [], Viewer _ -> Some 2
+    /// read in, and the order a schematic is drawn in. Ranked with the label, which orders the
+    /// waves within each of the three and is what makes the choice repeatable.
+    let topSheetPort (comp: Component) =
+        match comp.Type with
+        | Input1 _ -> Some(0, comp.Label)
+        | Output _ -> Some(1, comp.Label)
+        | Viewer _ -> Some(2, comp.Label)
         | _ -> None
 
     /// Every Viewer in the design, at whatever depth.
-    let anyViewer (fc: FastComponent) =
-        match fc.FType with
-        | Viewer _ -> Some 0
+    let anyViewer (comp: Component) =
+        match comp.Type with
+        | Viewer _ -> Some(0, comp.Label)
         | _ -> None
 
-    // The one pass over every wave in the simulation that the wave selector still makes, and it is
-    // made once when a simulation with nothing chosen starts - not per render, and nothing
-    // proportional to it is kept.
-    match wavesRanked topSheetPort fs with
-    | [] -> wavesRanked anyViewer fs
+    let ranked pick instances =
+        instances
+        |> List.collect (waveIndicesOfInstanceBy pick fs)
+        |> List.sortBy fst
+        |> List.truncate maxDefaultWaves
+        |> List.map snd
+
+    match ranked topSheetPort [ InstancePath [] ] with
+    | [] -> ranked anyViewer (defaultInstanceOfEachSheet fs)
     | topPorts -> topPorts
 
 /// Choose waves for a wave simulation that has none. Applied only when the user has selected

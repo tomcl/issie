@@ -162,7 +162,7 @@ let waveToSheetPort fs (wave:Wave) =
 
 
 /// given a SheetPort, get all directly connected SheetPorts
-let connectedPorts fs sheetPort =
+let connectedPorts (fs: FastSimulation) sheetPort =
     let compMap = fs.ComponentsById
     let portMap = fs.ConnectionsByPort
     let name = sheetPort.Sheet

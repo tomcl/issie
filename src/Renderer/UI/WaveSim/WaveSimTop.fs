@@ -167,7 +167,14 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                     let dt, dm = TimeHelpers.getTimeMs () - t0, TimeHelpers.usedHeapBytes () - m0
                     Log.dbg Log.Perf $"defaultWaves {ws.SelectedWaves.Length} selected %8.0f{dt}ms  %+6.0f{dm / 1.0e6}MB"
                 ws
+        // Reconciled BEFORE the default selection is chosen, not after. A selection saved with the
+        // sheet can name ports the design no longer has - it was saved by an older version of the
+        // design, or of Issie - and reconciling drops those. Choosing defaults first meant a
+        // selection that resolved to nothing still counted as a selection, so nothing replaced it
+        // and the viewer opened empty: the one thing chooseDefaultWaves exists to prevent, in
+        // exactly the case where the user has no way to know why.
         validateSimParas wsModel
+        |> reconcileWaves (Simulator.getFastSim())
         |> if newSimulation then chooseDefaultWaves else id
         |> reconcileWaves (Simulator.getFastSim())
 

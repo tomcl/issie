@@ -94,7 +94,18 @@ let wavePropsTable (rows: TableRow list) =
 /// the handful of instances on screen. The rule deciding which ports carry a wave is
 /// FastCreate.portCarriesWave, the same one the wave index itself is built from, so the two
 /// cannot disagree.
-let waveIndicesOfInstance (fs: FastSimulation) (InstancePath ap as instance) : WaveIndexT list =
+/// The waves of one instance, each paired with something read off the DESIGN component it belongs
+/// to - its label, its type, whatever the caller needs to rank or filter on.
+///
+/// The same walk as `waveIndicesOfInstance` and the same cost: one sheet's components, however
+/// many times that sheet is instantiated. It keeps the component so that a caller choosing
+/// between waves can choose on what the user drew rather than by reading the expansion to find
+/// out what each wave is a wave of.
+let waveIndicesOfInstanceBy
+    (pick: Component -> 'a option)
+    (fs: FastSimulation)
+    (InstancePath ap as instance)
+    : ('a * WaveIndexT) list =
     let sheet = fs.getSheetNameOfInstance instance
 
     fs.SimulatedCanvasState
@@ -102,9 +113,10 @@ let waveIndicesOfInstance (fs: FastSimulation) (InstancePath ap as instance) : W
     |> Option.map (fun ldc ->
         fst ldc.CanvasState
         |> List.collect (fun comp ->
-            match Map.tryFind (ComponentId comp.Id, ap) fs.WaveComps with
-            | None -> []
-            | Some fc ->
+            match pick comp, Map.tryFind (ComponentId comp.Id, ap) fs.WaveComps with
+            | None, _
+            | _, None -> []
+            | Some picked, Some fc ->
                 let portsOf pType (arrays: IOArray array) =
                     if FastCreate.portCarriesWave fs fc pType then
                         arrays
@@ -117,8 +129,51 @@ let waveIndicesOfInstance (fs: FastSimulation) (InstancePath ap as instance) : W
                     else
                         []
 
-                portsOf PortType.Output fc.Outputs @ portsOf PortType.Input fc.InputLinks))
+                portsOf PortType.Output fc.Outputs @ portsOf PortType.Input fc.InputLinks
+                |> List.map (fun wi -> picked, wi)))
     |> Option.defaultValue []
+
+let waveIndicesOfInstance (fs: FastSimulation) (instance: InstancePath) : WaveIndexT list =
+    waveIndicesOfInstanceBy (fun _ -> Some()) fs instance |> List.map snd
+
+/// One instance of each sheet of the design, reached by taking the first instance at every step
+/// down from the top - the same chain the selector shows before anyone has chosen otherwise.
+///
+/// For a question whose answer is a fact about a SHEET rather than about an instance of one -
+/// "does the design have any Viewers, and where" - one instance is enough to find out, and the
+/// design has as many sheets as somebody drew. Asking it of every instance instead is what made
+/// choosing a default selection cost the whole expansion.
+///
+/// Sheets already reached are not entered again, so a sheet instantiated in several places is
+/// visited once; library sheets are not entered at all, their innards being opaque here.
+let defaultInstanceOfEachSheet (fs: FastSimulation) : InstancePath list =
+    let libraries = librarySheetsOf fs
+
+    let rec walk (visited: Set<string>) (instance: InstancePath) =
+        let sheet = fs.Design.SheetOfInstance instance
+
+        if Set.contains sheet visited || Set.contains sheet libraries then
+            [], visited
+        else
+            let subSheets =
+                Map.tryFind sheet fs.Design.DesignComponentsById
+                |> Option.defaultValue Map.empty
+                |> Map.toList
+                |> List.choose (fun (_, comp) ->
+                    match comp.Type with
+                    | Custom ct -> Some ct.Name
+                    | _ -> None)
+                |> List.distinct
+
+            (([ instance ], Set.add sheet visited), subSheets)
+            ||> List.fold (fun (found, visited) name ->
+                match fs.Design.InstancesInside(instance, name) |> List.tryHead with
+                | None -> found, visited
+                | Some child ->
+                    let below, visited = walk visited child
+                    found @ below, visited)
+
+    walk Set.empty (InstancePath []) |> fst
 
 /// The selected waves the simulation still has, which is what Show Only Selected shows and what the
 /// ticks in the dialog are drawn from.
@@ -572,10 +627,11 @@ let private instanceSelector (node: WaveSimHierarchy.SelectorNode) (dispatch: Ms
     // The instance is chosen by its label on the canvas above it - what the user drew. The value
     // behind each option is the instance PATH, written as a key, since a DOM option can carry only
     // a string; it is an identifier and not something to show anyone.
-    let labels = WaveSimHierarchy.instanceLabels (Simulator.getFastSim())
+    let design = (Simulator.getFastSim()).Design
 
     let labelOf instance =
-        Map.tryFind instance labels |> Option.defaultValue (WaveSimHierarchy.pathKey instance)
+        design.LabelOfInstance instance
+        |> Option.defaultValue (WaveSimHierarchy.pathKey instance)
     match node.NodeInstances, node.NodeInstance with
     | _ :: _ :: _, Some shown ->
         div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; MarginLeft "10px"]] [

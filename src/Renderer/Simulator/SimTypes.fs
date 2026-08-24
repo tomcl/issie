@@ -289,6 +289,190 @@ type SheetPort = {
     PortOnComp: Port
     } // must include port number (which ports on connections do not)
 
+/// The design a simulation was built FROM, as opposed to the simulation built from it.
+///
+/// **Everything here is the size of the design somebody drew.** A design of seven sheets is seven
+/// sheets here however many instances it expands to - and a design that expands to 49,152 sheet
+/// instances is exactly the case this exists for. The renderer needs the design to draw a
+/// selector, a hierarchy and a set of names; it does not need the expansion, and holding one to
+/// get at the other is what made the renderer's memory grow with a simulation running elsewhere.
+///
+/// The instance queries below are the point of the type. An instance is an `InstancePath`, a list
+/// of the custom-component ids entered on the way down to it, and every question anyone asks about
+/// one - which sheet is it a copy of, what is it labelled, what is inside it - is answered by
+/// walking that path through the DESIGN. Each step is a lookup in one sheet's components, so a
+/// query costs the depth of the path and the size of a sheet, and never the expansion. They used
+/// to be answered from maps built over every instance in the simulation: 208,896 entries on
+/// largeTest, for questions only ever asked about the handful of instances on screen.
+///
+/// The design the simulation was BUILT from, not the one on the canvas now. An edit to the
+/// schematic is meant to change nothing in a running waveform simulation until it is restarted or
+/// refreshed, and reading the live project instead moved half the selector and left the rest.
+type SimulatedDesign =
+    {
+        /// Circuit simulated: the top sheet and every sheet it depends on.
+        DesignSheets: LoadedComponent list
+        /// The root sheet being simulated. "" when there is no simulation.
+        DesignTopSheet: string
+        /// Every component of every simulated sheet, by sheet name and then by id. Subsheet
+        /// components appear once each - contrast FastComponents, which are one per INSTANCE.
+        DesignComponentsById: Map<string, Map<ComponentId, Component>>
+        /// Connections on simulated sheets indexed by directly connected port. Each connection
+        /// appears twice.
+        DesignConnectionsByPort: Map<SheetPort, Connection list>
+    } with
+
+    /// The custom component that introduces an instance, or None for the top sheet, which nothing
+    /// introduces. A step off the end of the path: the last id on it IS that component, and the
+    /// rest of the path says which sheet it is drawn on.
+    member this.CustomOfInstance(InstancePath ap) : Component option =
+        match List.tryLast ap with
+        | None -> None
+        | Some cid ->
+            this.SheetOfInstance(InstancePath ap[0 .. ap.Length - 2])
+            |> fun sheet -> Map.tryFind sheet this.DesignComponentsById
+            |> Option.bind (Map.tryFind cid)
+
+    /// The design-time name of the sheet an instance is a copy of: what the user called it, and
+    /// what they see in the Sheets menu.
+    ///
+    /// Walked from the top sheet down, each id read as a custom component on the sheet reached so
+    /// far. A path that does not lead anywhere in this design - one left over from a simulation of
+    /// an earlier version of it - stops at the sheet it got to, which is the same answer the
+    /// expansion-sized version gave for an instance it did not hold.
+    member this.SheetOfInstance(InstancePath ap) : string =
+        (this.DesignTopSheet, ap)
+        ||> List.fold (fun sheet cid ->
+            Map.tryFind sheet this.DesignComponentsById
+            |> Option.bind (Map.tryFind cid)
+            |> Option.bind (fun comp ->
+                match comp.Type with
+                | Custom ct -> Some ct.Name
+                | _ -> None)
+            |> Option.defaultValue sheet)
+
+    /// The label an instance carries on the canvas above it: what the user drew, and what tells
+    /// two instances of one sheet apart when the selector offers a choice between them. None for
+    /// the top sheet, which is named after its sheet rather than labelled.
+    member this.LabelOfInstance(instance: InstancePath) : string option =
+        this.CustomOfInstance instance |> Option.map (fun comp -> comp.Label)
+
+    /// The instances of `sheet` directly inside `parent`, alphabetically by id - so the head is
+    /// what a selector node with nothing recorded about it shows.
+    ///
+    /// Read off the custom components of the parent's own sheet: one of those IS an instance of
+    /// the sheet it names, and its id extends the parent's path to name the instance it
+    /// introduces. One sheet's components, whatever the parent is an instance number of.
+    member this.InstancesInside(InstancePath ap as parent, sheet: string) : InstancePath list =
+        Map.tryFind (this.SheetOfInstance parent) this.DesignComponentsById
+        |> Option.defaultValue Map.empty
+        |> Map.toList
+        |> List.filter (fun (_, comp) ->
+            match comp.Type with
+            | Custom ct -> ct.Name = sheet
+            | _ -> false)
+        |> List.map (fun (cid, _) -> InstancePath(ap @ [ cid ]))
+        |> List.sort
+
+    /// The design-time sheet a component was drawn on, found by its id. None for an id this design
+    /// does not hold - one left over from a simulation of an earlier version of it.
+    member this.SheetOfComponent(compId: ComponentId) : string option =
+        this.DesignComponentsById
+        |> Map.tryPick (fun sheet comps -> if Map.containsKey compId comps then Some sheet else None)
+
+    /// The sheets instantiated directly on one sheet, with the id of the custom component doing
+    /// the instantiating. One entry per custom component, so a sheet placed twice appears twice.
+    member this.SubSheetsOf(sheet: string) : (ComponentId * string) list =
+        Map.tryFind sheet this.DesignComponentsById
+        |> Option.defaultValue Map.empty
+        |> Map.toList
+        |> List.choose (fun (cid, comp) ->
+            match comp.Type with
+            | Custom ct -> Some(cid, ct.Name)
+            | _ -> None)
+
+    /// How many instances of each sheet the design expands to.
+    ///
+    /// Counted on the SHEET graph rather than by expanding it: a sheet appears once for every time
+    /// each of its parents appears, so one walk of the sheets somebody drew gives a number it
+    /// would take 49,152 instances to reach by enumeration. Sheets nothing instantiates are absent.
+    ///
+    /// The sum is held below a ceiling so that a deep design cannot overflow it. Nothing asks the
+    /// count of a sheet with thousands of instances - what is asked is whether there is exactly
+    /// one - so a saturating count answers every question anyone puts to it.
+    member this.SheetInstanceCounts : Map<string, int> =
+        let ceiling = 1000000
+
+        /// Parents before the sheets they instantiate, so one pass settles every count. A sheet
+        /// reached several ways is ordered once, after all of them.
+        let rec order (seen: Set<string>, acc: string list) sheet =
+            if Set.contains sheet seen then
+                seen, acc
+            else
+                let seen, acc =
+                    ((Set.add sheet seen, acc), this.SubSheetsOf sheet |> List.map snd |> List.distinct)
+                    ||> List.fold order
+
+                seen, sheet :: acc
+
+        let sorted = order (Set.empty, []) this.DesignTopSheet |> snd
+
+        (Map.ofList [ this.DesignTopSheet, 1 ], sorted)
+        ||> List.fold (fun counts sheet ->
+            let here = Map.tryFind sheet counts |> Option.defaultValue 0
+
+            (counts, this.SubSheetsOf sheet)
+            ||> List.fold (fun counts (_, child) ->
+                counts
+                |> Map.change child (fun c -> Some(min ceiling (Option.defaultValue 0 c + here)))))
+
+    /// The one instance of a sheet, where the design has exactly one; None where it has none or
+    /// several.
+    ///
+    /// Everything inside a sheet placed twice is itself there twice, so the sheets with a single
+    /// instance form a tree and the route down to one of them is unique. Following only those is
+    /// what keeps this the size of the design.
+    member this.SoleInstanceOfSheet(sheet: string) : InstancePath option =
+        let counts = this.SheetInstanceCounts
+
+        let rec find (InstancePath ap as instance) current =
+            if current = sheet then
+                Some instance
+            else
+                this.SubSheetsOf current
+                |> List.tryPick (fun (cid, name) ->
+                    if Map.tryFind name counts = Some 1 then
+                        find (InstancePath(ap @ [ cid ])) name
+                    else
+                        None)
+
+        if Map.tryFind sheet counts <> Some 1 then
+            None
+        else
+            find (InstancePath []) this.DesignTopSheet
+
+    /// An instance path as a person reads it: the labels of the custom components entered, dot
+    /// separated, and the top sheet's own name for the instance nothing contains.
+    ///
+    /// A rendering, not an identity - which is why it may be ambiguous without consequence. Two
+    /// instances can share a label path only if a label repeats on one canvas, and what decides
+    /// which wave is which is the path itself.
+    member this.LabelPathOfInstance(InstancePath ap) : string =
+        match ap with
+        | [] -> this.DesignTopSheet
+        | _ ->
+            [ 1 .. ap.Length ]
+            |> List.map (fun i ->
+                this.LabelOfInstance(InstancePath ap[0 .. i - 1]) |> Option.defaultValue "?")
+            |> String.concat "."
+
+/// A design with nothing in it: what a renderer holds before anything has been simulated.
+let emptySimulatedDesign =
+    { DesignSheets = []
+      DesignTopSheet = ""
+      DesignComponentsById = Map.empty
+      DesignConnectionsByPort = Map.empty }
+
 /// What one clock cycle of a design costs in step arrays, kept apart by which memory it comes from.
 ///
 /// The two are not interchangeable, and measurably so - though not in the way performance.memory
@@ -496,17 +680,11 @@ type FastSimulation =
         Drivers: Driver option array
         /// Each wave index represents one component port with associated driver and data
         WaveIndex: WaveIndexT array
-        /// Connections on simulated sheets indexed by directly connected port. Each connection appears twice.
-        ConnectionsByPort: Map<SheetPort, Connection list>
-        /// This contains all components in the sheets of the simulation indexed by ComponentId.
-        /// Subsheet components are indexed only once.
-        /// Contrast this with Fast Components - which have the design expanded out with
-        /// one per instance: the different versions correspond to distinct access paths.
-        ComponentsById: Map<string, Map<ComponentId, Component>>
-        /// Circuit simulated (sheet and all dependencies)
-        SimulatedCanvasState: LoadedComponent list
-        /// The root sheet being simulated
-        SimulatedTopSheet: string
+        /// The design this was built from - its sheets, their components and connections, and the
+        /// instance queries answered by walking them. The size of the design rather than of the
+        /// expansion, and the only part of a simulation a renderer needs when the simulating is
+        /// happening in another process.
+        Design: SimulatedDesign
 
         /// What one clock cycle of this design costs in step arrays. Worked out before the arrays
         /// were allocated, by FastCreate.stepCostOfGraph, and kept so that the waveform
@@ -514,27 +692,22 @@ type FastSimulation =
         StepCost: StepCost
     } with
 
+    /// The design-sized fields, under the names they had when they were fields of this record.
+    /// They read through to `Design`, which is where they live now - so that the design can be
+    /// held, and asked, without a simulation to hang it on.
+    member this.SimulatedCanvasState = this.Design.DesignSheets
+    member this.SimulatedTopSheet = this.Design.DesignTopSheet
+    member this.ComponentsById = this.Design.DesignComponentsById
+    member this.ConnectionsByPort = this.Design.DesignConnectionsByPort
+
     /// The custom component an instance is the innards of, or None for the top sheet.
-    ///
-    /// A map from instance to parent used to be built and stored for this. It is a step off the
-    /// end of the path: the last id on the path IS the custom component, and what it sits in is
-    /// the rest of the path. One lookup, nothing to keep in step, and one entry per sheet INSTANCE
-    /// no longer allocated at build time - tens of thousands of them on a design that expands.
-    member this.parentCustomOf(InstancePath ap) : FastComponent option =
-        match List.tryLast ap with
-        | None -> None
-        | Some cid -> Map.tryFind (cid, ap[0 .. ap.Length - 2]) this.FCustomComps
+    member this.parentCustomOf(instance: InstancePath) : Component option =
+        this.Design.CustomOfInstance instance
 
     /// The design-time name of the sheet an instance is of: what the user called it, and what they
     /// see in the Sheets menu. An instance is a path; this says which sheet it is a copy of.
     member this.getSheetNameOfInstance(instance: InstancePath) =
-        match this.parentCustomOf instance with
-        | Some fc ->
-            match fc.FType with
-            | Custom ct -> ct.Name
-            | _ -> this.SimulatedTopSheet
-        // no parent means the top sheet, which is the one instance named after its sheet
-        | None -> this.SimulatedTopSheet
+        this.Design.SheetOfInstance instance
 
  
 

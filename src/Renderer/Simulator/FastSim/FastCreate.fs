@@ -36,10 +36,7 @@ let emptyFastSimulation diagramName =
       NumStepArrays = 0 // this will be overwritten by createInitFastCompPhase
       Drivers = Array.empty
       WaveIndex = Array.empty
-      ConnectionsByPort = Map.empty
-      ComponentsById = Map.empty
-      SimulatedCanvasState = []
-      SimulatedTopSheet = diagramName
+      Design = { emptySimulatedDesign with DesignTopSheet = diagramName }
 }
 
 let simulationPlaceholder = emptyFastSimulation ""

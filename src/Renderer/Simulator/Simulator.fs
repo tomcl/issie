@@ -171,9 +171,11 @@ let saveStateInSimulation
         let portMap = portMap |> List.concat |> Map.ofList
 
         { fs with
-            SimulatedCanvasState = updatedLdcs
-            ComponentsById = compMap
-            ConnectionsByPort = portMap })
+            Design =
+                { fs.Design with
+                    DesignSheets = updatedLdcs
+                    DesignComponentsById = compMap
+                    DesignConnectionsByPort = portMap } })
 
 
 

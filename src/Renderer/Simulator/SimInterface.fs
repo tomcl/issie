@@ -1,6 +1,16 @@
 ﻿/// What the waveform viewer and the step simulator ask of a simulator, and what a simulator
 /// promises them - whichever process it runs in.
 ///
+/// **Make more of the system synchronous rather than accept asynchrony and manage it.** Effort
+/// spent moving work to where it can be answered at once is repaid; complexity taken on to
+/// tolerate an answer that is not there yet never goes away. This is the Elmish discipline, and it
+/// holds up surprisingly well in Issie - with memoisation where recomputing would be too slow, and
+/// a few deliberate breaks in places where it does not matter. A simulator in another process is
+/// the hardest thing to hold to it, and it can still be held: what is genuinely slow becomes a
+/// message to start and a message on completion, with a state in the model between the two, and
+/// everything else stays a question with an answer. That takes care and judgement rather than a
+/// blanket rule, which is why it is written down here rather than assumed.
+///
 /// **Interrogating a simulator is synchronous, and there is no cache between.**
 ///
 /// Almost everything the UI asks a simulator is a small question about structure - which instances
@@ -36,6 +46,17 @@
 ///   called, and how wide it is. Widths are why this cannot come from the design alone - a
 ///   parameterised sheet resolves them per instance - but they are settled by the build, so they
 ///   are known before the first frame that asks.
+///
+/// **Nothing displayed yet is a fine answer**, because it becomes a displayed one. A waveform with
+/// no data draws nothing and is drawn again when its data lands; where the sidecar simulates that
+/// is every view until the first fetch returns. WaveSimSVGs goes further and draws the last window
+/// that ARRIVED rather than freezing on the last one that matched, so a fast scroll keeps moving.
+///
+/// The one place a lot of asking could collide is the waveform data itself, and it does not: every
+/// wave a refresh is missing goes in ONE command, with at most one RAM behind it, sequentially in
+/// one promise, under the one FetchInProgress bit that stops the next message asking again
+/// (WaveSimTop.fetchWhatIsMissing). So the number of things in flight is one, whatever the number
+/// of waveforms - which is what keeps the reads above answerable without arbitration.
 ///
 /// The one thing that is genuinely per-instance AND per-build is where a port's data LIES. That is
 /// only ever needed twice: to issue a fetch, which happens in the update function where an await

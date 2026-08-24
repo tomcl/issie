@@ -46,7 +46,8 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
     // simulators ends the simulation, so the two cannot disagree while a RAM table is up)
     | Some _ when not model.SimulateInRenderer ->
         div [ Style [ Margin "10px"; MaxWidth "40em" ] ] [
-            str $"The contents of '{ramLabel}' are not available while the .NET simulator is running                   the waveform simulation. Development > Simulate In Renderer shows them again."
+            str $"The contents of '{ramLabel}' are not available while the .NET simulator is running \
+                  the waveform simulation. Development > Simulate In Renderer shows them again."
         ]
     | Some fc -> 
         let step = wsModel.CursorExactClkCycle

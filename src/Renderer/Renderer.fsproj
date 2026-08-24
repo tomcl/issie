@@ -90,7 +90,9 @@
     <Compile Include="Simulator\FastSim\FastBuild.fs" />
     <Compile Include="Simulator\FastSim\FastRun.fs" />
     <Compile Include="Simulator\FastSim\FastExtract.fs" />
+    <Compile Include="Simulator\FastSim\WaveNames.fs" />
     <Compile Include="Simulator\FastSim\RamView.fs" />
+    <Compile Include="Simulator\FastSim\PortView.fs" />
     <Compile Include="Simulator\Simulator.fs" />
     <Compile Include="Simulator\SimDigest.fs" />
     <Compile Include="VerilogComponent\Verilog.fs" />

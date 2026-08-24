@@ -97,44 +97,26 @@ let wavePropsTable (rows: TableRow list) =
 /// The waves of one instance, each paired with something read off the DESIGN component it belongs
 /// to - its label, its type, whatever the caller needs to rank or filter on.
 ///
-/// The same walk as `waveIndicesOfInstance` and the same cost: one sheet's components, however
-/// many times that sheet is instantiated. It keeps the component so that a caller choosing
-/// between waves can choose on what the user drew rather than by reading the expansion to find
-/// out what each wave is a wave of.
+/// The ports come from `PortView.ofInstance`, which is the narrow question a remote simulator can
+/// answer; the components they belong to come from the design. Both are the size of one sheet,
+/// however many times that sheet is instantiated.
 let waveIndicesOfInstanceBy
     (pick: Component -> 'a option)
     (fs: FastSimulation)
-    (InstancePath ap as instance)
+    (instance: InstancePath)
     : ('a * WaveIndexT) list =
-    let sheet = fs.getSheetNameOfInstance instance
+    let comps =
+        Map.tryFind (fs.Design.SheetOfInstance instance) fs.Design.DesignComponentsById
+        |> Option.defaultValue Map.empty
 
-    fs.SimulatedCanvasState
-    |> List.tryFind (fun ldc -> ldc.Name = sheet)
-    |> Option.map (fun ldc ->
-        fst ldc.CanvasState
-        |> List.collect (fun comp ->
-            match pick comp, Map.tryFind (ComponentId comp.Id, ap) fs.WaveComps with
-            | None, _
-            | _, None -> []
-            | Some picked, Some fc ->
-                let portsOf pType (arrays: IOArray array) =
-                    if FastCreate.portCarriesWave fs fc pType then
-                        arrays
-                        |> Array.toList
-                        |> List.mapi (fun pn io ->
-                            { SimArrayIndex = io.Index
-                              Id = fc.fId
-                              PortType = pType
-                              PortNumber = pn })
-                    else
-                        []
-
-                portsOf PortType.Output fc.Outputs @ portsOf PortType.Input fc.InputLinks
-                |> List.map (fun wi -> picked, wi)))
-    |> Option.defaultValue []
+    (PortView.ofInstanceCached fs instance).ViewPorts
+    |> List.choose (fun port ->
+        Map.tryFind port.PortComp comps
+        |> Option.bind pick
+        |> Option.map (fun picked -> picked, PortView.waveIndexOf instance port))
 
 let waveIndicesOfInstance (fs: FastSimulation) (instance: InstancePath) : WaveIndexT list =
-    waveIndicesOfInstanceBy (fun _ -> Some()) fs instance |> List.map snd
+    (PortView.ofInstanceCached fs instance).ViewPorts |> List.map (PortView.waveIndexOf instance)
 
 /// One instance of each sheet of the design, reached by taking the first instance at every step
 /// down from the top - the same chain the selector shows before anyone has chosen otherwise.

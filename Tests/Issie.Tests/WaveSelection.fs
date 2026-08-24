@@ -11,6 +11,7 @@ open Expecto
 open CommonTypes
 open SimTypes
 open CanvasBuilder
+open WaveNames
 
 let private maxArraySize = 100
 
@@ -482,7 +483,7 @@ let tests =
               let fs, allWaves = simulation.Force()
               let chosen =
                   WaveSimSelect.defaultSelectedWaves fs
-                  |> List.map (fun wi -> WaveSimHelpers.getName wi fs)
+                  |> List.map (fun wi -> WaveNames.getName wi fs)
               // IN before OUT: inputs are ranked before outputs, and each group is sorted by label
               Expect.equal chosen [ "IN"; "OUT" ] "the top sheet's ports, inputs first"
 
@@ -539,7 +540,7 @@ let tests =
               let fs, allWaves = closedSimulation.Force()
               let chosen =
                   WaveSimSelect.defaultSelectedWaves fs
-                  |> List.map (fun wi -> WaveSimHelpers.getName wi fs)
+                  |> List.map (fun wi -> WaveNames.getName wi fs)
               // the Viewer is inside the instance, which is exactly the point: it is the one signal
               // the author of the design said was worth watching, and nothing on the top sheet is
               Expect.equal chosen [ "PROBE" ] "the Viewer in the subsheet"

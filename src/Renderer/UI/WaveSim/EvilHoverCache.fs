@@ -76,7 +76,15 @@ let checkIfHatched (store:GapStore) (cycle:int) =
 /// step, if the ROM has any comments and this wave is its data output.
 /// The location read is the address input one step earlier for a synchronous ROM and at the same
 /// step for an asynchronous one, which is the distinction WaveSimRams.addReadWrite also makes.
+/// Nothing to say if that simulation has never been run, which is what a clock tick of zero means.
+/// With the .NET simulator it never is - the renderer's copy is built for its structure alone - so
+/// the address read would be whatever an unrun array holds, and the comment shown would be the one
+/// against location zero, on every hover, confidently. No comment is better than a wrong one, and
+/// it is the same answer the schematic probe gives. Asked of the simulation rather than of the
+/// model because "has this been run" is the actual question, and it is the one thing here that
+/// knows.
 let getRomCommentAtStep (fs: FastSimulation) (step: int) (wave: Wave) : string =
+    if fs.ClockTick = 0 then "" else
     match Map.tryFind wave.WaveId.Id fs.WaveComps with
     | Some fc when wave.WaveId.PortType = CommonTypes.PortType.Output ->
         let readStep =

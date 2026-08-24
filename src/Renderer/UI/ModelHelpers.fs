@@ -63,7 +63,7 @@ module Constants =
     let bigDesignHeapShare = 0.2
 
     /// How many clock cycles the RENDERER's own step arrays hold while the .NET simulator is the
-    /// one simulating.
+    /// one simulating: two, which is as close to none as a built simulation can get.
     ///
     /// Enough to be a working simulation and no more. In that mode the renderer builds a
     /// FastSimulation for its STRUCTURE - the wave index, the drivers, the names and widths the
@@ -79,7 +79,19 @@ module Constants =
     ///
     /// The .NET side is unaffected: it is sized from the configuration, which is what it is
     /// simulating.
-    let rendererArraySizeWhenSidecarSimulates = shortStartClock + maxStepsOverflow + 1000
+    ///
+    /// Two rather than none because the build itself writes a step: ordering reduces every
+    /// component once at step 0, and a clocked component reads the step before the one it writes,
+    /// which needs the two to be different slots.
+    ///
+    /// It was 1203 while things still read those arrays in this mode - the schematic probe, the
+    /// RAM tables, a ROM's hover comment, the step panel's inputs - and all of them read a
+    /// simulation that had never been run, so what they showed was an unrun array's zeros. Each
+    /// now either comes over the wire or says nothing, so the arrays hold nothing worth keeping.
+    /// Measured on a 120,000-component design, building the same sheet twice in one session: the
+    /// renderer's build allocates 241 MB where it allocated 821 MB, and takes 2.4s rather than
+    /// 2.8s. The 580 MB was step arrays that nothing read.
+    let rendererArraySizeWhenSidecarSimulates = 2
 
     let defaultWSConfig = {
             LastClock = 2000; // Simulation array limit during wave simulation

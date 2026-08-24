@@ -135,9 +135,14 @@ let viewSimulation canvasState model dispatch =
                             [viewSimulationError canvasState simError model StepSim dispatch]
                     | Ok simData ->
                         if (simData.ClockTickNumber = 0 && not (simCache.ClockTickRefresh = 0)) then
-                            IncrementSimulationClockTick simCache.ClockTickRefresh |> dispatch
-                            FastRun.runFastSimulation None simCache.ClockTickRefresh simData.FastSim |> ignore
+                            // A Refresh puts the simulation back at the clock it was showing.
+                            // Through advanceTo, so it is the RUNNING simulator that is put there:
+                            // running the renderer's own would leave the .NET one at zero and the
+                            // panel reading a clock nothing had reached.
+                            let clock = simCache.ClockTickRefresh
                             simCache <- {simCache with ClockTickRefresh = 0}
+                            advanceTo model simData clock (fun () ->
+                                IncrementSimulationClockTick clock |> dispatch)
                         viewSimulationData simData.ClockTickNumber simData model dispatch
         let setDefaultButton =
             match sim with
@@ -147,7 +152,7 @@ let viewSimulation canvasState model dispatch =
                     [ 
                         Button.Color IsInfo;
                         Button.Disabled (InputDefaultsEqualInputs simData.FastSim model simData.ClockTickNumber)
-                        Button.OnClick (fun _ -> setInputDefaultsFromInputs simData.FastSim dispatch simData.ClockTickNumber) ; 
+                        Button.OnClick (fun _ -> setInputDefaultsFromInputs model simData.FastSim dispatch simData.ClockTickNumber) ; 
                         Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Right ]]
                     ]
                     [ str "Save current input values as default" ]
@@ -167,7 +172,7 @@ let viewSimulation canvasState model dispatch =
                             // deferred one. This used to raise a flag that the VIEW acted on, which
                             // meant a whole simulation built during a render.
                             let clock = simData.ClockTickNumber
-                            setInputDefaultsFromInputs simData.FastSim dispatch clock
+                            setInputDefaultsFromInputs model simData.FastSim dispatch clock
                             ClosePopup |> dispatch
                             startSimulationWithSpinner (fun _ ->
                                 simCache <- {simCache with ClockTickRefresh = clock})
@@ -211,7 +216,7 @@ let viewSimulation canvasState model dispatch =
         let createRefreshButtonForSimData sim model dispatch =
             match sim with
             | Ok (simData: SimulationData) ->
-                if InputDefaultsEqualInputsRefresh simData.FastSim model then
+                if InputDefaultsEqualInputsRefresh simData.FastSim model simData.ClockTickNumber then
                     createRefreshButton buttonColor buttonIcon (fun _ ->
                         let clock = simData.ClockTickNumber
                         startSimulationUpdateCache clock)

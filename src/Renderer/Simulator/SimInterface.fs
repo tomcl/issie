@@ -1,4 +1,4 @@
-/// What the waveform viewer and the step simulator ask of a simulator, and what a simulator
+﻿/// What the waveform viewer and the step simulator ask of a simulator, and what a simulator
 /// promises them - whichever process it runs in.
 ///
 /// **The layering, because it is the point of this file.**
@@ -32,6 +32,15 @@
 /// **Widths come from here and nowhere else.** Parameters are resolved when a design is
 /// elaborated and can change widths, so a width is a fact about the elaborated INSTANCE, not
 /// about the sheet it instantiates. The renderer must never infer one from a design.
+///
+/// **Truth tables are not one of the two, and never will be.** They always use the renderer's own
+/// simulator, whatever `Model.SimulateInRenderer` says. A truth table is combinational: it builds
+/// one sheet with an array of two cycles (`TruthTableView`, which already asks for exactly the
+/// two `ModelHelpers.Constants.rendererArraySizeWhenSidecarSimulates` allows), then drives the
+/// inputs and reads the outputs once per ROW. That is thousands of round trips for a simulation
+/// small enough to have been built in the renderer anyway - the expansion the sidecar exists to
+/// keep out of this process is not what a truth table has. So the mutual exclusion between the
+/// waveform and step simulators does not extend to truth tables, and neither does this interface.
 module SimInterface
 
 open Fable.Core

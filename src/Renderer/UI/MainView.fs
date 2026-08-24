@@ -64,6 +64,11 @@ module Probe =
             // label is better than a confident wrong one. Reading the probe over the wire is what
             // gives this back.
             None
+        | _ when not model.SimulateInRenderer ->
+            // and the same for the step simulator, which the .NET simulator now runs too: the
+            // renderer's copy is built for its structure and never run, so there is no value here
+            // to read. Reading the probe over the wire is what gives this back for both.
+            None
         | _ ->
             match model.CurrentStepSimulationStep with
             // ClockTickNumber, not fs.ClockTick: it is the tick the step simulator is showing and

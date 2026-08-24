@@ -103,6 +103,22 @@ let setFastSimInputsToDefault (fs:FastSimulation) =
         | _, None -> cid, convertBigintToFastData w 0I)
     |> List.iter (fun (cid, wire) -> FastExtract.changeInput cid (FSInterface.IData wire) 0 fs)
 
+/// The value one top-level input holds at a clock, from whichever simulator is running.
+///
+/// The renderer's own simulation is built for its structure and never run when the .NET simulator
+/// is the one simulating, so reading its arrays would say every input is zero - and these three
+/// functions decide whether the inputs on screen match the defaults saved in the sheet, and write
+/// those defaults. Getting that wrong saves zeros over what the user set. In sidecar mode the
+/// value comes from the panel snapshot, which holds exactly these signals for exactly this clock.
+let private inputValueAt (model: Model) (fs: FastSimulation) (fc: FastComponent) (tick: int) =
+    if model.SimulateInRenderer then
+        FastExtract.getFastComponentOutput fc 0 (tick % fs.MaxArraySize)
+    else
+        let (ComponentId cid), _ = fc.fId
+
+        StepPanelData.valueAt tick { Comp = cid; Path = []; Port = 0 }
+        |> Option.defaultValue 0I
+
 let InputDefaultsEqualInputs fs (model:Model) (clocktick : int)=
     let tick = clocktick
     fs.FComps
@@ -110,7 +126,7 @@ let InputDefaultsEqualInputs fs (model:Model) (clocktick : int)=
     |> Map.map (fun fid fc ->
         let cid = fst fid
         if Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) then
-            let newDefault = FastExtract.getFastComponentOutput fc 0 (tick % fs.MaxArraySize)
+            let newDefault = inputValueAt model fs fc tick
             let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
             match typ with
             | Input1(_, Some d) -> d = newDefault
@@ -120,7 +136,16 @@ let InputDefaultsEqualInputs fs (model:Model) (clocktick : int)=
     |> Map.values
     |> Seq.forall id
 
-let InputDefaultsEqualInputsRefresh fs (model:Model) =
+/// Whether Refresh can rebuild without asking: have the inputs held their default values for the
+/// whole run so far, so that restarting loses nothing the user set?
+///
+/// With the .NET simulator that question cannot be asked here - the whole run is in the sidecar,
+/// and this process's arrays were never written - so the one it CAN ask is asked instead: do the
+/// inputs match their defaults at the clock on screen. The two differ only for an input that was
+/// changed and then put back, where this says nothing was changed and Refresh does not stop to
+/// ask. Reading the run's history over the wire is what would give the exact question back.
+let InputDefaultsEqualInputsRefresh fs (model:Model) (clocktick: int) =
+    if not model.SimulateInRenderer then InputDefaultsEqualInputs fs model clocktick else
     let tick = fs.ClockTick
     fs.FComps
     |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
@@ -138,7 +163,7 @@ let InputDefaultsEqualInputsRefresh fs (model:Model) =
     |> Seq.forall id
 
 
-let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) (clocktick: int)=
+let setInputDefaultsFromInputs (model: Model) fs (dispatch: Msg -> Unit) (clocktick: int) =
     let setInputDefault (newDefault: bigint) (sym: SymbolT.Symbol) =
         let comp = sym.Component
         let comp' = 
@@ -153,7 +178,7 @@ let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) (clocktick: int)=
     |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
     |> Map.map (fun fid fc ->
         let cid = fst fid
-        let newDefault = FastExtract.getFastComponentOutput fc 0 (tick % fs.MaxArraySize) 
+        let newDefault = inputValueAt model fs fc tick
         SymbolUpdate.updateSymbol (setInputDefault newDefault) cid
         |> Optic.map DrawModelType.SheetT.symbol_
         |> Optic.map ModelType.sheet_
@@ -251,6 +276,71 @@ let private panelValue (cycle: int) (width: int) (signal: StepPanelData.PanelSig
 let clockNow (model: Model) (simData: SimulationData) =
     if model.SimulateInRenderer then simData.FastSim.ClockTick else simData.ClockTickNumber
 
+/// How many clock cycles of history the step simulator can afford on this design, or why it
+/// cannot be simulated at all.
+///
+/// The waveform simulator has a configuration dialog that prices the design and refuses a last
+/// clock that will not fit (`FastCreate.maxLastClockFor`, `UIPopups`); the step simulator has no
+/// dialog and used to take `Constants.maxArraySize` whatever the design cost - so a design too
+/// big for it was refused by the build's own memory check, in words about a waveform
+/// configuration the user was not looking at.
+///
+/// The budget binds here instead, on the one number this simulator has. It asks for the full
+/// array - enough past to step back through - and takes what fits if that is too much, down to
+/// `minStepArraySize`. Below that the design is refused, with a message about the design.
+///
+/// Priced from the design's merged graph, so this allocates nothing: the check happens before the
+/// arrays it is deciding the size of exist, which is the whole point of it.
+let stepSimArraySize (model: Model) : Result<int, SimulationError> =
+    let sheet =
+        model.CurrentProj
+        |> Option.map (fun p -> p.OpenFileName)
+        |> Option.defaultValue ""
+
+    match ModelHelpers.designStepCost model sheet with
+    // a design that will not price is one that will not build; let the build say why, in its own
+    // words, rather than reporting a pricing failure as a size problem
+    | Error _ -> Ok Constants.maxArraySize
+    | Ok cost ->
+        match ModelHelpers.stepSimCycles Constants.maxArraySize cost with
+        | Some size ->
+            if size < Constants.maxArraySize then
+                let perCycle = SimTypes.SimulationBudget.formatBytes (float cost.TotalBytes)
+                Log.dbg Log.Sim $"step simulation of '{sheet}' shortened to {size} cycles of history: {perCycle} a cycle"
+
+            Ok size
+        | None ->
+            let least = ModelHelpers.Constants.minStepArraySize
+            let perCycle = SimTypes.SimulationBudget.formatBytes (float cost.TotalBytes)
+            let needed = SimTypes.SimulationBudget.formatBytes (float cost.TotalBytes * float least)
+
+            Error
+                { ErrType =
+                    GenericSimError(
+                        $"This design needs {perCycle} of simulation memory for every clock cycle, so even "
+                        + $"the {least} clock cycles the step simulator keeps would need {needed} - more "
+                        + "than Issie will risk. Simulate one subsheet rather than the whole design."
+                    )
+                  InDependency = None
+                  ComponentsAffected = []
+                  ConnectionsAffected = [] }
+
+/// How many clock cycles of history the RENDERER's own step simulation holds.
+///
+/// The same as the simulation's, when the renderer is running it. When the .NET simulator is, this
+/// copy is built for its structure and never run - the panel's values, its memories and its clock
+/// all come from the sidecar - so it holds the least a built simulation can. What the SIDECAR
+/// holds is `stepSimArraySize` either way: that is the history the step simulator can be stepped
+/// back through, and it is a fact about the design rather than about which process is running it.
+let rendererStepArraySize (model: Model) : Result<int, SimulationError> =
+    // priced either way, so a design too big to simulate is refused before anything is built
+    stepSimArraySize model
+    |> Result.map (fun size ->
+        if model.SimulateInRenderer then
+            size
+        else
+            ModelHelpers.Constants.rendererArraySizeWhenSidecarSimulates)
+
 /// Advance whichever simulator is running to `cycle`, and make that cycle's values readable.
 ///
 /// Local: the FastSimulation is run here and `whenReady` is called at once, exactly as before.
@@ -286,8 +376,14 @@ let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (whenReady: 
                 Log.error $"the .NET simulator could not {what}: {e}"
                 StepPanelData.forget ()
 
+            // The SIDECAR's array size, which is the history the step simulator wants - not this
+            // process's MaxArraySize, which in this mode is two and would leave the sidecar unable
+            // to be stepped back at all.
+            let sidecarArraySize =
+                stepSimArraySize model |> Result.defaultValue Constants.maxArraySize
+
             promise {
-                match! SidecarSession.ensureBuilt design simData.FastSim.MaxArraySize with
+                match! SidecarSession.ensureBuilt design sidecarArraySize with
                 | Error e -> failed "build the design" e
                 | Ok epoch ->
                     match! SidecarSession.runTo epoch cycle ignore with
@@ -1185,62 +1281,13 @@ let viewSimulationData (step: int) (simData : SimulationData) model dispatch =
     ]
 
 
-/// How many clock cycles of history the step simulator can afford on this design, or why it
-/// cannot be simulated at all.
-///
-/// The waveform simulator has a configuration dialog that prices the design and refuses a last
-/// clock that will not fit (`FastCreate.maxLastClockFor`, `UIPopups`); the step simulator has no
-/// dialog and used to take `Constants.maxArraySize` whatever the design cost - so a design too
-/// big for it was refused by the build's own memory check, in words about a waveform
-/// configuration the user was not looking at.
-///
-/// The budget binds here instead, on the one number this simulator has. It asks for the full
-/// array - enough past to step back through - and takes what fits if that is too much, down to
-/// `minStepArraySize`. Below that the design is refused, with a message about the design.
-///
-/// Priced from the design's merged graph, so this allocates nothing: the check happens before the
-/// arrays it is deciding the size of exist, which is the whole point of it.
-let stepSimArraySize (model: Model) : Result<int, SimulationError> =
-    let sheet =
-        model.CurrentProj
-        |> Option.map (fun p -> p.OpenFileName)
-        |> Option.defaultValue ""
-
-    match ModelHelpers.designStepCost model sheet with
-    // a design that will not price is one that will not build; let the build say why, in its own
-    // words, rather than reporting a pricing failure as a size problem
-    | Error _ -> Ok Constants.maxArraySize
-    | Ok cost ->
-        match ModelHelpers.stepSimCycles Constants.maxArraySize cost with
-        | Some size ->
-            if size < Constants.maxArraySize then
-                let perCycle = SimTypes.SimulationBudget.formatBytes (float cost.TotalBytes)
-                Log.dbg Log.Sim $"step simulation of '{sheet}' shortened to {size} cycles of history: {perCycle} a cycle"
-
-            Ok size
-        | None ->
-            let least = ModelHelpers.Constants.minStepArraySize
-            let perCycle = SimTypes.SimulationBudget.formatBytes (float cost.TotalBytes)
-            let needed = SimTypes.SimulationBudget.formatBytes (float cost.TotalBytes * float least)
-
-            Error
-                { ErrType =
-                    GenericSimError(
-                        $"This design needs {perCycle} of simulation memory for every clock cycle, so even "
-                        + $"the {least} clock cycles the step simulator keeps would need {needed} - more "
-                        + "than Issie will risk. Simulate one subsheet rather than the whole design."
-                    )
-                  InDependency = None
-                  ComponentsAffected = []
-                  ConnectionsAffected = [] }
-
 let tryGetSimData isWaveSim canvasState model =
     let model = MemoryEditorView.updateAllMemoryComps model
     if isWaveSim then
         simCacheWS <- simCacheInit ()
     else
         simCache <- simCacheInit ()
-    match stepSimArraySize model with
+    match rendererStepArraySize model with
     | Error e -> Error e
     | Ok arraySize ->
     simulateModel isWaveSim None arraySize canvasState model

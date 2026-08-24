@@ -38,6 +38,7 @@ this is about module-level state.
 | `Common/Helpers.fs` | `IdAllocator`'s three design-lifetime allocators (`components`, `ports`, `connections`) — the uuid generator's replacement. Global rather than model state because minting happens in leaf draw-block functions (`Symbol.portLists`, paste, new wires) that have no Model in scope; encapsulated behind `newComponentId`/`newPortId`/`newConnectionId`, and reset + re-seeded by `RegenerateIds.admitDesign` at every project open so nothing leaks between projects |
 | `UI/ModelHelpers.fs` | `waveSimCostMemo` — the waveform configuration dialog reads the design's per-cycle cost on every render |
 | `FastSim/FastCreate.fs` | `stepArrayIndex`, `stepArena` — build-scoped allocation state, reset by every build; threading either through the build would put plumbing in a dozen signatures for two leaf call sites |
+| `Common/LookupArray.fs` | the store's own `Items` and `Count`. Not module-level state: one is made per fast-simulation build and dropped with it, and nothing outside the module writes either field - which is the second clause of the rule above, met rather than argued around. Here because it is what the gather phase's structural `Map`s became, for the measured reason: 200,000 lookups into a 10,000-entry `Map<ComponentId * ComponentId list, _>` cost 77.2 ms, and 0.2 ms as an array index |
 | `UI/TruthTable/TruthTableView.fs` | `selCache` |
 | `Common/TimeHelpers.fs` | `executionStats`, `instrumentation` |
 

@@ -257,31 +257,53 @@ let stepBytesForWidth (w: int) =
         // 64-bit digit per 64 bits of the bus
         4 + 8 + 8 * ((w + 63) / 64)
 
-/// What one clock cycle of this design will cost, worked out from the flattened design before the
-/// arrays exist. createInitFastCompPhase allocates exactly one step array per output port of every
-/// component in AllComps, so that is what is counted here.
+/// What one clock cycle of this design will cost, read straight off the merged SimulationGraph -
+/// before it is flattened, before a FastComponent exists, and allocating nothing itself.
 ///
-/// AllComps includes the custom components, whose output arrays are allocated and then replaced
-/// by links to the arrays inside them (linkFastCustomComponentsToDriverArrays). Those arrays come
-/// out of the step-array arena along with everything else, and arena space is not reclaimed until
-/// the whole simulation goes - so this count is exactly what a built simulation occupies, the
-/// replaced quarter included, not an estimate of it.
+/// One step array is allocated per output port of every component of every INSTANCE, so that is
+/// what is counted: the graph is walked the way the flatten walks it, descending into each custom
+/// component's own graph, so a sheet used ten times is charged ten times.
+///
+/// It is deliberately taken from the graph and not from the flattened design. The flatten now
+/// creates the step arrays as it goes, so a cost worked out from its output would be worked out
+/// after the memory it is meant to refuse had been taken - see checkSimulationFits below, whose
+/// whole point is to come first. Reading the graph keeps the check where it belongs and, as a
+/// bonus, is what lets the waveform simulator's configuration dialog price a design
+/// (ModelHelpers.waveSimStepCost) without building any of it.
+///
+/// Custom components are counted, not skipped: their output arrays are allocated and then
+/// replaced by links to the arrays inside them (linkFastCustomComponentsToDriverArrays), and the
+/// replaced ones stay in the step-array arena for the simulation's whole life. So this count is
+/// exactly what a built simulation occupies, the replaced quarter included, not an estimate of it.
 ///
 /// The per-step State array is counted too. Only RAMs ever write it, but createFastComponent
 /// allocates one for every component that could be synchronous - customs included - so on a
 /// register-heavy design it is real memory, and the estimate that omitted it said a design was
 /// smaller than it is.
-let stepCostOfDesign (g: GatherData) : StepCost =
-    ((0, 0), g.AllComps)
-    ||> Map.fold (fun (typed, heap) _ (sComp, _) ->
-        let typed, heap =
-            ((typed, heap), sComp.OutputWidths)
-            ||> Array.fold (fun (typed, heap) w ->
-                if w <= 32 then typed + stepBytesForWidth w, heap
-                else typed, heap + stepBytesForWidth w)
-        // a reference per step, pointing at NoState until a RAM writes it
-        if couldBeSynchronousComponent sComp.Type then typed, heap + 4 else typed, heap)
-    |> fun (typed, heap) -> { TypedArrayBytes = typed; HeapBytes = heap }
+/// The count comes back alongside the cost because both are wanted at the same moment, by the
+/// same caller, from the same walk: the build sizes its component store from the count so that
+/// the store never has to grow, and refuses the design outright on the cost.
+let costAndSizeOfGraph (graph: SimulationGraph) : StepCost * int =
+    let rec walk (acc: int * int * int) (graph: SimulationGraph) =
+        (acc, graph)
+        ||> Map.fold (fun (typed, heap, count) _ sComp ->
+            let typed, heap =
+                ((typed, heap), sComp.OutputWidths)
+                ||> Array.fold (fun (typed, heap) w ->
+                    if w <= 32 then typed + stepBytesForWidth w, heap
+                    else typed, heap + stepBytesForWidth w)
+            // a reference per step, pointing at NoState until a RAM writes it
+            let typed, heap =
+                if couldBeSynchronousComponent sComp.Type then typed, heap + 4 else typed, heap
+            // descend exactly where the flatten descends: one expansion per custom INSTANCE
+            match sComp.Type, sComp.CustomSimulationGraph with
+            | Custom _, Some csg -> walk (typed, heap, count + 1) csg
+            | _ -> typed, heap, count + 1)
+
+    walk (0, 0, 0) graph
+    |> fun (typed, heap, count) -> { TypedArrayBytes = typed; HeapBytes = heap }, count
+
+let stepCostOfGraph (graph: SimulationGraph) : StepCost = fst (costAndSizeOfGraph graph)
 
 /// The most clock cycles of a design costing this much that will be allowed, whichever of the two
 /// budgets binds first. Used both to refuse a simulation and to say in the waveform simulator's
@@ -377,7 +399,7 @@ let checkSimulationFits (arraySize: int) (cost: StepCost) : Result<unit, Simulat
       is what makes this safe; it went in first.
     - The custom-component output regions that linking replaces occupy arena space for the
       simulation's whole life instead of becoming garbage, which is the same ~quarter that
-      stepCostOfDesign has always charged for. What the budget counts, the arena keeps.
+      stepCostOfGraph has always charged for. What the budget counts, the arena keeps.
 
     The first slab is sized from that estimate and each one after it is twice the last, up to 64M
     uint32 steps (256MB) or 4M bigint steps. It grows rather than starting at the maximum because
@@ -431,7 +453,7 @@ let mutable private stepArena: StepArena option = None
 /// build, and a test suite that builds a few thousand small simulations spent eight minutes of its
 /// twelve doing nothing else. The cost of a build is now the cost of what it holds.
 ///
-/// The numbers come from `stepCostOfDesign`, which is computed for the memory budget before the
+/// The numbers come from `stepCostOfGraph`, which is computed for the memory budget before the
 /// arrays are allocated and charges for exactly what the arena keeps - so the first slab is the
 /// whole of an ordinary build. A build that needs more than a slab, or more than was planned for,
 /// simply takes another; nothing depends on the estimate being right.
@@ -510,7 +532,18 @@ let makeIOArrayW w size =
 
 /// create a FastComponent data structure with data arrays from a SimulationComponent.
 /// numSteps is the number of past clocks data kept - arrays are managed as circular buffers.
-let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (accessPath: ComponentId list) =
+///
+/// fullName and sheetName are given rather than filled in afterwards: the flatten stores this
+/// object in its index space, and `{ fc with FullName = ... }` afterwards would put a DIFFERENT
+/// object there than the one the caller kept - a copy of a 24-field record per component, and a
+/// reference-equal identity broken, for two strings that are known when it is made.
+let createFastComponent
+    (maxArraySize: int)
+    (sComp: SimulationComponent)
+    (accessPath: ComponentId list)
+    (fullName: string)
+    (sheetName: string list)
+    =
     let inPortNum, outPortNum = getPortNumbers sComp
     // dummy arrays wil be replaced by real ones when components are linked after being created
     let ins =
@@ -562,19 +595,29 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
       cId = sComp.Id
       FType = sComp.Type
       AccessPath = accessPath
-      SheetName = []
+      SheetName = sheetName
       // placeholders: the real reducers need EvalReference, which is compiled after this, and
       // cannot be built until widths and bigint state are known anyway. installReducers puts
       // them in once the simulation is linked.
       ReduceComb = fun _ -> failwithf "Reducer for %A was never installed" sComp.Type
       ReduceClocked = fun _ -> failwithf "Reducer for %A was never installed" sComp.Type
+      // stamped by LookupArray.addItem the moment this is stored; the links are filled in by the
+      // flatten as it resolves them, and dropped again by linkFastComponents
+      Index = -1
+      OutLinks = Array.empty
+      CustomInLinks =
+        match sComp.Type with
+        | Custom _ -> Array.create inPortNum (-1)
+        | _ -> Array.empty
+      CustomOutIndex = -1
+      CustomOutPort = 0
       Touched = false
       DrivenComponents = []
       NumMissingInputValues = reduceIfHybrid sComp inPortNum
       InputLinks = ins
       InputDrivers = Array.create inPortNum None
       Outputs = outs
-      FullName = ""
+      FullName = fullName
       FLabel = extractLabel sComp.Label
       VerilogOutputName = Array.create outPortNum ""
       VerilogComponentName = ""
@@ -583,108 +626,173 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
         | IOLabel -> false
         | _ -> true }
 
-/// Create an initial flattened and expanded version of the simulation graph with inputs, non-ordered components, simulationgraph, etc
-/// This must explore graph recursively extracting all the initial information.
-/// Custom components are scanned and links added, one for each input and output
-let rec private createFlattenedSimulation (ap: ComponentId list) (graph: SimulationGraph) =
+/// Scratch used only by the flatten: design ComponentId -> the store index of that component,
+/// within the sheet INSTANCE currently being walked.
+///
+/// One array serves the whole build. It is overwritten for each instance the walk enters, which
+/// is safe because the only thing read from it is a sibling: sComp.Outputs names design ids in
+/// the same graph, and every one of those was written moments earlier at this same level.
+type private SiblingIndex = { mutable Ix: int array }
+
+/// The largest step by which the component store grows when it has to. It should never have to -
+/// the store is created at exactly the size costAndSizeOfGraph counted - so this is the backstop
+/// for a flatten that sees more components than that walk did, which would be a bug.
+let private storeGrowthCap = 65536
+
+/// Make room in both arrays the flatten indexes by DESIGN ComponentId. Those ids are dense from 1
+/// across the whole design (CommonTypes.ComponentId), which is what makes an array the right
+/// lookup - but the largest one is not known until the walk has met it, and walking the design
+/// twice to find out would cost more than growing costs.
+let private ensureId (g: GatherData) (sib: SiblingIndex) (i: int) =
+    if i >= g.Labels.Length then
+        let bigger = Array.create (max (2 * g.Labels.Length) (i + 1)) "*"
+        Array.blit g.Labels 0 bigger 0 g.Labels.Length
+        g.Labels <- bigger
+
+    if i >= sib.Ix.Length then
+        let bigger: int array = Array.zeroCreate (max (2 * sib.Ix.Length) (i + 1))
+        Array.blit sib.Ix 0 bigger 0 sib.Ix.Length
+        sib.Ix <- bigger
+
+/// Flatten and expand one sheet instance of the simulation graph into the build's index space,
+/// creating its FastComponents as it goes, and recurse into the custom components it holds.
+///
+/// This used to be two walks. The first returned four lists concatenated with @ up the recursion,
+/// which became four Maps keyed by (ComponentId, access path); the second folded one of those
+/// maps to make the FastComponents. Everything after them then paid a structurally-keyed lookup -
+/// a boxed comparison of an id and a list per tree level - for every link of every component.
+/// Creating each component as it is met, stamping it with its index, and resolving every link the
+/// walk can already see into those indices leaves the phases after this doing arithmetic on ints.
+///
+/// parent is the store index of the custom component this instance is the innards of, with its
+/// type, or None for the top sheet. It is how the inner Input and Output components are tied to
+/// that component's ports: the match is by label WITHIN a level, so it belongs where a level is
+/// in hand rather than in a map built for it afterwards.
+///
+/// The order below is the whole of the correctness argument, and each step depends on the last:
+/// labels before creation (a component's name is the labels along its access path), creation
+/// before sibling links and before the recursion (a link is a store index, so the index has to
+/// exist), and the recursion last of all (it overwrites the sibling scratch).
+let rec private flattenLevel
+    (g: GatherData)
+    (sib: SiblingIndex)
+    (maxArraySize: int)
+    (ap: ComponentId list)
+    (graph: SimulationGraph)
+    (parent: (int * CustomComponentType) option)
+    : unit
+    =
     let graphL = Map.toList graph
-    let allComps =
+
+    graphL
+    |> List.iter (fun (ComponentId i, comp) ->
+        ensureId g sib i
+        g.Labels[i] <- extractLabel comp.Label)
+
+    /// this instance's components, in graph order, each paired with the FastComponent now in the
+    /// store for it. Custom components included, and created BEFORE the recursion into what they
+    /// contain, so their index exists when the links to their innards are made.
+    let created =
         graphL
-        |> List.map (fun (cid, comp) -> (cid, ap), (comp, ap))
+        |> List.map (fun (ComponentId i as cid, comp) ->
+            let fid = getFid cid ap
 
-    let labels =
-        List.map (fun (cid, comp) -> cid, ((fun (ComponentLabel s) -> s) comp.Label)) graphL
+            let fc =
+                createFastComponent maxArraySize comp ap (g.getFullSimName fid) (g.getFullSimPath fid)
+                |> fun fc -> LookupArray.addItem fc g.Comps
 
-    let topGather =
-        { Labels = labels
-          AllCompsT = allComps
-          CustomInputCompLinksT = []
-          CustomOutputCompLinksT = [] }
+            sib.Ix[i] <- fc.Index
+            comp, fc)
 
-    let customComps =
-        graphL
-        |> List.collect (fun (cid, comp) ->
-            match comp.Type, comp.CustomSimulationGraph with
-            | Custom ct, Some csg -> [ cid, ct, csg ]
-            | _ -> [])
+    // Sibling links. sComp.Outputs names design ids in this same instance, so they resolve to
+    // store indices here, once, instead of being followed through a map on every link.
+    created
+    |> List.iter (fun (comp, fc) ->
+        let ports =
+            (max fc.Outputs.Length 1, comp.Outputs)
+            ||> Map.fold (fun n (OutputPortNumber k) _ -> max n (k + 1))
 
-    let insideCustomGathers =
-        customComps
-        |> List.map (fun (cid, ct, csg) ->
-            let ap' = ap @ [ cid ]
-            let gatherT = createFlattenedSimulation ap' csg
-            let compsInCustomComp = Map.toList csg |> List.map snd
+        let outLinks: (int * InputPortNumber) array array = Array.create ports [||]
 
-            /// Function making links to custom component input or output components
-            /// For those component types selected by compSelectFun (inputs or ouputs):
-            /// Link label and width (which will also be the custom comp port label and width)
-            /// to the Id of the relevant Input or output component.
-            let getCustomNameIdsOf compSelectFun =
-                compsInCustomComp
-                |> List.filter (fun comp -> compSelectFun comp.Type)
-                |> List.map (fun comp ->
-                    (comp.Label,
-                     match comp.Type with
-                     | Input1(n, _) -> n
-                     | Output n -> n
-                     | _ -> -1),
-                    comp.Id)
+        comp.Outputs
+        |> Map.iter (fun (OutputPortNumber k) driven ->
+            outLinks[k] <-
+                driven
+                |> List.toArray
+                |> Array.map (fun (ComponentId j, ipn) -> sib.Ix[j], ipn))
 
-            let outputs = getCustomNameIdsOf isOutput
+        fc.OutLinks <- outLinks)
 
-            /// maps Output component Id to corresponding Custom component Id & output port
-            let outLinks =
-                ct.OutputLabels
-                |> List.mapi (fun i (lab, labOutWidth) ->
-                    let out =
-                        List.find (fun (k, v) -> k = (ComponentLabel lab, labOutWidth)) outputs
-                        |> snd
+    // Tie this instance's Input and Output components to the ports of the custom component it is
+    // the innards of. Both ends are known here; nothing has to be remembered for later.
+    match parent with
+    | None -> ()
+    | Some(customIndex, ct) ->
+        let custom = LookupArray.item customIndex g.Comps
 
-                    (out, ap'), ((cid, ap), OutputPortNumber i))
+        /// the width a custom component's port label is matched on, which is the width declared
+        /// by the Input or Output component inside it
+        let portWidth t =
+            match t with
+            | Input1(n, _) -> n
+            | Output n -> n
+            | _ -> -1
 
-            let inputs = getCustomNameIdsOf isInput
+        let indexOf (candidates: (SimulationComponent * FastComponent) list) (lab: string, w: int) =
+            candidates
+            |> List.find (fun (comp, _) -> comp.Label = ComponentLabel lab && portWidth comp.Type = w)
+            |> snd
+            |> fun fc -> fc.Index
 
-            /// maps Custom Component Id and input port number to corresponding Input Component Id
-            let inLinks =
-                ct.InputLabels
-                |> List.mapi (fun i (lab, labOutWidth) ->
-                    let inp =
-                        List.find (fun (k, v) -> k = (ComponentLabel lab, labOutWidth)) inputs
-                        |> snd
+        let outputs = created |> List.filter (fun (comp, _) -> isOutput comp.Type)
 
-                    (((cid, ap), InputPortNumber i), (inp, ap')))
+        ct.OutputLabels
+        |> List.iteri (fun i labelled ->
+            let inner = LookupArray.item (indexOf outputs labelled) g.Comps
+            inner.CustomOutIndex <- customIndex
+            inner.CustomOutPort <- i)
 
-            { CustomInputCompLinksT = inLinks @ gatherT.CustomInputCompLinksT
-              CustomOutputCompLinksT = outLinks @ gatherT.CustomOutputCompLinksT
-              Labels = labels @ gatherT.Labels
-              AllCompsT = gatherT.AllCompsT })
+        let inputs = created |> List.filter (fun (comp, _) -> isInput comp.Type)
 
-    (topGather, insideCustomGathers)
-    ||> List.fold (fun total thisGather ->
-        { CustomInputCompLinksT =
-            thisGather.CustomInputCompLinksT
-            @ total.CustomInputCompLinksT
-          CustomOutputCompLinksT =
-            thisGather.CustomOutputCompLinksT
-            @ total.CustomOutputCompLinksT
-          Labels = thisGather.Labels @ total.Labels
-          AllCompsT = thisGather.AllCompsT @ total.AllCompsT
+        ct.InputLabels
+        |> List.iteri (fun i labelled -> custom.CustomInLinks[i] <- indexOf inputs labelled)
 
-        })
+    // Last, because everything above reads the sibling scratch this level filled, and this
+    // overwrites it.
+    created
+    |> List.iter (fun (comp, fc) ->
+        match comp.Type, comp.CustomSimulationGraph with
+        | Custom ct, Some csg -> flattenLevel g sib maxArraySize (ap @ [ comp.Id ]) csg (Some(fc.Index, ct))
+        | _ -> ())
 
-/// Convert the data in the a SimulationGraph, created from the circuit
-/// into a final GatherData structure suitable for simulation stored as a set of maps
-/// Calls createFlattenedSimulation as first step.
-let gatherSimulation (graph: SimulationGraph) =
+/// Flatten the SimulationGraph into the one index space the rest of the build works in, creating
+/// every FastComponent - and so every step array - as it goes.
+///
+/// size is how many components the expanded design has, from costAndSizeOfGraph, so the store is
+/// made at exactly the right size and never grows. That same walk is what priced the design and
+/// refused it if it would not fit, which is why this may allocate at all: by the time it runs the
+/// budget has been checked and the step-array arena opened for what it said.
+let gatherSimulation (maxArraySize: int) (size: int) (graph: SimulationGraph) =
     let startTime = getTimeMs ()
+    stepArrayIndex <- -1
 
-    createFlattenedSimulation [] graph
-    |> (fun g ->
-        { CustomInputCompLinks = Map.ofList g.CustomInputCompLinksT
-          CustomOutputCompLinks = Map.ofList g.CustomOutputCompLinksT
-          Labels = Map.ofList g.Labels
-          AllComps = Map.ofList g.AllCompsT })
-    |> instrumentInterval "gatherGraph" startTime
+    let g =
+        { Comps =
+            LookupArray.create
+                (fun (fc: FastComponent) -> fc.Index)
+                // in place: FastComponent is [<ReferenceEquality>] and already carries mutable
+                // fields, so the stamp costs no record copy and the identity the simulator relies
+                // on survives it
+                (fun fc i ->
+                    fc.Index <- i
+                    fc)
+                size
+                storeGrowthCap
+          // grown by ensureId as ids are met; 64 is where the smallest design starts
+          Labels = Array.create 64 "*" }
+
+    flattenLevel g { Ix = Array.zeroCreate 64 } maxArraySize [] graph None
+    instrumentInterval "gatherGraph" startTime g
 
 /// Add one driver changing the fs.Driver array reference.
 /// Return a WaveIndex reference.
@@ -782,9 +890,7 @@ let addComponentWaveDrivers (f: FastSimulation) (fc: FastComponent) (pType: Port
 /// In parallel with this, the function returns an array of WaveIndexT records that
 /// reference component ports which can be viewed in a wave simulation.
 /// Every WaveIndex references an element of fs.Drivers from which the simulation data is found.
-let addWaveIndexAndDrivers (waveComps: Map<FComponentId, FastComponent>) (f: FastSimulation) : WaveIndexT array =
-    let comps = waveComps |> Map.toArray |> Array.map snd
-
+let addWaveIndexAndDrivers (comps: FastComponent array) (f: FastSimulation) : WaveIndexT array =
     let addDrivers pType =
         Array.collect (fun fc -> addComponentWaveDrivers f fc pType)
 
@@ -833,9 +939,14 @@ let linkFastCustomComponentsToDriverArrays (fs: FastSimulation) (fid: FComponent
 /// Adds WaveComps, Drivers and WaveIndex fields to a fast simulation.
 /// For use by waveform Simulator.
 /// Needs to be run after widths are calculated.
-let addWavesToFastSimulation (fs: FastSimulation) : FastSimulation =
-    fs.FCustomComps
-    |> Map.iter (linkFastCustomComponentsToDriverArrays fs)
+///
+/// `comps` is every component of the build in creation order - the array the gather filled, not
+/// the maps. See the note on createFastArrays: walking the maps here means walking the components
+/// in a different order from the one they were allocated in, and on a design of any size that is
+/// most of what this phase costs.
+let addWavesToFastSimulation (comps: FastComponent array) (fs: FastSimulation) : FastSimulation =
+    comps
+    |> Array.iter (fun fc -> if isCustom fc.FType then linkFastCustomComponentsToDriverArrays fs fc.fId fc)
 
     let waveComps =
         (fs.FComps, fs.FCustomComps)
@@ -851,39 +962,46 @@ let addWavesToFastSimulation (fs: FastSimulation) : FastSimulation =
     // by wave component ports.
     // One array can be referenced by multiple ports.
     // The mutable changes to fs.Drivers here are write-once, from None to Some array.
-    |> (fun fs -> { fs with WaveIndex = addWaveIndexAndDrivers waveComps fs })
-/// This function will create the initial FastSimulation data structure.
-/// It may not complete this. In which case fields NumCreateSteps and NumCreateStepsDone will not be equal.
-let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: FastSimulation) =
-    let numSteps = simulationArraySize
-    stepArrayIndex <- -1
+    |> (fun fs -> { fs with WaveIndex = addWaveIndexAndDrivers comps fs })
+/// The door between the build's index space and the rest of the program.
+///
+/// It used to create the FastComponents as well; the flatten does that now, so what is left of it
+/// is the boundary. FComps, FCustomComps and FCustomOutputCompLookup stay maps keyed by
+/// FComponentId, which is what the ~85 call sites in the waveform simulator, Verilog output,
+/// extraction and the tests ask a FastSimulation with - every one of them unchanged. Building
+/// them costs O(n log n) once, against the millions of lookups the index space saves, and they
+/// are the thing a later stage deletes when WaveIndexT.Id carries an index instead.
+///
+/// Custom against ordinary is decided here, by a predicate over the one store. It is not a second
+/// index space and must not become one: the links the flatten resolved are positions in this
+/// store, and splitting it would make the same integer mean two different things.
+let createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: FastSimulation) =
     let start = getTimeMs ()
-
-    let makeFastComp fid =
-        let comp, ap = g.AllComps[fid]
-        let fc = createFastComponent numSteps comp ap
-        { fc with
-            FullName = g.getFullSimName fid
-            SheetName = g.getFullSimPath fid }
+    let all = LookupArray.toArray g.Comps
 
     let comps, customComps =
-        ((Map.empty, Map.empty), g.AllComps)
-        ||> Map.fold (fun (m, mc) cid (comp, ap) ->
-            if isCustom comp.Type then
-                m, Map.add (comp.Id, ap) (makeFastComp (comp.Id, ap)) mc
+        ((Map.empty, Map.empty), all)
+        ||> Array.fold (fun (m, mc) fc ->
+            if isCustom fc.FType then
+                m, Map.add fc.fId fc mc
             else
-                Map.add (comp.Id, ap) (makeFastComp (comp.Id, ap)) m, mc)
+                Map.add fc.fId fc m, mc)
 
+    /// which Output component inside a custom component drives each of its output ports - the
+    /// inverse of the link the flatten stamped onto that Output component
     let customOutLookup =
-        g.CustomOutputCompLinks
-        |> Map.toList
-        |> List.map (fun (a, b) -> b, a)
-        |> Map.ofList
+        (Map.empty, all)
+        ||> Array.fold (fun m fc ->
+            if fc.CustomOutIndex < 0 then
+                m
+            else
+                let custom = LookupArray.item fc.CustomOutIndex g.Comps
+                Map.add (custom.fId, OutputPortNumber fc.CustomOutPort) fc.fId m)
 
     instrumentTime "createInitFastCompPhase" start
 
     { f with
-        FComps = comps 
+        FComps = comps
         FCustomComps = customComps
         MaxArraySize = simulationArraySize
         FCustomOutputCompLookup = customOutLookup
@@ -912,120 +1030,128 @@ let private reLinkIOLabels (fs: FastSimulation) =
 
         ioDriver.Outputs[0] <- fcActiveDriver.Outputs[0])
 
-/// Use the Outputs links from the original SimulationComponents in gather to link together the data arrays
-/// of the FastComponents.
-/// InputLinks[i] array is set equal to the correct driving Outputs array so that Input i reads the data reduced by the
-/// correct output of the component that drives it.
-/// The main work is dealing with custom components which represent whole design sheets with recursively defined component graphs
-/// The custom component itself is not linked, and does not exist as a simulatable FastComponent.
-/// Note: custom components are linked in later as unsimulatable placeholders to allow wave simulation to access ports
-/// Instead its CustomSimulationGraph Input and Output components
-/// are linked to the components that connect the corresponding inputs and outputs of the custom component.
+/// Use the links the flatten resolved to tie the FastComponents' data arrays together.
+/// InputLinks[i] is set equal to the driving Outputs array, so that input i reads the data
+/// reduced by the correct output of the component that drives it.
+/// The main work is dealing with custom components, which represent whole design sheets with
+/// recursively defined component graphs. The custom component itself is not linked and does not
+/// exist as a simulatable FastComponent - instead its graph's Input and Output components are
+/// linked to whatever connects to the corresponding ports of the custom component.
+/// Note: custom components are linked in later as unsimulatable placeholders, to let the wave
+/// simulation reach their ports.
+///
+/// Everything here works in store indices. It used to work in (ComponentId, access path) pairs
+/// against four maps, and that was the build's shape problem: a structural key costs a boxed
+/// comparison of a GUID-like id and a list per tree level, and this function does one per link of
+/// every component of the expanded design.
 let linkFastComponents (g: GatherData) (f: FastSimulation) =
     let start = getTimeMs ()
-    let sComps = g.AllComps
-    let fComps = f.FComps
+    let store = g.Comps
 
-    let getSComp (cid, ap) =
-        let x = Map.tryFind (cid, ap) sComps
+    /// Follow one component output across custom component boundaries to the real inputs it
+    /// drives, as store indices. Every step of this used to be a map lookup; they are all array
+    /// reads now, off links the flatten resolved while it had both ends in hand.
+    let rec getLinks (i: int) (opn: int) (ipnOpt: InputPortNumber option) : (int * InputPortNumber) array =
+        let fc = LookupArray.item i store
 
-        match x with
-        | None -> failwithf $"Error in linkFastComponents: can't find\n---{cid}\n----{ap}\n"
-        | Some comp -> fst comp
-
-    let apOf fid = fComps[fid].AccessPath
-
-    /// This function recursively propagates a component output across Custom component boundaries to find the
-    ///
-    let rec getLinks ((cid, ap): FComponentId) (opn: OutputPortNumber) (ipnOpt: InputPortNumber option) =
-        let sComp = getSComp (cid, ap)
-        match isOutput sComp.Type, isCustom sComp.Type, ipnOpt with
-        | true, _, None when apOf (cid, ap) = [] -> [||] // no links in this case from global output
+        match isOutput fc.FType, isCustom fc.FType, ipnOpt with
+        | true, _, None when fc.AccessPath = [] -> [||] // no links in this case from global output
         | true, _, None ->
-            let fid, opn = g.CustomOutputCompLinks[cid, ap]
 #if ASSERTS
-            assertThat (isCustom (fst sComps[fid]).Type) "What? this should be a custom component output"
+            assertThat
+                (isCustom (LookupArray.item fc.CustomOutIndex store).FType)
+                "What? this should be a custom component output"
 #endif
-            getLinks fid opn None // go from inner output to CC output and recurse
-        | false, true, Some ipn ->
-            //sprintf "%A:%A -> %A\n" (g.getFullName vfid) vipn (g.getFullName fid) ) g.CustomInputCompLinks |> mapValues)
-            [| g.CustomInputCompLinks[(cid, ap), ipn], opn, InputPortNumber 0 |] // go from CC input to inner input: must be valid
-        | _, false, Some ipn -> [| (cid, ap), opn, ipn |] // must be a valid link
-        | false, _, None ->
-            sComp.Outputs
-            |> Map.toArray
-            |> Array.filter (fun (opn', _) -> opn' = opn)
-            |> Array.collect (fun (opn, lst) ->
-                lst
-                |> List.toArray
-                |> Array.collect (fun (cid, ipn) -> getLinks (cid, ap) opn (Some ipn)))
-
+            getLinks fc.CustomOutIndex fc.CustomOutPort None // go from inner output to CC output and recurse
+        | false, true, Some(InputPortNumber ipn) ->
+            [| fc.CustomInLinks[ipn], InputPortNumber 0 |] // go from CC input to inner input: must be valid
+        | _, false, Some ipn -> [| i, ipn |] // must be a valid link
+        | false, _, None -> fc.OutLinks[opn] |> Array.collect (fun (j, ipn) -> getLinks j opn (Some ipn))
         | x -> failwithf "Unexpected link match: %A" x
 
-    // One entry per driven input, to catch an input driven twice. Keyed by the unique Index of
+    // One entry per driven input, to catch an input driven twice, keyed by the unique Index of
     // the input's own step array - read before linking replaces the array, so it identifies
-    // (component, input port) exactly - rather than by (FComponentId, port). The structural key
-    // compares two GUID strings and an access path per tree level of an immutable map, and this
-    // check grows an entry per LINK: on a 480,000-component design that map was a measured fifth
-    // of the whole build. An int key in a Dictionary is one native hash.
-    let linkCheck = System.Collections.Generic.Dictionary<int, FComponentId * OutputPortNumber>()
+    // (component, input port) exactly. Step-array indices are handed out densely from 0, so this
+    // is a pair of plain arrays: which component drives each input and from which of its ports,
+    // with -1 for one not yet driven. It was a map keyed structurally by (FComponentId, port),
+    // which on a 480,000-component design was a measured fifth of the whole build, and then a
+    // Dictionary<int,_> to escape that. An array needs neither.
+    let driverOf: int array = Array.create f.NumStepArrays (-1)
+    let driverPort: int array = Array.zeroCreate f.NumStepArrays
 
-    f.FComps
-    |> Map.iter (fun fDriverId fDriver ->
-        fDriver.Outputs
-        |> Array.iteri (fun iOut _ ->
-            getLinks fDriverId (OutputPortNumber iOut) None
-            |> Array.map (fun (fid, _, ip) -> fid, iOut, ip)
-            |> Array.iter (fun (fDrivenId, opn, (InputPortNumber ipn)) ->
-                let fDriven = f.FComps[fDrivenId]
-                let inputKey = fDriven.InputLinks[ipn].Index
+    store
+    |> LookupArray.iteri (fun iDriver fDriver ->
+        // a custom component drives nothing: its ports are links to the components inside it,
+        // which getLinks has already followed through. The store holds it all the same, so that
+        // one index space covers the whole design.
+        if not (isCustom fDriver.FType) then
+            fDriver.Outputs
+            |> Array.iteri (fun iOut _ ->
+                getLinks iDriver iOut None
+                |> Array.iter (fun (iDriven, InputPortNumber ipn) ->
+                    let fDriven = LookupArray.item iDriven store
+                    let inputKey = fDriven.InputLinks[ipn].Index
 
-                match linkCheck.TryGetValue inputKey with
-                | false, _ -> ()
-                | true, (fid, opn) ->
-                    failwithf "Multiple linkage: (previous driver was %A,%A)" (g.getFullSimName fid) opn
+                    match driverOf[inputKey] with
+                    | -1 -> ()
+                    | previous ->
+                        failwithf
+                            "Multiple linkage: (previous driver was %A,%A)"
+                            (LookupArray.item previous store).FullName
+                            (OutputPortNumber driverPort[inputKey])
 
-                linkCheck[inputKey] <- (fDriverId, OutputPortNumber opn)
-                let (_, ap) = fDrivenId
+                    driverOf[inputKey] <- iDriver
+                    driverPort[inputKey] <- iOut
+                    let (_, ap) = fDriven.fId
 
-                // we have a link from fDriver to fDriven
+                    // we have a link from fDriver to fDriven
 
-                if isIOLabel fDriven.FType then
-                    // fDriven is a driven label of a set of IOlabels
-                    let labelKey = fDriven.SimComponent.Label, ap
+                    if isIOLabel fDriven.FType then
+                        // fDriven is a driven label of a set of IOlabels
+                        let labelKey = fDriven.SimComponent.Label, ap
 
-                    if not (Map.containsKey labelKey f.FIOActive) then
-                        // Make this then unique driven label in the fast simulation
-                        f.FIOActive <- Map.add labelKey fDriven f.FIOActive
-                        fDriven.Active <- true
+                        if not (Map.containsKey labelKey f.FIOActive) then
+                            // Make this then unique driven label in the fast simulation
+                            f.FIOActive <- Map.add labelKey fDriven f.FIOActive
+                            fDriven.Active <- true
 
-                if isIOLabel fDriver.FType then
-                    // we do not yet know which label will be active, so record all links from
-                    // labels for later resolution
-                    f.FIOLinks <-
-                        ((fDriven, InputPortNumber ipn), fDriver)
-                        :: f.FIOLinks
-                else
-                    // if driver is not IO label make the link now
-                    fDriven.InputLinks[ipn] <- fDriver.Outputs[opn]
-                    // DrivenComponents must only include asynchronous drive paths on hybrid components
-                    // on clocked components, or combinational components, it can include all drive paths
-                    match getHybridComponentAsyncOuts fDriven.FType (InputPortNumber ipn) with
-                    | None
-                    | Some(_ :: _) -> fDriver.DrivenComponents <- fDriven :: fDriver.DrivenComponents
-                    | _ -> ()
+                    if isIOLabel fDriver.FType then
+                        // we do not yet know which label will be active, so record all links from
+                        // labels for later resolution
+                        f.FIOLinks <- ((fDriven, InputPortNumber ipn), fDriver) :: f.FIOLinks
+                    else
+                        // if driver is not IO label make the link now
+                        fDriven.InputLinks[ipn] <- fDriver.Outputs[iOut]
+                        // DrivenComponents must only include asynchronous drive paths on hybrid components
+                        // on clocked components, or combinational components, it can include all drive paths
+                        match getHybridComponentAsyncOuts fDriven.FType (InputPortNumber ipn) with
+                        | None
+                        | Some(_ :: _) -> fDriver.DrivenComponents <- fDriven :: fDriver.DrivenComponents
+                        | _ -> ()
 
-                    fDriven.InputDrivers[ipn] <- Some(fDriver.fId, OutputPortNumber opn))))
+                        fDriven.InputDrivers[ipn] <- Some(fDriver.fId, OutputPortNumber iOut))))
 
     reLinkIOLabels f
+
+    // The link tables have done their work. Dropping them now is what stops a built simulation
+    // carrying an outgoing link table per component for the rest of its life - tens of megabytes
+    // on a design that expands, traced by every major collection, for something no later phase
+    // reads. What the simulation still needs of them was copied into FCustomOutputCompLookup.
+    store
+    |> LookupArray.iteri (fun _ fc ->
+        fc.OutLinks <- Array.empty
+        fc.CustomInLinks <- Array.empty)
+
     instrumentTime "linkFastComponents" start
     f
 
 // This function is called after linkFastComponents (when width of IO of all components are resolved) to resolve the UseBigInt and BigIntState fields of all components
-let determineBigIntState (f: FastSimulation) =
-    f.FComps
-    |> Map.iter (fun _ fc ->
-        let (u, state) = findBigIntState fc
-        fc.UseBigInt <- u
-        fc.BigIntState <- state)
+let determineBigIntState (comps: FastComponent array) (f: FastSimulation) =
+    // in creation order, over the array the gather filled - see createFastArrays
+    comps
+    |> Array.iter (fun fc ->
+        if not (isCustom fc.FType) then
+            let (u, state) = findBigIntState fc
+            fc.UseBigInt <- u
+            fc.BigIntState <- state)
     f

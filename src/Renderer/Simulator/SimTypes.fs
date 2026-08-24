@@ -208,6 +208,23 @@ type FastComponent =
       /// between the two.
       mutable ReduceComb: StepIndex -> unit
       mutable ReduceClocked: StepIndex -> unit
+      /// Where this component sits in the build's one index space: the index it was stamped with
+      /// as the flatten created it, and the index the link fields below are expressed in. Written
+      /// once, by LookupArray.addItem, and never again.
+      mutable Index: int
+      /// This instance's outgoing links, by output port number, already resolved to store
+      /// indices - so linking neither looks a design id up nor walks a map. Build scaffolding:
+      /// linkFastComponents drops it, along with the two fields below, once it has used them, so
+      /// that a built simulation does not carry a link table per component for the rest of its life.
+      mutable OutLinks: (int * InputPortNumber) array array
+      /// For a Custom component: the store index of the inner Input component each of its input
+      /// ports maps to. Empty for every other type. Build scaffolding, dropped with OutLinks.
+      mutable CustomInLinks: int array
+      /// For an Output component INSIDE a custom component: the store index of that custom
+      /// component, and which of its output ports this one is. -1 when there is no such link -
+      /// a top-level Output, or any other type. Build scaffolding, dropped with OutLinks.
+      mutable CustomOutIndex: int
+      mutable CustomOutPort: int
       // these fields are used only to determine component ordering for correct evaluation
       mutable Touched: bool // legacy field
       mutable DrivenComponents: FastComponent list
@@ -281,7 +298,7 @@ type SheetPort = {
 /// compression cage. Buses wider than 32 bits are held as a plain array of BigInt, which is
 /// ordinary heap - 400MB of values cost 454MB - inside that 4GB cage, shared with the model, the
 /// design and the waveforms. So a design can be refused for the second while nowhere near the first.
-/// FastCreate.stepBytesForWidth works out one port's share; FastCreate.stepCostOfDesign totals it.
+/// FastCreate.stepBytesForWidth works out one port's share; FastCreate.stepCostOfGraph totals it.
 type StepCost =
     { /// Uint32Array storage, which the V8 heap limit does not bind
       TypedArrayBytes: int
@@ -492,7 +509,7 @@ type FastSimulation =
         SimulatedTopSheet: string
 
         /// What one clock cycle of this design costs in step arrays. Worked out before the arrays
-        /// were allocated, by FastCreate.stepCostOfDesign, and kept so that the waveform
+        /// were allocated, by FastCreate.stepCostOfGraph, and kept so that the waveform
         /// simulator's configuration can say what a given number of cycles would come to.
         StepCost: StepCost
     } with
@@ -521,69 +538,59 @@ type FastSimulation =
 
  
 
-/// GatherTemp is the output type used to accumulate lists of data links when recursively exploring SimulationGraph
-/// as first step in flattening it.
-/// Each list of pairs is converted into a map at the end in the final GatherData structure
-/// The cost of creating maps makes it important to use lists here as the intermediate structures
-and GatherTemp =
-    {
-      // Links Custom Component Id and input port number to corresponding Input
-      // Component Id (of an Input component which is not top-level)
-      CustomInputCompLinksT: ((FComponentId * InputPortNumber) * FComponentId) list
-      // Links (non-top-level) Output component Id to corresponding Custom Component Id & output port number
-      CustomOutputCompLinksT: (FComponentId * (FComponentId * OutputPortNumber)) list
-      // Shortcut to find the label of a component; notice that the access path is not needed here because
-      // Labels of the graph inside a custom component are identical for different instances of the component
-      Labels: (ComponentId * string) list
-      // This indexes the SimulationGraph components from Id and access path. Note that the same simulation
-      // component Id can appear with different access paths if a sheet is instantiated more than once.
-      // Each entry corresponds to a single FastComponent.
-      // Note that Custom components are not included in this list.
-      AllCompsT: ((ComponentId * ComponentId list) * (SimulationComponent * ComponentId list)) list } // links to component and its path in the graph
-
-/// Scaffolding for building a FastSimulation, and alive only while one is built: the flattened
-/// design indexed the several ways createInitFastCompPhase and linkFastComponents need it. It is
-/// deliberately not kept afterwards - AllComps holds a SimulationComponent per component INSTANCE,
-/// so on a large design it is one of the biggest things the simulator ever allocates, and a
-/// FastSimulation left holding one made every later edit slower by giving each major GC all of it
-/// to trace. What the built simulation still needs is copied out: FCustomOutputCompLookup.
+/// Scaffolding for building a FastSimulation, and alive only while one is built.
+///
+/// It used to be four `Map`s: the flattened design indexed the several ways the phases after the
+/// flatten needed it, all of them keyed structurally by (ComponentId, access path). Every one of
+/// those keys cost a boxed comparison per tree level of every lookup, and the build does millions
+/// of lookups - a measured fifth of a 480,000-component build went on one of them. They are now a
+/// single index space instead: the flatten creates each FastComponent, stamps it with its position
+/// in `Comps`, and expresses every link it finds as those indices. Nothing here is keyed by
+/// anything but an int, and the `Map`s a built simulation offers the rest of the program
+/// (FComps, FCustomComps, FCustomOutputCompLookup) are made once at the end, from this.
+///
+/// One store and one index space, holding the FastComponents themselves: custom against ordinary
+/// is a PREDICATE over it, never a second store. Splitting them is the obvious tidy-up and it is
+/// what would break this - the indices the links carry would then mean two different things.
+///
+/// Deliberately not kept after the build. It holds a SimulationComponent per component INSTANCE
+/// through the FastComponents it stores, so on a large design it is one of the biggest things the
+/// simulator ever allocates, and a FastSimulation left holding one made every later edit slower by
+/// giving each major GC all of it to trace.
 and GatherData =
     {
-      /// Maps Custom Component Id and input port number to corresponding Input
-      /// Component Id (of an Input component which is not top-level)
-      CustomInputCompLinks: Map<FComponentId * InputPortNumber, FComponentId>
-      /// Maps (non-top-level) Output component Id to corresponding Custom Component Id & output port number
-      CustomOutputCompLinks: Map<FComponentId, FComponentId * OutputPortNumber>
-      /// Shortcut to find the label of a component; notice that the access path is not needed here because
-      /// Labels of the graph inside a custom component are identical for different instances of the component
-      Labels: Map<ComponentId, string>
-      /// This indexes the SimulationGraph components from Id and access path. Note that the same simulation
-      /// component Id can appear with different access paths if a sheet is instantiated more than once.
-      /// Each entry corresponds to a single FastComponent.
-      /// Note that Custom components are not included in this list.
-      AllComps: Map<ComponentId * ComponentId list, SimulationComponent * ComponentId list>  // maps to component and its path in the graph
+      /// Every component of the expanded design, one entry per INSTANCE, in the order the flatten
+      /// visited them - which is the order that assigns step-array indices, and so drivers and
+      /// wave indices. Custom components are included.
+      Comps: LookupArray.LookupArray<FastComponent>
+      /// Shortcut to find the label of a component, indexed by the component's DESIGN id.
+      /// An array and not a map because design ComponentIds are allocated densely from 1
+      /// (CommonTypes.ComponentId), and getFullSimName below does one lookup per element of the
+      /// access path for every component of the expanded design - millions of them on a design
+      /// that expands, each one a boxed comparison per tree level as a Map. An id the design does
+      /// not have reads as "*", which is what the Map gave for a key it did not hold.
+      /// Notice that the access path is not needed here because labels of the graph inside a
+      /// custom component are identical for different instances of the component.
+      /// Mutable because the flatten grows it as it meets ids: the largest design ComponentId is
+      /// not known until the whole design has been walked, and walking it twice to find out would
+      /// cost more than the growth does.
+      mutable Labels: string array
      }
+    /// The label of one design component, or "*" for an id the design does not have.
+    member this.labelOf(ComponentId i) =
+        if i >= 0 && i < this.Labels.Length then this.Labels[i] else "*"
+
     /// human readable dot-separated name of component in simulation.
     /// This uses the component labels to the root of the simulation and therefore is unique.
     member this.getFullSimName ((cid, ap):FComponentId) =
-        List.map
-            (fun cid ->
-                match Map.tryFind cid this.Labels with
-                | Some lab -> lab
-                | None -> "*")
-            (ap @ [ cid ])
+        List.map (fun cid -> this.labelOf cid) (ap @ [ cid ])
         |> String.concat "."
 
     /// The same path as getFullSimName, upper-cased and as a list rather than dot-separated.
     /// These are component labels, not sheet names: it becomes FastComponent.SheetName, whose
     /// name is misleading.
     member this.getFullSimPath((cid, ap):FComponentId) =
-        List.map
-            (fun cid ->
-                match Map.tryFind cid this.Labels with
-                | Some lab -> lab.ToUpper()
-                | None -> "*")
-            (ap @ [ cid ])
+        List.map (fun cid -> (this.labelOf cid).ToUpper()) (ap @ [ cid ])
 
 
 

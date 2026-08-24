@@ -1,4 +1,4 @@
-module FastBuild
+﻿module FastBuild
 
 open CommonTypes
 open TimeHelpers
@@ -41,26 +41,28 @@ let installReducers (fs: FastSimulation) : FastSimulation =
     Array.iter install fs.FOrderedComps
     fs
 
-let createFastArrays fs =
-    let getArrayOf pred fComps =
-        fComps
-        |> Map.filter (fun cid comp -> pred comp)
-        |> Map.toArray
-        |> Array.map snd
+/// The three arrays the run loop and the ordering pass iterate, taken from `comps` - every
+/// component of the build, in the order the gather created them - rather than from fs.FComps.
+///
+/// Not just to avoid building three throwaway Maps to filter with, though it does that. The
+/// components are ALLOCATED in gather order, so walking them in that order walks memory forwards;
+/// fs.FComps is keyed by (ComponentId, access path) and iterating it visits the same objects in an
+/// order unrelated to where they sit. On a 15,000-component design that difference was worth more
+/// than everything else in this phase put together - and it applies to every pass that walks all
+/// the components, which is why determineBigIntState and addWavesToFastSimulation take the array
+/// too.
+let createFastArrays (comps: FastComponent array) fs =
+    let getArrayOf pred =
+        comps |> Array.filter (fun fc -> not (isCustom fc.FType) && pred fc)
 
     { fs with
-        FGlobalInputComps =
-            fs.FComps
-            |> getArrayOf (fun fc -> isInput fc.FType && fc.AccessPath = [])
+        FGlobalInputComps = getArrayOf (fun fc -> isInput fc.FType && fc.AccessPath = [])
         FConstantComps =
-            fs.FComps
-            |> getArrayOf (fun fc ->
+            getArrayOf (fun fc ->
                 match fc.FType with
                 | Constant1 _ -> true
                 | _ -> false)
-        FClockedComps =
-            fs.FComps
-            |> getArrayOf (fun fc -> couldBeSynchronousComponent fc.FType)
+        FClockedComps = getArrayOf (fun fc -> couldBeSynchronousComponent fc.FType)
         FOrderedComps = Array.empty }
 
 /// Create a fast simulation data structure, with all necessary arrays, and components
@@ -98,36 +100,43 @@ let buildFastSimulation
         result
 
     mark "start" () |> ignore
-    let gather = gatherSimulation graph |> mark "gather"
 
-    // before createInitFastCompPhase, which is what allocates the step arrays
-    let cost = stepCostOfDesign gather
+    // Before the design is even flattened, let alone allocated: what a clock cycle of it costs,
+    // and how many components it comes to. The flatten now creates the step arrays as it goes, so
+    // the refusal has to come before it, and the count is what sizes the store it fills.
+    let cost, size = costAndSizeOfGraph graph
 
     checkSimulationFits simulationArraySize cost
     |> Result.bind (fun () ->
         // The step arrays this build allocates come from arena slabs rather than one external
         // allocation each - see the arena in FastCreate for what that buys and what it does not.
         // finally, so that a build that raises cannot leave its arena open for an unrelated
-        // later build to draw from.
+        // later build to draw from. It wraps the gather as well as the creation, because the
+        // gather is where the step arrays are allocated.
         startStepArena cost simulationArraySize
 
         try
+            let gather = gatherSimulation simulationArraySize size graph |> mark "gather"
+            // every component of the build, in the order it was created: what the phases that walk
+            // all of them use, instead of walking a map of them - see createFastArrays
+            let comps = LookupArray.toArray gather.Comps
+
             let fs =
                 emptyFastSimulation diagramName
                 |> createInitFastCompPhase simulationArraySize gather
                 |> mark "createInit"
                 |> linkFastComponents gather
                 |> mark "link"
-                |> determineBigIntState // This step is not needed for TruthTable
+                |> determineBigIntState comps // This step is not needed for TruthTable
                 |> mark "bigIntState"
 
-            createFastArrays fs
+            createFastArrays comps fs
             |> mark "arrays"
             |> orderCombinationalComponents simulationArraySize
             |> mark "order"
             |> checkAndValidate
             |> mark "validate"
-            |> Result.map addWavesToFastSimulation
+            |> Result.map (addWavesToFastSimulation comps)
             |> mark "waves"
             |> Result.map installReducers
             |> mark "reducers"
@@ -177,24 +186,30 @@ let buildFastSimulationFData
     (graph: SimulationGraph)
     : Result<FastSimulation, SimulationError>
     =
-    let gather = gatherSimulation graph
-
-    // before createInitFastCompPhase, which is what allocates the step arrays
-    let cost = stepCostOfDesign gather
+    // before the gather, which is what allocates the step arrays
+    let cost, size = costAndSizeOfGraph graph
 
     checkSimulationFits simulationArraySize cost
     |> Result.bind (fun () ->
-        let fs =
-            emptyFastSimulation diagramName
-            |> createInitFastCompPhase simulationArraySize gather
-            |> linkFastComponents gather
+        startStepArena cost simulationArraySize
 
-        // before ordering, which reduces every component: a bus too wide to tabulate must not reach a
-        // reducer at all
-        createFastArrays fs
-        |> checkWidthsForFData
-        |> Result.map (orderCombinationalComponentsFData simulationArraySize)
-        |> Result.bind checkAndValidateFData
-        |> Result.map addWavesToFastSimulation // REVIEW - Waves are not used in TruthTable, mark for removal
-        |> Result.map (fun fs -> { fs with StepCost = cost }))
+        try
+            let gather = gatherSimulation simulationArraySize size graph
+            let comps = LookupArray.toArray gather.Comps
+
+            let fs =
+                emptyFastSimulation diagramName
+                |> createInitFastCompPhase simulationArraySize gather
+                |> linkFastComponents gather
+
+            // before ordering, which reduces every component: a bus too wide to tabulate must not reach a
+            // reducer at all
+            createFastArrays comps fs
+            |> checkWidthsForFData
+            |> Result.map (orderCombinationalComponentsFData simulationArraySize)
+            |> Result.bind checkAndValidateFData
+            |> Result.map (addWavesToFastSimulation comps) // REVIEW - Waves are not used in TruthTable, mark for removal
+            |> Result.map (fun fs -> { fs with StepCost = cost })
+        finally
+            finishStepArena ())
 

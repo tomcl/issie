@@ -876,8 +876,9 @@ let mutable private waveSimCostMemo: (string * LoadedComponent list * Result<Sim
 /// This exists because the dialog used to get the same number by building a complete 10-cycle
 /// simulation - every FastComponent, every step array - and reading one field off the result:
 /// 49 seconds of frozen dialog on a 480,000-component design, and the waveform simulation cache
-/// evicted on the way. The cost is a fact about the flattened design, so this stops at the
-/// flattening: check the circuit, gather it, price it, allocate nothing.
+/// evicted on the way. The cost is a fact about the design's merged graph, so this stops there:
+/// check the circuit, price its graph, allocate nothing - not even the flattening, which
+/// stepCostOfGraph no longer needs.
 let waveSimStepCost (model: Model) : Result<SimTypes.StepCost, SimulationError> =
     match model.CurrentProj with
     | None -> Error (Simulator.makeDummySimulationError "No project is open")
@@ -897,7 +898,7 @@ let waveSimStepCost (model: Model) : Result<SimTypes.StepCost, SimulationError> 
                     |> Result.mapError Simulator.makeDummySimulationError
                     |> Result.bind (fun (_, state, deps) ->
                         Simulator.validateCircuitSimulation simSheet state deps)
-                    |> Result.map (FastCreate.gatherSimulation >> FastCreate.stepCostOfDesign)
+                    |> Result.map FastCreate.stepCostOfGraph
                 with e ->
                     Error (Simulator.makeDummySimulationError $"exception while pricing the design: {e.Message}")
             waveSimCostMemo <- Some(simSheet, ldcs, result)

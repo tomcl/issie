@@ -192,10 +192,16 @@ canvas checking, width inference and dependency merging. Its profile has the sam
 first entry under Known debt below: `MapTreeModule_*`, `Compare` and `CompareTo` on
 structurally-keyed maps are about a quarter of it, and nothing has been done about that.
 
-Two smaller things the same profiling turned up, both untouched: `FastOrder` builds an
-`orderedSet` of every ordered component's `FComponentId` and never reads it - a `Set<FComponentId>`
-over the whole design, built for nothing - and `order` and `waves` together are now the largest
-part of the fast build, about a third of it on a design of any size.
+The same profiling turned up dead work in `FastOrder`, since deleted: both ordering functions
+built an `orderedSet` of every ordered component's `FComponentId` and never read it - a
+`Set<FComponentId>` over the whole design, so `n log n` structural comparisons of a
+`(ComponentId, ComponentId list)` key, for nothing. On the 14,842-component design that took the
+`order` phase from 58 ms to 21 ms (medians of 19 builds; minima 42 ms to 10 ms). Beware reading
+too much into the absolute drop - the two runs are different app sessions, and see the warning
+about that below - but `SetTreeModule_add` and `SetTreeModule_rebalance` were 19 ms of self time
+between them in the profile, which is the part that is not in doubt.
+
+`order` and `waves` are still the largest part of the fast build after `gather`.
 
 ## Known debt
 
@@ -245,8 +251,10 @@ expanding to 14,842 - built with the sheet DSL, which is what it is for.
 | everything else | 4 ms | 3.5 ms | 96 ms | 136 ms |
 | **whole build** | **14 ms** | **10.5 ms** | **536 ms** | **386 ms** |
 
-`gather` grew because it now creates the FastComponents and their step arrays, which is the second
-traversal `createInit` no longer makes. The three phases together went 366 ms → 250 ms on the
+Both columns of the larger design were measured before `FastOrder`'s dead `orderedSet` was
+deleted, so `order` - and with it the "everything else" row and the totals - is now about 35 ms
+lower than either column says. `gather` grew because it now creates the FastComponents and their
+step arrays, which is the second traversal `createInit` no longer makes. The three phases together went 366 ms → 250 ms on the
 larger design, and `link` - which is nothing but the lookups this removed - fell by a factor of
 six. Allocation fell too: `SimLog`'s `AllocMb` for a `3cpu` build under .NET went 29.12 MB → 27.97
 MB (medians of three, each repeating to about 1%), and the renderer's own per-phase heap deltas

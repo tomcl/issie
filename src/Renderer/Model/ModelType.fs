@@ -277,61 +277,60 @@ type GapStore = {
 /// is not model state. It is: what the renderer BELIEVES about that process is a fact about the
 /// renderer, the UI has to draw it, and a belief the view can only reach through a side channel
 /// is one the view cannot draw from.
-/// **What replaces this: a table of the async operations in flight.**
+/// Identifies one asynchronous operation asked of the .NET simulator: sent with the request,
+/// returned with the answer, and the key under which the model remembers what the operation was.
 ///
-/// `SidecarBuild` says whether ONE operation - the build - is running, because the build was the
-/// only one that had to be drawn. That is too narrow. Several async operations can be outstanding
-/// at once, and the model should say which: not a bool but
+/// **Its own numbering, not the wire's correlation id.** `SidecarClient` gives every REQUEST a
+/// correlation id and the sidecar echoes it, which is how a promise finds its reply. An operation
+/// is not a request: a build is `sendDesign` - itself one frame per sheet - followed by `SimBuild`,
+/// and a fetch is a run followed by a read. One id per request cannot name a thing made of
+/// several, so this numbers the operations and `SidecarClient` goes on numbering the frames.
 ///
-///     SidecarInFlight : Map<SeqNum, SidecarOp>
-///
-/// `SidecarOp` (`WhatIsBusy` in the note this comes from - the operation is what it names, so
-/// `SidecarOp` reads better at a use site) is a discriminated union with one case per operation,
-/// carrying that operation's parameters: a build with its top sheet and array size, a run with the
-/// cycle it is running to, a wave read with its drivers and window, a RAM read with its component
-/// and key. Carrying the parameters is what lets the update function handle an answer without a
-/// message type per feature: the answer names its operation, and the operation says what to do
-/// with it. That is the common response format - one `SidecarReply of SeqNum * payload`, one
-/// update, dispatching on what the map says the operation was.
-///
-/// `SeqNum` is a wrapped uint32 identifying one operation, sent with the request and echoed in the
-/// response. It need only be unique among the operations OUTSTANDING, not for all time: an entry
-/// is removed when its answer arrives, and there are never many, so wrapping cannot collide with
-/// anything still in the map.
-///
-/// **Use the correlation id the wire already carries.** `SidecarClient` puts a uint32 correlation
-/// id in bytes 1-4 of every request and the sidecar echoes it (Protocol.fs). A second numbering
-/// beside it would be two ids for one operation, which can disagree. `SeqNum` should BE that id -
-/// what the model adds is not identity but MEANING: `SidecarClient.pending` knows a promise is
-/// outstanding, and this knows what it is for and can be drawn.
-///
-/// **One source of truth for "is it building".** With the map in place, building is
-/// `SidecarInFlight |> Map.exists (fun _ op -> op is OpBuild)` rather than a state of its own.
-/// What must stay is the SESSION - the epoch a completed build issued - because that is not an
-/// operation in flight but the thing the next operation commands. So the two halves of this type
-/// separate: `SidecarBuilding` becomes an entry in the map, `SidecarReady` stays as the session.
-///
-/// **What the map is for.** A synchronous operation may go out only when the wire is idle -
-/// `Map.isEmpty` - and two synchronous operations cannot overlap, because one runs to completion
-/// on the renderer's single thread before anything else runs. Those two facts together are why no
-/// priority queue, no dispatch lock and no preemption are needed anywhere: a synchronous operation
-/// never has to wait behind an asynchronous one, because it is never issued while one exists.
-///
-type SidecarBuild =
-    /// nothing is built: none has been asked for, or the last simulation ended
-    | SidecarIdle
-    /// a build was started for this top sheet at this array size and has not answered yet
-    | SidecarBuilding of top: string * arraySize: int
-    /// the sidecar holds this design, at this array size, under this session epoch
-    | SidecarReady of top: string * arraySize: int * epoch: int
-    /// the last build failed, saying this. Kept so the UI can show it rather than retry for ever
-    | SidecarBuildFailed of string
+/// Unique among the operations OUTSTANDING, not for all time. An entry leaves the table when its
+/// answer arrives and there are never many, so a uint32 wrapping cannot collide with anything
+/// still in it.
+type SeqNum = SeqNum of uint32
 
-    /// The session to command, when there is one. None while idle, building or failed - which is
-    /// exactly when there is nothing to command.
+/// One asynchronous operation asked of the .NET simulator and not yet answered.
+///
+/// It carries its own parameters, which is what lets one reply message serve every operation: the
+/// answer names the operation, the table says what that operation was, and the update function
+/// works out what to do from the two together. Without them there would be a message type per
+/// feature, each carrying the context its own handler happened to need.
+type SidecarOp =
+    /// elaborate the design on the sidecar and start a session
+    | OpBuild of top: string * arraySize: int
+    /// run to the cycle the view shows and read waveforms over its window, and at most one RAM's
+    /// rows after them - one operation because it is one promise, in order, over one connection
+    | OpFetch of waves: int * ram: FComponentId option
+    /// run to a cycle and read back what the step panel shows there
+    | OpStep of cycle: int
+
+/// What an operation answered. One case per operation, so that an answer cannot be handled as
+/// though it were the answer to something else.
+type SidecarAnswer =
+    | AnsBuilt of Result<int, string>
+    | AnsFetched of Result<unit, string> * (FComponentId * (RamView.RamKey * RamView.RamView)) option
+    | AnsStepped
+
+/// The session the sidecar holds, which is what an operation commands.
+///
+/// Not an operation in flight and so not in the table above: a build that has finished leaves a
+/// session behind, and it is the session that the next run or read names. Whether a build is
+/// RUNNING is read off the table (`ModelHelpers.sidecarIsBuilding`), so there is one place that
+/// says so rather than a state here that could disagree with it.
+type SidecarSessionState =
+    /// nothing built: none has been asked for, or the last simulation ended
+    | NoSession
+    /// the sidecar holds this design, at this array size, under this session epoch
+    | Session of top: string * arraySize: int * epoch: int
+    /// the last build failed, saying this. Kept so the UI can show it rather than retry for ever
+    | SessionFailed of string
+
+    /// The session to command, when there is one.
     member this.Epoch =
         match this with
-        | SidecarReady(_, _, epoch) -> Some epoch
+        | Session(_, _, epoch) -> Some epoch
         | _ -> None
 
     /// Whether the sidecar already holds what a caller is about to ask for. An array size bigger
@@ -339,7 +338,7 @@ type SidecarBuild =
     /// are inside the ones there are.
     member this.Holds(top: string, arraySize: int) =
         match this with
-        | SidecarReady(built, size, _) -> built = top && size >= arraySize
+        | Session(built, size, _) -> built = top && size >= arraySize
         | _ -> false
 
 type Wave = {
@@ -408,17 +407,6 @@ type WaveSimModel = {
     /// cannot be worked out from anything, so it is recorded, once, where the view is settled.
     /// Everything downstream is a pure function of this and the clock, read where it is used.
     ViewSetAtMs: float
-    /// Whether a fetch of waveform data from the .NET simulator is in flight.
-    ///
-    /// The one piece of state in the waveform data path, and it is here because it is the one thing
-    /// that cannot be derived: WHICH waves need fetching is a question about the cache and the view,
-    /// answered afresh on every refresh, but whether a request is already in the air is a fact about
-    /// the outside world. Two requests against one session interleave build, run and read, so the
-    /// refresh that finds this set does nothing and waits: the fetch in flight refreshes when it
-    /// lands, and that refresh asks for whatever is missing by then.
-    ///
-    /// Always false while the renderer is simulating - it fetches nothing.
-    FetchInProgress: bool
     /// When a fetch last failed, in ms on the performance clock, or 0 if none has.
     ///
     /// A fetch is asked for whenever a wave is missing the window it is drawn over, and that is
@@ -649,7 +637,6 @@ type Msg =
     ///
     /// One message because it is one request: waves and RAM rows are fetched by a single command,
     /// in order, so that nothing has to arbitrate between two of them - see fetchWhatIsMissing.
-    | WaveFetchDone of Result<unit, string> * (FComponentId * (RamView.RamKey * RamView.RamView)) option
     /// The progress-bar popup's Cancel: stop the long simulation run it is reporting, keeping
     /// everything simulated so far, with the viewer moved to the last simulated cycle.
     | CancelWaveSimulation
@@ -668,11 +655,13 @@ type Msg =
     | EndSimulation
     /// Clears the Model.WaveSim and Model.WaveSimSheet fields.
     | EndWaveSim
-    /// A build of the design on the .NET simulator has been started, for this top sheet at this
-    /// array size. Nothing else may start one until it answers.
-    | SidecarBuildStarted of top: string * arraySize: int
-    /// That build answered: the session it issued, or why there is not one.
-    | SidecarBuildFinished of Result<int, string>
+    /// An asynchronous operation has been asked of the .NET simulator under this number. It goes
+    /// into the in-flight table, where anything asking whether the wire is free can see it.
+    | SidecarOpStarted of SeqNum * SidecarOp
+    /// That operation answered. The number says which one, the table says what it was, and the two
+    /// together are what the update function acts on - which is why there is one of these rather
+    /// than a message per feature.
+    | SidecarReply of SeqNum * SidecarAnswer
     | TruthTableMsg of TTMsg // all the messages used by the truth table code
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
@@ -1107,9 +1096,18 @@ type Model = {
     /// changing it throws away every simulation in flight, since the two backends do not share
     /// so much as a step array.
     SimulateInRenderer : bool
-    /// What the .NET simulator is believed to be doing: nothing, building, ready, or failed. The
-    /// one thing about it that cannot be answered at once, held where the view can read it.
-    SidecarBuild : SidecarBuild
+    /// The session the .NET simulator is believed to hold, which is what a command names.
+    SidecarSession : SidecarSessionState
+    /// Every asynchronous operation asked of the .NET simulator and not yet answered, by the
+    /// number it was asked under.
+    ///
+    /// **This is what makes synchronous interrogation safe.** A synchronous operation may go out
+    /// only when this is empty, and two synchronous operations cannot overlap, because one runs to
+    /// completion on the renderer's single thread before anything else runs. Those two facts
+    /// together are why nothing here needs a priority queue, a dispatch lock, or preemption: a
+    /// synchronous operation never waits behind an asynchronous one, because it is never issued
+    /// while one exists.
+    SidecarInFlight : Map<SeqNum, SidecarOp>
     ShowLibrarySheets : bool
     /// The library sheets the user has asked to look inside, by name. A library component is an
     /// abstraction and its sheet is not normally reachable at all, but understanding how one
@@ -1193,7 +1191,8 @@ let topSheetChoiceDeclined_ = Lens.create (fun a -> a.TopSheetChoiceDeclined) (f
 let openLibrary_ = Lens.create (fun a -> a.OpenLibrary) (fun s a -> {a with OpenLibrary = s})
 let catalogueSearch_ = Lens.create (fun a -> a.CatalogueSearch) (fun s a -> {a with CatalogueSearch = s})
 let simulateInRenderer_ = Lens.create (fun a -> a.SimulateInRenderer) (fun s a -> {a with SimulateInRenderer = s})
-let sidecarBuild_ = Lens.create (fun a -> a.SidecarBuild) (fun s a -> {a with SidecarBuild = s})
+let sidecarSession_ = Lens.create (fun a -> a.SidecarSession) (fun s a -> {a with SidecarSession = s})
+let sidecarInFlight_ = Lens.create (fun a -> a.SidecarInFlight) (fun s a -> {a with SidecarInFlight = s})
 let showLibrarySheets_ = Lens.create (fun a -> a.ShowLibrarySheets) (fun s a -> {a with ShowLibrarySheets = s})
 let openedLibrarySheets_ = Lens.create (fun a -> a.OpenedLibrarySheets) (fun s a -> {a with OpenedLibrarySheets = s})
 let readOnlyBaseline_ = Lens.create (fun a -> a.ReadOnlyBaseline) (fun s a -> {a with ReadOnlyBaseline = s})

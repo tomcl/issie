@@ -314,7 +314,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
             WaveProvider.wavesToFetch model.SimulateInRenderer (List.map SignalHandle (driversOf wsModel)) window
 
         let heldOrNot =
-            match missing, wsModel.FetchInProgress with
+            match missing, ModelHelpers.sidecarFetchInFlight model with
             | [], _ -> "held"
             | m, true -> $"{m.Length} waves missing, a fetch is already running"
             | m, false -> $"{m.Length} waves to fetch"
@@ -475,7 +475,7 @@ let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd
     match ws, model.CurrentProj with
     | Some ws, Some project when
         ws.State = Success
-        && not ws.FetchInProgress
+        && not (ModelHelpers.sidecarFetchInFlight model)
         && not model.SimulateInRenderer
         && not (backedOff ws)
         ->
@@ -559,13 +559,13 @@ let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd
                     return waves, rows
                 }
 
-            match model.SidecarBuild with
-            | SidecarBuilding _ ->
+            match model.SidecarSession with
+            | _ when ModelHelpers.sidecarIsBuilding model ->
                 // the build this fetch needs is already in flight; its completion redraws, and the
                 // refresh that follows asks for whatever the view then shows
                 model, cmd
 
-            | build when build.Holds(fs.SimulatedTopSheet, arraySize) ->
+            | session when session.Holds(fs.SimulatedTopSheet, arraySize) ->
                 // Said here and not above: the branches below decide to BUILD rather than fetch,
                 // and every message that arrives while a build runs comes through this function.
                 // Said before the decision, it announced a fetch once per message for the whole
@@ -574,9 +574,11 @@ let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd
                     Log.Wave
                     $"fetching {toFetch.Length} waves over {window.StartSample}+{window.SampleCount}x{window.Multiplier}{alsoRam}"
 
+                let seq = ModelHelpers.newSeq ()
+
                 let fetch =
                     Elmish.Cmd.OfPromise.either
-                        (fetchAll (Option.get build.Epoch))
+                        (fetchAll (Option.get session.Epoch))
                         ()
                         // WaveFetchDone rather than UpdateModel: clearing the bit and refreshing has to
                         // happen in one message, and the refresh returns a model AND A COMMAND that
@@ -586,10 +588,13 @@ let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd
                         // for the view the user had ended up on, and it computed the request and
                         // dropped it: the waveforms then showed the older view for ever, with nothing
                         // running and nothing to say so.
-                        WaveFetchDone
-                        (fun exn -> WaveFetchDone(Error exn.Message, None))
+                        (fun (waves, rows) -> SidecarReply(seq, AnsFetched(waves, rows)))
+                        (fun exn -> SidecarReply(seq, AnsFetched(Error exn.Message, None)))
 
-                model |> updateWSModel (fun ws -> { ws with FetchInProgress = true }),
+                model
+                |> Optic.map
+                    sidecarInFlight_
+                    (Map.add seq (OpFetch(toFetch.Length, ramToFetch |> List.tryHead |> Option.map fst))),
                 Elmish.Cmd.batch [ cmd; fetch ]
 
             | _ ->
@@ -600,16 +605,17 @@ let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd
                 // meanwhile. The fetch above is not re-issued here; the next message runs this
                 // function again, and by then the model says the session is ready.
                 Log.dbg Log.Wave $"building {design.TopSheet} on the .NET simulator for {arraySize} cycles"
+                let seq = ModelHelpers.newSeq ()
                 let startBuild () = SidecarSession.build design arraySize
 
-                model |> Optic.set sidecarBuild_ (SidecarBuilding(fs.SimulatedTopSheet, arraySize)),
+                model |> Optic.map sidecarInFlight_ (Map.add seq (OpBuild(fs.SimulatedTopSheet, arraySize))),
                 Elmish.Cmd.batch
                     [ cmd
                       Elmish.Cmd.OfPromise.either
                           startBuild
                           ()
-                          SidecarBuildFinished
-                          (fun exn -> SidecarBuildFinished(Error exn.Message)) ]
+                          (fun result -> SidecarReply(seq, AnsBuilt result))
+                          (fun exn -> SidecarReply(seq, AnsBuilt(Error exn.Message))) ]
     | _ -> model, cmd
 
 /// Refresh the state of the wave simulator according to the model and canvas state.

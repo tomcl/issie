@@ -151,7 +151,6 @@ let initWSModel  : WaveSimModel = {
     WaveDetails = Map.empty
     SelectedWaves = List.empty
     ViewSetAtMs = 0.0
-    FetchInProgress = false
     FetchFailedAtMs = 0.0
     StartCycle = 0
     ShownCycles = 5
@@ -545,8 +544,42 @@ let removeAllSimulationsFromModel (model:Model) =
     // Whatever the sidecar was holding is no longer wanted. Saying so here rather than in each
     // caller is what makes "one simulation stopped means the other rebuilds from scratch" true of
     // both of them: this is the one place both of them go through.
-    |> Optic.set sidecarBuild_ SidecarIdle
+    |> Optic.set sidecarSession_ NoSession
     |> Optic.map waveSim_ (Map.map (fun _ -> releaseWaveSimData))
+
+/// The next operation number.
+///
+/// A nonce and not state anyone reads: WHAT an operation is lives in the model, keyed by the
+/// number this hands out. Module-level for the same reason SidecarClient's correlation id is -
+/// handing out a number is not a thing the model does, and threading a counter through every
+/// caller would put one in the model that only this ever looks at.
+let mutable private nextSeq = 0u
+
+let newSeq () =
+    nextSeq <- nextSeq + 1u
+    SeqNum nextSeq
+
+/// Whether a build of the design on the .NET simulator is running.
+///
+/// Read off the in-flight table rather than kept beside it, so there is one thing that says so.
+/// An answer arriving removes the entry, which is the same moment the session appears - there is
+/// no window in which both are true, and none in which neither is.
+let sidecarIsBuilding (model: Model) =
+    model.SidecarInFlight |> Map.exists (fun _ op -> match op with OpBuild _ -> true | _ -> false)
+
+/// Whether a fetch of waveform data is running.
+///
+/// Read off the in-flight table, like everything else about what the simulator is doing. It was a
+/// bool on the WaveSimModel, set where the fetch started and cleared where it landed - a second
+/// place saying what the table says, which could disagree with it and which nothing outside the
+/// waveform simulator could see.
+let sidecarFetchInFlight (model: Model) =
+    model.SidecarInFlight |> Map.exists (fun _ op -> match op with OpFetch _ -> true | _ -> false)
+
+/// Whether anything at all has been asked of the .NET simulator and not yet answered - which is
+/// exactly when a SYNCHRONOUS operation may not be issued. Nothing else has to be checked: two
+/// synchronous operations cannot overlap, since one runs to completion before anything else runs.
+let sidecarIsBusy (model: Model) = not (Map.isEmpty model.SidecarInFlight)
 
 /// Which simulator a button is about to start, or is running, for its label - development builds
 /// only, where it is the empty string.

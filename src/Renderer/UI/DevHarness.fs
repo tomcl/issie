@@ -176,7 +176,7 @@ let private waveState () =
                     |> List.tryPick (fun wi ->
                         WaveDrawn.tryDrawn wi.SimArrayIndex |> Option.map (fun d -> d.Spec.Window.StartSample))
                     |> Option.defaultValue -1
-                   fetchInProgress = ws.FetchInProgress
+                   fetchInProgress = ModelHelpers.sidecarFetchInFlight model
                    spinner = Option.isSome model.SpinnerPayload |}
 
 /// Whether the .NET sidecar is reachable, and how much is in flight to it.

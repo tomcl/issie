@@ -70,9 +70,10 @@ let shortDWSM (ws: WaveSimModel) =
 let shortDisplayMsg (msg:Msg) =
     match msg with
     | AnyKeyPress code -> Some $"AnyKeyPress %A{code}"
-    | SidecarBuildStarted(top, arraySize) -> Some $"SidecarBuildStarted {top} for {arraySize} cycles"
-    | SidecarBuildFinished(Ok epoch) -> Some $"SidecarBuildFinished session {epoch}"
-    | SidecarBuildFinished(Error e) -> Some $"SidecarBuildFinished failed: {e}"
+    | SidecarOpStarted(SeqNum n, op) -> Some $"SidecarOpStarted #{n} %A{op}"
+    | SidecarReply(SeqNum n, AnsBuilt(Ok epoch)) -> Some $"SidecarReply #{n} built session {epoch}"
+    | SidecarReply(SeqNum n, AnsBuilt(Error e)) -> Some $"SidecarReply #{n} build failed: {e}"
+    | SidecarReply(SeqNum n, answer) -> Some $"SidecarReply #{n} %A{answer}"
     | WaveSimKeyPress _ -> None
     | ChangeWaveSimMultiplier n ->
         List.tryItem n Constants.multipliers
@@ -101,7 +102,6 @@ let shortDisplayMsg (msg:Msg) =
     | SetWSModelAndSheet (ws,s)-> Some $"SetWSModelAndSheet:{s}->{shortDWSM ws}"
     | GenerateWaveforms ws -> Some $"GenerateWaveforms:{shortDWSM ws}"
     | GenerateCurrentWaveforms -> Some $"Generate Current Waveforms"
-    | WaveFetchDone _ -> Some $"Wave Fetch Done"
     | CancelWaveSimulation -> Some "CancelWaveSimulation"
     | RefreshWaveSim ws -> Some "RefreshWaveSim"
     | SetWaveSheetSelectionOpen _ -> Some "SetWaveSheetSelectionOpen"

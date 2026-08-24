@@ -386,7 +386,14 @@ let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (dispatch: M
                 stepSimArraySize model |> Result.defaultValue Constants.maxArraySize
 
             /// Run the session to `cycle` and read the panel's signals back from it.
+            ///
+            /// In the in-flight table like every other asynchronous operation, and not because
+            /// anything draws it: a synchronous operation may go out only when that table is
+            /// EMPTY, so an operation missing from it is one a synchronous caller would talk over.
             let runAndRead epoch =
+                let seq = ModelHelpers.newSeq ()
+                dispatch (SidecarOpStarted(seq, OpStep cycle))
+
                 promise {
                     match! SidecarSession.runTo epoch cycle ignore with
                     | Error e -> failed $"run to cycle {cycle}" e
@@ -395,29 +402,30 @@ let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (dispatch: M
                         | Error e -> failed $"read cycle {cycle}" e
                         | Ok() -> ()
 
+                    dispatch (SidecarReply(seq, AnsStepped))
                     whenReady ()
                 }
 
-            match model.SidecarBuild with
-            | build when build.Holds(top, sidecarArraySize) ->
+            match model.SidecarSession with
+            | session when session.Holds(top, sidecarArraySize) ->
                 // the session is there to be commanded, so nothing here is slow enough to need
                 // saying: run it and read it
-                runAndRead (Option.get build.Epoch) |> Promise.start
+                runAndRead (Option.get session.Epoch) |> Promise.start
 
-            | SidecarBuilding _ ->
-                // Another advance already started the build this one would start. Its completion
-                // will redraw, and the refresh that follows asks again for the cycle then shown.
+            | _ when ModelHelpers.sidecarIsBuilding model ->
+                // Another advance already started the build this one would start. Its answer
+                // redraws, and the refresh that follows asks again for the cycle then shown.
                 whenReady ()
 
             | _ ->
-                // The one slow thing, said out loud: a message that a build has started, a message
-                // when it answers, and Model.SidecarBuild between the two - which is what lets
-                // everything that draws from this simulator answer at once meanwhile.
-                dispatch (SidecarBuildStarted(top, sidecarArraySize))
+                // The one slow thing, said out loud: a number, an entry in the in-flight table
+                // saying what is being waited for, and one reply message when it answers.
+                let seq = ModelHelpers.newSeq ()
+                dispatch (SidecarOpStarted(seq, OpBuild(top, sidecarArraySize)))
 
                 promise {
                     let! result = SidecarSession.build design sidecarArraySize
-                    dispatch (SidecarBuildFinished result)
+                    dispatch (SidecarReply(seq, AnsBuilt result))
 
                     match result with
                     | Error e ->
@@ -446,7 +454,7 @@ let setInput (model: Model) (simData: SimulationData) (compId: ComponentId) (val
         let cycle = simData.ClockTickNumber
         let asBigInt = value.GetBigInt
 
-        match model.SidecarBuild.Epoch with
+        match model.SidecarSession.Epoch with
         | _ when asBigInt > 9007199254740992I ->
             Log.error
                 $"the .NET simulator cannot yet be given a {value.Width}-bit input value this large - Development > Simulate In Renderer can set it"
@@ -567,7 +575,7 @@ let openRemoteRamDiff (fc: FastComponent) (cycle: int) (model: Model) (dispatch:
         | AsyncRAM1 m -> m
         | _ -> failwithf $"what? openRemoteRamDiff expected a RAM but got {fc.FType}"
 
-    match model.SidecarBuild.Epoch with
+    match model.SidecarSession.Epoch with
     | None -> Log.error "there is no .NET simulation to read a memory from"
     | Some epoch ->
         let (ComponentId cid), path = fc.fId

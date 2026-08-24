@@ -447,44 +447,6 @@ let updateUnpinned (msg : Msg) oldModel =
         let ws = getWSModel model
         WaveSimTop.refreshWaveSim false ws model
 
-    | WaveFetchDone(result, ramRows) ->
-        // Clear the bit FIRST, whether the fetch worked or not, so that the refresh below is free
-        // to ask for whatever is still missing. After a view that moved while this fetch was in the
-        // air, that is the view the user is now looking at.
-        let model =
-            model
-            |> updateWSModel (fun ws ->
-                { ws with
-                    FetchInProgress = false
-                    // whatever RAM rows came back with the waves. Held in the model rather than
-                    // beside it because the pane is memoised on the model: rows arriving anywhere
-                    // else would not redraw the table they belong to.
-                    RamRows =
-                        match ramRows with
-                        | Some(ram, held) -> Map.add ram held ws.RamRows
-                        | None -> ws.RamRows
-                    // a fetch that worked clears the backoff, so the next failure gets the full
-                    // wait rather than whatever is left of an older one
-                    FetchFailedAtMs =
-                        match result with
-                        | Ok() -> 0.0
-                        | Error _ -> TimeHelpers.getTimeMs () })
-
-        match result with
-        | Ok() ->
-            // What arrived is in the cache. The refresh redraws from it, and asks for anything the
-            // current view still needs - a wave just selected, or the window the user scrolled to
-            // while this was in flight.
-            WaveSimTop.refreshWaveSim false (getWSModel model) model
-        | Error e ->
-            // A fetch that fails now means a fault rather than a wait: the transport waits for a
-            // sidecar that is still starting, so what is left is a session that no longer exists, a
-            // design that would not build, or a sidecar that has died. Say so and stop - a fault
-            // asked again is a fault again, and the viewer's banner is what tells the user that
-            // what is on screen is not what the numbers above it say.
-            Log.error $"the .NET simulator could not answer for this view: {e}"
-            WaveSimTop.cancelSpinner model, Elmish.Cmd.none
-
     | CancelWaveSimulation ->
         // The simulation-extension loop re-arms itself through RunAfterRenderWithSpinner, so
         // cancelling means clearing that continuation along with the spinner - nothing else
@@ -566,26 +528,74 @@ let updateUnpinned (msg : Msg) oldModel =
             endWaveSimulation model, Cmd.none
         | Some _ -> endWaveSimulation model, Cmd.none
 
-    | SidecarBuildStarted(top, arraySize) ->
-        // The one state a synchronous question about the simulator cannot be answered in, and the
-        // reason it is in the model rather than beside it: everything that draws from the .NET
-        // simulator reads this to know that "nothing yet" is the honest answer, and reads it in
-        // view, at once.
-        model |> set sidecarBuild_ (SidecarBuilding(top, arraySize)) |> withNoMsg
+    | SidecarOpStarted(seq, op) ->
+        // Into the table, where anything asking whether the wire is free can see it. This is the
+        // one state a synchronous question about the simulator cannot be answered in, and the
+        // reason it is in the model rather than beside it: the UI must draw it, and a belief the
+        // view can only reach through a side channel is one the view cannot draw from.
+        model |> Optic.map sidecarInFlight_ (Map.add seq op) |> withNoMsg
 
-    | SidecarBuildFinished result ->
-        let built =
-            match model.SidecarBuild, result with
-            | SidecarBuilding(top, arraySize), Ok epoch -> SidecarReady(top, arraySize, epoch)
-            | _, Ok _ ->
-                // the simulation this was for ended while its build was in flight - the session
-                // exists on the sidecar but nothing here wants it, and the next build replaces it
-                SidecarIdle
-            | _, Error e ->
-                Log.error $"the .NET simulator could not build the design: {e}"
-                SidecarBuildFailed e
+    | SidecarReply(seq, answer) ->
+        // The number says which operation, the table says what it was, and what to do follows from
+        // the two - which is why there is one of these rather than a message per feature.
+        let op = Map.tryFind seq model.SidecarInFlight
+        let model = model |> Optic.map sidecarInFlight_ (Map.remove seq)
 
-        model |> set sidecarBuild_ built |> withNoMsg
+        match op, answer with
+        | None, _ ->
+            // an answer to an operation nothing is waiting for: the simulation it was asked for
+            // ended while it was in flight, and the table was emptied with it
+            model |> withNoMsg
+
+        | Some(OpBuild(top, arraySize)), AnsBuilt(Ok epoch) ->
+            model |> set sidecarSession_ (Session(top, arraySize, epoch)) |> withNoMsg
+
+        | Some(OpBuild _), AnsBuilt(Error e) ->
+            Log.error $"the .NET simulator could not build the design: {e}"
+            model |> set sidecarSession_ (SessionFailed e) |> withNoMsg
+
+        | Some(OpFetch _), AnsFetched(result, ramRows) ->
+            // The entry has already left the table above, whether the fetch worked or not, so the
+            // refresh below is free to ask for whatever is still missing. After a view that moved
+            // while this fetch was in the air, that is the view the user is now looking at.
+            let model =
+                model
+                |> updateWSModel (fun ws ->
+                    { ws with
+                        // whatever RAM rows came back with the waves. Held in the model rather than
+                        // beside it because the pane is memoised on the model: rows arriving anywhere
+                        // else would not redraw the table they belong to.
+                        RamRows =
+                            match ramRows with
+                            | Some(ram, held) -> Map.add ram held ws.RamRows
+                            | None -> ws.RamRows
+                        // a fetch that worked clears the backoff, so the next failure gets the full
+                        // wait rather than whatever is left of an older one
+                        FetchFailedAtMs =
+                            match result with
+                            | Ok() -> 0.0
+                            | Error _ -> TimeHelpers.getTimeMs () })
+
+            match result with
+            | Ok() ->
+                // What arrived is in the cache. The refresh redraws from it, and asks for anything the
+                // current view still needs - a wave just selected, or the window the user scrolled to
+                // while this was in flight.
+                WaveSimTop.refreshWaveSim false (getWSModel model) model
+            | Error e ->
+                // A fetch that fails now means a fault rather than a wait: the transport waits for a
+                // sidecar that is still starting, so what is left is a session that no longer exists, a
+                // design that would not build, or a sidecar that has died. Say so and stop - a fault
+                // asked again is a fault again, and the viewer's banner is what tells the user that
+                // what is on screen is not what the numbers above it say.
+                Log.error $"the .NET simulator could not answer for this view: {e}"
+                WaveSimTop.cancelSpinner model, Elmish.Cmd.none
+
+        | Some(OpStep _), AnsStepped -> model |> withNoMsg
+
+        | Some op, answer ->
+            Log.warn $"the .NET simulator answered %A{op} with %A{answer}, which does not belong to it"
+            model |> withNoMsg
 
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()

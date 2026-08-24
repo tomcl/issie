@@ -1,6 +1,8 @@
 # Reading a RAM from either simulator
 
-Plan, not yet implemented.
+**Steps 1-3 are done**: the sparse view is bounded and both viewers use it, still against the
+renderer's own simulation. What is left is the wire - `SimReadRam`, its cache, and the two
+viewers taking whichever simulator is running.
 
 ## Why
 
@@ -43,6 +45,24 @@ The conclusion the rest of this rests on: **no viewer ever needs a whole-memory 
 things a viewer shows - at most a hundred non-zero locations, or a window of fifty - are both
 bounded, and both are already cheap to produce one word at a time.
 
+## Bounded means bounded by BOTH counts
+
+The first version of this got it wrong and it is worth writing down. A walk that stops at the
+first `limit + 1` non-zero words is bounded only when there ARE that many: a memory with 65,536
+addresses written and fifty non-zero now runs out of slots before it runs out of limit, and
+walking all of them is the same 80 ms read. The live count cannot be the precondition for the
+walk, because the walk is how you learn it.
+
+So there are two bounds, and the one that decides is the count of addresses **ever written**:
+
+- more than `Constants.maxSlotsForWholeRead` (4 000, the 5 ms line above) - answer None without
+  walking at all, and the caller shows a window;
+- otherwise walk, stopping at the first `limit + 1` non-zero words.
+
+Cost is then the same whatever the memory holds. The price is a display change in one case: a
+memory written in more than 4 000 places but holding few words now used to get a sparse listing
+and now gets a window. It got that listing by reading the whole memory on every render.
+
 ## The set of written locations already exists
 
 `Ram.SlotAddr[0 .. SlotCount-1]` is exactly it. A slot is created the first time an address is
@@ -62,6 +82,25 @@ So of the three requirements:
 
 That is a strictly cheaper rule than the one in the code today, which asks the right question
 (`liveCountExceeds`) and then answers it the expensive way (`toMemory`).
+
+## What was done
+
+- `RamStore.sparseUpTo ram step limit` - the non-zero locations in address order, or None when
+  there are too many or too many slots to look through. Bounded as above.
+- `RamStore.toMemoryIfSmall ram step` - the whole memory when reading it is affordable, None when
+  it is not. For the one caller that genuinely needs all of it.
+- `WaveSimRams` asks `sparseUpTo` once instead of asking `liveCountExceeds` and then answering it
+  with `toMemory`. It does not ask at all when the user has typed a start address, since that is
+  a request for a window whatever the memory holds.
+- The step simulator's **View** button keeps the memory diff when the memory is small enough to
+  read, and is disabled with a tooltip when it is not - decided from the slot count while the row
+  is drawn, which is not a read.
+- `toMemory` remains for a memory diff and the golden files, and now says it must not be called
+  per render.
+
+Six tests in `Issie.RamStore`, over all six addressing/word-width configurations: the listing
+against the Map model at limits either side of the live count, the many-slots-few-live case, and
+the refusal past the budget.
 
 ## 1. The view a RAM table needs
 
@@ -156,17 +195,13 @@ Decide this before writing it, because it is the one place the answer is not obv
 
 ## 6. Order of work
 
-1. `RamRowType` and `RamRow`/`RamView` move below the UI; `WaveSimStyle` keeps its styling
-   function and aliases the type. No behaviour change.
-2. `RamStore.sparseUpTo`, with tests: fewer than the limit, exactly the limit, more than the
-   limit, a memory whose slots outnumber its non-zero words (the 80 ms case above), initial data
-   with no writes, and a wide-addressed memory.
-3. The **local** viewers move onto it - both tables, still reading the renderer's simulation. This
-   is where the 80 ms sparse read is fixed, and it is worth having on its own.
+1. ~~`RamStore.sparseUpTo` and `toMemoryIfSmall`, with tests.~~ Done.
+2. ~~The local viewers move onto them.~~ Done - this is where the 80 ms sparse read was fixed.
+3. `RamRowType` and `RamRow`/`RamView` move below the UI; `WaveSimStyle` keeps its styling
+   function and aliases the type. Left until the wire needs it: moving a type with no second
+   reader is churn.
 4. `SimReadRam` in the sidecar, `SidecarClient` and the cache.
 5. The viewers take whichever simulator is running, and the two "not available" messages go.
-
-Steps 1-3 are worth doing whether or not 4-5 follow.
 
 ## Verification
 

@@ -1,4 +1,4 @@
-/// How a read/write memory's contents are held while a simulation runs.
+﻿/// How a read/write memory's contents are held while a simulation runs.
 ///
 /// See [docs/dev/ramRepresentation.md] for why this exists and what it is worth. In short: the
 /// contents used to be a `Map<bigint,bigint>` and a fresh snapshot of it was stored for every
@@ -43,6 +43,19 @@ module Constants =
     /// more than 4G words cannot be meaningfully simulated, so that path is a guard, not a
     /// design.
     let maxTrieAddressWidth = 32
+
+    /// The most addresses ever written that a whole-memory read will be attempted for.
+    ///
+    /// Reading a memory means one search of each slot's own writes, so it is linear in the
+    /// addresses ever written - measured at 1.3 ms for a thousand, 13.6 ms for ten thousand and
+    /// 80.3 ms for a full 64K (docs/dev/ramOverTheWire.md). Four thousand is where that passes
+    /// 5 ms, which is as long as a per-render read may take.
+    ///
+    /// Past it a caller is told no rather than made to wait: a RAM table shows a window instead
+    /// of listing every location, and the step simulator's memory diff is not offered. This is
+    /// the bound that makes those paths cost the same whatever the memory holds - the count of
+    /// non-zero words cannot be it, because finding that out is the walk being avoided.
+    let maxSlotsForWholeRead = 4000
 
     /// Children per trie node. Four bits a level.
     let trieBranch = 16
@@ -581,6 +594,57 @@ let liveCountExceeds (ram: Ram) (step: int) (limit: int) : bool =
                 s <- s + 1
             count > limit
 
+/// The non-zero locations at the end of `step`, in address order - or None when there are more
+/// than `limit` of them.
+///
+/// This is what a RAM table's sparse display is: every location worth a row, when there are few
+/// enough to list. It replaces asking `liveCountExceeds` and then building the answer with
+/// `toMemory`, which is the right question answered the expensive way - the count is bounded by
+/// the limit but the whole-memory read is not, so a memory with 65,536 addresses written and
+/// fifty non-zero now took the sparse branch and paid 80 ms for it, on every render.
+///
+/// Bounded by TWO things, and it needs both. The slot table is the set of addresses that could be
+/// non-zero - a slot exists once an address has been written, and `reset` seeds the initial
+/// contents as writes at step -1 - so the walk stops at the first `limit + 1` non-zero words. But
+/// a memory with 65,536 addresses written and fifty non-zero now would run out of SLOTS before it
+/// ran out of limit, and walking all of them is the 80 ms read this exists to avoid. So a memory
+/// with more than `Constants.maxSlotsForWholeRead` addresses ever written answers None without
+/// walking at all: the caller shows a window instead.
+///
+/// The count that decides it is therefore addresses EVER WRITTEN, not words currently non-zero.
+/// It has to be: the second is what the walk is for, so it cannot also be its precondition.
+let sparseUpTo (ram: Ram) (step: int) (limit: int) : (bigint * bigint) list option =
+    match ram.Addressing with
+    | Fixed ->
+        // a read-only memory's contents ARE the answer, walked only as far as the limit
+        let found =
+            ram.InitialData
+            |> Map.toSeq
+            |> Seq.filter (fun (_, v) -> v <> 0I)
+            |> Seq.truncate (limit + 1)
+            |> Seq.toList
+
+        if List.length found > limit then None else Some found
+    | _ when ram.SlotCount > Constants.maxSlotsForWholeRead -> None
+    | _ ->
+        ensureCompact ram
+        let mutable found = []
+        let mutable count = 0
+        let mutable s = 0
+
+        while count <= limit && s < ram.SlotCount do
+            let v = slotValueAt ram s step
+
+            if v <> 0I then
+                count <- count + 1
+                if count <= limit then found <- (addressOf ram s, v) :: found
+
+            s <- s + 1
+
+        // slots are walked in the order they were created, which is the order addresses were
+        // first written; a table shows them by address
+        if count > limit then None else Some(List.sortBy fst found)
+
 /// How many words were non-zero at the end of `step`. Only diagnostics and tests want the exact
 /// number; the display wants `liveCountExceeds`.
 let liveCountAt (ram: Ram) (step: int) : int =
@@ -611,6 +675,17 @@ let toMemory (ram: Ram) (step: int) : Memory1 =
       WordWidth = ram.WordWidth
       Data = data
       Comments = ram.Comments }
+
+/// The whole memory as of `step`, when reading it is affordable - None when it is not.
+///
+/// What "affordable" means, and why it is a count of addresses ever written rather than of words
+/// held, is on `Constants.maxSlotsForWholeRead`. A caller told None must show something bounded
+/// instead, and must not fall back to `toMemory`.
+let toMemoryIfSmall (ram: Ram) (step: int) : Memory1 option =
+    match ram.Addressing with
+    | Fixed -> Some(toMemory ram step)
+    | _ when ram.SlotCount > Constants.maxSlotsForWholeRead -> None
+    | _ -> Some(toMemory ram step)
 
 //-------------------------------------------------------------------------------------------//
 //------------------------------------ create and reset -------------------------------------//

@@ -546,17 +546,30 @@ let private viewStatefulComponents step comps numBase model dispatch =
                     m
                 | _ ->
                     failwithf "what? viewStatefulComponents expected RAM component but got: %A" compType
+            // Whether the diff can be shown at all: it needs the whole memory on both sides, and
+            // reading one is linear in the addresses it has ever held. RamStore says when that is
+            // affordable; past its bound the button says so rather than freezing the pane for a
+            // tenth of a second, or showing a memory it only partly read. Asked while the line is
+            // DRAWN because the answer decides what the button is - it is a slot count, not a read.
+            let fits = ram.SlotCount <= RamStore.Constants.maxSlotsForWholeRead
             let viewDiffBtn =
                 Button.button [
-                    Button.Props [ simulationBitStyle ]
-                    Button.Color IsPrimary
+                    Button.Props [
+                        simulationBitStyle
+                        if not fits then
+                            Tooltip.dataTooltip
+                                "This memory has been written in too many places to compare with its                                  initial contents. The waveform simulator's RAM table shows a window of it."
+                    ]
+                    Button.Color (if fits then IsPrimary else IsGreyLight)
+                    Button.Disabled (not fits)
                     // The whole memory is built here, when the button is pressed, and not while
                     // this line is drawn: toMemory walks every address the memory has ever held,
                     // and this pane is redrawn on every message.
                     Button.OnClick (fun _ -> dispatch <| ExecFuncInMessage(
                         (fun model _ ->
-                            let mem = RamStore.toMemory ram step
-                            openMemoryDiffViewer (initialMem fc.FType) mem model dispatch), dispatch)
+                            match RamStore.toMemoryIfSmall ram step with
+                            | Some mem -> openMemoryDiffViewer (initialMem fc.FType) mem model dispatch
+                            | None -> ()), dispatch)
                     )
                 ] [ str "View" ]
             [ splittedLine (str label) viewDiffBtn ]

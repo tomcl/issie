@@ -1,4 +1,4 @@
-/// `RamStore` against an independent model: a plain `Map` of the contents, snapshotted at every
+﻿/// `RamStore` against an independent model: a plain `Map` of the contents, snapshotted at every
 /// step. The store replaced exactly such a Map (see [docs/dev/ramRepresentation.md]), so the Map
 /// is the specification and this checks the store against it - currently, historically, and after
 /// a restart.
@@ -113,6 +113,26 @@ let tests =
                         $"live words at step {step}"
             }
 
+            test $"sparseUpTo agrees with the Map, or says there are too many ({name})" {
+                let steps = 200
+                let ram, _, snapshots = driveBoth aw ww Map.empty steps (steps + 1)
+                for step in [ 0; 1; steps / 3; steps / 2; steps - 1 ] do
+                    let live = Map.count snapshots[step]
+                    // one either side of the count, and the exact count, since the boundary is
+                    // where an off-by-one hides
+                    for limit in [ live - 1; live; live + 1 ] do
+                        match sparseUpTo ram step limit with
+                        | Some rows ->
+                            Expect.isLessThanOrEqual live limit
+                                $"a listing came back at limit {limit} for {live} live words"
+                            Expect.equal (Map.ofList rows) snapshots[step]
+                                $"the listing at step {step}, limit {limit}"
+                            Expect.equal rows (List.sortBy fst rows) "rows come back in address order"
+                        | None ->
+                            Expect.isGreaterThan live limit
+                                $"refused at limit {limit} with only {live} live words"
+            }
+
             test $"toMemory rebuilds the Map exactly ({name})" {
                 let steps = 200
                 let ram, _, snapshots = driveBoth aw ww Map.empty steps (steps + 1)
@@ -132,6 +152,49 @@ let tests =
                     Expect.equal (readCurrent ram addr) value $"{addr} back to its initial value"
                 Expect.equal ram.Writes 0 "a reset store has recorded no writes"
                 Expect.equal (liveCountAt ram 0) (Map.count initial) "live count back to the initial one"
+            }
+
+            test $"sparseUpTo walks slots, not the whole memory ({name})" {
+                // The case the sparse display exists for and used to be ruinous at: many
+                // addresses written, almost none of them non-zero now. toMemory walks every slot
+                // whatever the answer; this must not.
+                let ram = ofMemory 100000 (memOf aw ww Map.empty)
+                let written = min 2000 (1 <<< min aw 16)
+                let stride = 100
+                for a in 0 .. written - 1 do
+                    write ram (a + 1) (bigint a) (bigint (a + 1))
+                // zero all but every `stride`th of them again
+                for a in 0 .. written - 1 do
+                    if a % stride <> 0 then write ram (written + a + 1) (bigint a) 0I
+                let step = 2 * written + 1
+                let expected = [ for a in 0 .. stride .. written - 1 -> bigint a ]
+                Expect.equal ram.SlotCount written "every address written has a slot"
+                match sparseUpTo ram step 100 with
+                | None -> failtest $"{List.length expected} non-zero words is not more than a hundred"
+                | Some rows ->
+                    Expect.equal (rows |> List.map fst) expected
+                        "only the words that are still non-zero, in address order"
+            }
+
+            test $"a memory too big to read whole is refused, not walked ({name})" {
+                // The bound that makes these paths cost the same whatever the memory holds. A
+                // memory with far more addresses written than the budget must answer at once,
+                // whether or not almost all of them are zero now - finding THAT out is the walk
+                // being avoided.
+                if aw >= 16 then
+                    let ram = ofMemory 100000 (memOf aw ww Map.empty)
+                    let written = RamStore.Constants.maxSlotsForWholeRead + 1
+                    for a in 0 .. written - 1 do
+                        write ram (a + 1) (bigint a) 1I
+                    // zero all but two, so the live count is tiny and only the slot count is not
+                    for a in 2 .. written - 1 do
+                        write ram (written + a) (bigint a) 0I
+                    let step = 2 * written + 1
+                    Expect.isGreaterThan ram.SlotCount RamStore.Constants.maxSlotsForWholeRead
+                        "the memory really is past the budget"
+                    Expect.equal (sparseUpTo ram step 100) None
+                        "no sparse listing, however few words are live"
+                    Expect.equal (toMemoryIfSmall ram step) None "and no whole read either"
             }
 
             test $"a write that changes nothing is not recorded ({name})" {

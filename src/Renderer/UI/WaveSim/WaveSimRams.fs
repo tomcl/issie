@@ -86,11 +86,23 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
             ValOptic_ = opticPath ramId >-> Optics.snd_
             }
 
+        /// Every non-zero location, when there are few enough to list them - one bounded walk of
+        /// the memory's written addresses. It used to ask whether there were few enough
+        /// (liveCountExceeds, bounded) and then build the list with toMemory (not bounded): a
+        /// 64K RAM with fifty non-zero words took the sparse branch and read all 65,536 of its
+        /// slots for it, on every render. See docs/dev/ramOverTheWire.md.
+        ///
+        /// Not asked for at all when the user has typed a start address, since that is a request
+        /// for a window whatever the memory holds.
+        let sparseLocations =
+            match Optic.get loc.TextOptic_ model with
+            | "" -> RamStore.sparseUpTo ram step Constants.maxRamLocsWithSparseDisplay
+            | _ -> None
+
         let startDisplayLoc, windowedDisplay =
-            match Optic.get loc.ValOptic_ model,  Optic.get loc.TextOptic_ model with
-            | start, _ when RamStore.liveCountExceeds ram step Constants.maxRamLocsWithSparseDisplay -> start, true
-            | _, text when text = "" -> 0I, false
-            | start, _ -> start, true
+            match Optic.get loc.ValOptic_ model, sparseLocations with
+            | _, Some _ -> 0I, false
+            | start, None -> start, true
 
         let maxHeight =
             max (screenHeight() - (min wanted (screenHeight()/2.)) - 300.) 30.
@@ -221,9 +233,10 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
                 |> List.sortBy (fun (start,_,_) -> if  isInWindow start then 0 else 1) // put read and write at bottom if outside window
                 |> List.map print1
             else
-                // the sparse display lists every non-zero location, so it does want all of them -
-                // but it is only ever chosen when there are at most maxRamLocsWithSparseDisplay
-                (RamStore.toMemory ram step).Data
+                // chosen only when sparseUpTo answered, so this is that answer
+                sparseLocations
+                |> Option.defaultValue []
+                |> Map.ofList
                 |> addReadWrite fc step
                 |> Map.toList
                 |> List.map (fun (a,(d,rw)) -> a,d,rw)

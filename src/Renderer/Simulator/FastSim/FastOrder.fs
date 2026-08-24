@@ -1,4 +1,4 @@
-module FastOrder
+﻿module FastOrder
 
 open CommonTypes
 open TimeHelpers
@@ -140,12 +140,6 @@ let orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : FastSimu
             fc.Touched <- true
             propagateEval fc)
 
-    let orderedSet =
-        orderedComps
-        |> List.toArray
-        |> Array.map (fun co -> co.fId)
-        |> Set
-
     instrumentTime "orderCombinationalComponents" startTime
 
     { fs with FOrderedComps = orderedComps |> Array.ofList |> Array.rev }
@@ -212,12 +206,6 @@ let orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulation) : Fas
             orderedComps <- fc :: orderedComps
             fc.Touched <- true
             propagateEval fc)
-
-    let orderedSet =
-        orderedComps
-        |> List.toArray
-        |> Array.map (fun co -> co.fId)
-        |> Set
 
     instrumentTime "orderCombinationalComponents" startTime
 

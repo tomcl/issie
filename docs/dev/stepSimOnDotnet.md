@@ -1,6 +1,7 @@
 # Run the step simulator under .NET
 
-Plan, not yet implemented.
+Done, except a RAM's contents - see the last section. Kept because it records why each piece is
+where it is, and what is still missing.
 
 ## Why
 
@@ -60,23 +61,51 @@ The stateful section splits three ways, and only one of them is missing:
   otherwise says plainly that they are not available rather than showing a memory as it was before
   the first clock edge. **Say the same thing here.** Wrong contents look exactly like right ones.
 
-## Order of work
+## What was done
 
-Each step compiles and is separately testable.
+`SimulationView` gained one section - "the step panel, from whichever simulator is running" - and
+every site that ran or read the simulation goes through it:
 
-1. **The run path.** `simulateWithProgressBar`, the step-forward and step-back buttons, and
-   `simulationClockChangeAction` call `SidecarClient.simRun` when `not model.SimulateInRenderer`.
-   This is the whole of the measured complaint, and it can go in before anything is read back.
-2. **The build path.** The step simulator's build sends the design and issues `SimBuild`, keeping
-   the renderer's own build for structure, sized by `rendererArraySizeWhenSidecarSimulates` as the
-   waveform simulator's is.
-3. **A step-panel cache**, in the shape of `WaveData.source`: the last snapshot, the epoch and the
-   cycle it is of. Filled from the update function by one `SimRead` naming every signal the panel
-   shows; read synchronously by the view. One request, not one per row - the panel is redrawn on
-   every render.
-4. **The four read sites** take their values from the cache in sidecar mode.
-5. **`changeInput`** becomes `SimSetInputs`.
-6. **RAM and AsyncRAM** get `WaveSimRams`'s message.
+- `advanceTo` replaces the five `FastRun.runFastSimulation` calls. Local: runs and calls back at
+  once, as before. Sidecar: `ensureBuilt`, `runTo`, then one `SimRead` of the panel's signals.
+- `StepPanelData` is the cache, in the shape of `WaveData`'s: one snapshot, of one cycle of one
+  session, so a value can only ever be read back for the cycle and epoch it was fetched for.
+- `ioValues`, `viewerValues` and `statefulValues` replace the four `FastExtract` calls.
+- `setInput` replaces `changeInput`: `SimSetInputs` and then a re-read, because the values on
+  screen were computed from the input that just changed.
+- `clockNow` is the clock a run advances from. Locally the `FastSimulation`'s own tick; in sidecar
+  mode the model's, because the local simulation is never run and the sidecar's clock only ever
+  goes forwards while the panel can be stepped back.
+- The session itself moved to `Interface/SidecarSession`, out of `WaveProvider`, which compiles
+  after `SimulationView`. The sidecar holds one session and now one module knows what it is.
+
+The sidecar's session is shared with the waveform simulator. That is mostly a saving - a session
+built for a long waveform run is reused rather than rebuilt - but the two are stepping the same
+simulation, so setting an input here moves what a waveform simulation of the same design would
+show. They are different tabs and starting a waveform simulation runs it again from its own
+inputs, so nothing stale is drawn.
+
+## What it measured
+
+`largeTest/main5`, 120,084 components, step simulator, Run to clock 1000, read off the progress
+bar - the same thing, on the same design, as the number that started this:
+
+| | component-clocks/ms |
+| --- | ---: |
+| renderer | ~6,000 |
+| .NET | **25,900** |
+
+Values agree: `3cpu/eep1` stepped to clock 5 gives `NZCV=8, PCV=x0002, R0=x0002` in both modes.
+
+## Still to do
+
+- **A RAM's contents.** Shown as unavailable, the way `WaveSimRams` shows them. A command that
+  reads a memory store over the wire would give both back at once.
+- **Input values above 2^53.** `SimSetInputs` carries a value as two 32-bit words. A wider input
+  is refused by name rather than sent truncated.
+- **`ISimulator` is still not implemented.** `advanceTo` and the three value functions are the
+  same shape as `RunTo`, `SetInput` and `ReadStepPanel`, and should become them - along with the
+  waveform simulator's own path - rather than a second way of saying it.
 
 ## The one real difficulty
 

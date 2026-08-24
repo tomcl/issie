@@ -1,4 +1,4 @@
-//(*
+﻿//(*
 //    SimulationView.fs
 //
 //    View for simulation in the right tab.
@@ -176,6 +176,252 @@ let private splittedLine leftContent rightConent =
         ]
     ]
 
+//--------------------------------------------------------------------------------------//
+//----------The step panel, from whichever simulator is running--------------------------//
+//--------------------------------------------------------------------------------------//
+//
+// The step simulator used to run in the renderer whatever Model.SimulateInRenderer said - nothing
+// in this file consulted it - so "Run to clock N" on a large design was V8's job even with the
+// .NET simulator selected, and the components/ms the progress bar quotes was a V8 number.
+//
+// What changes here is only WHERE the work happens. The panel shows one cycle of one simulation,
+// and every value on it is a component OUTPUT: the top-level inputs and outputs, the viewers
+// wherever they sit in the hierarchy, and the registers and counters, whose state IS Outputs[0].
+// So one SimRead names all of them and one reply fills the panel. The renderer still builds its
+// own simulation for STRUCTURE - which components exist, their labels and widths - and in sidecar
+// mode never runs it.
+//
+// Two things this does not move, both deliberate:
+//   - a RAM's contents, which are in the memory store rather than on a wire and have no command
+//     yet. Shown as unavailable, the way WaveSimRams already shows them, because a memory as it
+//     was before the first clock edge looks exactly like a correct one.
+//   - a ROM's contents, which are part of its type and need no simulation at all.
+
+/// One clock of the panel's signals, named the way the sidecar names them. Every one is an
+/// output port 0: an input's own value, an output's value, a viewer's, or a register's state.
+let panelSignals (simData: SimulationData) : StepPanelData.PanelSignal list =
+    let asSignal ((ComponentId cid), path) =
+        { StepPanelData.Comp = cid
+          StepPanelData.Path = path |> List.map (fun (ComponentId p) -> p)
+          StepPanelData.Port = 0 }
+
+    let ios =
+        simData.Inputs @ simData.Outputs
+        |> List.map (fun (cid, _, _) -> asSignal (cid, []))
+
+    let viewers =
+        simData.FastSim.FComps
+        |> Map.toList
+        |> List.choose (fun (fid, fc) ->
+            match fc.FType with
+            | Viewer _ -> Some(asSignal fid)
+            | _ -> None)
+
+    // the stateful rows that are signals; a RAM's and a ROM's contents are not
+    let registers =
+        simData.FastSim.FClockedComps
+        |> Array.toList
+        |> List.filter (fun fc ->
+            fc.AccessPath = []
+            && (match fc.FType with
+                | RAM1 _
+                | AsyncRAM1 _
+                | ROM1 _ -> false
+                | _ -> true))
+        |> List.map (fun fc -> asSignal fc.fId)
+
+    ios @ viewers @ registers |> List.distinct
+
+/// A value the sidecar sent back, as the panel's own value type. `None` - nothing fetched for
+/// this cycle - is shown as zero of the right width, which is what an unread port already looks
+/// like; the alternative is a blank row appearing and disappearing as replies land.
+let private panelValue (cycle: int) (width: int) (signal: StepPanelData.PanelSignal) =
+    StepPanelData.valueAt cycle signal
+    |> Option.defaultValue 0I
+    |> convertBigintToFastData width
+    |> IData
+
+/// The clock a run should advance FROM: what the panel is showing now.
+///
+/// Locally the FastSimulation's own tick and the model's are the same number - the model is
+/// incremented by exactly what was run - and the FastSimulation's is used because it is the one
+/// that cannot be stale. In sidecar mode the local simulation is built and never run, so its tick
+/// is 0 for ever; the sidecar's own clock is not the answer either, since it only ever goes
+/// forwards while the panel can be stepped back. The model's clock is what is on screen.
+let clockNow (model: Model) (simData: SimulationData) =
+    if model.SimulateInRenderer then simData.FastSim.ClockTick else simData.ClockTickNumber
+
+/// Advance whichever simulator is running to `cycle`, and make that cycle's values readable.
+///
+/// Local: the FastSimulation is run here and `whenReady` is called at once, exactly as before.
+/// Sidecar: the design is built there if it does not already hold it, run to `cycle`, and the
+/// panel's signals read back into StepPanelData - then `whenReady`. The caller dispatches from
+/// `whenReady` either way, so it does not have to know which happened.
+///
+/// The sidecar holds ONE session, shared with the waveform simulator. That is mostly a saving -
+/// a session built for a long waveform run is reused here rather than rebuilt - but it does mean
+/// the two are stepping the same simulation, so setting an input here moves what a waveform
+/// simulation of the same design would show. They are different tabs and starting a waveform
+/// simulation runs it again from its own inputs, so nothing stale is drawn; it is written down
+/// because "one session" is the thing that makes it true.
+let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (whenReady: unit -> unit) : unit =
+    if model.SimulateInRenderer then
+        FastRun.runFastSimulation None cycle simData.FastSim |> ignore
+        StepPanelData.forget ()
+        whenReady ()
+    else
+        match model.CurrentProj with
+        | None -> whenReady ()
+        | Some project ->
+            let design =
+                ModelHelpers.designOf project (model.Sheet.GetCanvasState())
+                |> CanvasExtractor.simpleDesignOfLoadedComponents
+                |> fun d -> { d with TopSheet = simData.FastSim.SimulatedTopSheet }
+
+            let signals = panelSignals simData
+
+            let failed (what: string) (e: string) =
+                // The panel keeps whatever it last held, which is of an earlier cycle, so say so
+                // rather than let the clock move under values that did not.
+                Log.error $"the .NET simulator could not {what}: {e}"
+                StepPanelData.forget ()
+
+            promise {
+                match! SidecarSession.ensureBuilt design simData.FastSim.MaxArraySize with
+                | Error e -> failed "build the design" e
+                | Ok epoch ->
+                    match! SidecarSession.runTo epoch cycle ignore with
+                    | Error e -> failed $"run to cycle {cycle}" e
+                    | Ok() ->
+                        match! StepPanelData.fill epoch cycle signals with
+                        | Error e -> failed $"read cycle {cycle}" e
+                        | Ok() -> ()
+
+                whenReady ()
+            }
+            |> Promise.start
+
+/// Set a top-level input at the shown cycle, on whichever simulator is running, and make the
+/// panel's values for that cycle current again.
+///
+/// Locally that is one call: changeInput sets the value and re-runs the combinational logic at
+/// that step. Over the wire it is SimSetInputs and then a re-read, because the values the panel
+/// is showing were computed from the input this just changed.
+///
+/// **Values up to 2^53.** SimSetInputs carries a value as two 32-bit words, so a wider input
+/// cannot be set from here yet; it is refused by name rather than sent truncated, which would
+/// show the user a value the simulation is not running on.
+let setInput (model: Model) (simData: SimulationData) (compId: ComponentId) (value: FastData) (whenReady: unit -> unit) : unit =
+    if model.SimulateInRenderer then
+        FastExtract.changeInput compId (IData value) simData.ClockTickNumber simData.FastSim
+        whenReady ()
+    else
+        let (ComponentId cid) = compId
+        let cycle = simData.ClockTickNumber
+        let asBigInt = value.GetBigInt
+
+        match SidecarSession.current () with
+        | _ when asBigInt > 9007199254740992I ->
+            Log.error
+                $"the .NET simulator cannot yet be given a {value.Width}-bit input value this large -                   Development > Simulate In Renderer can set it"
+            whenReady ()
+        | None ->
+            Log.error "there is no .NET simulation to set an input on"
+            whenReady ()
+        | Some(_, _, epoch) ->
+            promise {
+                let! reply = SidecarClient.simSetInputs epoch cycle [ cid, float asBigInt ]
+
+                match SidecarSession.errorIn reply with
+                | Some e ->
+                    Log.error $"the .NET simulator could not set an input: {e}"
+                    StepPanelData.forget ()
+                | None ->
+                    match! StepPanelData.fill epoch cycle (panelSignals simData) with
+                    | Error e ->
+                        Log.error $"the .NET simulator could not read cycle {cycle} back: {e}"
+                        StepPanelData.forget ()
+                    | Ok() -> ()
+
+                whenReady ()
+            }
+            |> Promise.start
+
+/// The panel's top-level input or output values, from whichever simulator is running.
+let ioValues (model: Model) (simData: SimulationData) (ios: SimulationIO list) =
+    if model.SimulateInRenderer then
+        FastExtract.extractFastSimulationIOs ios simData
+    else
+        ios
+        |> List.map (fun ((ComponentId cid, _, width) as io) ->
+            io, panelValue simData.ClockTickNumber width { Comp = cid; Path = []; Port = 0 })
+
+/// The panel's viewer values, from whichever simulator is running.
+let viewerValues (model: Model) (simData: SimulationData) =
+    if model.SimulateInRenderer then
+        FastExtract.extractViewers simData
+    else
+        simData.FastSim.FComps
+        |> Map.toList
+        |> List.choose (fun (fid, fc) ->
+            match fc.FType with
+            | Viewer _ ->
+                let (ComponentId cid), path = fid
+                let width = fc.OutputWidth 0
+
+                Some(
+                    FastExtract.getFLabel simData.FastSim fid,
+                    width,
+                    panelValue
+                        simData.ClockTickNumber
+                        width
+                        { Comp = cid
+                          Path = path |> List.map (fun (ComponentId p) -> p)
+                          Port = 0 }
+                )
+            | _ -> None)
+
+/// The panel's stateful rows, from whichever simulator is running.
+///
+/// In sidecar mode this is the registers and counters only - their state is Outputs[0], so it is
+/// a signal like any other - and a memory is left out because its contents cannot be read over
+/// the wire yet. `ramsAreLocalOnly` below is what tells the user that, rather than a table of
+/// whatever the unrun local simulation happens to hold.
+let statefulValues (model: Model) (simData: SimulationData) =
+    if model.SimulateInRenderer then
+        FastExtract.extractStatefulComponents simData.ClockTickNumber simData.FastSim
+    else
+        simData.FastSim.FClockedComps
+        |> Array.filter (fun fc ->
+            fc.AccessPath = []
+            && (match fc.FType with
+                | RAM1 _
+                | AsyncRAM1 _
+                | ROM1 _ -> false
+                | _ -> true))
+        |> Array.map (fun fc ->
+            let (ComponentId cid), _ = fc.fId
+            let width = fc.OutputWidth 0
+
+            let value =
+                StepPanelData.valueAt simData.ClockTickNumber { Comp = cid; Path = []; Port = 0 }
+                |> Option.defaultValue 0I
+
+            fc, RegisterState(convertBigintToFastData width value))
+
+/// Whether this design has memories whose contents the panel cannot show, because the .NET
+/// simulator is the one holding them. Says the same thing WaveSimRams says, for the same reason.
+let ramsAreLocalOnly (model: Model) (simData: SimulationData) =
+    not model.SimulateInRenderer
+    && simData.FastSim.FClockedComps
+       |> Array.exists (fun fc ->
+           fc.AccessPath = []
+           && (match fc.FType with
+               | RAM1 _
+               | AsyncRAM1 _
+               | ROM1 _ -> true
+               | _ -> false))
+
 /// Pretty print a label with its width.
 let makeIOLabel label width =
     let label = cropToLength 15 true label
@@ -185,6 +431,7 @@ let makeIOLabel label width =
 
 let private viewSimulationInputs
         (numberBase : NumberBase)
+        (model: Model)
         (simulationData : SimulationData)
         (inputs : (SimulationIO * FSInterface) list)
         dispatch =
@@ -203,8 +450,8 @@ let private viewSimulationInputs
                     Button.OnClick (fun _ ->
                         let newBit = 1u - bit
                         let graph = simulationGraph
-                        FastExtract.changeInput (ComponentId inputId) (IData {Dat = Word newBit; Width = 1}) simulationData.ClockTickNumber simulationData.FastSim
-                        dispatch <| SetSimulationGraph(graph, simulationData.FastSim)
+                        setInput model simulationData (ComponentId inputId) {Dat = Word newBit; Width = 1} (fun () ->
+                            dispatch <| SetSimulationGraph(graph, simulationData.FastSim))
                     )
                 ] [ str <| bitToString (match bit with 0u -> Zero | _ -> One)]
             | IData bits ->
@@ -225,8 +472,8 @@ let private viewSimulationInputs
                                 CloseSimulationNotification |> dispatch
                                 // Feed input.
                                 let graph = simulationGraph
-                                FastExtract.changeInput (ComponentId inputId) (IData bits) simulationData.ClockTickNumber simulationData.FastSim
-                                dispatch <| SetSimulationGraph(graph, simulationData.FastSim)
+                                setInput model simulationData (ComponentId inputId) bits (fun () ->
+                                    dispatch <| SetSimulationGraph(graph, simulationData.FastSim))
                         ))
                     ]
                 ]
@@ -626,23 +873,27 @@ let simulateWithProgressBar (simProg: SimulationProgress) (model:Model) =
     match model.CurrentStepSimulationStep, model.PopupDialogData.Progress with
     | Some (Ok simData), Some barData ->
         let nComps = float simData.FastSim.FComps.Count
-        let oldClock = simData.FastSim.ClockTick
+        let oldClock = clockNow model simData
         let clock = min simProg.FinalClock (simProg.ClocksPerChunk + oldClock)
         let t1 = getTimeMs()
-        FastRun.runFastSimulation None clock simData.FastSim |> ignore
-        let t2 = getTimeMs()
-        let speed = if t2 = t1 then 0. else (float clock - float oldClock) * nComps / (t2 - t1)
-        let messages =
-            if clock - oldClock < simProg.ClocksPerChunk then [   
-                SetSimulationGraph(simData.Graph, simData.FastSim)
-                IncrementSimulationClockTick (clock - oldClock); 
-                SetPopupProgress None ]
-            else [
-                SetSimulationGraph(simData.Graph, simData.FastSim)
-                IncrementSimulationClockTick simProg.ClocksPerChunk
-                UpdatePopupProgress (fun barData -> {barData with Value = clock - simProg.InitialClock; Speed = speed})
-                SimulateWithProgressBar simProg ]
-        model, doBatchOfMsgsAsynch messages       
+        // Cmd.ofEffect rather than a run and a batch of messages: with the .NET simulator the
+        // chunk is a round trip, so the messages that report it can only be sent once it lands.
+        // The local path still runs synchronously inside advanceTo and dispatches immediately.
+        model, Elmish.Cmd.ofEffect (fun dispatch ->
+            advanceTo model simData clock (fun () ->
+                let t2 = getTimeMs()
+                let speed = if t2 = t1 then 0. else (float clock - float oldClock) * nComps / (t2 - t1)
+                let messages =
+                    if clock - oldClock < simProg.ClocksPerChunk then [
+                        SetSimulationGraph(simData.Graph, simData.FastSim)
+                        IncrementSimulationClockTick (clock - oldClock);
+                        SetPopupProgress None ]
+                    else [
+                        SetSimulationGraph(simData.Graph, simData.FastSim)
+                        IncrementSimulationClockTick simProg.ClocksPerChunk
+                        UpdatePopupProgress (fun barData -> {barData with Value = clock - simProg.InitialClock; Speed = speed})
+                        SimulateWithProgressBar simProg ]
+                messages |> List.iter dispatch))
     | _ -> 
         model, Elmish.Cmd.ofMsg (SetPopupProgress None)
     
@@ -671,8 +922,15 @@ let simulationClockChangeAction dispatch simData (model': Model) =
     // hung the application on any design of more than 20000 components. A short run whose chunk
     // rounds down to none hangs it the same way.
     let initChunk = max 1 (min steps (20000/(numComps + 1)))
-    let initTime = getTimeMs()
+    // How long the run will take is worked out by SAMPLING it - running the first few clocks and
+    // scaling - which needs the simulation to be the local one. With the .NET simulator it is
+    // not: sampling would do in the renderer exactly the work this mode exists to move, and would
+    // leave the renderer's clock ahead of the sidecar's. There is nothing to estimate for
+    // either - SidecarSession.runTo chunks by TIME internally, so the chunk below only decides
+    // how often the bar moves, and the bar's speed figure comes from the first chunk that lands.
+    let sampled = model'.SimulateInRenderer
     let estimatedTime = 
+        if not sampled then 0.0 else
         match clock - simData.FastSim.ClockTick with
         | n when n > 0 -> 
             (float steps / float initChunk) * (simulateWithTime None (initChunk+initClock) simData + 0.0000001)
@@ -681,22 +939,26 @@ let simulationClockChangeAction dispatch simData (model': Model) =
         | _ -> 
             (float steps / float initChunk) * (simulateWithTime None steps simData + 0.0000001)
     let chunkTime = min 2000. (estimatedTime / 5.)
-    let chunk = max 1 (int <| float steps * chunkTime / estimatedTime)
-    if steps > 2*initChunk && estimatedTime > 500. then 
+    let chunk =
+        if not sampled then max 1 (steps / 20) else max 1 (int <| float steps * chunkTime / estimatedTime)
+    let showProgress =
+        if not sampled then steps > chunk else steps > 2*initChunk && estimatedTime > 500.
+    if showProgress then 
         dispatch <| SetPopupProgress 
             (Some {
-                Speed = float (numComps * steps) / estimatedTime
-                Value=initChunk; 
+                Speed = if sampled then float (numComps * steps) / estimatedTime else 0.0
+                Value = if sampled then initChunk else 0
                 Max=steps; 
                 Title= "running simulation..."
                 })
         [
             SetSimulationGraph(simData.Graph, simData.FastSim)
-            IncrementSimulationClockTick (initChunk-simData.ClockTickNumber+initClock)
+            // only the sampled path has already run initChunk clocks
+            if sampled then IncrementSimulationClockTick (initChunk-simData.ClockTickNumber+initClock)
             ClosePopup
             SimulateWithProgressBar {
                 FinalClock = clock; 
-                InitialClock = initChunk + initClock; 
+                InitialClock = if sampled then initChunk + initClock else simData.ClockTickNumber
                 ClocksPerChunk = chunk 
                 }
         ]
@@ -705,22 +967,22 @@ let simulationClockChangeAction dispatch simData (model': Model) =
         |> ExecCmdAsynch
         |> dispatch
     else
-        FastRun.runFastSimulation None clock simData.FastSim |> ignore
-        [
-            SetSimulationGraph(simData.Graph, simData.FastSim)
-            IncrementSimulationClockTick (clock - simData.ClockTickNumber)
-            ClosePopup
-        ]
-        |> Seq.map Elmish.Cmd.ofMsg 
-        |> Elmish.Cmd.batch
-        |> ExecCmdAsynch
-        |> dispatch
+        advanceTo model' simData clock (fun () ->
+            [
+                SetSimulationGraph(simData.Graph, simData.FastSim)
+                IncrementSimulationClockTick (clock - simData.ClockTickNumber)
+                ClosePopup
+            ]
+            |> Seq.map Elmish.Cmd.ofMsg
+            |> Elmish.Cmd.batch
+            |> ExecCmdAsynch
+            |> dispatch)
 
 
 
 let viewSimulationData (step: int) (simData : SimulationData) model dispatch =
     let viewerWidthList =
-        FastExtract.extractViewers simData
+        viewerValues model simData
         |> List.map (fun (_, width, _) -> width)
     let outputWidthList =
         simData.Outputs 
@@ -741,10 +1003,9 @@ let viewSimulationData (step: int) (simData : SimulationData) model dispatch =
                     Button.Color IsSuccess
                     Button.Disabled (simData.ClockTickNumber = 0)
                     Button.OnClick (fun _ ->
-                        //let graph = feedClockTick simData.Graph
-                        FastRun.runFastSimulation None (simData.ClockTickNumber-1) simData.FastSim |> ignore
-                        dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)                    
-                        IncrementSimulationClockTick -1 |> dispatch
+                        advanceTo model simData (simData.ClockTickNumber-1) (fun () ->
+                            dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)
+                            IncrementSimulationClockTick -1 |> dispatch)
                     )
                 ] [ str "◀" ]
                 str " "
@@ -772,22 +1033,31 @@ let viewSimulationData (step: int) (simData : SimulationData) model dispatch =
                 Button.button [
                     Button.Color IsSuccess
                     Button.OnClick (fun _ ->
-                        //let graph = feedClockTick simData.Graph
-                        FastRun.runFastSimulation None (simData.ClockTickNumber+1) simData.FastSim |> ignore
-                        dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)                    
-                        IncrementSimulationClockTick 1 |> dispatch
+                        advanceTo model simData (simData.ClockTickNumber+1) (fun () ->
+                            dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)
+                            IncrementSimulationClockTick 1 |> dispatch)
                     )
                 ] [ str "▶" ]
             ]
     let maybeStatefulComponents() =
         let stateful = 
-            FastExtract.extractStatefulComponents simData.ClockTickNumber simData.FastSim
+            statefulValues model simData
             |> Array.toList
-        match List.isEmpty stateful with
+        // A memory's contents live in its store rather than on a wire, and there is no command to
+        // read one over the wire yet - so with the .NET simulator this would show the memory as it
+        // was before the first clock edge, under a heading naming whatever cycle is on screen.
+        // Wrong contents look exactly like right ones. WaveSimRams says the same thing.
+        let memoryNote =
+            if ramsAreLocalOnly model simData then
+                [ div [ Style [ Margin "10px"; MaxWidth "40em" ] ] [
+                    str "Memory contents are not shown while the .NET simulator is running the                          simulation. Development > Simulate In Renderer shows them again." ] ]
+            else []
+        match List.isEmpty stateful && List.isEmpty memoryNote with
         | true -> div [] []
         | false -> div [] [
             Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Stateful components" ]
             viewStatefulComponents step stateful simData.NumberBase model dispatch
+            yield! memoryNote
         ]
     let questionIcon = str "\u003F"
 
@@ -819,8 +1089,9 @@ let viewSimulationData (step: int) (simData : SimulationData) model dispatch =
             Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Inputs" ]
             viewSimulationInputs
                 simData.NumberBase
+                model
                 simData
-                (FastExtract.extractFastSimulationIOs simData.Inputs simData)
+                (ioValues model simData simData.Inputs)
                 dispatch
 
 
@@ -830,9 +1101,9 @@ let viewSimulationData (step: int) (simData : SimulationData) model dispatch =
                     str "Outputs &"
                     tip "Add Viewer components to any sheet in the simulation" "Viewers"
                 ]
-            viewViewers simData.NumberBase <| List.sort (FastExtract.extractViewers simData)
+            viewViewers simData.NumberBase <| List.sort (viewerValues model simData)
             viewSimulationOutputs simData.NumberBase
-            <| FastExtract.extractFastSimulationIOs simData.Outputs simData
+            <| ioValues model simData simData.Outputs
 
             maybeStatefulComponents()
         ]

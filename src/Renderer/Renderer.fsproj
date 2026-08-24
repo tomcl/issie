@@ -154,6 +154,7 @@
     <Compile Include="UI\MiscMenuView.fs" />
     <Compile Include="UI\TopMenuView.fs" />
     <Compile Include="UI\CustomCompPorts.fs" />
+    <Compile Include="UI\StepPanelData.fs" />
     <Compile Include="UI\SimulationView.fs" />
     <Compile Include="UI\StepSimulationTop.fs" />
     <Compile Include="UI\TruthTable\TruthTableReduce.fs" />

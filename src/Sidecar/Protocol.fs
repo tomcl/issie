@@ -1,4 +1,4 @@
-/// The wire protocol between Issie's renderer and this sidecar, in full.
+﻿/// The wire protocol between Issie's renderer and this sidecar, in full.
 ///
 /// Every WebSocket message is binary, and one message is one request or one response:
 ///
@@ -108,9 +108,11 @@ let SimSetInputs = 0x0Auy
 /// uint32 LE sample count, uint32 LE signal count, then per signal uint32 LE component id, uint32 LE
 /// output port number, uint32 LE access-path length, then that many uint32 LE path component
 /// ids (root first). Reply payload on success: uint32 LE signal count, uint32 LE sample count,
-/// then signal-major uint32 LE values - so values start at byte 16 of the frame, 8-aligned for
-/// a zero-copy Uint32Array view. Signals wider than 32 bits are refused for now. An error
-/// reply is JSON text (starts with '{').
+/// uint32 LE words per sample, four bytes of padding, then signal-major values, each `words`
+/// uint32 LE words least significant first - so values start at byte 16 of the frame, 8-aligned
+/// for a zero-copy Uint32Array view. Any width: the words per sample are read from the simulation
+/// and stated in the reply, so a caller whose idea of a width is stale still reads what was sent.
+/// An error reply is JSON text (starts with '{').
 [<Literal>]
 let SimRead = 0x0Buy
 

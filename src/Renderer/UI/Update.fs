@@ -34,6 +34,35 @@ let mutable uiStartTime: float = 0.
     
 
 
+/// End the waveform simulation, releasing everything it holds.
+///
+/// **The two simulations are mutually exclusive**, and this is what makes it so from the step
+/// simulator's side: starting one ends the other, ending one leaves nothing of it, and whichever
+/// is started next builds from scratch. Nothing in Issie runs two simulations at once, and the
+/// .NET simulator depends on that - it holds ONE session, and there is no arbitration between two
+/// things driving it because there are never two.
+///
+/// Safe to call when there is no waveform simulation: it is then the releases, which are already
+/// empty, and a model that already says so.
+let private endWaveSimulation (model: Model) =
+    Simulator.simCacheWS <- Simulator.simCacheInit ()
+    // the waveforms on screen are about to stop being on screen, and they are the only thing
+    // this holds
+    WaveDrawn.forget ()
+    // As EndSimulation: the wave selector's and the RAM list's indexes are memoised on the
+    // simulation, so they have to be emptied or they retain it for the rest of the session.
+    Helpers.clearIdentityMemos ()
+    let model = removeAllSimulationsFromModel model
+
+    match model.WaveSimSheet with
+    | None
+    | Some "" -> model
+    | Some sheet ->
+        { model with
+            WaveSimSheet = None
+            WaveSim =
+                Map.change sheet (Option.map (fun ws -> { ws with State = Ended; WaveModalActive = false })) model.WaveSim }
+
 //----------------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------UPDATE-----------------------------------------------------------//
 //----------------------------------------------------------------------------------------------------------------//
@@ -334,8 +363,16 @@ let updateUnpinned (msg : Msg) oldModel =
 
         model, Cmd.none
 
-    | StartSimulation simData -> 
-        {model with CurrentStepSimulationStep = Some simData }
+    | StartSimulation simData ->
+        // The two simulations are mutually exclusive, and this is the direction that was missing.
+        // Starting a WAVEFORM simulation already ends this one - startWaveSimulation goes through
+        // removeAllSimulationsFromModel - and so does ending it, but a step simulation started
+        // while a waveform one was live left both in the model. With the .NET simulator that is
+        // two things driving one session: the step simulator running and reading it, and
+        // fetchWhatIsMissing still fetching waves and RAM rows for a view nobody is looking at.
+        model
+        |> endWaveSimulation
+        |> set currentStepSimulationStep_ (Some simData)
         |> withNoMsg
 
     | SetWSModel wsModel ->
@@ -522,26 +559,12 @@ let updateUnpinned (msg : Msg) oldModel =
         |> withNoMsg
 
     | EndWaveSim ->
-        let model =
-            Simulator.simCacheWS <- Simulator.simCacheInit()
-            // the waveforms on screen are about to stop being on screen, and they are the only
-            // thing this holds
-            WaveDrawn.forget ()
-            // As EndSimulation: the wave selector's and the RAM list's indexes are memoised on the
-            // simulation, so they have to be emptied or they retain it for the rest of the session.
-            Helpers.clearIdentityMemos()
-            let model = removeAllSimulationsFromModel model
-            match model.WaveSimSheet with
-            | None | Some "" -> 
-                Log.warn "cannot end the waveform simulation: it has already ended"
-                model
-            | Some sheet -> 
-                { model with 
-                    WaveSimSheet = None; 
-                    WaveSim = Map.change sheet (Option.map (fun ws ->
-                        {ws with  State = Ended ; WaveModalActive = false})) model.WaveSim
-                }
-        model, Cmd.none
+        match model.WaveSimSheet with
+        | None
+        | Some "" ->
+            Log.warn "cannot end the waveform simulation: it has already ended"
+            endWaveSimulation model, Cmd.none
+        | Some _ -> endWaveSimulation model, Cmd.none
 
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()

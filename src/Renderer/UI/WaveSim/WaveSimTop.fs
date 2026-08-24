@@ -596,7 +596,14 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
                 Option.get (getCurrFile model)
             | Some sheet ->
                 sheet
-        let model = 
+        // The two simulations are mutually exclusive, so starting this one ends the step
+        // simulation. As a MESSAGE, because the model built below is a local copy used to work out
+        // the new WaveSimModel and is never dispatched - removeAllSimulationsFromModel applied to
+        // it cleared a step simulation that stayed in the real model, which is how one could
+        // survive the start of a waveform simulation and leave two of them live at once.
+        dispatch EndSimulation
+
+        let model =
             model
             |> removeAllSimulationsFromModel
             |> fun model -> {model with WaveSimSheet = Some wsSheet}

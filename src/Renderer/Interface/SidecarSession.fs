@@ -40,21 +40,6 @@ let mutable private built: (string * int * int) option = None
 /// sidecar says what it has reached.
 let mutable private clockTick = 0
 
-/// A build that has been started and not yet finished, so that callers arriving while one is in
-/// flight wait for it instead of starting another.
-///
-/// What this guards against is silent and total: a design is uploaded one sheet per message and
-/// index 0 begins an upload, discarding any abandoned one, so two builds interleaving leave the
-/// sidecar holding half of each and a design with no top sheet in it - "no sheet called eep1 in
-/// the design", and every fetch on that session broken with it.
-///
-/// It is NOT how the waveform viewer's own fetches are kept apart. Those are one command that
-/// asks for everything in order, under one FetchInProgress bit (WaveSimTop.fetchWhatIsMissing);
-/// the concurrency was removed rather than managed. This remains because the step simulator can
-/// build too (SimulationView.advanceTo), and it and a live waveform simulation are not sequenced
-/// with each other.
-let mutable private building: JS.Promise<Result<int, string>> option = None
-
 /// The session the sidecar is believed to hold, or None.
 let current () = built
 
@@ -65,7 +50,6 @@ let clockReached () = clockTick
 /// the design changes.
 let forget () =
     built <- None
-    building <- None
     clockTick <- 0
 
 /// The error text of a sidecar reply, or None when it is not an error. Every reply that can fail
@@ -77,49 +61,53 @@ let errorIn (reply: string) =
 let parseJson (text: string) : obj = jsNative
 
 
-/// Build the design on the sidecar if it does not already hold it at a big enough array size,
-/// or wait for the build already running.
+/// Build the design on the sidecar if it does not already hold it at a big enough array size.
+///
+/// **One caller at a time, by construction rather than by guarding.** Issie runs one simulation:
+/// starting the waveform simulator ends the step simulator and starting the step simulator ends
+/// the waveform one (Update.endWaveSimulation), and within the waveform simulator everything one
+/// update wants is fetched by a single command in order
+/// (WaveSimTop.fetchWhatIsMissing). So nothing here arbitrates between two builds - there are
+/// never two. An in-flight guard lived here briefly, and it was covering for a second asker that
+/// should not have existed.
+///
+/// It matters that this stays true: a design is uploaded one sheet per message and index 0 begins
+/// an upload, discarding any abandoned one, so two builds interleaving leave the sidecar holding
+/// half of each. That is reported rather than silent - the build fails with "no sheet called X in
+/// the design" and `built` is left None, so the next attempt starts cleanly - but it is a
+/// simulation the user asked for and did not get.
 let ensureBuilt (design: SimpleDesign) (arraySize: int) : JS.Promise<Result<int, string>> =
-    match built, building with
-    | Some(top, size, epoch), _ when top = design.TopSheet && size >= arraySize -> Promise.lift (Ok epoch)
-    | _, Some inFlight -> inFlight
+    match built with
+    | Some(top, size, epoch) when top = design.TopSheet && size >= arraySize -> Promise.lift (Ok epoch)
     | _ ->
-        let started =
-            promise {
-                do! SidecarClient.connect ()
-                let sheetJsons = design.Sheets |> List.map Json.serialize<SimpleSheet>
-                let! sent = SidecarClient.sendDesign design.TopSheet sheetJsons
+        promise {
+            do! SidecarClient.connect ()
+            let sheetJsons = design.Sheets |> List.map Json.serialize<SimpleSheet>
+            let! sent = SidecarClient.sendDesign design.TopSheet sheetJsons
 
-                match errorIn sent with
+            match errorIn sent with
+            | Some e ->
+                built <- None
+                return Error e
+            | None ->
+                let! reply = SidecarClient.simBuild arraySize
+
+                match errorIn reply with
                 | Some e ->
                     built <- None
                     return Error e
                 | None ->
-                    let! reply = SidecarClient.simBuild arraySize
+                    let epoch = SidecarClient.epochOf reply
 
-                    match errorIn reply with
-                    | Some e ->
+                    if epoch = 0 then
+                        // a build that issued no epoch built nothing, whatever else the reply said
                         built <- None
-                        return Error e
-                    | None ->
-                        let epoch = SidecarClient.epochOf reply
-
-                        if epoch = 0 then
-                            // a build that issued no epoch built nothing, whatever else the reply said
-                            built <- None
-                            return Error $"the sidecar's build reply named no session: {reply}"
-                        else
-                            built <- Some(design.TopSheet, arraySize, epoch)
-                            clockTick <- 0
-                            return Ok epoch
-            }
-
-        building <- Some started
-
-        started
-        |> Promise.map (fun result ->
-            building <- None
-            result)
+                        return Error $"the sidecar's build reply named no session: {reply}"
+                    else
+                        built <- Some(design.TopSheet, arraySize, epoch)
+                        clockTick <- 0
+                        return Ok epoch
+        }
 
 /// Advance the sidecar's simulation to `cycle`, a chunk at a time so the renderer stays live.
 /// `onProgress` is told the clock tick after each chunk, which is what lets a progress bar move

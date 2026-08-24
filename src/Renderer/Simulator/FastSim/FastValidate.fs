@@ -1,4 +1,4 @@
-module FastValidate
+﻿module FastValidate
 
 open CommonTypes
 open TimeHelpers
@@ -15,8 +15,8 @@ open FastOrder
 // widths the components declare.
 
 // The size in bytes per clock step of the simulation arrays used to be worked out here, from the
-// built simulation, at 16 bytes for a bigint. It is now FastCreate.stepCostOfDesign, worked out
-// from the flattened design BEFORE the arrays are allocated - which is the only point at which
+// built simulation, at 16 bytes for a bigint. It is now FastCreate.stepCostOfGraph, worked out
+// from the design's merged graph BEFORE anything is allocated - which is the only point at which
 // knowing the size can prevent anything - and it distinguishes the two memories the arrays come
 // out of, which one number could not.
 

@@ -29,6 +29,7 @@
     <!-- Common definitions -->
     <Compile Include="Common\EEExtensions.fs" />
     <Compile Include="Common\Optics.fs" />
+    <Compile Include="Common\LookupArray.fs" />
     <Compile Include="Common\HashMap.fs" />
     <!-- Vendored Fable.SimpleJson, patched for Fable 5 - see Common\SimpleJson\README.md -->
     <Compile Include="Common\SimpleJson\TypeCheck.fs" />

@@ -1,4 +1,4 @@
-/// Refusing a simulation that will not fit in memory, before any of it is allocated.
+﻿/// Refusing a simulation that will not fit in memory, before any of it is allocated.
 ///
 /// There are two ways a design exhausts memory and both are refused here. Its step arrays may be
 /// too large, which is a question of how many cycles are asked for; or the design itself may expand
@@ -181,6 +181,64 @@ let tests =
                     cost.TotalBytes cost.TypedArrayBytes cost.HeapBytes allowed
                 Expect.isGreaterThan allowed (defaultLength * 10)
                     "a real design must have room for far more than the default simulation length"
+        }
+
+        test "what the budget charges for is what the build allocates" {
+            // The price is read off the design's merged graph before anything is built, and the
+            // build then allocates from the flattened design. Two walks, and if they ever
+            // disagreed the waveform simulator's configuration dialog and the build itself would
+            // disagree about what a design costs - the dialog offering a length the build refuses.
+            // So this recomputes the total from the components the build actually made.
+            let ldcs = TestFixtures.loadProject "3cpu"
+            let top = ldcs |> List.find (fun ldc -> ldc.Name = "eep1")
+
+            let fromGraph =
+                match Simulator.validateCircuitSimulation "eep1" top.CanvasState ldcs with
+                | Ok graph -> FastCreate.stepCostOfGraph graph
+                | Error e -> failtest $"a real CPU should validate: %A{e}"
+
+            match Simulator.startCircuitSimulation 10 "eep1" top.CanvasState ldcs with
+            | Error e -> failtest $"a real CPU should simulate: %A{e}"
+            | Ok simData ->
+                Expect.equal simData.FastSim.StepCost fromGraph
+                    "the built simulation is priced at what the graph walk said"
+
+                let fs = simData.FastSim
+                let typed, heap =
+                    Seq.append (Map.toSeq fs.FComps) (Map.toSeq fs.FCustomComps)
+                    |> Seq.fold
+                        (fun (typed, heap) (_, fc: FastComponent) ->
+                            let typed, heap =
+                                ((typed, heap), fc.SimComponent.OutputWidths)
+                                ||> Array.fold (fun (t, h) w ->
+                                    if w <= 32 then t + FastCreate.stepBytesForWidth w, h
+                                    else t, h + FastCreate.stepBytesForWidth w)
+                            if SynchronousUtils.couldBeSynchronousComponent fc.FType then
+                                typed, heap + 4
+                            else
+                                typed, heap)
+                        (0, 0)
+
+                Expect.equal (typed, heap) (fromGraph.TypedArrayBytes, fromGraph.HeapBytes)
+                    "every port the build gave a step array to was charged for, and no other"
+        }
+
+        test "a sheet used twice is charged twice" {
+            // The price is taken by descending into each custom INSTANCE's own graph, which is
+            // what makes a design that expands expensive. Counting each sheet once - pricing the
+            // files rather than the expansion - would say a hierarchy costs almost nothing.
+            let costOfSheet (copies: int) =
+                let top = chainSheet $"chain{copies}" leaf copies
+                match Simulator.validateCircuitSimulation top.Name top.CanvasState [ leaf; top ] with
+                | Ok graph -> (FastCreate.stepCostOfGraph graph).TotalBytes
+                | Error e -> failtest $"a chain of {copies} instances should validate: %A{e}"
+
+            // each extra instance adds the same custom component and the same whole copy of the
+            // leaf below it, so the price is linear in the number of instances
+            let none, one, two = costOfSheet 0, costOfSheet 1, costOfSheet 2
+            Expect.isGreaterThan (one - none) 0 "an instance costs something"
+            Expect.equal (two - one) (one - none)
+                "and the second instance costs exactly what the first one did"
         }
 
         test "a design with nothing to store is not refused" {

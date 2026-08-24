@@ -173,6 +173,30 @@ a ROM means building and retaining two copies of its lookup table. If a reducer 
 genuinely depends on the pass (the hybrid asynchronous RAM is the only candidate), the flag comes
 back and the caller goes to two calls *for that component only*.
 
+### Where the rest of it goes
+
+The `perf` phase table covers `buildFastSimulation`, and that is the smaller half of what a user
+waits for. On `3cpu` the build is 11 ms of a 54 ms `startCircuitSimulation`. Sampled in the
+renderer with `Profiler` over the CDP, per build:
+
+| | ms |
+| --- | ---: |
+| `runCanvasStateChecksAndBuildGraph` | 31 |
+| `buildFastSimulation` (what the phase table covers) | 15 |
+| `saveStateInSimulation` | 7 |
+| `analyseSimulationGraph` | 5 |
+| `mergeDependencies` | 2 |
+
+So **two thirds of starting a simulation happens before the fast simulator sees the design**, in
+canvas checking, width inference and dependency merging. Its profile has the same shape as the
+first entry under Known debt below: `MapTreeModule_*`, `Compare` and `CompareTo` on
+structurally-keyed maps are about a quarter of it, and nothing has been done about that.
+
+Two smaller things the same profiling turned up, both untouched: `FastOrder` builds an
+`orderedSet` of every ordered component's `FComponentId` and never reads it - a `Set<FComponentId>`
+over the whole design, built for nothing - and `order` and `waves` together are now the largest
+part of the fast build, about a third of it on a design of any size.
+
 ## Known debt
 
 Roughly in order of how much it costs.
@@ -200,14 +224,64 @@ is in fact the best of those three. And `[<Struct>]` on an id makes it a value t
 exactly that trap: see the note above the id types in `CommonTypes.fs`, where the same effect is
 measured end to end as +1.9% allocation across a whole 3cpu build.
 
-The direction, when it is worth doing: **allocate contiguous integers as ids at build time**, and
-let the id type carry that integer so everything else about a component is an array lookup from
-it. That makes the id both a name and an index, which is what the design-time `ComponentId`
-already is per design and what a simulation-time id could be per build. The condition is that any
-such array is built **write-once**, or is encapsulated tightly enough that nothing outside can
-mutate it - otherwise this trades a slow lookup for the class of bug `docs/mutableState.md`
-exists to prevent. A build-scoped index also must not be persisted: anything saved or compared
-across builds stays a structured name.
+**The gather phase has been done, and it is the worked example of what the rest would look like.**
+`GatherData` was four such maps; it is now `LookupArray<FastComponent>` plus a `string array` of
+labels indexed by design `ComponentId` (`Common/LookupArray.fs`, `FastCreate.flattenLevel`). The
+flatten creates each `FastComponent` as it meets it, `LookupArray.addItem` stamps it with its
+position, and every link the walk can see - sibling outputs, custom component ports - is resolved
+into those positions on the spot, so `getLinks` and `linkFastComponents` read arrays where they
+used to walk maps. `linkFastComponents`'s duplicate-driver check went the same way, from a
+structural map through a `Dictionary<int,_>` to a plain `int array` indexed by step-array index.
+
+What that bought, in the app, as the median of ~19 builds (`benchmark` from the DevHarness, `perf`
+log category on). Two designs: `3cpu/eep1`, 378 components, and a generated six-level hierarchy
+expanding to 14,842 - built with the sheet DSL, which is what it is for.
+
+| phase | 378 before | 378 after | 14,842 before | 14,842 after |
+| --- | ---: | ---: | ---: | ---: |
+| `gather` | 2 ms | 5 ms | 115 ms | 175 ms |
+| `createInit` | 5 ms | 1 ms | 206 ms | 57 ms |
+| `link` | 3 ms | 1 ms | 119 ms | 18 ms |
+| everything else | 4 ms | 3.5 ms | 96 ms | 136 ms |
+| **whole build** | **14 ms** | **10.5 ms** | **536 ms** | **386 ms** |
+
+`gather` grew because it now creates the FastComponents and their step arrays, which is the second
+traversal `createInit` no longer makes. The three phases together went 366 ms → 250 ms on the
+larger design, and `link` - which is nothing but the lookups this removed - fell by a factor of
+six. Allocation fell too: `SimLog`'s `AllocMb` for a `3cpu` build under .NET went 29.12 MB → 27.97
+MB (medians of three, each repeating to about 1%), and the renderer's own per-phase heap deltas
+put the whole 14,842-component build at 131 MB against 144 MB.
+
+**Measure this the way those numbers were measured, or not at all.** Build time varies by 15-20%
+between two runs of *identical* code in different app sessions - enough that a single before/after
+pair reversed the sign of this change when it was first measured. Take at least fifteen builds of
+each, quote the median and the minimum, and treat anything under about 20% as unproven.
+
+Three things that made it possible, worth knowing before the same is done to the tables above.
+The store is **build-scoped**, so `docs/mutableState.md`'s condition is met by construction rather
+than argued: nothing outside the build can reach it. The budget check had to move ahead of the
+flatten, since the flatten now allocates - which is why `stepCostOfGraph`/`costAndSizeOfGraph`
+price the design off its merged `SimulationGraph` rather than off the flattened one, and that in
+turn is what lets `ModelHelpers.waveSimStepCost` price a design without flattening it at all.
+And **one store, one index space**: custom against ordinary is a predicate over it, never a second
+store, or the same integer would mean two different things.
+
+**A component is now allocated in gather order, so walk it in gather order.** Everything the build
+makes is created by one traversal, in one contiguous run of allocations; `fs.FComps` is keyed by
+`(ComponentId, access path)`, so iterating it visits those same objects in an order unrelated to
+where they sit in memory. `createFastArrays`, `determineBigIntState` and `addWavesToFastSimulation`
+therefore take the gather's array rather than the maps - which also stops `createFastArrays`
+building three throwaway `Map`s just to filter them.
+
+What is left of the original problem is the tables the built simulation offers everything else -
+`FComps`, `FCustomComps`, `WaveComps`, `FCustomOutputCompLookup` - which are still
+`Map<FComponentId, _>`, built once at the end of the gather from the store. They are the door, and
+the ~85 call sites behind it in the waveform simulator, Verilog output, extraction and the tests
+were untouched by any of the above; building them is what `createInit` still costs. Deleting them
+means `WaveIndexT.Id` carrying an index rather than a structured name, which is a change with a
+much larger blast radius and should be its own piece of work. Note the condition that still
+applies: a build-scoped index must not be persisted, so anything saved or compared across builds
+stays a structured name.
 
 **`EvalAlgebraic` duplicates `EvalReference`.** ~2,500 lines expressing one set of component
 semantics twice, kept in step only by discipline. The build path duplicates with it:
@@ -217,11 +291,17 @@ initialised. Parameterising the build path on a small `Evaluator` record would d
 the indirect call would land on the build path only, and the run loop must keep calling
 `fc.ReduceComb` directly or the dispatch this design removes comes straight back.
 
-**`FastComponent` carries five unrelated concerns**: step data, the reducers, ordering scratch
-(`Touched`, `NumMissingInputValues`, `DrivenComponents`), naming (`FullName`, `SimSheetName`,
+**`FastComponent` carries six unrelated concerns**: step data, the reducers, ordering scratch
+(`Touched`, `NumMissingInputValues`, `DrivenComponents`), link scratch (`OutLinks`,
+`CustomInLinks`, `CustomOutIndex`, `CustomOutPort`), naming (`FullName`, `SimSheetName`,
 `SimSheetNamePath`, `SheetName`, `FLabel`) and Verilog output names. Only the first two are needed
-once the build is over. The ordering scratch is the easy one — it is build-only state on a hot
-record and could live in a table inside `FastOrder`.
+once the build is over. The link scratch is the newest and the least bad of them: it is what the
+gather resolves and `linkFastComponents` consumes, and that function empties the two array fields
+when it is finished so a built simulation does not carry a link table per component. It is on the
+record because a link is an index into the store the record itself lives in, and putting it in a
+parallel table indexed the same way would be a second thing to keep in step for no gain. The
+ordering scratch is the one actually worth moving — build-only state on a hot record, which could
+live in a table inside `FastOrder`.
 
 **The façade is notional.** `Simulator.fs` is nominally the entry point, but twelve modules
 outside `Simulator/` reach into `FastRun`, `FastExtract`, `FastCreate` and the evaluators. Some of

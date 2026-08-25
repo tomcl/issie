@@ -366,7 +366,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             //Check if the new zoom will exceed the canvas width or height
             let newZoom =
                 let minXZoom = (edge.Right - edge.Left) / model.CanvasSize
-                let minYZoom = (edge.Top - edge.Bottom) / model.CanvasSize
+                let minYZoom = (edge.Bottom - edge.Top) / model.CanvasSize
                 List.max [model.Zoom / Constants.zoomIncrement; minXZoom; minYZoom]
             let oldScreenCentre = getVisibleScreenCentre model
 
@@ -385,7 +385,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                     min Constants.maxMagnification unclampedZoom
                 else
                     let minXZoom = (edge.Right - edge.Left) / model.CanvasSize
-                    let minYZoom = (edge.Top - edge.Bottom) / model.CanvasSize
+                    let minYZoom = (edge.Bottom - edge.Top) / model.CanvasSize
                     List.max [unclampedZoom; minXZoom; minYZoom]
 
             { model with Zoom = newZoom },

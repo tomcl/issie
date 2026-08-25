@@ -65,6 +65,58 @@ type InstanceView =
       ViewSubSheet: string list
       ViewPorts: InstancePort list }
 
+/// The width and driver index of one port: what a wave needs from the BUILD, and nothing else.
+///
+/// Two ints, because this is what travels when the simulator is in another process. Everything
+/// else a selector shows - names, labels, which ports carry a wave at all - is a fact about the
+/// design, which the renderer holds; only elaboration facts need the simulation, and these are
+/// they. The driver index doubles as the build's read handle: `SimRead` accepts it for as long as
+/// this build lives, and the next build invalidates it wholesale.
+type PortSlot =
+    { SlotWidth: int
+      /// the step array this port reads: an output's own, an input's the output driving it.
+      /// Resolved by the SIMULATOR (an input's driver can cross a sheet boundary, and the linker
+      /// has already followed it), so the renderer never re-derives it.
+      SlotDriver: int }
+
+/// Every port of one component of one instance, positionally: array index = port number, which
+/// is the design's own numbering (a Component's port lists are position-numbered).
+type ComponentSlots =
+    { SlotsComp: ComponentId
+      SlotsIns: PortSlot array
+      SlotsOuts: PortSlot array }
+
+/// Width and driver of every port of every component on one instance's sheet.
+///
+/// ALL ports, positionally - not the wave-carrying subset. Filtering would mean naming what was
+/// kept, which costs more than the entries it saves, and the rule for what carries a wave is a
+/// design fact the caller already has. The one build fact inside that rule - which member of an
+/// IOLabel group is elected to drive it - arrives implicitly: the members share a driver index,
+/// so deduplicating by driver keeps one of them, and name and data are the same whichever it is.
+///
+/// A width of 0 is a port with no signal: an unconnected input, still holding the dummy array it
+/// was created with.
+///
+/// This is the sidecar's answer to "what does this instance offer" and the renderer's local
+/// answer to the same question, from one body of code - which is the point.
+let sheetSliceOf (fs: FastSimulation) (InstancePath ap as instance) : ComponentSlots list =
+    let sheet = fs.Design.SheetOfInstance instance
+
+    let slotsOf (arrays: IOArray array) =
+        arrays |> Array.map (fun io -> { SlotWidth = io.Width; SlotDriver = io.Index })
+
+    fs.Design.DesignSheets
+    |> List.tryFind (fun ldc -> ldc.Name = sheet)
+    |> Option.map (fun ldc ->
+        fst ldc.CanvasState
+        |> List.choose (fun comp ->
+            fs.ComponentOf(ComponentId comp.Id, ap)
+            |> Option.map (fun fc ->
+                { SlotsComp = ComponentId comp.Id
+                  SlotsIns = slotsOf fc.InputLinks
+                  SlotsOuts = slotsOf fc.Outputs })))
+    |> Option.defaultValue []
+
 /// The wave index of a port: how the rest of Issie names one, and what a selection is made of.
 let waveIndexOf (instance: InstancePath) (port: InstancePort) : WaveIndexT =
     let (InstancePath ap) = instance

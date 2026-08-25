@@ -228,6 +228,45 @@ let setInputs (askedEpoch: int) (body: byte array) : string =
 /// own simulator produces, from the same code (RamView.ofFastSim). The alternative is this side
 /// deciding for itself which row counts as read and which as written, and two answers that agree
 /// until they do not.
+/// Width and driver of every port of every component on one instance's sheet, as flat uint32s -
+/// see Protocol.SimPorts for the layout. The work is PortView.sheetSliceOf, the same code the
+/// renderer's own simulator answers the same question with; this is only the encoding.
+let ports (askedEpoch: int) (body: byte array) : Result<byte array, string> =
+    match checkEpoch askedEpoch, session with
+    | Error _, _ ->
+        Error $"stale session: command names epoch {askedEpoch}, this sidecar holds {currentEpoch ()}"
+    | _, None -> Error "no simulation built - send SimBuild first"
+    | Ok(), Some(fs, _) ->
+        let pathLen = u32 body 0
+        let path = List.init pathLen (fun i -> ComponentId(u32 body (4 + 4 * i)))
+        let slice = PortView.sheetSliceOf fs (InstancePath path)
+
+        let bytesNeeded =
+            4
+            + (slice
+               |> List.sumBy (fun c -> 12 + 8 * (c.SlotsIns.Length + c.SlotsOuts.Length)))
+
+        let reply = Array.zeroCreate bytesNeeded
+        BitConverter.GetBytes(uint32 (List.length slice)).CopyTo(reply, 0)
+
+        let mutable at = 4
+
+        let writeU32 (v: int) =
+            BitConverter.GetBytes(uint32 v).CopyTo(reply, at)
+            at <- at + 4
+
+        for c in slice do
+            let (ComponentId cid) = c.SlotsComp
+            writeU32 cid
+            writeU32 c.SlotsIns.Length
+            writeU32 c.SlotsOuts.Length
+
+            for slot in Array.append c.SlotsIns c.SlotsOuts do
+                writeU32 slot.SlotWidth
+                writeU32 slot.SlotDriver
+
+        Ok reply
+
 let readRam (askedEpoch: int) (body: byte array) : Result<byte array, string> =
     match checkEpoch askedEpoch, session with
     | Error _, _ ->

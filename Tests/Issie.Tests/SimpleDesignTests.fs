@@ -606,6 +606,172 @@ let tests =
             Issie.Sidecar.SimSession.endSession epoch |> ignore
         }
 
+        // The wave selector's read: width and driver index of every port of every component on
+        // one instance's sheet. What is tested is the WIRE - encode on the sidecar, decode as the
+        // renderer decodes - against the shared function both simulators answer with, for every
+        // instance of a design with nesting, memories and IOLabels. Equality here also says the
+        // two processes allocate identical driver indices for identical input, which is what lets
+        // the debug harness compare them value for value.
+        test "SimPorts round-trips the port slice for every instance of 3cpu" {
+            let _, design, shimmed = convertProject "3cpu"
+
+            let buildReply = Issie.Sidecar.SimSession.build design 250
+            Expect.isFalse (buildReply.Contains "error") $"build failed: {buildReply}"
+            let epoch = Issie.Sidecar.SimSession.currentEpoch ()
+
+            let localFs =
+                let top = shimmed |> List.find (fun l -> l.Name = design.TopSheet)
+
+                match Simulator.startCircuitSimulation 250 design.TopSheet top.CanvasState shimmed with
+                | Ok simData -> simData.FastSim
+                | Error e -> failtest $"local build failed: %A{e.ErrType}"
+
+            let rec instances (InstancePath ap as inst) sheet =
+                inst
+                :: (localFs.Design.SubSheetsOf sheet
+                    |> List.collect (fun (cid, child) ->
+                        instances (InstancePath(ap @ [ cid ])) child))
+
+            let all = instances (InstancePath []) design.TopSheet
+            Expect.isGreaterThan (List.length all) 10 "3cpu should have many instances"
+
+            let u32s (values: int list) =
+                values |> List.collect (System.BitConverter.GetBytes >> Array.toList) |> Array.ofList
+
+            // decode exactly as SidecarClient.simPorts does, less the frame header
+            let decode (reply: byte array) : PortView.ComponentSlots list =
+                let mutable at = 4
+
+                let readU32 () =
+                    let v = int (System.BitConverter.ToUInt32(reply, at))
+                    at <- at + 4
+                    v
+
+                let readSlots n : PortView.PortSlot array =
+                    Array.init n (fun _ ->
+                        let width = readU32 ()
+                        let driver = readU32 ()
+                        { PortView.SlotWidth = width; PortView.SlotDriver = driver })
+
+                let compCount = int (System.BitConverter.ToUInt32(reply, 0))
+
+                [ for _ in 1 .. compCount ->
+                      let cid = readU32 ()
+                      let nIns = readU32 ()
+                      let nOuts = readU32 ()
+
+                      { PortView.SlotsComp = ComponentId cid
+                        PortView.SlotsIns = readSlots nIns
+                        PortView.SlotsOuts = readSlots nOuts } ]
+
+            for (InstancePath ap) as inst in all do
+                let payload = u32s (List.length ap :: (ap |> List.map (fun (ComponentId c) -> c)))
+
+                match Issie.Sidecar.SimSession.ports epoch payload with
+                | Error e -> failtest $"SimPorts of {inst} failed: {e}"
+                | Ok reply ->
+                    let overTheWire = decode reply
+                    let local = PortView.sheetSliceOf localFs inst
+                    Expect.isNonEmpty local $"{inst} should have components"
+                    Expect.equal overTheWire local $"the slice of {inst} differs over the wire"
+
+            Issie.Sidecar.SimSession.endSession epoch |> ignore
+        }
+
+        // The compact form must carry exactly what the rich per-instance view knows: every
+        // wave-carrying port PortView.ofInstance reports is in the slice, at its position, with
+        // the same width and the same driver. This is what licenses a selector built on the slice
+        // plus the design to replace one built on the rich view.
+        test "the port slice carries what the rich instance view knows" {
+            let _, design, shimmed = convertProject "3cpu"
+            let top = shimmed |> List.find (fun l -> l.Name = design.TopSheet)
+
+            let fs =
+                match Simulator.startCircuitSimulation 250 design.TopSheet top.CanvasState shimmed with
+                | Ok simData -> simData.FastSim
+                | Error e -> failtest $"build failed: %A{e.ErrType}"
+
+            let rec instances (InstancePath ap as inst) sheet =
+                inst
+                :: (fs.Design.SubSheetsOf sheet
+                    |> List.collect (fun (cid, child) ->
+                        instances (InstancePath(ap @ [ cid ])) child))
+
+            let mutable checkedPorts = 0
+
+            for inst in instances (InstancePath []) design.TopSheet do
+                let slice =
+                    PortView.sheetSliceOf fs inst
+                    |> List.map (fun c -> c.SlotsComp, c)
+                    |> Map.ofList
+
+                for p in (PortView.ofInstance fs inst).ViewPorts do
+                    match Map.tryFind p.PortComp slice with
+                    | None -> failtest $"{p.PortComp} is in the rich view but not the slice"
+                    | Some slots ->
+                        let arr =
+                            match p.PortIs with
+                            | PortType.Input -> slots.SlotsIns
+                            | PortType.Output -> slots.SlotsOuts
+
+                        match Array.tryItem p.PortNum arr with
+                        | None -> failtest $"{p.PortDisplayName}: port {p.PortNum} missing from the slice"
+                        | Some slot ->
+                            checkedPorts <- checkedPorts + 1
+                            Expect.equal slot.SlotWidth p.PortWidth $"{p.PortDisplayName}: width differs"
+                            Expect.equal slot.SlotDriver p.PortDriver $"{p.PortDisplayName}: driver differs"
+
+            Expect.isGreaterThan checkedPorts 500 "3cpu offers hundreds of waves - all must be checked"
+        }
+
+        // The slice is ALL ports, unfiltered, so the one build fact inside the carries-a-wave
+        // rule - which member of an IOLabel group is elected to drive the net - must arrive
+        // implicitly. It does: the members share a driver index, so a caller deduplicating by
+        // driver keeps one of them, and name and data are the same whichever it keeps.
+        test "IOLabel group members share a driver index in the slice" {
+            let _, design, shimmed = convertProject "3cpu"
+            let top = shimmed |> List.find (fun l -> l.Name = design.TopSheet)
+
+            let fs =
+                match Simulator.startCircuitSimulation 250 design.TopSheet top.CanvasState shimmed with
+                | Ok simData -> simData.FastSim
+                | Error e -> failtest $"build failed: %A{e.ErrType}"
+
+            let rec instances (InstancePath ap as inst) sheet =
+                inst
+                :: (fs.Design.SubSheetsOf sheet
+                    |> List.collect (fun (cid, child) ->
+                        instances (InstancePath(ap @ [ cid ])) child))
+
+            let mutable groups = 0
+
+            for inst in instances (InstancePath []) design.TopSheet do
+                let sheet = fs.Design.SheetOfInstance inst
+
+                let labelOf =
+                    Map.tryFind sheet fs.Design.DesignComponentsById |> Option.defaultValue Map.empty
+
+                PortView.sheetSliceOf fs inst
+                |> List.choose (fun c ->
+                    match Map.tryFind c.SlotsComp labelOf with
+                    | Some comp when comp.Type = IOLabel -> Some(comp.Label, c)
+                    | _ -> None)
+                |> List.groupBy fst
+                |> List.filter (fun (_, members) -> List.length members > 1)
+                |> List.iter (fun (label, members) ->
+                    groups <- groups + 1
+
+                    let drivers =
+                        members
+                        |> List.map (fun (_, c) -> c.SlotsOuts[0].SlotDriver)
+                        |> List.distinct
+
+                    Expect.hasLength drivers 1
+                        $"the IOLabel group '{label}' on {sheet} must share one driver, has {drivers}")
+
+            Expect.isGreaterThan groups 0 "3cpu must contain at least one IOLabel group for this to test anything"
+        }
+
         test "a command naming a session the sidecar no longer holds is refused" {
             // The renderer cannot see inside the sidecar, so everything it believes about the
             // session there - that one exists, that it is of the design last sent, how far its

@@ -135,6 +135,21 @@ let SimRead = 0x0Buy
 [<Literal>]
 let SimReadRam = 0x0Cuy
 
+/// Width and driver index of every port of every component on one instance's sheet - what the
+/// wave selector reads when its combo boxes pick an instance, and everything a wave needs from
+/// the build. Payload: uint32 LE epoch, uint32 LE instance-path length, that many uint32 LE
+/// path component ids (root first; empty for the top sheet).
+///
+/// Reply payload on success: uint32 LE component count, then per component uint32 LE design
+/// component id, uint32 LE input port count, uint32 LE output port count, then per input port
+/// and then per output port - positionally, index = the design's port number - uint32 LE width
+/// and uint32 LE driver index. ALL ports: which of them carry a wave is a design fact the caller
+/// already has, and the IOLabel election arrives implicitly, as members sharing a driver index.
+/// A width of 0 is a port with no signal. The driver index is the build's read handle - SimRead
+/// accepts it for as long as this build lives. An error reply is JSON text (starts with '{').
+[<Literal>]
+let SimPorts = 0x0Duy
+
 [<Literal>]
 let ResponseFlag = 0x80uy
 

@@ -270,6 +270,13 @@ let private serve (ws: WebSocket) (ct: CancellationToken) =
                         | Error e -> textResponse header (sprintf """{"error":"%s"}""" (e.Replace("\"", "'")))
 
                     do! send ws frame ct
+                | Protocol.SimPorts ->
+                    let frame =
+                        match SimSession.ports (argAt body 0) (body[4..]) with
+                        | Ok payload -> bytesResponse header payload
+                        | Error e -> textResponse header (sprintf """{"error":"%s"}""" (e.Replace("\"", "'")))
+
+                    do! send ws frame ct
                 | Protocol.SimReadRam ->
                     let frame =
                         match SimSession.readRam (argAt body 0) (body[4..]) with

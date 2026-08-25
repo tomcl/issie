@@ -56,6 +56,7 @@ module Constants =
     [<Literal>]
     let simReadCmd = 11
     let simReadRamCmd = 12
+    let simPortsCmd = 13
 
     /// Command byte, uint32 correlation id, three bytes of padding - 8, so binary response
     /// payloads start 8-aligned for zero-copy typed-array views.
@@ -557,6 +558,47 @@ let simReadRam
 
             let allRows = [ for i in 0 .. rowCount - 1 -> row i ]
             Ok(if isSparse then RamView.RamSparse allRows else RamView.RamWindow(start, allRows)))
+
+/// Width and driver index of every port of every component on one instance's sheet - the wave
+/// selector's read, made when its combo boxes pick an instance. Decoded into the SAME type the
+/// renderer's own simulator answers with (PortView.sheetSliceOf), so everything downstream is
+/// one code path and only the source of the bytes differs.
+let simPorts (epoch: int) (path: int list) : JS.Promise<Result<PortView.ComponentSlots list, string>> =
+    let args = [ epoch; List.length path ] @ path
+    let payload = makeBytes (4 * List.length args)
+    args |> List.iteri (fun i value -> writeUint32At payload (4 * i) (float value))
+
+    request Constants.simPortsCmd payload
+    |> Promise.map (fun frame ->
+        let asText = decodeTextPayload frame
+
+        if asText.StartsWith "{" then
+            Error asText
+        else
+            // 8 bytes of frame header, then the layout Protocol.SimPorts states
+            let compCount = int (readUint32At frame 8)
+            let mutable at = 12
+
+            let readU32 () =
+                let v = int (readUint32At frame at)
+                at <- at + 4
+                v
+
+            let readSlots n : PortView.PortSlot array =
+                Array.init n (fun _ ->
+                    let width = readU32 ()
+                    let driver = readU32 ()
+                    { PortView.SlotWidth = width; PortView.SlotDriver = driver })
+
+            Ok
+                [ for _ in 1 .. compCount ->
+                      let cid = readU32 ()
+                      let nIns = readU32 ()
+                      let nOuts = readU32 ()
+
+                      { PortView.SlotsComp = CommonTypes.ComponentId cid
+                        PortView.SlotsIns = readSlots nIns
+                        PortView.SlotsOuts = readSlots nOuts } ])
 
 /// One signal at one clock - the tooltip case, which is simRead's degenerate form: one signal,
 /// one sample, rep 1.

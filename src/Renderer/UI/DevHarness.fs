@@ -872,6 +872,69 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
 
                   """{"status": "probing - verdict appears in the log"}"""
 
+      "sidecarPorts",
+      // The port-slice path, end to end: build the open design on both sides, ask the sidecar
+      // for the slice of every instance over the wire, and compare against the shared function
+      // run locally. Equality also says the two processes allocate identical driver indices for
+      // identical input. Asynchronous: the verdict lands in the log.
+      fun _ model _ ->
+          match currentDesign model with
+          | None -> """{"error": "no project open"}"""
+          | Some(ldcs, design) ->
+              let top = ldcs |> List.find (fun ldc -> ldc.Name = design.TopSheet)
+
+              match Simulator.startCircuitSimulation 250 design.TopSheet top.CanvasState ldcs with
+              | Error e -> sprintf """{"error": "local build failed: %A"}""" e.ErrType
+              | Ok simData ->
+                  let localFs = simData.FastSim
+
+                  let rec instances (InstancePath ap as inst) sheet =
+                      inst
+                      :: (localFs.Design.SubSheetsOf sheet
+                          |> List.collect (fun (cid, child) ->
+                              instances (InstancePath(ap @ [ cid ])) child))
+
+                  let all = instances (InstancePath []) design.TopSheet
+                  let sheetJsons = design.Sheets |> List.map Json.serialize<SimpleSheet>
+
+                  promise {
+                      do! SidecarClient.connect ()
+                      let! _ = SidecarClient.sendDesign design.TopSheet sheetJsons
+                      let! built = SidecarClient.simBuild 250
+                      let epoch = SidecarClient.epochOf built
+                      let mutable ports = 0
+                      let mutable failures = []
+                      let t0 = TimeHelpers.getTimeMs ()
+
+                      for (InstancePath ap) as inst in all do
+                          let! slice = SidecarClient.simPorts epoch (ap |> List.map (fun (ComponentId c) -> c))
+
+                          match slice with
+                          | Error e -> failures <- $"{inst}: {e}" :: failures
+                          | Ok overTheWire ->
+                              let local = PortView.sheetSliceOf localFs inst
+
+                              ports <-
+                                  ports
+                                  + (overTheWire
+                                     |> List.sumBy (fun c -> c.SlotsIns.Length + c.SlotsOuts.Length))
+
+                              if overTheWire <> local then
+                                  failures <- $"{inst}: slice differs" :: failures
+
+                      let ms = TimeHelpers.getTimeMs () - t0
+
+                      match failures with
+                      | [] ->
+                          Log.out
+                              $"sidecarPorts: IDENTICAL port slices - {List.length all} instances, {ports} ports, %.1f{ms}ms over the wire"
+                      | first :: _ -> Log.error $"sidecarPorts: {List.length failures} failures, first: {first}"
+                  }
+                  |> Promise.catch (fun e -> Log.error $"sidecarPorts: {e.Message}")
+                  |> ignore
+
+                  """{"status": "comparing - verdict appears in the log"}"""
+
       "simCompare",
       // The cross-runtime correctness check: compute the deterministic-stimulus digest of the
       // open design locally, send the design to the sidecar and ask for ITS digest of the same

@@ -204,7 +204,10 @@ let validateCircuitSimulation
 
 /// Extract circuit data from inputs and return a checked SimulationData object or an error
 /// SimulationData has some technical debt, it wraps FastSimulation adding some redundant data
-let startCircuitSimulation
+///
+/// `waveTables` says whether to build what only a wave viewer reads - see WaveTables.
+let startCircuitSimulationWith
+    (waveTables: WaveTables)
     (simulationArraySize: int)
     (diagramName: string)
     (canvasState: CanvasState)
@@ -219,7 +222,7 @@ let startCircuitSimulation
     | Error e -> Error e
     | Ok graph ->
         try
-            match FastBuild.buildFastSimulation simulationArraySize diagramName graph with
+            match FastBuild.buildFastSimulationWith waveTables simulationArraySize diagramName graph with
             | Ok fs ->
                 let fs = saveStateInSimulation canvasState diagramName loadedDependencies fs
                 let components, _ = canvasState
@@ -254,6 +257,17 @@ let startCircuitSimulation
         |> Result.map (fun sd ->
             //Fast.compareFastWithGraph sd |> ignore
             sd)
+
+/// A simulation with everything a wave viewer in this process needs, which is what almost every
+/// caller wants. The sidecar is the exception and asks for NoWaveTables.
+let startCircuitSimulation
+    (simulationArraySize: int)
+    (diagramName: string)
+    (canvasState: CanvasState)
+    (loadedDependencies: LoadedComponent list)
+    : Result<SimulationData, SimulationError>
+    =
+    startCircuitSimulationWith WithWaveTables simulationArraySize diagramName canvasState loadedDependencies
 
 let startCircuitSimulationFData
     (simulationArraySize: int)

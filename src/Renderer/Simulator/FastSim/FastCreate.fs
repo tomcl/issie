@@ -933,18 +933,33 @@ let linkFastCustomComponentsToDriverArrays (fs: FastSimulation) (fid: FComponent
             fc.Outputs[portNum] <- fs.FComps[cid, ap].InputLinks[0]
         | _ -> ())
 
-/// Adds WaveComps, Drivers and WaveIndex fields to a fast simulation.
-/// For use by waveform Simulator.
-/// Needs to be run after widths are calculated.
+/// Point every custom component's ports at the arrays of the Input and Output components inside
+/// it, so that reading a custom component's port reads the signal it actually carries.
+///
+/// Not optional, and not part of the wave tables below even though it used to be in the same
+/// phase: a port that points at the dummy array it was created with reads as nothing. Cheap - one
+/// re-pointing per port of each custom component, and there are far fewer of those than of
+/// ordinary ones.
 ///
 /// `comps` is every component of the build in creation order - the array the gather filled, not
 /// the maps. See the note on createFastArrays: walking the maps here means walking the components
 /// in a different order from the one they were allocated in, and on a design of any size that is
 /// most of what this phase costs.
-let addWavesToFastSimulation (comps: FastComponent array) (fs: FastSimulation) : FastSimulation =
+let linkCustomComponentPorts (comps: FastComponent array) (fs: FastSimulation) : FastSimulation =
     comps
     |> Array.iter (fun fc -> if isCustom fc.FType then linkFastCustomComponentsToDriverArrays fs fc.fId fc)
 
+    fs
+
+/// Adds WaveComps, Drivers and WaveIndex fields to a fast simulation.
+/// For use by waveform Simulator.
+/// Needs to be run after widths are calculated.
+///
+/// **What a simulation needs only in order to be DRAWN**, and all of it sized by the expansion:
+/// a map of every component of every instance, an entry per step array, and an entry per
+/// wave-carrying port. `WaveTables` is what decides whether a build pays for them; a simulator
+/// that runs and answers reads by name does not.
+let addWavesToFastSimulation (comps: FastComponent array) (fs: FastSimulation) : FastSimulation =
     let waveComps =
         (fs.FComps, fs.FCustomComps)
         ||> Map.fold (fun s fid fc -> Map.add fid fc s)

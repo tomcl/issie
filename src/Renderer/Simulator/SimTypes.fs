@@ -548,6 +548,23 @@ let emptySimulatedDesign =
       DesignComponentsById = Map.empty
       DesignConnectionsByPort = Map.empty }
 
+/// Whether a build makes the tables only a waveform VIEWER needs: WaveComps, Drivers and
+/// WaveIndex.
+///
+/// Nothing that RUNS a simulation reads any of them - not the run loop, not the reducers, not
+/// FastExtract, not RamView - so a simulator that only runs and is read over a wire can leave them
+/// out. They are sized by the EXPANSION, one entry per port of every instance, which is exactly
+/// what a remote simulator exists to keep out of the process that draws.
+///
+/// The custom-component port linking that used to be part of the same phase is not optional and
+/// happens either way: it re-points a custom component's ports at the arrays of the Input and
+/// Output components inside it, which is what makes those ports readable at all.
+type WaveTables =
+    /// what a simulation the wave viewer will interrogate in this process is built with
+    | WithWaveTables
+    /// what the .NET sidecar builds: run it, read it by name, draw nothing
+    | NoWaveTables
+
 /// What one clock cycle of a design costs in step arrays, kept apart by which memory it comes from.
 ///
 /// The two are not interchangeable, and measurably so - though not in the way performance.memory

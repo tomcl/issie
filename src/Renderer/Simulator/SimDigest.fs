@@ -31,11 +31,22 @@ let private toBigint (i: FSInterface) =
 /// Simulate `ticks` clock cycles of `topSheet`, driving all top-level inputs with the
 /// deterministic stimulus, and render the observable behaviour as text. Error when the design
 /// does not build.
-let render (ldcs: LoadedComponent list) (topSheet: string) (ticks: int) : Result<string, string> =
+///
+/// `waveTables` is a parameter only so that a test can render one design both ways and compare:
+/// nothing below reads WaveComps, Drivers or WaveIndex, so the two texts must be identical, and
+/// that is the whole claim the sidecar's build rests on.
+let renderWith
+    (waveTables: WaveTables)
+    (ldcs: LoadedComponent list)
+    (topSheet: string)
+    (ticks: int)
+    : Result<string, string> =
     match ldcs |> List.tryFind (fun ldc -> ldc.Name = topSheet) with
     | None -> Error $"digest: no sheet called {topSheet}"
     | Some top ->
-        match Simulator.startCircuitSimulation Constants.maxArraySize topSheet top.CanvasState ldcs with
+        match
+            Simulator.startCircuitSimulationWith waveTables Constants.maxArraySize topSheet top.CanvasState ldcs
+        with
         | Error e -> Error $"digest: simulation of {topSheet} failed: %A{e.ErrType}"
         | Ok simData ->
             let fs = simData.FastSim
@@ -92,3 +103,7 @@ let render (ldcs: LoadedComponent list) (topSheet: string) (ticks: int) : Result
                             | _ -> "?"
                     sb.AppendLine $"ram,{fc.FullName},{data}" |> ignore
             Ok (sb.ToString().Replace("\r\n", "\n"))
+
+/// The digest of an ordinary build - what both runtimes compute and compare.
+let render (ldcs: LoadedComponent list) (topSheet: string) (ticks: int) : Result<string, string> =
+    renderWith WithWaveTables ldcs topSheet ticks

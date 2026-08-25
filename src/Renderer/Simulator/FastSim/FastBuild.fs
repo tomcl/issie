@@ -70,7 +70,12 @@ let createFastArrays (comps: FastComponent array) fs =
 /// This function also creates the reducer functions for each component
 /// similar to the reducer builder in Builder, but with inputs and outputs using the FastSimulation
 /// mutable arrays
-let buildFastSimulation
+///
+/// `waveTables` says whether to build the structures only a wave VIEWER reads - see WaveTables.
+/// Everything else about the build is the same either way, deliberately: the two simulators must
+/// run identical code over identical structures, or they agree until they do not.
+let buildFastSimulationWith
+    (waveTables: WaveTables)
     (simulationArraySize: int)
     (diagramName: string)
     (graph: SimulationGraph)
@@ -136,7 +141,13 @@ let buildFastSimulation
             |> mark "order"
             |> checkAndValidate
             |> mark "validate"
-            |> Result.map (addWavesToFastSimulation comps)
+            // The custom-component linking happens either way - a port that is not re-pointed
+            // reads the dummy array it was created with. Only the tables are optional.
+            |> Result.map (linkCustomComponentPorts comps)
+            |> Result.map (fun fs ->
+                match waveTables with
+                | WithWaveTables -> addWavesToFastSimulation comps fs
+                | NoWaveTables -> fs)
             |> mark "waves"
             |> Result.map installReducers
             |> mark "reducers"
@@ -144,6 +155,15 @@ let buildFastSimulation
         finally
             finishStepArena ())
     |> logMarks
+
+/// A build with everything, which is what a simulation interrogated in this process needs.
+let buildFastSimulation
+    (simulationArraySize: int)
+    (diagramName: string)
+    (graph: SimulationGraph)
+    : Result<FastSimulation, SimulationError>
+    =
+    buildFastSimulationWith WithWaveTables simulationArraySize diagramName graph
 
 /// The width limit the algebraic evaluator behind a truth table works to, checked at the door.
 ///

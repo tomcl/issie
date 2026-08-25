@@ -72,7 +72,17 @@ let build (design: SimpleDesign) (maxArraySize: int) : string =
     | Some top ->
         let sw = System.Diagnostics.Stopwatch.StartNew()
 
-        match Simulator.startCircuitSimulation maxArraySize design.TopSheet top.CanvasState ldcs with
+        // NoWaveTables: this process runs the simulation and answers reads by name. It never
+        // draws one, and the three structures it therefore does not need - WaveComps, Drivers and
+        // WaveIndex - are the ones sized by the expansion rather than by the design.
+        match
+            Simulator.startCircuitSimulationWith
+                SimTypes.NoWaveTables
+                maxArraySize
+                design.TopSheet
+                top.CanvasState
+                ldcs
+        with
         | Error e ->
             session <- None
             errorReply $"simulation build failed: %A{e.ErrType}"

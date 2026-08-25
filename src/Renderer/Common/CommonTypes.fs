@@ -1397,9 +1397,19 @@ let isTopSheet_ = Lens.create (fun a -> a.IsTopSheet) (fun s a -> {a with IsTopS
 
 /// Whether a component is clocked in itself - without looking inside a custom component, which is
 /// a question about the sheet it names rather than about the component.
+///
+/// The same set as `SynchronousUtils.couldBeSynchronousComponent` minus `Custom`, which that one
+/// has to assume is clocked and this one answers properly. They are two lists because this is in
+/// CommonTypes, which the simulator is compiled after; `Properties.fs` holds them to agreeing.
+///
+/// AsyncROM1 is absent deliberately: an asynchronous ROM presents its data in the same cycle as
+/// its address, so it is combinational. The three legacy memory types are absent because they
+/// never occur - every loaded design has the `1` forms, and the evaluators raise on the others -
+/// which is what this used to match, so a sheet whose only clocked component was a memory was
+/// reported combinational and drawn as if it were.
 let isClockedPrimitive (compType: ComponentType) =
     match compType with
-    | DFF | DFFE | Register _ | RegisterE _ | RAM _ | ROM _
+    | DFF | DFFE | Register _ | RegisterE _ | ROM1 _ | RAM1 _ | AsyncRAM1 _
     | Counter _ | CounterNoEnable _ | CounterNoLoad _ | CounterNoEnableLoad _ -> true
     | _ -> false
 

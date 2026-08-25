@@ -100,17 +100,28 @@ let private localDriverData (SignalHandle i) =
     | Some(Some driver) -> Some driver.DriverData
     | _ -> None
 
-let private ramCompIdsOf: FastSimulation -> FComponentId list =
-    Helpers.memoizeByIdentity (fun fs ->
-        fs.FComps
-        |> Map.filter (fun _ (fc: FastComponent) ->
-            match fc.FType with
-            | RAM1 _ | ROM1 _ | AsyncRAM1 _ | AsyncROM1 _ -> true
-            | _ -> false)
-        |> Map.toList
-        |> List.map snd
-        |> List.sortBy (fun fc -> fc.FullName)
-        |> List.map (fun fc -> fc.fId))
+let private isMemory (comp: Component) =
+    match comp.Type with
+    | RAM1 _ | ROM1 _ | AsyncRAM1 _ | AsyncROM1 _ -> true
+    | _ -> false
+
+/// Every memory instance, with the name the selector lists it under, in that order.
+///
+/// Which memories a design has is a fact about the DESIGN - a memory drawn on a sheet is a memory
+/// in every instance of that sheet - so it is worked out from the design, following only the
+/// subtrees that hold one. It used to filter and sort every FastComponent in the expansion, which
+/// on main6 of largeTest is about 480,000 records, to find a handful.
+///
+/// The name comes with it. It used to be looked up per row, in the expansion-sized map, by the
+/// modal drawing the list - which is the only reason that map was reachable from the selector at
+/// all - and it is the key the saved RAM selection uses, so it has to be the same string
+/// FastComponent.FullName held.
+let private ramCompIdsOf: FastSimulation -> (FComponentId * string) list =
+    Helpers.memoizeByIdentity (fun (fs: FastSimulation) ->
+        fs.Design.InstancesOfComponents isMemory
+        |> List.map (fun (comp, InstancePath ap as pair) ->
+            (ComponentId comp.Id, ap), fs.Design.FullNameOf pair)
+        |> List.sortBy snd)
 
 /// Major function called after changes to extend simulation and/or redo waveforms.
 /// Note that after design change simulation must be recreated externally, and the function called with
@@ -421,7 +432,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                         WaveDrawn.keepOnly (selectedWaves |> List.map (fun wi -> wi.SimArrayIndex) |> Set.ofList)
 
                         let ramCompIds = ramCompIdsOf fs
-                        let ramCompIdSet = Set.ofList ramCompIds
+                        let ramCompIdSet = ramCompIds |> List.map fst |> Set.ofList
                         let selectedRams = Map.filter (fun ramfId _ -> Set.contains ramfId ramCompIdSet) wsModel.SelectedRams
 
                         let ws =  

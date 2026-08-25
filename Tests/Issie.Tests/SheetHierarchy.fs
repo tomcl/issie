@@ -8,6 +8,7 @@ module SheetHierarchy
 
 open Expecto
 open CommonTypes
+open SimTypes
 open CanvasBuilder
 open MenuHelpers
 
@@ -93,6 +94,37 @@ let private selectorExpand (shapes: SheetShapes) (root: string) (opened: Set<str
 let private nodesByPath (tree: SheetTree) =
     let rec walk (t: SheetTree) = (t.SheetPath, t) :: List.collect walk t.SubSheets
     walk tree |> Map.ofList
+
+/// A SimulatedDesign over a project's sheets: what a built simulation carries so that the
+/// renderer can ask design questions without walking the expansion.
+let private designOf (p: Project) : SimulatedDesign =
+    { emptySimulatedDesign with
+        DesignSheets = p.LoadedComponents
+        DesignTopSheet = p.OpenFileName
+        DesignComponentsById =
+            p.LoadedComponents
+            |> List.map (fun ldc ->
+                ldc.Name,
+                fst ldc.CanvasState |> List.map (fun comp -> ComponentId comp.Id, comp) |> Map.ofList)
+            |> Map.ofList }
+
+let private memory = RAM1 { Init = FromData; AddressWidth = 2; WordWidth = 3; Data = Map.empty; Comments = None }
+
+/// The same project with one more component drawn on one of its sheets.
+let private withComponentOn (sheet: string) (comp: Component) (p: Project) =
+    { p with
+        LoadedComponents =
+            p.LoadedComponents
+            |> List.map (fun ldc ->
+                if ldc.Name <> sheet then
+                    ldc
+                else
+                    { ldc with CanvasState = comp :: fst ldc.CanvasState, snd ldc.CanvasState }) }
+
+let private isMemory (comp: Component) =
+    match comp.Type with
+    | RAM1 _ | ROM1 _ | AsyncRAM1 _ | AsyncROM1 _ -> true
+    | _ -> false
 
 let tests =
     testList "SheetHierarchy" [
@@ -234,5 +266,89 @@ let tests =
             Expect.isLessThan timer.ElapsedMilliseconds 1000L
                 $"1.6 million occurrences must not be walked to show 30 sheets \
                   (took {timer.ElapsedMilliseconds}ms)"
+        }
+
+        // What the RAM selector and the step panel viewer list are built from. A component drawn
+        // on a sheet is that component in every instance of the sheet, so the whole list follows
+        // from the design - which is the point, because the alternative is the expansion.
+        test "every instance of a component is found, named by the labels leading to it" {
+            let design = nested 4 3 |> withComponentOn "s2" (makeComp 99 1 1 memory "M1") |> designOf
+            let found = design.InstancesOfComponents isMemory
+
+            // three instances of s1, each holding three of s2 - nine
+            Expect.equal (List.length found) 9 "one per instance of the sheet the memory is drawn on"
+
+            let depths =
+                found |> List.map (fun (_, InstancePath ap) -> List.length ap) |> List.distinct
+            Expect.equal depths [ 2 ] "each is two custom components deep"
+            Expect.equal (List.length (List.distinct (List.map snd found))) 9
+                "and they are nine DIFFERENT instances"
+
+            let names = found |> List.map design.FullNameOf |> List.sort
+            Expect.equal names.Head "U0_1.U1_1.M1"
+                "named by the labels of the instances entered, then its own"
+            Expect.equal (List.length (List.distinct names)) 9 "every one distinctly"
+        }
+
+        test "a component the design does not draw is not found" {
+            let design = nested 4 3 |> designOf
+            Expect.isEmpty (design.InstancesOfComponents isMemory) "no memory is drawn anywhere"
+        }
+
+        // The reason this can replace a walk of the FastComponents. `nested 15 3` expands to about
+        // 7 million instances; the memory is on s2, so nine of them hold one and the twelve levels
+        // below hold none. Not descending into those is the whole difference between this and
+        // filtering the expansion, and the bound is loose because the two are orders of magnitude
+        // apart.
+        test "finding them costs the instances that hold one, not the expansion" {
+            let design = nested 15 3 |> withComponentOn "s2" (makeComp 99 1 1 memory "M1") |> designOf
+            let timer = System.Diagnostics.Stopwatch.StartNew()
+            let found = design.InstancesOfComponents isMemory
+            timer.Stop()
+            Expect.equal (List.length found) 9 "nine instances of s2 hold the memory"
+            Expect.isLessThan timer.ElapsedMilliseconds 1000L
+                $"7 million instances must not be walked to find 9 memories \
+                  (took {timer.ElapsedMilliseconds}ms)"
+        }
+
+        // Which components are clocked decides how the draw block colours a symbol, and - through
+        // clockedSheets - how it colours every sheet containing one. isClockedPrimitive is a
+        // second copy of the simulator own predicate, because it lives in CommonTypes and the
+        // simulator is compiled after it, so the two are held to agreeing here.
+        test "isClockedPrimitive agrees with the simulator about every component type" {
+            let sample: ComponentType list =
+                [ DFF; DFFE; Register 4; RegisterE 4; Counter 4; CounterNoEnable 4
+                  CounterNoLoad 4; CounterNoEnableLoad 4
+                  RAM1 { Init = FromData; AddressWidth = 2; WordWidth = 3; Data = Map.empty; Comments = None }
+                  AsyncRAM1 { Init = FromData; AddressWidth = 2; WordWidth = 3; Data = Map.empty; Comments = None }
+                  ROM1 { Init = FromData; AddressWidth = 2; WordWidth = 3; Data = Map.empty; Comments = None }
+                  AsyncROM1 { Init = FromData; AddressWidth = 2; WordWidth = 3; Data = Map.empty; Comments = None }
+                  Input1(1, None); Output 1; Viewer 1; IOLabel; Not; GateN(And, 2); Mux2; Demux2
+                  NbitsAdder 4; BusSelection(1, 0); MergeWires; SplitWire 1 ]
+
+            sample
+            |> List.iter (fun compType ->
+                Expect.equal
+                    (isClockedPrimitive compType)
+                    (SynchronousUtils.couldBeSynchronousComponent compType)
+                    $"{compType}: the two predicates disagree")
+
+            // spelled out, because these are the ones that were wrong: the memory types the
+            // simulator actually uses were absent and the LEGACY ones were matched instead, so
+            // every memory read as combinational
+            Expect.isTrue (isClockedPrimitive (RAM1 { Init = FromData; AddressWidth = 2; WordWidth = 3; Data = Map.empty; Comments = None })) "a RAM is clocked"
+            Expect.isFalse (isClockedPrimitive (AsyncROM1 { Init = FromData; AddressWidth = 2; WordWidth = 3; Data = Map.empty; Comments = None }))
+                "an asynchronous ROM presents its data in the cycle of its address, so it is not"
+        }
+
+        test "a sheet whose only clocked component is a memory is a clocked sheet" {
+            let project = nested 3 2 |> withComponentOn "s2" (makeComp 99 1 1 memory "M1")
+            let clocked = clockedSheets project.LoadedComponents
+            Expect.isTrue (Set.contains "s2" clocked) "the sheet the memory is drawn on"
+            Expect.isTrue (Set.contains "s1" clocked) "and every sheet containing it, at any depth"
+            Expect.isTrue (Set.contains "s0" clocked) "including the top"
+
+            let plain = clockedSheets (nested 3 2).LoadedComponents
+            Expect.isEmpty plain "a design of nothing but custom components is not clocked"
         }
     ]

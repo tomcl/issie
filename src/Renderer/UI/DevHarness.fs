@@ -500,12 +500,7 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
           | false, _ -> $"ramSelect needs a number, not '{arg}'"
           | true, n ->
               let ws = getWSModel model
-              let fs = Simulator.getFastSim ()
-
-              let rams =
-                  ws.RamComps
-                  |> List.truncate n
-                  |> List.choose (fun ramId -> Map.tryFind ramId fs.FComps |> Option.map (fun fc -> ramId, fc.FLabel))
+              let rams = ws.RamComps |> List.truncate n
 
               dispatch (UpdateWSModel(fun ws -> { ws with SelectedRams = Map.ofList rams }))
               $"showing {List.length rams} of {List.length ws.RamComps} RAMs"

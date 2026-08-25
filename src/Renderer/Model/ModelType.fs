@@ -475,8 +475,9 @@ type WaveSimModel = {
     /// The component whose port selection modal is visible, if any. Set by the schematic's
     /// right-click menu, which names a component on the canvas rather than one in the simulation.
     PortSelectComp: ComponentId option
-    /// List of RAM components on the sheet.
-    RamComps: FComponentId list
+    /// Every RAM and ROM the simulation holds, with the name the selector lists it under -
+    /// which is a fact about the DESIGN, worked out from it rather than from the expansion.
+    RamComps: (FComponentId * string) list
     /// Map of which RAM components have been selected.
     SelectedRams: Map<FComponentId, string>
     /// If it exists this is the start location from which RAM locations are displayed.

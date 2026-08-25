@@ -400,6 +400,86 @@ type SimulatedDesign =
             | Custom ct -> Some(cid, ct.Name)
             | _ -> None)
 
+    /// Every sheet reachable from the top, ordered so that a sheet comes before everything it
+    /// instantiates. Reverse it and a sheet comes after everything inside it, which is the order
+    /// that settles a property of a sheet from the same property of its subsheets in one pass.
+    ///
+    /// A sheet reached several ways is placed once, after all of the routes to it; the visited set
+    /// is also what stops a design that wrongly contains a cycle from hanging.
+    member private this.SheetsParentsFirst : string list =
+        let rec order (seen: Set<string>, acc: string list) sheet =
+            if Set.contains sheet seen then
+                seen, acc
+            else
+                let seen, acc =
+                    ((Set.add sheet seen, acc), this.SubSheetsOf sheet |> List.map snd |> List.distinct)
+                    ||> List.fold order
+
+                seen, sheet :: acc
+
+        order (Set.empty, []) this.DesignTopSheet |> snd
+
+    /// Which sheets hold a component `chosen` accepts, at any depth.
+    ///
+    /// What `InstancesOfComponents` prunes with: a sheet outside this set contains none of what is
+    /// being looked for and nothing that contains any, so no instance of it need be visited.
+    /// Settled in one pass over sheets ordered so that each comes after everything inside it.
+    member this.SheetsHolding(chosen: Component -> bool) : Set<string> =
+        (Set.empty, List.rev this.SheetsParentsFirst)
+        ||> List.fold (fun holding sheet ->
+            let holdsOne =
+                Map.tryFind sheet this.DesignComponentsById
+                |> Option.defaultValue Map.empty
+                |> Map.exists (fun _ comp -> chosen comp)
+                || this.SubSheetsOf sheet |> List.exists (fun (_, child) -> Set.contains child holding)
+
+            if holdsOne then Set.add sheet holding else holding)
+
+    /// Every INSTANCE of every component the design draws that `chosen` accepts, as the component
+    /// as drawn and the instance it is in.
+    ///
+    /// This is how a list the whole simulation contributes to - every memory in it, every viewer -
+    /// is worked out without the simulation. The cost is the design plus the instances that
+    /// actually hold one of these, because a subtree holding none is not descended into: a design
+    /// whose 49,152 sheet instances contain four memories costs the route to those four, not the
+    /// expansion. Walking the FastComponents instead cost every component of every instance -
+    /// 480,000 of them on main6 of largeTest - to find the same four.
+    ///
+    /// In the order the design draws them: each sheet's own matches, by id, then the subsheets in
+    /// id order. Callers wanting something else sort.
+    member this.InstancesOfComponents(chosen: Component -> bool) : (Component * InstancePath) list =
+        let holding = this.SheetsHolding chosen
+
+        let rec walk (InstancePath ap as instance) sheet =
+            let here =
+                Map.tryFind sheet this.DesignComponentsById
+                |> Option.defaultValue Map.empty
+                |> Map.toList
+                |> List.choose (fun (_, comp) -> if chosen comp then Some(comp, instance) else None)
+
+            let below =
+                this.SubSheetsOf sheet
+                |> List.sortBy fst
+                |> List.filter (fun (_, child) -> Set.contains child holding)
+                |> List.collect (fun (cid, child) -> walk (InstancePath(ap @ [ cid ])) child)
+
+            here @ below
+
+        if Set.contains this.DesignTopSheet holding then
+            walk (InstancePath []) this.DesignTopSheet
+        else
+            []
+
+    /// The dot-separated component labels naming one component of one instance - the labels of the
+    /// custom components entered, then the component's own.
+    ///
+    /// This is what `FastComponent.FullName` holds, and what the RAM selector lists RAMs under, so
+    /// it must stay the same string: the selection saved against it is keyed by it.
+    member this.FullNameOf(comp: Component, InstancePath ap) : string =
+        (List.init ap.Length (fun i -> this.LabelOfInstance(InstancePath ap[0 .. i]) |> Option.defaultValue "*")
+         @ [ comp.Label ])
+        |> String.concat "."
+
     /// How many instances of each sheet the design expands to.
     ///
     /// Counted on the SHEET graph rather than by expanding it: a sheet appears once for every time
@@ -412,21 +492,7 @@ type SimulatedDesign =
     member this.SheetInstanceCounts : Map<string, int> =
         let ceiling = 1000000
 
-        /// Parents before the sheets they instantiate, so one pass settles every count. A sheet
-        /// reached several ways is ordered once, after all of them.
-        let rec order (seen: Set<string>, acc: string list) sheet =
-            if Set.contains sheet seen then
-                seen, acc
-            else
-                let seen, acc =
-                    ((Set.add sheet seen, acc), this.SubSheetsOf sheet |> List.map snd |> List.distinct)
-                    ||> List.fold order
-
-                seen, sheet :: acc
-
-        let sorted = order (Set.empty, []) this.DesignTopSheet |> snd
-
-        (Map.ofList [ this.DesignTopSheet, 1 ], sorted)
+        (Map.ofList [ this.DesignTopSheet, 1 ], this.SheetsParentsFirst)
         ||> List.fold (fun counts sheet ->
             let here = Map.tryFind sheet counts |> Option.defaultValue 0
 

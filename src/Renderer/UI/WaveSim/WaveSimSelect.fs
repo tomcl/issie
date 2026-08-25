@@ -86,22 +86,22 @@ let toggleRamSelection (ramId: FComponentId) (ramLabel: string) dispatch =
 /// Modal that, when active, allows users to select RAMs to view their contents.
 let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
         let fs = Simulator.getFastSim()
-        let ramRows (ramId: FComponentId) : ReactElement =
-            match Map.tryFind ramId fs.FComps with
-            | Some ram ->
-                tr [] [
-                    td []
-                        [ Checkbox.checkbox []
-                            [ Checkbox.input [
-                                Props (checkboxInputProps @ [
-                                    Checked <| isRamSelected ram.fId wsModel
-                                    OnChange (fun _ -> toggleRamSelection ram.fId ram.FullName dispatch)
-                                ])
-                            ] ]
-                        ]
-                    td [] [ label [ ramRowStyle ] [ str ram.FullName ] ]
-                ]
-            | None -> tr [] [td [] []]
+        // The name comes with the id, from the design, rather than being looked up per row in
+        // the simulation's expansion-sized component map - which was the only thing this modal
+        // wanted that map for.
+        let ramRows ((ramId, ramName): FComponentId * string) : ReactElement =
+            tr [] [
+                td []
+                    [ Checkbox.checkbox []
+                        [ Checkbox.input [
+                            Props (checkboxInputProps @ [
+                                Checked <| isRamSelected ramId wsModel
+                                OnChange (fun _ -> toggleRamSelection ramId ramName dispatch)
+                            ])
+                        ] ]
+                    ]
+                td [] [ label [ ramRowStyle ] [ str ramName ] ]
+            ]
         Modal.modal [
             Modal.IsActive wsModel.RamModalActive
             Modal.Props [Style [ZIndex 20000]]

@@ -222,6 +222,31 @@ let private splittedLine leftContent rightConent =
 //     was before the first clock edge looks exactly like a correct one.
 //   - a ROM's contents, which are part of its type and need no simulation at all.
 
+/// The viewers the step panel shows, in the order it shows them.
+///
+/// A fact about the DESIGN - a viewer drawn on a sheet is a viewer in every instance of that
+/// sheet - so it is worked out from the design, following only the subtrees that hold one. It used
+/// to be filtered out of the expansion-sized component map, which is about 480,000 records on
+/// main6 of largeTest, and separately in each of the two simulators' branches.
+///
+/// One list, so the two simulators cannot show different viewers or show them in a different
+/// order. They agreed before only because both happened to fold over the same map in its key
+/// order, which is not a thing either of them said.
+let private viewerInstances (fs: FastSimulation) =
+    fs.Design.InstancesOfComponents (fun comp ->
+        match comp.Type with
+        | Viewer _ -> true
+        | _ -> false)
+
+/// The width of one instance's output port 0 - a fact about the elaborated instance rather than
+/// about the component, since a parameterised sheet resolves its widths per instance.
+let private outputWidthOf (fs: FastSimulation) ((compId, ap): FComponentId) =
+    (PortView.ofInstanceCached fs (InstancePath ap)).ViewPorts
+    |> List.tryFind (fun p ->
+        p.PortComp = compId && p.PortIs = CommonTypes.PortType.Output && p.PortNum = 0)
+    |> Option.map (fun p -> p.PortWidth)
+    |> Option.defaultValue 0
+
 /// One clock of the panel's signals, named the way the sidecar names them. Every one is an
 /// output port 0: an input's own value, an output's value, a viewer's, or a register's state.
 let panelSignals (simData: SimulationData) : StepPanelData.PanelSignal list =
@@ -235,14 +260,13 @@ let panelSignals (simData: SimulationData) : StepPanelData.PanelSignal list =
         |> List.map (fun (cid, _, _) -> asSignal (cid, []))
 
     let viewers =
-        simData.FastSim.FComps
-        |> Map.toList
-        |> List.choose (fun (fid, fc) ->
-            match fc.FType with
-            | Viewer _ -> Some(asSignal fid)
-            | _ -> None)
+        viewerInstances simData.FastSim
+        |> List.map (fun (comp, InstancePath ap) -> asSignal (ComponentId comp.Id, ap))
 
-    // the stateful rows that are signals; a RAM's and a ROM's contents are not
+    // The stateful rows that are signals; a RAM's and a ROM's contents are not. Still taken from
+    // the simulation's clocked-component array, which is what statefulValues below displays from -
+    // one derivation, so a row cannot be shown that was never asked for. Both move together when
+    // that display stops needing FastComponent records.
     let registers =
         simData.FastSim.FClockedComps
         |> Array.toList
@@ -498,29 +522,29 @@ let ioValues (model: Model) (simData: SimulationData) (ios: SimulationIO list) =
             io, panelValue simData.ClockTickNumber width { Comp = cid; Path = []; Port = 0 })
 
 /// The panel's viewer values, from whichever simulator is running.
+///
+/// The LIST is the design's, so both simulators show the same viewers under the same names in the
+/// same order; only where the value comes from differs, which is the one thing that should.
 let viewerValues (model: Model) (simData: SimulationData) =
-    if model.SimulateInRenderer then
-        FastExtract.extractViewers simData
-    else
-        simData.FastSim.FComps
-        |> Map.toList
-        |> List.choose (fun (fid, fc) ->
-            match fc.FType with
-            | Viewer _ ->
-                let (ComponentId cid), path = fid
-                let width = fc.OutputWidth 0
+    let fs = simData.FastSim
 
-                Some(
-                    FastExtract.getFLabel simData.FastSim fid,
-                    width,
-                    panelValue
-                        simData.ClockTickNumber
-                        width
-                        { Comp = cid
-                          Path = path |> List.map (fun (ComponentId p) -> p)
-                          Port = 0 }
-                )
-            | _ -> None)
+    viewerInstances fs
+    |> List.map (fun ((comp, InstancePath ap) as instance) ->
+        let fId = ComponentId comp.Id, ap
+        let width = outputWidthOf fs fId
+
+        let value =
+            if model.SimulateInRenderer then
+                FastExtract.extractFastSimulationOutput fs simData.ClockTickNumber fId (OutputPortNumber 0)
+            else
+                panelValue
+                    simData.ClockTickNumber
+                    width
+                    { Comp = comp.Id
+                      Path = ap |> List.map (fun (ComponentId p) -> p)
+                      Port = 0 }
+
+        (comp.Label, fs.Design.FullNameOf instance), width, value)
 
 /// The panel's stateful rows, from whichever simulator is running.
 ///

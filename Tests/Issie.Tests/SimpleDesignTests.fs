@@ -122,10 +122,10 @@ let tests =
             Expect.equal twice once "a second admission changed an already-admitted design"
         }
 
-        test "admission renumbers collisions and keeps slots and wave references in step" {
+        test "admission renumbers collisions, keeps slots in step and leaves the selection alone" {
             // Two sheets whose component ids collide (both use 1). The child declares a slot on
-            // its component; the parent holds a wave selection whose access path names its own
-            // component 1 and whose component element names the child's component 1.
+            // its component; the parent holds a wave selection naming the child's component by
+            // label path, and a legacy RAM selection naming its own component by id.
             let childComp = makeComp 1 1 1 (NbitsNot 3) "N1"
             let slots: ComponentSlotExpr =
                 Map.ofList [ { CompId = 1; CompSlot = Buswidth }, { Expression = PInt 3I; Constraints = [] } ]
@@ -133,17 +133,14 @@ let tests =
                 makeLdc "child" (Some { DefaultBindings = Map.empty; ParamSlots = slots }) ([ childComp ], [])
 
             let parentComp = makeComp 1 0 1 (Input1(3, None)) "I0"
+            let selected: WavePath =
+                { WPLabels = [ "CHILD1"; "N1" ]; WPPortType = PortType.Output; WPPortNumber = 0 }
             let waveInfo: SavedWaveInfo =
-                { SelectedWaves =
-                    Some
-                        [ { SimArrayIndex = 0
-                            Id = ComponentId 1, [ ComponentId 1 ]   // (child's comp, [parent's instance])
-                            PortType = PortType.Output
-                            PortNumber = 0 } ]
+                { SelectedWaves = Some [ selected ]
                   Radix = None
                   WaveformColumnWidth = None
                   SelectedRams = Some(Map.ofList [ ComponentId 1, "ram" ])
-                  SelectedFRams = None
+                  SelectedFRams = Some [ [ "CHILD1"; "M1" ], "ram" ]
                   WSConfig = None
                   ClkWidth = None
                   Cursor = None
@@ -168,12 +165,21 @@ let tests =
                 Expect.equal slotIds [ childId ] "the parameter slot does not follow its component"
 
                 match parent'.WaveInfo with
-                | Some { SelectedWaves = Some [ wave ]; SelectedRams = Some rams } ->
-                    let (ComponentId waveComp), path = wave.Id
-                    Expect.equal path [ ComponentId parentId ] "the access path does not follow the parent's own component"
-                    Expect.equal waveComp childId "the child's component in the wave ref must NOT be touched by the parent's renumbering"
-                    Expect.isTrue (Map.containsKey (ComponentId parentId) rams) "the RAM selection does not follow its component"
-                | _ -> failtest "waveform info lost in admission"
+                | Some info ->
+                    // Renumbering cannot disturb what holds no ids. This is the whole point of
+                    // saving the selection as label paths rather than as component ids: the
+                    // careful partial remapping it used to need is not merely correct now, it is
+                    // absent.
+                    Expect.equal info.SelectedWaves (Some [ selected ])
+                        "renumbering must not touch a selection named by labels"
+                    Expect.equal info.SelectedFRams (Some [ [ "CHILD1"; "M1" ], "ram" ])
+                        "nor the RAM selection"
+                    match info.SelectedRams with
+                    | Some rams ->
+                        Expect.isTrue (Map.containsKey (ComponentId parentId) rams)
+                            "the legacy id-keyed RAM field does follow its component"
+                    | None -> failtest "legacy RAM selection lost in admission"
+                | None -> failtest "waveform info lost in admission"
             | _ -> failtest "admission changed the number of sheets"
         }
 

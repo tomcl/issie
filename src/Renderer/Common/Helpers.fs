@@ -20,7 +20,19 @@ open System.Text.RegularExpressions
 
         type JSONCanvasState = JSONComponent.Component list * JSONComponent.Connection list
 
-        type SavedCanvasUnknownWaveInfo<'T> = | NewCanvasWithFileWaveSheetInfoAndNewConns of JSONCanvasState * 'T option * JSONWave.SheetInfo option * System.DateTime
+        /// A saved sheet with its wave info left UNREAD: 'T is instantiated at obj, which parses
+        /// anything. This is the last resort of jsonStringToState, and it is what lets the saved
+        /// selection change shape without a legacy reader - a selection this version cannot
+        /// understand costs the selection, never the sheet.
+        ///
+        /// Every variant that can carry wave info is mirrored, because any of them can be the one
+        /// that fails. Only the newest was, which meant an older save holding an unreadable
+        /// selection failed to load at all rather than losing it.
+        type SavedCanvasUnknownWaveInfo<'T> =
+            | CanvasWithFileWaveInfo of LegacyCanvasState * 'T option * System.DateTime
+            | CanvasWithFileWaveInfoAndNewConns of LegacyCanvasState * 'T option * System.DateTime
+            | NewCanvasWithFileWaveInfoAndNewConns of JSONCanvasState * 'T option * System.DateTime
+            | NewCanvasWithFileWaveSheetInfoAndNewConns of JSONCanvasState * 'T option * JSONWave.SheetInfo option * System.DateTime
 
         // Every type below is the FILE form: ids are strings there (uuids in old files, integers
         // written as strings in new ones), and become the in-memory integer ids only through
@@ -63,6 +75,19 @@ open System.Text.RegularExpressions
                 | CanvasWithFileWaveInfoAndNewConns (_,waveInfo,_) -> None
                 | NewCanvasWithFileWaveInfoAndNewConns (_,_,ts) -> None
                 | NewCanvasWithFileWaveSheetInfoAndNewConns (_,_,sheetInfo,_) -> sheetInfo
+
+        /// The same save with its wave info discarded. The cases are qualified because SavedInfo
+        /// names its own the same way, and being able to write them side by side is the point.
+        let private withWaveInfoDropped (saved: SavedCanvasUnknownWaveInfo<obj>) : SavedInfo =
+            match saved with
+            | SavedCanvasUnknownWaveInfo.CanvasWithFileWaveInfo(cState, _, time) ->
+                CanvasWithFileWaveInfo(cState, None, time)
+            | SavedCanvasUnknownWaveInfo.CanvasWithFileWaveInfoAndNewConns(cState, _, time) ->
+                CanvasWithFileWaveInfoAndNewConns(cState, None, time)
+            | SavedCanvasUnknownWaveInfo.NewCanvasWithFileWaveInfoAndNewConns(cState, _, time) ->
+                NewCanvasWithFileWaveInfoAndNewConns(cState, None, time)
+            | SavedCanvasUnknownWaveInfo.NewCanvasWithFileWaveSheetInfoAndNewConns(cState, _, sheetInfo, time) ->
+                NewCanvasWithFileWaveSheetInfoAndNewConns(cState, None, sheetInfo, time)
 
         let extraCoder =
             Extra.empty
@@ -139,8 +164,7 @@ open System.Text.RegularExpressions
                     | Ok state -> Ok state
                     | Error str -> 
                         match Json.tryParseNativeAs<SavedCanvasUnknownWaveInfo<obj>> jsonString with
-                        | Ok (SavedCanvasUnknownWaveInfo.NewCanvasWithFileWaveSheetInfoAndNewConns(cState,_,sheetInfo,time)) ->
-                            Ok <| NewCanvasWithFileWaveSheetInfoAndNewConns(cState,None,sheetInfo,time)                               
+                        | Ok saved -> Ok(withWaveInfoDropped saved)
                         | Error str -> 
                             Log.error $"could not parse saved JSON ({jsonString.Length} chars): {str}"
                             Error str)
@@ -152,8 +176,7 @@ open System.Text.RegularExpressions
                 | Ok state -> Ok state
                 | Error str ->
                     match decodeSaved<SavedCanvasUnknownWaveInfo<obj>> jsonString with
-                    | Ok (SavedCanvasUnknownWaveInfo.NewCanvasWithFileWaveSheetInfoAndNewConns(cState,_,sheetInfo,time)) ->
-                        Ok <| NewCanvasWithFileWaveSheetInfoAndNewConns(cState,None,sheetInfo,time)
+                    | Ok saved -> Ok(withWaveInfoDropped saved)
                     | Error str ->
                         Log.error $"could not parse saved JSON ({jsonString.Length} chars): {str}"
                         Error str
@@ -544,26 +567,16 @@ module RegenerateIds =
     let remapCanvasState compMap portMap connMap ((comps, conns): CanvasState) : CanvasState =
         List.map (remapComp compMap portMap) comps, List.map (remapConn compMap portMap connMap) conns
 
-    /// An FComponentId is a component id plus the access path of custom components containing
-    /// it. Only the FIRST path entry lives on the sheet being remapped - deeper entries, and the
-    /// component itself when there is a path, belong to descendant sheets and must not be
-    /// touched: with per-sheet integer ids their values can coincide with this sheet's ids, so
-    /// an indiscriminate map (safe when ids were globally-unique uuids) would corrupt them.
-    /// A ref into a sheet that is later renumbered dangles, exactly as it always did.
-    let private remapFCompId compMap ((ComponentId cid, ap): FComponentId) : FComponentId =
-        match ap with
-        | [] -> ComponentId(sub compMap cid), []
-        | (ComponentId first) :: rest -> ComponentId cid, ComponentId(sub compMap first) :: rest
-
+    /// The saved selection holds no component ids - it is label paths (see WavePath.fs) - so
+    /// renumbering a sheet leaves it alone. Only the legacy SelectedRams field, which nothing
+    /// writes and nothing reads, still names this sheet's components by id.
+    ///
+    /// This used to remap the selection, and had to be careful about it: only the FIRST access
+    /// path entry lives on the sheet being remapped, so an indiscriminate map would corrupt the
+    /// deeper entries, whose per-sheet integer ids can coincide with this sheet's. That care is
+    /// what a label path makes unnecessary rather than merely correct.
     let private remapWaveInfo compMap (wi: SavedWaveInfo) =
-        let remapKeys map =
-            map |> Map.toList |> List.map (fun (k, v) -> remapFCompId compMap k, v) |> Map.ofList
-
         { wi with
-            SelectedWaves =
-                wi.SelectedWaves
-                |> Option.map (List.map (fun wave -> { wave with Id = remapFCompId compMap wave.Id }))
-            SelectedFRams = wi.SelectedFRams |> Option.map remapKeys
             SelectedRams =
                 wi.SelectedRams
                 |> Option.map (Map.toList >> List.map (fun (ComponentId cid, v) -> ComponentId(sub compMap cid), v) >> Map.ofList) }
@@ -666,10 +679,9 @@ let private tryIdInt (s: string) : int option =
     else
         None
 
-/// Convert one parsed sheet to in-memory form. The returned wave info may hold component ids of
-/// OTHER sheets (access paths): integer ones survive as they are, uuid ones from very old files
-/// become 0 - a dangling reference the wave viewer already tolerates by lookup-miss, exactly as
-/// a stale uuid was.
+/// Convert one parsed sheet to in-memory form. The wave info needs no id mapping of its own: a
+/// saved selection is label paths (see WavePath.fs). The mapping passed to waveInfoOfJson is for
+/// the legacy SelectedRams field alone.
 let sheetOfJson
     (canvas: JSONCanvasState)
     (waveInfo: JSONWave.SavedWaveInfo option)

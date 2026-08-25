@@ -400,13 +400,28 @@ let getComponentIds (model: Model) =
 // Saving WaveSim Model   //
 //------------------------//
 
-/// Get saveable record of WaveSimModel
-let getSavedWaveInfo (wsModel: WaveSimModel) : SavedWaveInfo =
+/// Get saveable record of WaveSimModel.
+///
+/// The selection is written as label paths rather than as the ids the model holds, so that it
+/// survives being read back against a design whose ids have been reallocated or whose sheets have
+/// been edited - see WavePath.fs. `topSheet` is the sheet this wave sim simulates, which the paths
+/// are rooted at, and `ldcs` is the design they are walked through.
+///
+/// A wave whose component the design no longer holds is dropped here rather than written as a path
+/// to nothing. That can only happen if the design changed under a live wave sim, which is when the
+/// selection is stale anyway.
+let getSavedWaveInfo (ldcs: LoadedComponent list) (topSheet: string) (wsModel: WaveSimModel) : SavedWaveInfo =
     {
-        SelectedWaves = Some wsModel.SelectedWaves
+        SelectedWaves = Some(wsModel.SelectedWaves |> List.choose (WavePath.pathOfSignal ldcs topSheet))
         Radix = Some wsModel.Radix
         WaveformColumnWidth = Some wsModel.WaveformColumnWidth
-        SelectedFRams = Some wsModel.SelectedRams
+        SelectedFRams =
+            Some(
+                wsModel.SelectedRams
+                |> Map.toList
+                |> List.choose (fun (ramId, name) ->
+                    WavePath.pathOfComponent ldcs topSheet ramId |> Option.map (fun path -> path, name))
+            )
         SelectedRams = None
 
         WSConfig = Some wsModel.WSConfig
@@ -419,16 +434,31 @@ let getSavedWaveInfo (wsModel: WaveSimModel) : SavedWaveInfo =
         DisplayedPortIds = None
     }
 
-/// Setup current WaveSimModel from saved record
-/// NB: note that SavedWaveInfo can only be changed if code is added to make loading backwards compatible with
-/// old designs
-let loadWSModelFromSavedWaveInfo (swInfo: SavedWaveInfo) : WaveSimModel =
+/// Setup current WaveSimModel from saved record.
+///
+/// The inverse of getSavedWaveInfo: each saved label path is resolved against the design as loaded.
+/// A path naming a component that has since been renamed or deleted resolves to nothing and its
+/// wave is simply not selected - which is the whole reason the selection is saved as labels.
+///
+/// SavedWaveInfo's shape can now be changed without a legacy reader: a file this version cannot
+/// parse loses its selection and keeps its sheet (Helpers.jsonStringToState).
+let loadWSModelFromSavedWaveInfo (ldcs: LoadedComponent list) (topSheet: string) (swInfo: SavedWaveInfo) : WaveSimModel =
     {
         initWSModel with
-            SelectedWaves = Option.defaultValue initWSModel.SelectedWaves swInfo.SelectedWaves
+            SelectedWaves =
+                swInfo.SelectedWaves
+                |> Option.map (List.choose (WavePath.signalOfPath ldcs topSheet))
+                |> Option.defaultValue initWSModel.SelectedWaves
             Radix = Option.defaultValue initWSModel.Radix swInfo.Radix
             WaveformColumnWidth = Option.defaultValue initWSModel.WaveformColumnWidth swInfo.WaveformColumnWidth
-            SelectedRams = Option.defaultValue initWSModel.SelectedRams swInfo.SelectedFRams
+            SelectedRams =
+                swInfo.SelectedFRams
+                |> Option.map (
+                    List.choose (fun (path, name) ->
+                        WavePath.componentOfPath ldcs topSheet path |> Option.map (fun ramId -> ramId, name))
+                    >> Map.ofList
+                )
+                |> Option.defaultValue initWSModel.SelectedRams
             WSConfig =Option.defaultValue initWSModel.WSConfig swInfo.WSConfig
     }
 
@@ -882,6 +912,18 @@ let simulateModel (isWaveSim: bool) (simulatedSheet: string option) (simulationA
     this keeps out of its way entirely.
 *)
 
+/// The design with one sheet's canvas replaced by the state given, and every other sheet as the
+/// project holds it.
+///
+/// Which sheet is a parameter because saving names it: a save writes the canvas of the sheet being
+/// saved, and until it finishes the project's own copy of that sheet is the version BEFORE the
+/// edit. Walking the stale copy is how a component renamed on the canvas would be saved under the
+/// name it no longer has.
+let designWithSheet (project: Project) (sheet: string) (canvasState: CanvasState) =
+    project.LoadedComponents
+    |> List.filter (fun comp -> comp.Name <> sheet)
+    |> CanvasExtractor.addStateToLoadedComponents sheet canvasState
+
 /// The design as the simulator sees it: the open sheet as it is on the canvas now, and every other
 /// sheet as the project holds it. The same list prepareSimulationMemoized compares against, so a
 /// verdict and a simulation go stale together.
@@ -890,9 +932,7 @@ let simulateModel (isWaveSim: bool) (simulatedSheet: string option) (simulationA
 /// and wire on the sheet, and the caller that runs per render already holds the one MainView
 /// extracted for this frame.
 let designOf (project: Project) (canvasState: CanvasState) =
-    project.LoadedComponents
-    |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-    |> CanvasExtractor.addStateToLoadedComponents project.OpenFileName canvasState
+    designWithSheet project project.OpenFileName canvasState
 
 /// Are two versions of a design the same circuit? Cheap in the ordinary case: only the open sheet
 /// is ever rebuilt, so loadedComponentIsEqual settles every other sheet by reference.

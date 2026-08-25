@@ -22,6 +22,24 @@ let private withTempDir (body: string -> unit) =
 let private touch (folder: string) (name: string) =
     System.IO.File.WriteAllText(System.IO.Path.Combine(folder, name), "")
 
+/// A two-level design: TOP holds an input, an instance of MID labelled M1, and a RAM labelled R1;
+/// MID holds a NOT gate labelled N1. So TOP/M1/N1 is a two-label path and TOP/R1 a one-label one.
+///
+/// Component ids deliberately COLLIDE between the sheets - both use 1 and 2 - which is what makes
+/// an id-named selection ambiguous and a label-named one not.
+let private nested () =
+    let inner = makeComp 1 1 1 (NbitsNot 3) "N1"
+    let mid = makeLdc "MID" None ([ inner ], [])
+    let topIn = makeComp 1 0 1 (Input1(3, None)) "I0"
+    let instance = makeComp 2 1 1 (customOf mid [ "N1", 3 ] [ "N1", 3 ] None) "M1"
+    let ram =
+        makeComp
+            3 1 1
+            (RAM1 { Init = FromData; AddressWidth = 2; WordWidth = 3; Data = Map.empty; Comments = None })
+            "R1"
+    let top = makeLdc "TOP" None ([ topIn; instance; ram ], [])
+    [ top; mid ]
+
 let tests =
     testList "Persistence" [
 
@@ -220,5 +238,86 @@ let tests =
                         (comps |> List.map (fun c -> c.Id, c.Type) |> List.sort)
                         ([ 1, Input1(3, None); 2, NbitsNot 3; 3, Output 3 ] |> List.sort)
                         "component ids and types survive the round trip"
+        }
+
+        test "a wave selection saved as a label path resolves back to the same signal" {
+            let ldcs = nested ()
+            // the NOT gate's output, inside the MID instance labelled M1
+            let signal: WaveIndexT =
+                { SimArrayIndex = 17   // a build number, which must not survive
+                  Id = ComponentId 1, [ ComponentId 2 ]
+                  PortType = PortType.Output
+                  PortNumber = 0 }
+
+            match WavePath.pathOfSignal ldcs "TOP" signal with
+            | None -> failtest "a signal of the design did not name a path"
+            | Some path ->
+                Expect.equal path.WPLabels [ "M1"; "N1" ] "the instance's label, then the component's"
+                match WavePath.signalOfPath ldcs "TOP" path with
+                | None -> failtest "the path did not resolve back"
+                | Some back ->
+                    Expect.equal back.Id signal.Id "component and access path come back"
+                    Expect.equal back.PortType signal.PortType "port type comes back"
+                    Expect.equal back.PortNumber signal.PortNumber "port number comes back"
+                    Expect.equal back.SimArrayIndex -1
+                        "the build's array index must NOT come back: there is no build here"
+        }
+
+        test "a component on the simulated sheet has a one-label path" {
+            let ldcs = nested ()
+            let ramId: FComponentId = ComponentId 3, []
+            Expect.equal (WavePath.pathOfComponent ldcs "TOP" ramId) (Some [ "R1" ])
+                "a top-level component is named by its own label alone"
+            Expect.equal (WavePath.componentOfPath ldcs "TOP" [ "R1" ]) (Some ramId)
+                "and resolves back to itself"
+        }
+
+        // The reason the selection is saved this way: it has to survive the design being edited
+        // between saves, and be dropped rather than silently point somewhere else when it cannot.
+        test "a renamed or deleted component drops its saved wave instead of resolving elsewhere" {
+            let ldcs = nested ()
+            let renamed =
+                ldcs
+                |> List.map (fun ldc ->
+                    if ldc.Name <> "MID" then ldc
+                    else
+                        let comps, conns = ldc.CanvasState
+                        { ldc with
+                            CanvasState = comps |> List.map (fun c -> { c with Label = "N2" }), conns })
+
+            let path: WavePath =
+                { WPLabels = [ "M1"; "N1" ]; WPPortType = PortType.Output; WPPortNumber = 0 }
+            Expect.isSome (WavePath.signalOfPath ldcs "TOP" path) "resolves against the design it names"
+            Expect.isNone (WavePath.signalOfPath renamed "TOP" path)
+                "and against a design where the component was renamed, resolves to nothing"
+
+            // a path that leaves the design part way down, and one that never enters it
+            Expect.isNone (WavePath.signalOfPath ldcs "TOP" { path with WPLabels = [ "M9"; "N1" ] })
+                "an instance the design no longer holds"
+            Expect.isNone (WavePath.signalOfPath ldcs "TOP" { path with WPLabels = [] })
+                "and a path naming no component at all"
+            // I0 is a component, not a custom one, so nothing lies inside it
+            Expect.isNone (WavePath.signalOfPath ldcs "TOP" { path with WPLabels = [ "I0"; "N1" ] })
+                "a path descending through a component that is not a sheet instance"
+        }
+
+        // The saved selection changed shape with no legacy reader, which is only safe because a
+        // file this version cannot parse loses its SELECTION and keeps its SHEET. This is the
+        // real legacy data: alu.dgm holds a selection of uuid-named waves written years ago.
+        //
+        // The demo-loading test above covers the same fallback across every shipped project; this
+        // one names the case, so that the day it starts failing says what broke.
+        test "a shipped sheet holding a legacy wave selection loads its canvas without it" {
+            let alu =
+                System.IO.Path.GetFullPath(
+                    System.IO.Path.Combine(__SOURCE_DIRECTORY__, "..", "..", "static", "demos", "3cpu", "alu.dgm"))
+            let json = System.IO.File.ReadAllText alu
+            Expect.stringContains json "\"SimArrayIndex\""
+                "alu.dgm is meant to hold a selection in the old shape - pick another sheet if it no longer does"
+            match jsonStringToState json with
+            | Error e -> failtest $"a sheet with unreadable wave info failed to load: {e}"
+            | Ok saved ->
+                Expect.isNone saved.getWaveInfo "the unreadable selection is dropped"
+                Expect.isNonEmpty (fst saved.getCanvas) "and the canvas is kept"
         }
     ]

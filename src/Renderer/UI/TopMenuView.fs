@@ -47,7 +47,8 @@ let updateVerilogFileAction newCS name model (dispatch: Msg -> Unit)=
             |> List.tryFind (fun lc -> lc.Name = name)
             |> Option.map (fun lc -> lc.IsTopSheet)
         let sheetInfo: SheetInfo = {Form=Some (Verilog name);Description=None; ParameterDefinitions=None; IsTopSheet = wasTop} //only user defined sheets are editable and thus saveable
-        let savedState = newCS, getSavedWave model,(Some sheetInfo)
+        let design = designWithSheet project name newCS
+        let savedState = newCS, getSavedWave design model,(Some sheetInfo)
         saveStateToFile project.ProjectPath name savedState
         |> displayAlertOnError dispatch
         removeFileWithExtn ".dgmauto" project.ProjectPath name
@@ -56,7 +57,7 @@ let updateVerilogFileAction newCS name model (dispatch: Msg -> Unit)=
             |> List.find (fun lc -> lc.Name = name)
         let savedWaveSim =
             Map.tryFind name model.WaveSim
-            |> Option.map getSavedWaveInfo
+            |> Option.map (getSavedWaveInfo design name)
         let (SheetInfo:SheetInfo option) =
             match origLdComp.Form with
             |None -> None

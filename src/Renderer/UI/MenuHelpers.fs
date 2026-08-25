@@ -938,7 +938,7 @@ let setupProjectFromComponents (finishUI:bool) (sheetName: string) (ldComps: Loa
 
     let savedWaveSim =
         compToSetup.WaveInfo
-        |> Option.map loadWSModelFromSavedWaveInfo
+        |> Option.map (loadWSModelFromSavedWaveInfo ldComps compToSetup.Name)
         |> Option.defaultValue initWSModel
 
     // Within a project the running simulation's model carries over, so that leaving a sheet and
@@ -1233,11 +1233,15 @@ let updateProjectFromCanvas (model:Model) (dispatch:Msg -> Unit) =
                 })
 
 
-/// extract SavedWaveInfo from model to be saved
-let getSavedWave (model: Model) : SavedWaveInfo option = 
-    match currWaveSimModel model with
-    | Some wsModel -> Some (getSavedWaveInfo wsModel)
-    | None -> None
+/// extract SavedWaveInfo from model to be saved.
+///
+/// Takes the design to walk rather than reading it off the project, because the selection is saved
+/// as label paths and the project's copy of the sheet being saved is the version before the save -
+/// see designWithSheet, which is what every caller passes.
+let getSavedWave (ldcs: LoadedComponent list) (model: Model) : SavedWaveInfo option =
+    match currWaveSimModel model, getCurrFile model with
+    | Some wsModel, Some sheet -> Some(getSavedWaveInfo ldcs sheet wsModel)
+    | _ -> None
 
 /// Save the sheet currently open, return  the new sheet's Loadedcomponent if this has changed.
 /// Do not change model.
@@ -1253,7 +1257,8 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
         let ldc = project.LoadedComponents |> List.find (fun lc -> lc.Name = project.OpenFileName)
         // slots of components deleted from the canvas must not be saved
         let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description ; ParameterDefinitions= CanvasExtractor.tidyParamSlots canvasState ldc.LCParameterSlots; IsTopSheet = Some ldc.IsTopSheet} //only user defined sheets are editable and thus saveable
-        let savedState = canvasState, getSavedWave model,(Some sheetInfo)
+        let design = designWithSheet project project.OpenFileName canvasState
+        let savedState = canvasState, getSavedWave design model,(Some sheetInfo)
         if isAuto then
             failwithf "Auto saving is no longer used"
             None
@@ -1267,7 +1272,7 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
                 |> Optic.set loadedComponentIsOutOfDate_ false
             let savedWaveSim =
                 Map.tryFind project.OpenFileName model.WaveSim
-                |> Option.map getSavedWaveInfo
+                |> Option.map (getSavedWaveInfo design project.OpenFileName)
             let (SheetInfo:SheetInfo option) =
                 match origLdComp.Form with
                 |None -> None
@@ -1302,7 +1307,8 @@ let saveOpenFileToModel model =
         let ldc = project.LoadedComponents |> List.find (fun lc -> lc.Name = project.OpenFileName)
         // slots of components deleted from the canvas must not be saved
         let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description; ParameterDefinitions= CanvasExtractor.tidyParamSlots canvasState ldc.LCParameterSlots; IsTopSheet = Some ldc.IsTopSheet} //only user defined sheets are editable and thus saveable
-        let savedState = canvasState, getSavedWave model,(Some sheetInfo)
+        let design = designWithSheet project project.OpenFileName canvasState
+        let savedState = canvasState, getSavedWave design model,(Some sheetInfo)
         saveStateToFile project.ProjectPath project.OpenFileName savedState |> ignore
         removeFileWithExtn ".dgmauto" project.ProjectPath project.OpenFileName
         let origLdComp =
@@ -1310,7 +1316,7 @@ let saveOpenFileToModel model =
             |> List.find (fun lc -> lc.Name = project.OpenFileName)
         let savedWaveSim =
             Map.tryFind project.OpenFileName model.WaveSim
-            |> Option.map getSavedWaveInfo
+            |> Option.map (getSavedWaveInfo design project.OpenFileName)
         let (SheetInfo:SheetInfo option) =
             match origLdComp.Form with
             |None -> None

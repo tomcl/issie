@@ -1202,19 +1202,38 @@ let waveSimMaxArrayMargin = waveSimStepsOverflow + List.max waveSimMultipliers
     
 
 
+/// One saved waveform: a component named by the LABELS of the custom component instances entered
+/// to reach it, then its own label, and which of its ports.
+///
+/// Not ids and not array indices, because this is written to a file and read back against a design
+/// that has been edited since. See `WavePath.fs`, which resolves it both ways.
+///
+/// The field names are prefixed because F# resolves an unannotated record field to the last type
+/// declaring it, and `PortType`/`PortNumber` are `WaveIndexT`'s.
+type WavePath =
+    { /// outermost instance first; a component on the sheet being simulated has one label
+      WPLabels: string list
+      WPPortType: PortType
+      WPPortNumber: int }
+
 /// Info saved by Wave Sim.
 /// This info is not necessarilu uptodate with deletions or additions in the Diagram.
 /// The wavesim code processing this will not fail if non-existent nets are referenced.
 type SavedWaveInfo = {
-    /// Waves which are selected to be shown in the waveform viewer
-    SelectedWaves: WaveIndexT list option
+    /// Waves which are selected to be shown in the waveform viewer, named so that the selection
+    /// survives the ids being reallocated on load and the design being edited between saves
+    SelectedWaves: WavePath list option
     /// Radix in which values are displayed in the wave simulator
     Radix: NumberBase option
     /// Width of the waveform column
     WaveformColumnWidth: float option
-    /// RAMs which are selected to be shown in the RAM tables
+    /// RAMs which are selected to be shown in the RAM tables. Legacy: still read out of old files
+    /// and carried along, but nothing writes it and nothing loads it into the wave sim model.
+    /// Superseded by SelectedFRams, which can name a RAM inside a subsheet.
     SelectedRams: Map<ComponentId, string> option
-    SelectedFRams: Map<FComponentId, string> option
+    /// RAMs which are selected to be shown in the RAM tables, each a label path and the name it
+    /// is shown under. Named the same way as SelectedWaves and for the same reason.
+    SelectedFRams: (string list * string) list option
     /// configuration options for waveform simulator
     WSConfig: WSConfig option
 
@@ -1240,27 +1259,23 @@ type SheetInfo = {
 // The FILE forms of the wave-viewer selection and the sheet info. Saved .dgm files hold every
 // id as a string (uuids in old files, integers written as strings in new ones); the in-memory
 // types above hold integers. Field names match the in-memory types exactly, so the on-disk
-// JSON is unchanged. The converters take the loader's id mapping; a wave selection can name
-// components on OTHER sheets (its access path), so the mapping the loader passes must cover
-// the whole design - an id it cannot map becomes 0, a dangling reference the wave simulator
-// already tolerates by lookup-miss, exactly as a stale uuid was.
+// JSON is unchanged. The converters take the loader's id mapping, which the sheet info and the
+// legacy SelectedRams field still need. The selection itself no longer does: it is label paths,
+// which have no ids to map and so no file form distinct from the memory one.
 // ---------------------------------------------------------------------------------------------
 
 module JSONWave =
 
-    type WaveIndexT = {
-        SimArrayIndex: int
-        Id: string * string list
-        PortType: PortType
-        PortNumber: int
-    }
+    // No WaveIndexT here: a saved selection is a WavePath, which is labels and ints already, so
+    // there is nothing for the id mapping to do to it and no file form distinct from the memory
+    // one.
 
     type SavedWaveInfo = {
-        SelectedWaves: WaveIndexT list option
+        SelectedWaves: WavePath list option
         Radix: NumberBase option
         WaveformColumnWidth: float option
         SelectedRams: Map<string, string> option
-        SelectedFRams: Map<string * string list, string> option
+        SelectedFRams: (string list * string) list option
         WSConfig: WSConfig option
         ClkWidth: float option
         Cursor: uint32 option
@@ -1275,28 +1290,14 @@ module JSONWave =
         IsTopSheet: bool option
     }
 
-let private fCompIdToJson ((ComponentId cid, path): FComponentId) : string * string list =
-    string cid, path |> List.map (fun (ComponentId id) -> string id)
-
-let private fCompIdOfJson (mapCompId: string -> int) ((cid, path): string * string list) : FComponentId =
-    ComponentId(mapCompId cid), path |> List.map (mapCompId >> ComponentId)
-
 let waveInfoToJson (wi: SavedWaveInfo) : JSONWave.SavedWaveInfo =
-    { SelectedWaves =
-        wi.SelectedWaves
-        |> Option.map (List.map (fun w ->
-            ({ SimArrayIndex = w.SimArrayIndex
-               Id = fCompIdToJson w.Id
-               PortType = w.PortType
-               PortNumber = w.PortNumber }: JSONWave.WaveIndexT)))
+    { SelectedWaves = wi.SelectedWaves
       Radix = wi.Radix
       WaveformColumnWidth = wi.WaveformColumnWidth
       SelectedRams =
         wi.SelectedRams
         |> Option.map (Map.toList >> List.map (fun (ComponentId cid, v) -> string cid, v) >> Map.ofList)
-      SelectedFRams =
-        wi.SelectedFRams
-        |> Option.map (Map.toList >> List.map (fun (fid, v) -> fCompIdToJson fid, v) >> Map.ofList)
+      SelectedFRams = wi.SelectedFRams
       WSConfig = wi.WSConfig
       ClkWidth = wi.ClkWidth
       Cursor = wi.Cursor
@@ -1304,21 +1305,13 @@ let waveInfoToJson (wi: SavedWaveInfo) : JSONWave.SavedWaveInfo =
       DisplayedPortIds = wi.DisplayedPortIds }
 
 let waveInfoOfJson (mapCompId: string -> int) (wi: JSONWave.SavedWaveInfo) : SavedWaveInfo =
-    { SelectedWaves =
-        wi.SelectedWaves
-        |> Option.map (List.map (fun (w: JSONWave.WaveIndexT) ->
-            { SimArrayIndex = w.SimArrayIndex
-              Id = fCompIdOfJson mapCompId w.Id
-              PortType = w.PortType
-              PortNumber = w.PortNumber }))
+    { SelectedWaves = wi.SelectedWaves
       Radix = wi.Radix
       WaveformColumnWidth = wi.WaveformColumnWidth
       SelectedRams =
         wi.SelectedRams
         |> Option.map (Map.toList >> List.map (fun (cid, v) -> ComponentId(mapCompId cid), v) >> Map.ofList)
-      SelectedFRams =
-        wi.SelectedFRams
-        |> Option.map (Map.toList >> List.map (fun (fid, v) -> fCompIdOfJson mapCompId fid, v) >> Map.ofList)
+      SelectedFRams = wi.SelectedFRams
       WSConfig = wi.WSConfig
       ClkWidth = wi.ClkWidth
       Cursor = wi.Cursor

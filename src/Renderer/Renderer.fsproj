@@ -43,6 +43,7 @@
     <Compile Include="Common\SimpleJsonDotNet.fs" />
     <Compile Include="Common\ParameterTypes.fs" />
     <Compile Include="Common\CommonTypes.fs" />
+    <Compile Include="Common\WavePath.fs" />
     <Compile Include="Common\Markdown.fs" />
     <Compile Include="Common\AppMessages.fs" />
     <Compile Include="Common\KeyTypes.fs" />

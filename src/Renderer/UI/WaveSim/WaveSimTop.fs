@@ -451,19 +451,31 @@ and private refreshAndIssue (dispatch: Msg -> unit) (newSimulation: bool) (ws: W
     cmd |> List.iter (fun sub -> sub dispatch)
     model
 
-/// Ask the .NET simulator for whatever the waveform viewer is missing, at the end of every update.
+/// What the view being drawn wants from the .NET simulator and has not got.
 ///
-/// **The one place a fetch is decided**, and it decides from the model and the cache alone: the
-/// waves being drawn that have not got the window they are drawn over, and whether a request is
-/// already in the air. Nothing records that a fetch is owed, and no message has to remember to ask
-/// for one - which is why this is at the end of `update` rather than at the end of the refresh. The
-/// refresh is not the only thing that can leave a wave without its window: a cursor move inside the
-/// window does not refresh, a fetch that failed while the sidecar was still starting leaves
-/// everything missing, and either would have sat there until something else happened to refresh.
-///
-/// Cheap enough to run on every message: a map lookup per drawn wave, of which there are at most a
-/// hundred.
-let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd<Msg> =
+/// Everything in one record because everything goes in one operation: whichever of these a pass
+/// finds missing, it asks for together, in order, in one promise, under one entry in the in-flight
+/// table. One round trip and one message however many of them there are.
+type private Missing =
+    { /// the cycle the session must have reached before any of it can be read
+      MissCycle: int
+      /// how many cycles of arrays the sidecar's build must hold
+      MissArraySize: int
+      /// the design to build, if it is not built
+      MissDesign: SimpleDesign
+      /// driver indices of waveforms that have not got the window they are drawn over
+      MissWaves: int list
+      MissWindow: WaveSlice.Window
+      /// at most one RAM's rows. ONE, because the next pass takes the next: a round trip is a
+      /// fifth of a millisecond, so this is not slower in any way a user could see
+      MissRam: (FComponentId * RamView.RamKey) option
+      /// the step panel's signals, when it is showing a cycle it has no values for
+      MissPanel: (int * StepPanelData.PanelSignal list) option
+      /// the wire the pointer is resting on, when the model has no value for exactly it
+      MissProbe: (WaveIndexT * int) option }
+
+/// What the waveform viewer is missing, or None when it is not the thing on screen.
+let private missingForWaves (model: Model) (project: Project) : Missing option =
     let ws = model.WaveSimSheet |> Option.bind (fun sheet -> Map.tryFind sheet model.WaveSim)
 
     /// Long enough after a failure to be worth trying again, rather than as fast as the message
@@ -472,13 +484,8 @@ let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd
         ws.FetchFailedAtMs > 0.0
         && TimeHelpers.getTimeMs () - ws.FetchFailedAtMs < Constants.fetchRetryAfterMs
 
-    match ws, model.CurrentProj with
-    | Some ws, Some project when
-        ws.State = Success
-        && not (ModelHelpers.sidecarFetchInFlight model)
-        && not model.SimulateInRenderer
-        && not (backedOff ws)
-        ->
+    match ws with
+    | Some ws when ws.State = Success && not (backedOff ws) ->
         let fs = Simulator.getFastSim ()
 
         let window: WaveSlice.Window =
@@ -494,133 +501,231 @@ let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd
             |> fun handles -> WaveProvider.wavesToFetch model.SimulateInRenderer handles window
             |> List.map (fun (SignalHandle i) -> i)
 
-        let design =
-            ModelHelpers.designOf project (model.Sheet.GetCanvasState())
-            |> CanvasExtractor.simpleDesignOfLoadedComponents
-            |> fun d -> { d with TopSheet = fs.SimulatedTopSheet }
-
-        // What the SIDECAR allocates, from the configuration - not from the renderer's own
-        // arrays, which in this mode are sized for their structure and hold a few hundred
-        // cycles whatever the configuration says.
-        let arraySize = ModelHelpers.Constants.waveSimRequiredArraySize ws
-
-        // The one RAM table, if any, whose rows are not the ones it is about to draw.
-        //
-        // ONE, and fetched by the same command as the waves below rather than a command of its
-        // own. Two commands would be two things asking the sidecar to build at once, and a design
-        // is uploaded one sheet per message with index 0 beginning an upload - so interleaving
-        // them leaves it holding half of each. The way not to have that problem is not to have two
-        // askers: whatever this update decides to fetch, it fetches in order, in one promise, under
-        // the one FetchInProgress bit that already stops the next message asking again.
-        //
-        // A round trip is sub-millisecond, so taking one RAM per update is no slower in any way a
-        // user could see - the next update picks up the next.
-        let ramToFetch =
+        let ram =
             ws.SelectedRams
             |> Map.toList
             |> List.filter (fun (ramId, _) -> RamData.needed model ramId)
-            |> List.truncate 1
-            |> List.map (fun (ramId, _) -> ramId, RamData.keyOf model ramId)
+            |> List.tryHead
+            |> Option.map (fun (ramId, _) -> ramId, RamData.keyOf model ramId)
 
-        if (List.isEmpty toFetch && List.isEmpty ramToFetch) || fs.NumStepArrays = 0 then
-            model, cmd
+        if fs.NumStepArrays = 0 then
+            None
         else
+            // What the SIDECAR allocates, from the configuration - not from the renderer's own
+            // arrays, which in this mode are sized for their structure and hold two cycles
+            // whatever the configuration says.
+            let arraySize = ModelHelpers.Constants.waveSimRequiredArraySize ws
 
+            Some
+                { MissCycle =
+                    ram
+                    |> Option.map (fun (_, key) -> key.Cycle)
+                    |> Option.defaultValue 0
+                    |> max (window.LastCycle + 1)
+                  MissArraySize = arraySize
+                  MissDesign =
+                    ModelHelpers.designOf project (model.Sheet.GetCanvasState())
+                    |> CanvasExtractor.simpleDesignOfLoadedComponents
+                    |> fun d -> { d with TopSheet = fs.SimulatedTopSheet }
+                  MissWaves = toFetch
+                  MissWindow = window
+                  MissRam = ram
+                  MissPanel = None
+                  MissProbe = None }
+    | _ -> None
+
+/// What the step simulator's panel is missing, or None when it is not the thing on screen.
+///
+/// The panel shows the cycle the model says it is showing, and holds values for whatever cycle it
+/// last read. When those differ it needs a read - which is the same shape as "this wave has not got
+/// the window it is drawn over", derived the same way, and now asked for by the same mechanism. It
+/// used to be a promise of its own inside advanceTo, which gave the step simulator a second way of
+/// talking to the sidecar that had to be kept in step with this one.
+let private missingForPanel (model: Model) (project: Project) : Missing option =
+    match model.CurrentStepSimulationStep with
+    | Some(Ok simData) when simData.FastSim.NumStepArrays > 0 ->
+        let cycle = simData.ClockTickNumber
+
+        if StepPanelData.cycleHeld () = Some cycle then
+            None
+        else
+            let signals = SimulationView.panelSignals simData
+
+            if List.isEmpty signals then
+                None
+            else
+                Some
+                    { MissCycle = cycle
+                      MissArraySize =
+                        SimulationView.stepSimArraySize model
+                        |> Result.defaultValue SimulationView.Constants.maxArraySize
+                      MissDesign =
+                        ModelHelpers.designOf project (model.Sheet.GetCanvasState())
+                        |> CanvasExtractor.simpleDesignOfLoadedComponents
+                        |> fun d -> { d with TopSheet = simData.FastSim.SimulatedTopSheet }
+                      MissWaves = []
+                      MissWindow =
+                        { StartSample = cycle
+                          Multiplier = 1
+                          SampleCount = 1 }
+                      MissRam = None
+                      MissPanel = Some(cycle, signals)
+                      MissProbe = None }
+    | _ -> None
+
+/// Make what the view is drawing true, one operation at a time.
+///
+/// **The one place a request to the .NET simulator is decided**, and it decides from the model and
+/// the caches alone: what the view being drawn has not got, and whether something is already in the
+/// air. Nothing records that a fetch is owed and no message has to remember to ask for one - which
+/// is why this is at the end of `update` rather than at the end of a refresh. A refresh is not the
+/// only thing that can leave a view short of its data: a cursor move inside the window does not
+/// refresh, a step moves the panel's clock, and a fetch that failed while the sidecar was still
+/// starting leaves everything missing.
+///
+/// **Build, then run a chunk at a time, then read** - each an operation, each answered by a
+/// message, and the next decided here by looking at the model. Nothing is ever interrupted: what a
+/// cancel changes is what this asks for next. Cancelling a run puts the cursor back on the cycle
+/// the session has reached (Update.CancelWaveSimulation), so the next pass finds it already far
+/// enough and stops asking for chunks. There is no cancellation on the wire because none is needed.
+///
+/// Cheap enough to run on every message: a map lookup per drawn wave, of which there are at most a
+/// hundred, and a comparison per other thing.
+let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd<Msg> =
+    match model.CurrentProj with
+    | None -> model, cmd
+    | _ when model.SimulateInRenderer -> model, cmd
+    // something is already outstanding; its answer brings us back here
+    | _ when ModelHelpers.sidecarIsBusy model -> model, cmd
+    | Some project ->
+        // The two simulators are mutually exclusive, so at most one of these is ever Some - but
+        // they are asked in one place and answered by one mechanism, which is the point.
+        /// The wire the pointer is resting on, if the model has no value for exactly it. Asked
+        /// with whatever else is missing rather than separately: hovering is occasional and the
+        /// question does not change while the pointer sits still, so this is one more thing in the
+        /// promise on the pass that first notices it.
+        let probe =
+            WaveSimSelect.probeQuestion model
+            |> Option.filter (fun (_, wi, cycle, _) ->
+                (WaveSimSelect.heldProbeValue model wi cycle).IsNone)
+            |> Option.map (fun (_, wi, cycle, _) -> wi, cycle)
+
+        match
+            missingForWaves model project
+            |> Option.orElseWith (fun () -> missingForPanel model project)
+            |> Option.map (fun miss -> { miss with MissProbe = probe })
+        with
+        | None -> model, cmd
+        | Some miss when
+            List.isEmpty miss.MissWaves
+            && miss.MissRam.IsNone
+            && miss.MissPanel.IsNone
+            && miss.MissProbe.IsNone
+            ->
+            model, cmd
+        | Some miss ->
+
+        /// Everything this pass wants read, in order, in one promise. The session has already been
+        /// run far enough - that is a separate operation, sequenced below - so nothing here
+        /// commands it.
+        let readAll epoch () =
+            promise {
+                let! waves =
+                    if List.isEmpty miss.MissWaves then
+                        Promise.lift (Ok())
+                    else
+                        WaveProvider.fetchWavesFor epoch (Simulator.getFastSim ()) miss.MissWaves miss.MissWindow
+
+                let! rows =
+                    match miss.MissRam with
+                    | None -> Promise.lift None
+                    | Some(ramId, key) -> RamData.fetch epoch ramId key WaveSimTypes.Constants.maxRamRowsDisplayed
+
+                match miss.MissPanel with
+                | None -> ()
+                | Some(cycle, signals) ->
+                    match! StepPanelData.fill epoch cycle signals with
+                    | Error e -> Log.warn $"reading the step panel at cycle {cycle}: {e}"
+                    | Ok() -> ()
+
+                let! probed =
+                    match miss.MissProbe with
+                    | None -> Promise.lift None
+                    | Some(wi, cycle) ->
+                        WaveProvider.fetchProbeValue epoch (Simulator.getFastSim ()) wi cycle
+                        |> Promise.map (Option.map (fun value -> wi, cycle, value))
+
+                return waves, rows, probed
+            }
+
+        match model.SidecarSession with
+        | session when not (session.Holds(miss.MissDesign.TopSheet, miss.MissArraySize)) ->
+            Log.dbg
+                Log.Wave
+                $"building {miss.MissDesign.TopSheet} on the .NET simulator for {miss.MissArraySize} cycles"
+
+            let seq = ModelHelpers.newSeq ()
+            let startBuild () = SidecarSession.build miss.MissDesign miss.MissArraySize
+
+            model
+            |> Optic.map sidecarInFlight_ (Map.add seq (OpBuild(miss.MissDesign.TopSheet, miss.MissArraySize))),
+            Elmish.Cmd.batch
+                [ cmd
+                  Elmish.Cmd.OfPromise.either
+                      startBuild
+                      ()
+                      (fun result -> SidecarReply(seq, AnsBuilt result))
+                      (fun exn -> SidecarReply(seq, AnsBuilt(Error exn.Message))) ]
+
+        | session when session.Clock < miss.MissCycle ->
+            let seq = ModelHelpers.newSeq ()
+            let epoch = Option.get session.Epoch
+            let runOne () = SidecarSession.runChunk epoch miss.MissCycle
+
+            model |> Optic.map sidecarInFlight_ (Map.add seq (OpRunForWaves miss.MissCycle)),
+            Elmish.Cmd.batch
+                [ cmd
+                  Elmish.Cmd.OfPromise.either
+                      runOne
+                      ()
+                      (fun result -> SidecarReply(seq, AnsRan result))
+                      (fun exn -> SidecarReply(seq, AnsRan(Error exn.Message))) ]
+
+        | session ->
             let alsoRam =
-                if List.isEmpty ramToFetch then "" else $", and one RAM at cycle {(snd ramToFetch.Head).Cycle}"
+                match miss.MissRam with
+                | None -> ""
+                | Some(_, key) -> $", one RAM at cycle {key.Cycle}"
 
-            /// Everything this update wants read from the sidecar, in order, in one promise: the
-            /// waves, then at most one RAM's rows. The session has already been run far enough -
-            /// that is a separate operation, sequenced below - so nothing here commands it.
-            let fetchAll epoch () =
-                promise {
-                    let! waves =
-                        if List.isEmpty toFetch then
-                            Promise.lift (Ok())
-                        else
-                            WaveProvider.fetchWavesFor epoch fs toFetch window
+            let alsoPanel =
+                match miss.MissPanel with
+                | None -> ""
+                | Some(cycle, signals) -> $", {signals.Length} panel signals at cycle {cycle}"
 
-                    let! rows =
-                        match ramToFetch with
-                        | [] -> Promise.lift None
-                        | (ramId, key) :: _ ->
-                            RamData.fetch epoch ramId key WaveSimTypes.Constants.maxRamRowsDisplayed
+            let alsoProbe =
+                match miss.MissProbe with
+                | None -> ""
+                | Some(_, cycle) -> $", the probe's wire at cycle {cycle}"
 
-                    return waves, rows
-                }
+            let view =
+                $"{miss.MissWindow.StartSample}+{miss.MissWindow.SampleCount}x{miss.MissWindow.Multiplier}"
 
-            /// The cycle the sidecar's session must have reached before any of that can be read.
-            /// The window's last cycle, and a RAM's cycle if one is being read as well.
-            let cycleNeeded =
-                ramToFetch
-                |> List.map (fun (_, key) -> key.Cycle)
-                |> List.fold max (window.LastCycle + 1)
+            Log.dbg Log.Wave $"fetching {miss.MissWaves.Length} waves over {view}{alsoRam}{alsoPanel}{alsoProbe}"
 
-            // ONE PLACE SEQUENCES THE WHOLE THING: build, then run a chunk at a time, then read.
-            // Each step is an operation, its answer comes back as a message, and this function -
-            // which runs after every message - decides what the next step is by looking at the
-            // model. Keeping every decision here rather than inside the promises is what makes
-            // the sequence something that can be reasoned about and changed.
-            //
-            // Nothing is ever interrupted. Each operation finishes and answers; what a cancel
-            // changes is what this function asks for next. Cancelling a run puts the cursor back
-            // on the cycle the session has reached (Update.CancelWaveSimulation), so the very
-            // next pass through here finds the session already far enough and stops asking for
-            // chunks. There is no cancellation on the wire because none is needed.
-            match model.SidecarSession with
-            | _ when ModelHelpers.sidecarIsBusy model ->
-                // something is already outstanding; its answer brings us back here
-                model, cmd
+            let seq = ModelHelpers.newSeq ()
 
-            | session when not (session.Holds(fs.SimulatedTopSheet, arraySize)) ->
-                Log.dbg Log.Wave $"building {design.TopSheet} on the .NET simulator for {arraySize} cycles"
-                let seq = ModelHelpers.newSeq ()
-                let startBuild () = SidecarSession.build design arraySize
+            let fetch =
+                Elmish.Cmd.OfPromise.either
+                    (readAll (Option.get session.Epoch))
+                    ()
+                    (fun (waves, rows, probed) -> SidecarReply(seq, AnsFetched(waves, rows, probed)))
+                    (fun exn -> SidecarReply(seq, AnsFetched(Error exn.Message, None, None)))
 
-                model |> Optic.map sidecarInFlight_ (Map.add seq (OpBuild(fs.SimulatedTopSheet, arraySize))),
-                Elmish.Cmd.batch
-                    [ cmd
-                      Elmish.Cmd.OfPromise.either
-                          startBuild
-                          ()
-                          (fun result -> SidecarReply(seq, AnsBuilt result))
-                          (fun exn -> SidecarReply(seq, AnsBuilt(Error exn.Message))) ]
-
-            | session when session.Clock < cycleNeeded ->
-                let seq = ModelHelpers.newSeq ()
-                let epoch = Option.get session.Epoch
-                let runOne () = SidecarSession.runChunk epoch cycleNeeded
-
-                model |> Optic.map sidecarInFlight_ (Map.add seq (OpRunForWaves cycleNeeded)),
-                Elmish.Cmd.batch
-                    [ cmd
-                      Elmish.Cmd.OfPromise.either
-                          runOne
-                          ()
-                          (fun result -> SidecarReply(seq, AnsRan result))
-                          (fun exn -> SidecarReply(seq, AnsRan(Error exn.Message))) ]
-
-            | session ->
-                Log.dbg
-                    Log.Wave
-                    $"fetching {toFetch.Length} waves over {window.StartSample}+{window.SampleCount}x{window.Multiplier}{alsoRam}"
-
-                let seq = ModelHelpers.newSeq ()
-
-                let fetch =
-                    Elmish.Cmd.OfPromise.either
-                        (fetchAll (Option.get session.Epoch))
-                        ()
-                        (fun (waves, rows) -> SidecarReply(seq, AnsFetched(waves, rows)))
-                        (fun exn -> SidecarReply(seq, AnsFetched(Error exn.Message, None)))
-
-                model
-                |> Optic.map
-                    sidecarInFlight_
-                    (Map.add seq (OpFetch(toFetch.Length, ramToFetch |> List.tryHead |> Option.map fst))),
-                Elmish.Cmd.batch [ cmd; fetch ]
-
-    | _ -> model, cmd
+            model
+            |> Optic.map
+                sidecarInFlight_
+                (Map.add seq (OpFetch(miss.MissWaves.Length, miss.MissRam |> Option.map fst))),
+            Elmish.Cmd.batch [ cmd; fetch ]
 
 /// Refresh the state of the wave simulator according to the model and canvas state.
 /// Redo a new simulation. Set inputs to default values. Then call refreshWaveSim via RefreshWaveSim message.

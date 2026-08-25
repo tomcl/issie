@@ -262,6 +262,7 @@ let init() = {
     CatalogueSearch = ""
     SimulateInRenderer = false
     SidecarSession = NoSession
+    ProbeRead = None
     SidecarInFlight = Map.empty
     ShowLibrarySheets = false
     OpenedLibrarySheets = Set.empty

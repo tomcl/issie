@@ -572,12 +572,16 @@ let updateUnpinned (msg : Msg) oldModel =
             Log.error $"the .NET simulator could not build the design: {e}"
             model |> set sidecarSession_ (SessionFailed e) |> withNoMsg
 
-        | Some(OpFetch _), AnsFetched(result, ramRows) ->
+        | Some(OpFetch _), AnsFetched(result, ramRows, probed) ->
             // The entry has already left the table above, whether the fetch worked or not, so the
             // refresh below is free to ask for whatever is still missing. After a view that moved
             // while this fetch was in the air, that is the view the user is now looking at.
             let model =
                 model
+                // What the probe asked for and what came back, together, so the label is drawn
+                // only where the value on screen is the value that was asked for. None where the
+                // simulation could not give one, which draws no label rather than a stale one.
+                |> Optic.set probeRead_ (Option.orElse model.ProbeRead probed)
                 |> updateWSModel (fun ws ->
                     { ws with
                         // whatever RAM rows came back with the waves. Held in the model rather than

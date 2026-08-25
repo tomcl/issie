@@ -379,8 +379,6 @@ let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (dispatch: M
                 |> CanvasExtractor.simpleDesignOfLoadedComponents
                 |> fun d -> { d with TopSheet = top }
 
-            let signals = panelSignals simData
-
             let failed (what: string) (e: string) =
                 // The panel keeps whatever it last held, which is of an earlier cycle, so say so
                 // rather than let the clock move under values that did not.
@@ -393,8 +391,13 @@ let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (dispatch: M
             let sidecarArraySize =
                 stepSimArraySize model |> Result.defaultValue Constants.maxArraySize
 
-            /// Run one chunk towards `cycle` and read the panel's signals at whatever it reached.
-            let runAndRead epoch =
+            /// Run one chunk towards `cycle`. Reading the panel's values at whatever it reached
+            /// is not done here: WaveSimTop.fetchWhatIsMissing sees that the panel is showing a
+            /// cycle it has no values for and asks for them, by the same mechanism and in the
+            /// same kind of operation as everything else the sidecar is asked. This used to be a
+            /// promise of its own, which gave the step simulator a second way of talking to the
+            /// sidecar that had to be kept in step with that one.
+            let runOneChunk epoch =
                 let seq = ModelHelpers.newSeq ()
                 dispatch (SidecarOpStarted(seq, OpStep cycle))
 
@@ -405,12 +408,7 @@ let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (dispatch: M
                             | Error e ->
                                 failed $"run to cycle {cycle}" e
                                 return simData.ClockTickNumber
-                            | Ok(reached, _) ->
-                                match! StepPanelData.fill epoch reached signals with
-                                | Error e -> failed $"read cycle {reached}" e
-                                | Ok() -> ()
-
-                                return reached
+                            | Ok(reached, _) -> return reached
                         }
 
                     dispatch (SidecarReply(seq, AnsStepped))
@@ -419,7 +417,7 @@ let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (dispatch: M
 
             match model.SidecarSession with
             | session when session.Holds(top, sidecarArraySize) ->
-                runAndRead (Option.get session.Epoch) |> Promise.start
+                runOneChunk (Option.get session.Epoch) |> Promise.start
 
             | _ when ModelHelpers.sidecarIsBusy model ->
                 // something is already outstanding - a build, or another advance's chunk. Its

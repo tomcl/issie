@@ -309,6 +309,8 @@ type SidecarOp =
     | OpFetch of waves: int * ram: FComponentId option
     /// run to a cycle and read back what the step panel shows there
     | OpStep of cycle: int
+    /// read the value on the wire the pointer is resting on, at the cycle being shown
+    | OpProbe of wave: WaveIndexT * cycle: int
 
 /// What an operation answered. One case per operation, so that an answer cannot be handled as
 /// though it were the answer to something else.
@@ -316,7 +318,10 @@ type SidecarAnswer =
     | AnsBuilt of Result<int, string>
     /// the clock the chunk reached, and whether it reached the cycle asked for
     | AnsRan of Result<int * bool, string>
-    | AnsFetched of Result<unit, string> * (FComponentId * (RamView.RamKey * RamView.RamView)) option
+    | AnsFetched of
+        Result<unit, string> *
+        (FComponentId * (RamView.RamKey * RamView.RamView)) option *
+        (WaveIndexT * int * bigint) option
     | AnsStepped
 
 /// The session the sidecar holds, which is what an operation commands.
@@ -1112,6 +1117,13 @@ type Model = {
     SimulateInRenderer : bool
     /// The session the .NET simulator is believed to hold, which is what a command names.
     SidecarSession : SidecarSessionState
+    /// The value the schematic probe last read, and what was asked for to get it.
+    ///
+    /// In the model rather than beside it because the probe is drawn from the model, and an answer
+    /// arriving anywhere else would not redraw the label it belongs to. Keyed by the wave and the
+    /// cycle, so a label is drawn only where the value on screen is the value that was asked for -
+    /// which is what stops the previous wire's value appearing under the pointer on this one.
+    ProbeRead : (WaveIndexT * int * bigint) option
     /// Every asynchronous operation asked of the .NET simulator and not yet answered, by the
     /// number it was asked under.
     ///
@@ -1206,6 +1218,7 @@ let openLibrary_ = Lens.create (fun a -> a.OpenLibrary) (fun s a -> {a with Open
 let catalogueSearch_ = Lens.create (fun a -> a.CatalogueSearch) (fun s a -> {a with CatalogueSearch = s})
 let simulateInRenderer_ = Lens.create (fun a -> a.SimulateInRenderer) (fun s a -> {a with SimulateInRenderer = s})
 let sidecarSession_ = Lens.create (fun a -> a.SidecarSession) (fun s a -> {a with SidecarSession = s})
+let probeRead_ = Lens.create (fun a -> a.ProbeRead) (fun s a -> {a with ProbeRead = s})
 let sidecarInFlight_ = Lens.create (fun a -> a.SidecarInFlight) (fun s a -> {a with SidecarInFlight = s})
 let showLibrarySheets_ = Lens.create (fun a -> a.ShowLibrarySheets) (fun s a -> {a with ShowLibrarySheets = s})
 let openedLibrarySheets_ = Lens.create (fun a -> a.OpenedLibrarySheets) (fun s a -> {a with OpenedLibrarySheets = s})

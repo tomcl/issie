@@ -197,6 +197,41 @@ let private fetchWaves
                 return Ok()
         }
 
+/// One signal's value at one cycle: what the schematic probe shows.
+///
+/// A read like any other - the same `simRead`, one signal and one sample of it - so the probe uses
+/// the mechanism everything else uses rather than a transport of its own. It was briefly a
+/// BLOCKING read over a second transport, so that the value could be had inside the render that
+/// draws it. That cost 2.2ms against this path's 0.2ms, because a synchronous XMLHttpRequest is
+/// the only thing that can block a renderer's thread and Chromium does not make it quick. The
+/// label appearing one render later is not something a user can see.
+let fetchProbeValue
+    (epoch: int)
+    (fs: FastSimulation)
+    (wi: WaveIndexT)
+    (cycle: int)
+    : JS.Promise<bigint option> =
+    match Map.tryFind wi.SimArrayIndex (driverSignals fs) with
+    | None -> Promise.lift None
+    | Some signal ->
+        promise {
+            let! frame = SidecarClient.simRead epoch cycle 1 1 [ signal ]
+            let asText = SidecarClient.decodeText frame
+
+            if asText.StartsWith "{" then
+                Log.dbg Log.Wave $"reading the probe's wire at cycle {cycle}: {asText}"
+                return None
+            else
+                let wordsPerSample = SidecarClient.simReadWordsPerSample frame
+                let data: uint32 array = unbox (SidecarClient.viewSimReadData frame wordsPerSample)
+
+                // least significant word first, whatever the width - see Protocol.SimRead
+                return
+                    (0I, [ wordsPerSample - 1 .. -1 .. 0 ])
+                    ||> List.fold (fun acc w -> (acc <<< 32) + bigint data[w])
+                    |> Some
+        }
+
 /// Read the waves asked for over that window, from a session that has already been run far enough.
 ///
 /// Running it that far is a separate operation, or rather a sequence of them, sequenced by the

@@ -105,6 +105,7 @@
     <Compile Include="Interface\WorkerInterface.fs" />
     <Compile Include="Interface\SidecarClient.fs" />
     <Compile Include="Interface\SidecarSession.fs" />
+    <Compile Include="Interface\SidecarSync.fs" />
 
     <!-- Verilog Component -->
     <Compile Include="VerilogComponent\VerilogTypes.fs" />

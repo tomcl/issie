@@ -230,6 +230,13 @@ let rec private endpoint (deadline: float) : JS.Promise<int * string> =
 /// is a fault and is reported as one. That distinction is the point of the wait above: everything
 /// over this is written as though the sidecar is simply there, because by the time it is called it
 /// is.
+/// Where the open socket points, for the synchronous path - which cannot wait for the endpoint
+/// to be polled and so can only work once a connection has been made. None before that, which is
+/// the honest answer: a synchronous read before anything has been built has nothing to read.
+let mutable private connectedTo: (int * string) option = None
+
+let syncEndpoint () = connectedTo
+
 let connect () : JS.Promise<unit> =
     match socket with
     | Some _ -> Promise.lift ()
@@ -240,11 +247,12 @@ let connect () : JS.Promise<unit> =
                 let ws = newWebSocket $"ws://127.0.0.1:{port}/?token={token}"
                 setBinaryTypeArrayBuffer ws
 
-                setOnOpen (fun _ -> socket <- Some ws; resolve ()) ws
+                setOnOpen (fun _ -> socket <- Some ws; connectedTo <- Some(port, token); resolve ()) ws
 
                 setOnError
                     (fun _ ->
                         socket <- None
+                        connectedTo <- None
                         reject (System.Exception "sidecar websocket failed"))
                     ws
 

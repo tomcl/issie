@@ -59,16 +59,12 @@ module Probe =
         | WaveSimState.Success when model.SimulateInRenderer ->
             Some(Simulator.getFastSim (), ws.CursorExactClkCycle, ws.Radix)
         | WaveSimState.Success ->
-            // The waveform simulation is the sidecar's, and the renderer's own copy of it is never
-            // run - so every value it could give here is whatever an unrun simulation holds. No
-            // label is better than a confident wrong one. Reading the probe over the wire is what
-            // gives this back.
-            None
-        | _ when not model.SimulateInRenderer ->
-            // and the same for the step simulator, which the .NET simulator now runs too: the
-            // renderer's copy is built for its structure and never run, so there is no value here
-            // to read. Reading the probe over the wire is what gives this back for both.
-            None
+            // The waveform simulation is the sidecar's. The renderer's own copy of it is never
+            // run, so nothing here can be read from it - but the SIDECAR has the value, and
+            // probeLabelForWire reads it synchronously, inside this render. The simulation is
+            // still handed over because everything except the value comes from it: which wave the
+            // wire carries, what it is called, how wide it is.
+            Some(Simulator.getFastSim (), ws.CursorExactClkCycle, ws.Radix)
         | _ ->
             match model.CurrentStepSimulationStep with
             // ClockTickNumber, not fs.ClockTick: it is the tick the step simulator is showing and
@@ -105,7 +101,7 @@ module Probe =
         // only while nothing is being dragged: during a gesture the cursor is doing something else
         // and a label following it is in the way
         | Some cid, Some(fs, cycle, radix), SheetT.CurrentAction.Idle ->
-            match WaveSimSelect.probeLabelForWire fs cycle radix model.Sheet.Wire cid with
+            match WaveSimSelect.probeLabelForWire model fs cycle radix model.Sheet.Wire cid with
             | None -> []
             | Some text ->
                 let pos = model.Sheet.LastMousePos

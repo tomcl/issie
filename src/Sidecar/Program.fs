@@ -395,6 +395,88 @@ module private CpuQos =
                 let ok = disableThrottling ()
                 Console.Error.WriteLine $"sidecar: EcoQoS off = {ok}"
 
+/// Write a JSON body, with the one header that makes it readable by the renderer.
+///
+/// The renderer's origin is not this one, and without Access-Control-Allow-Origin the browser
+/// hands the caller a network error rather than the response - so an error message travels as no
+/// message at all. A GET with no custom headers is a simple request, so this is the whole of what
+/// CORS needs here.
+let private respondJson (ctx: HttpListenerContext) (body: string) =
+    let bytes = Text.Encoding.UTF8.GetBytes body
+    ctx.Response.ContentType <- "application/json"
+    ctx.Response.AddHeader("Access-Control-Allow-Origin", "*")
+    ctx.Response.ContentLength64 <- int64 bytes.Length
+    ctx.Response.OutputStream.Write(bytes, 0, bytes.Length)
+    ctx.Response.Close()
+
+/// Answer one synchronous read, over plain HTTP rather than the WebSocket.
+///
+/// **Why a second transport at all.** A synchronous operation is one the renderer asks and waits
+/// for, inside a render, and it cannot wait on the WebSocket: a browser socket delivers through
+/// the event loop, so blocking the renderer's one thread would stop the very delivery that would
+/// unblock it. A blocking XMLHttpRequest does not go through the event loop, so it can. It cannot
+/// receive binary either, which is why this answers text and why bulk data stays where it is.
+///
+/// GET with a query string, so there is no preflight to answer and no body to parse:
+///
+///     /read?token=T&epoch=E&cycle=C&s=<compId>~<port>~<pathId.pathId...>   (s repeated)
+///
+/// Tilde and dot because they are unreserved in a URL: a pipe is not, and Chromium refuses to
+/// send a request whose query string contains one.
+///
+/// answered with {"values":["12","34"]} or {"error":"..."}. Values are decimal, because a bus can
+/// be wider than a JSON number.
+let private serveSyncRead (ctx: HttpListenerContext) =
+    let q = ctx.Request.QueryString
+
+    let intOf (name: string) =
+        match Int32.TryParse(q[name]) with
+        | true, n -> Some n
+        | _ -> None
+
+    let signals =
+        match q.GetValues "s" with
+        | null -> []
+        | values ->
+            values
+            |> Array.toList
+            |> List.choose (fun (v: string) ->
+                match v.Split '~' with
+                | [| comp; port; path |] ->
+                    match Int32.TryParse comp, Int32.TryParse port with
+                    | (true, c), (true, p) ->
+                        // component ids are dense integers (CommonTypes.ComponentId), so a path
+                        // is a comma-separated list of them and an empty one is the top sheet
+                        let ids =
+                            if path = "" then
+                                []
+                            else
+                                path.Split '.'
+                                |> Array.toList
+                                |> List.choose (fun id ->
+                                    match Int32.TryParse id with
+                                    | true, n -> Some(CommonTypes.ComponentId n)
+                                    | _ -> None)
+
+                        Some(CommonTypes.ComponentId c, ids, p)
+                    | _ -> None
+                | _ -> None)
+
+    let body =
+        match intOf "epoch", intOf "cycle" with
+        | Some epoch, Some cycle ->
+            match SimSession.readAt epoch cycle signals with
+            | Ok values ->
+                let quoted = values |> List.map (fun v -> $"\"{v}\"") |> String.concat ","
+                $"{{\"values\":[{quoted}]}}"
+            | Error e ->
+                let safe = e.Replace('"', ''')
+                $"{{\"error\":\"{safe}\"}}"
+        | _ -> "{\"error\":\"read needs epoch and cycle\"}"
+
+    respondJson ctx body
+
+
 [<EntryPoint>]
 let main _ =
     // absent when run by hand from a shell, and then any client is accepted
@@ -432,15 +514,43 @@ let main _ =
         let authorised =
             isNull token || ctx.Request.QueryString["token"] = token
 
-        if not (ctx.Request.IsWebSocketRequest && authorised) then
+        if not authorised then
             ctx.Response.StatusCode <- 401
             ctx.Response.Close()
-        else
+        elif ctx.Request.IsWebSocketRequest then
             try
                 let wsCtx = ctx.AcceptWebSocketAsync(subProtocol = null).GetAwaiter().GetResult()
-                serve wsCtx.WebSocket CancellationToken.None |> fun t -> t.GetAwaiter().GetResult()
+
+                // On its own task, so this loop goes on accepting. It used to be run to
+                // completion here, which meant no second connection was ever accepted while the
+                // renderer's socket was open - and the synchronous path needs one, since a
+                // browser socket cannot be read without the event loop the caller is blocking.
+                //
+                // Two connections, never two commands: the renderer issues a synchronous
+                // operation only when nothing is in flight, so this task and a synchronous read
+                // never touch the session at the same moment. That is an invariant kept where it
+                // can be kept - see SimSession.readAt.
+                Task.Run(fun () ->
+                    try
+                        serve wsCtx.WebSocket CancellationToken.None
+                        |> fun t -> t.GetAwaiter().GetResult()
+                    with e ->
+                        Console.Error.WriteLine $"sidecar: connection ended: {e.Message}")
+                |> ignore
             with e ->
-                // a dropped connection lands here; log it and go back to accepting
-                Console.Error.WriteLine $"sidecar: connection ended: {e.Message}"
+                Console.Error.WriteLine $"sidecar: connection refused: {e.Message}"
+        elif ctx.Request.Url.AbsolutePath = "/read" then
+            // Everything answers 200 with a body saying what happened, including a failure. A
+            // cross-origin response without the CORS header below is not readable by the caller
+            // at all - the browser reports it as a network error, so a status code carrying a
+            // reason arrives as no reason. Said once, here, rather than at each way out.
+            try
+                serveSyncRead ctx
+            with e ->
+                Console.Error.WriteLine $"sidecar: synchronous read failed: {e.Message}"
+                respondJson ctx $"{{\"error\":\"the read failed\"}}"
+        else
+            ctx.Response.StatusCode <- 404
+            ctx.Response.Close()
 
     0

@@ -355,6 +355,78 @@ let waveValueAt (fs: FastSimulation) (cycle: int) (radix: NumberBase) (wi: WaveI
         |> Option.map (fun fd -> (NumberHelpers.fastDataToPaddedString 60 radix fd).Trim())
     | _ -> None
 
+
+/// One synchronous read, remembered.
+///
+/// The probe asks on every render while the pointer rests on a wire, and Issie renders on every
+/// mouse move - so without this, moving across a wire costs a blocking round trip per frame.
+/// Measured at 1.8ms each, which is cheap for one question and not for sixty a second.
+///
+/// The answer cannot change while the session, the cycle and the signal are all the same, with one
+/// exception: setting an input re-runs the simulation, and a value at the same cycle of the same
+/// session can then differ. `memoizeBy` holds only the LAST key, which bounds that exactly - the
+/// stale answer survives only while the pointer sits on one wire across an input change, and
+/// moving to any other wire, or any other cycle, evicts it. Someone typing in the input panel is
+/// not hovering over a wire at the same moment.
+let private syncReadOne: (int * int * SidecarSync.SyncSignal) -> bigint option =
+    Helpers.memoizeBy id (fun (epoch, cycle, signal) ->
+        SidecarSync.readAt epoch cycle [ signal ] |> Option.bind List.tryHead)
+
+/// The same value, read from the .NET simulator, synchronously, inside the render that draws it.
+///
+/// **The first synchronous operation, and the shape the rest should take.** It is asked only when
+/// nothing is in flight, and what it asks for is bounded by construction: one signal, at a cycle
+/// the session has already reached. It is not asked while a build or a run is outstanding, so it
+/// never waits behind either.
+///
+/// A width is needed to write the value, and a width is a fact about the elaborated instance - so
+/// it comes from `PortView`, which is where every other width the wave simulator uses comes from.
+///
+/// None wherever the answer is not simply there: nothing built, nothing connected, the wire's
+/// cycle not yet run, or something in flight. The probe then draws no label, which is right - a
+/// label saying zero would be a value, and there is no value to give.
+let syncValueAt
+    (model: Model)
+    (fs: FastSimulation)
+    (cycle: int)
+    (radix: NumberBase)
+    (wi: WaveIndexT)
+    : string option =
+    let compId, path = wi.Id
+
+    match model.SidecarSession.Epoch with
+    | Some epoch when
+        not (ModelHelpers.sidecarIsBusy model)
+        && cycle <= model.SidecarSession.Clock
+        && wi.PortType = PortType.Output
+        ->
+        let width =
+            (PortView.ofInstanceCached fs (InstancePath path)).ViewPorts
+            |> List.tryFind (fun p ->
+                p.PortComp = compId && p.PortIs = PortType.Output && p.PortNum = wi.PortNumber)
+            |> Option.map (fun p -> p.PortWidth)
+
+        match width with
+        | None
+        | Some 0 -> None
+        | Some width ->
+            let signal =
+                { SidecarSync.SyncComp = compId
+                  SidecarSync.SyncPath = path
+                  SidecarSync.SyncPort = wi.PortNumber }
+
+            match syncReadOne (epoch, cycle, signal) with
+            | Some value ->
+                let fd =
+                    if width > 32 then
+                        { Dat = BigWord value; Width = width }
+                    else
+                        { Dat = Word(uint32 value); Width = width }
+
+                Some((NumberHelpers.fastDataToPaddedString 60 radix fd).Trim())
+            | None -> None
+    | _ -> None
+
 /// What to write beside the cursor for the wire it is resting on: the signal's name and its value
 /// at `cycle`. None when the simulation cannot answer - the wire is on a sheet it holds more than
 /// one copy of, carries no wave of its own, or has not been simulated as far as this cycle.
@@ -365,6 +437,7 @@ let waveValueAt (fs: FastSimulation) (cycle: int) (radix: NumberBase) (wi: WaveI
 /// thing the position already says. It is also the longest part of the name, on a label that has
 /// to fit beside the pointer without covering the circuit.
 let probeLabelForWire
+        (model: Model)
         (fs: FastSimulation)
         (cycle: int)
         (radix: NumberBase)
@@ -373,7 +446,13 @@ let probeLabelForWire
             : string option =
     waveIndexOfWire fs wireModel cid
     |> Option.bind (fun wi ->
-        waveValueAt fs cycle radix wi
+        // whichever simulator holds the value: the local arrays, or a synchronous read of the
+        // .NET one. Both answer here, so the probe works in either mode and the caller does not
+        // have to know which.
+        (if model.SimulateInRenderer then
+             waveValueAt fs cycle radix wi
+         else
+             syncValueAt model fs cycle radix wi)
         |> Option.map (fun text -> $"{getName wi fs} = {text}"))
 
 //--------------------------------------------------------------------------------------------------------//

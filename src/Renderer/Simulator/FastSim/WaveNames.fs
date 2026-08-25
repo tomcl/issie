@@ -290,18 +290,9 @@ let caseCompAndPortName (name:string) =
 
 /// Get name for a wave. Names are generated from component label, port name, and bit width of wave.
 let getName (index: WaveIndexT) (fastSim: FastSimulation) : string =
-    let fc = fastSim.WaveComps[index.Id]
+    let fc = fastSim.FastComponentOf index.Id
     match index.PortType with
     | PortType.Input -> getInputName true fc (InputPortNumber index.PortNumber)
     | PortType.Output -> getOutputName true fc (OutputPortNumber index.PortNumber) fastSim
     |> caseCompAndPortName
 
-/// sheet.component.port, which is what a waveform is called.
-///
-/// The SHEET is named, not the instance of it: which instance a waveform belongs to is said by
-/// where its row sits in the selector and by the combo box beside it, so a name carrying the
-/// instance as well said the same thing twice - and said it as a path of labels nobody asked to
-/// read. Where that leaves two waveforms with one name, the viewer disambiguates them on hover.
-let nameWithSheet (fastSim: FastSimulation) (dispName: string) (waveIndex:WaveIndexT) =
-    let fc = fastSim.WaveComps[waveIndex.Id]
-    camelCaseDottedWords (fastSim.getSheetNameOfInstance fc.Instance) + "." + dispName

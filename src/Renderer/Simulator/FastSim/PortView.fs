@@ -91,7 +91,7 @@ let ofInstance (fs: FastSimulation) (InstancePath ap as instance) : InstanceView
         |> Option.map (fun ldc ->
             fst ldc.CanvasState
             |> List.collect (fun comp ->
-                match Map.tryFind (ComponentId comp.Id, ap) fs.WaveComps with
+                match fs.ComponentOf(ComponentId comp.Id, ap) with
                 | None -> []
                 | Some fc ->
                     let portsOf portType (arrays: IOArray array) =
@@ -110,10 +110,12 @@ let ofInstance (fs: FastSimulation) (InstancePath ap as instance) : InstanceView
                                         WaveNames.getOutputName true fc (OutputPortNumber pn) fs,
                                         WaveNames.getOutputName false fc (OutputPortNumber pn) fs
 
-                                let width =
-                                    match Array.tryItem io.Index fs.Drivers with
-                                    | Some(Some driver) -> driver.DriverWidth
-                                    | _ -> 0
+                                // The array's own width, not the driver table's. They are the
+                                // same number - a driver's width is set from the width of the
+                                // output whose array it is, and an input link IS that array after
+                                // linking - and this one is there in a build made without the
+                                // wave tables.
+                                let width = io.Width
 
                                 // An output IS its own driver. An input reads the array of the
                                 // output feeding it, which is what InputDrivers names.

@@ -268,7 +268,7 @@ let wavesOfComponent
     | Ok fId ->
         let waves = waveIndicesOfFComp fs fId |> List.map (makeWave ws fs)
 
-        match waves, Map.tryFind fId fs.WaveComps with
+        match waves, fs.ComponentOf fId with
         | [], Some fc -> waveOfInstancePort fs ws fc, 1
         | _ -> waves, 1
 
@@ -276,7 +276,7 @@ let wavesOfComponent
 let private simLabelOfComponent (fs: FastSimulation) (compId: ComponentId) : string option =
     match copiesOfCanvasComp fs compId with
     | Error _ -> None
-    | Ok fId -> Map.tryFind fId fs.WaveComps |> Option.map (fun fc -> fc.FLabel)
+    | Ok fId -> fs.ComponentOf fId |> Option.map (fun fc -> fc.FLabel)
 
 /// The waves to offer on the schematic's right-click menu for the component clicked on: none
 /// unless a wave simulation is running and holds exactly one copy of that component.
@@ -401,7 +401,7 @@ let heldProbeValue (model: Model) (wi: WaveIndexT) (cycle: int) : bigint option 
 /// at `cycle`. None when the simulation cannot answer - the wire is on a sheet it holds more than
 /// one copy of, carries no wave of its own, or has not been simulated as far as this cycle.
 ///
-/// getName, not nameWithSheet: the waveform viewer prefixes the sheet because its rows are drawn
+/// The name without its sheet: the waveform viewer prefixes the sheet because its rows are drawn
 /// away from the design and come from all over it, so a bare "Q" there could be any of them. Here
 /// the label is on the wire, on the sheet the user is looking at, and the sheet name is the one
 /// thing the position already says. It is also the longest part of the name, on a label that has

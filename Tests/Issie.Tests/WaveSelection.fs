@@ -553,7 +553,7 @@ let tests =
               Expect.all
                   (WaveSimSelect.defaultSelectedWaves fs)
                   (fun wi ->
-                      match Map.tryFind wi.Id fs.WaveComps with
+                      match fs.ComponentOf wi.Id with
                       | Some fc -> fc.AccessPath = []
                       | None -> false)
                   "a design with top-level ports never reaches into its subsheets"
@@ -726,7 +726,7 @@ let tests =
               // only the waves at the shallowest depth it found.
               let fs, allWaves = deepSimulation.Force()
               let waves = allWaves |> Map.toList |> List.map snd
-              let depthOf (wave: ModelType.Wave) = fs.WaveComps[wave.WaveId.Id].AccessPath.Length
+              let depthOf (wave: ModelType.Wave) = (fs.FastComponentOf wave.WaveId.Id).AccessPath.Length
 
               Expect.isGreaterThan
                   (waves |> List.map depthOf |> List.distinct |> List.length)
@@ -741,7 +741,7 @@ let tests =
                   |> List.collect (fun (_, ofInstance) ->
                       ofInstance
                       :: (ofInstance
-                          |> List.groupBy (fun w -> WaveSimHelpers.getCompGroup fs.WaveComps[w.WaveId.Id].FType)
+                          |> List.groupBy (fun w -> WaveSimHelpers.getCompGroup (fs.FastComponentOf w.WaveId.Id).FType)
                           |> List.map snd))
               Expect.isNonEmpty rowsOfWaves "the design has rows"
               Expect.all

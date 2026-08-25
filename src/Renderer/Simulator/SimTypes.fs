@@ -761,9 +761,6 @@ type FastSimulation =
         FComps: Map<FComponentId, FastComponent>
         /// Custom Components.
         FCustomComps: Map<FComponentId, FastComponent>
-        /// Fast components: this map is longer than FComps because it contains
-        /// Custom components not used by Fast simulation but needed in Waveform simulation
-        WaveComps: Map<FComponentId, FastComponent>
         /// look up from output port of custom component to the relevant Output component
         FCustomOutputCompLookup: Map<(ComponentId * ComponentId list) * OutputPortNumber, FComponentId>
         /// Total number of step arrays (= drivers)
@@ -783,6 +780,26 @@ type FastSimulation =
         /// simulator's configuration can say what a given number of cycles would come to.
         StepCost: StepCost
     } with
+
+    /// Any component of the build, ordinary or custom.
+    ///
+    /// This used to be a third map, WaveComps, holding the union of the two - built by folding one
+    /// into the other after every build, which on a design of 120,000 components is a copy of all
+    /// of them for a lookup that is two tries. It was also the only reason a wave viewer needed a
+    /// structure the wave tables built, so removing it is what lets the same code answer from a
+    /// build made without them.
+    member this.ComponentOf(fId: FComponentId) : FastComponent option =
+        match Map.tryFind fId this.FComps with
+        | Some fc -> Some fc
+        | None -> Map.tryFind fId this.FCustomComps
+
+    /// The same, for a caller that knows the component is there and says so - the callers that
+    /// used to index WaveComps directly. Raises naming the id when it is not, which is what
+    /// indexing a map did.
+    member this.FastComponentOf(fId: FComponentId) : FastComponent =
+        match this.ComponentOf fId with
+        | Some fc -> fc
+        | None -> failwithf $"What? no component {fId} in this simulation"
 
     /// The design-sized fields, under the names they had when they were fields of this record.
     /// They read through to `Design`, which is where they live now - so that the design can be

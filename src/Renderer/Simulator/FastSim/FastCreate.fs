@@ -31,7 +31,6 @@ let emptyFastSimulation diagramName =
       FIOLinks = []
       FComps = Map.empty
       FCustomComps = Map.empty
-      WaveComps = Map.empty
       FCustomOutputCompLookup = Map.empty
       NumStepArrays = 0 // this will be overwritten by createInitFastCompPhase
       Drivers = Array.empty
@@ -951,7 +950,7 @@ let linkCustomComponentPorts (comps: FastComponent array) (fs: FastSimulation) :
 
     fs
 
-/// Adds WaveComps, Drivers and WaveIndex fields to a fast simulation.
+/// Adds the Drivers and WaveIndex fields to a fast simulation.
 /// For use by waveform Simulator.
 /// Needs to be run after widths are calculated.
 ///
@@ -960,15 +959,11 @@ let linkCustomComponentPorts (comps: FastComponent array) (fs: FastSimulation) :
 /// wave-carrying port. `WaveTables` is what decides whether a build pays for them; a simulator
 /// that runs and answers reads by name does not.
 let addWavesToFastSimulation (comps: FastComponent array) (fs: FastSimulation) : FastSimulation =
-    let waveComps =
-        (fs.FComps, fs.FCustomComps)
-        ||> Map.fold (fun s fid fc -> Map.add fid fc s)
-    // Add WaveComps
     // Create null driver array large enough for all created step arrays
     // each step array is given a sequentially generated id as it is created
     // however, some of these arrays will never be used and end up as None
     // elements of the driver array.
-    { fs with WaveComps = waveComps; Drivers = Array.create fs.NumStepArrays None }
+    { fs with Drivers = Array.create fs.NumStepArrays None }
     // Generate all waves, add (mutably) step arrays to driver array replacing None
     // by Some array in the index unique to the array added as these are needed
     // by wave component ports.

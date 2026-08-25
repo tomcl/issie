@@ -147,8 +147,6 @@ let noWaveTablesTest (projectName: string) (topSheet: string) (ticks: int) =
         Expect.equal lean.NumStepArrays full.NumStepArrays "the same step arrays"
 
         // ...without the three things only a viewer reads
-        Expect.isNonEmpty full.WaveComps "the ordinary build has a wave component map"
-        Expect.isEmpty lean.WaveComps "and the lean one does not"
         Expect.isGreaterThan full.Drivers.Length 0 "the ordinary build has drivers"
         Expect.equal lean.Drivers.Length 0 "and the lean one does not"
         Expect.isGreaterThan full.WaveIndex.Length 0 "the ordinary build has a wave index"
@@ -173,6 +171,83 @@ let noWaveTablesTest (projectName: string) (topSheet: string) (ticks: int) =
             "custom component ports must point at the same arrays in both builds"
     }
 
+/// Every instance of every sheet, however deep - the argument PortView is asked about.
+let rec private allInstances (fs: FastSimulation) (InstancePath ap as inst) sheet =
+    inst
+    :: (fs.Design.SubSheetsOf sheet
+        |> List.collect (fun (cid, child) -> allInstances fs (InstancePath(ap @ [ cid ])) child))
+
+/// What the ports of an instance are, as a comparable string - everything a waveform takes from
+/// PortView, so that two builds agreeing on this agree on every wave they offer.
+let private portsAsText (fs: FastSimulation) (inst: InstancePath) =
+    (PortView.ofInstance fs inst).ViewPorts
+    |> List.map (fun p ->
+        $"{p.PortComp} {p.PortIs} {p.PortNum} idx={p.PortArrayIndex} w={p.PortWidth} \
+          drv={p.PortDrivenBy} '{p.PortDisplayName}' '{p.PortLabel}' '{p.PortCompLabel}'")
+
+/// The waveform viewer asks PortView which ports an instance offers, how wide each is, and where
+/// its data lies. That is the ONE thing about a build the viewer cannot get from the design - and
+/// it is what a remote simulator would have to answer, from this same code, out of a build made
+/// without the wave tables.
+///
+/// So it must not need them. It used to: the component came from WaveComps, the union of the two
+/// component maps built by folding one into the other, and the width from the Drivers table. The
+/// component is now looked up in the two maps directly and the width is the step array's own,
+/// which is the same number - a driver's width is set from the width of the output whose array it
+/// is, and an input link IS that array once linked.
+let portViewWithoutTablesTest (projectName: string) (topSheet: string) =
+    test $"PortView answers the same without the wave tables {projectName}/{topSheet}" {
+        let ldcs = loadProject projectName
+        let top = ldcs |> List.find (fun ldc -> ldc.Name = topSheet)
+
+        let build waveTables =
+            match
+                Simulator.startCircuitSimulationWith
+                    waveTables SimDigest.Constants.maxArraySize topSheet top.CanvasState ldcs
+            with
+            | Error e -> failwith $"Simulation of {projectName}/{topSheet} failed: %A{e}"
+            | Ok simData -> simData.FastSim
+
+        let full = build WithWaveTables
+        let lean = build NoWaveTables
+
+        Expect.isEmpty lean.Drivers "the lean build really has no driver table"
+
+        let instances = allInstances full (InstancePath []) topSheet
+        Expect.isGreaterThan (List.length instances) 1 "the design must have subsheets to be worth asking"
+
+        let ports fs = instances |> List.collect (portsAsText fs)
+        let fromFull = ports full
+        let fromLean = ports lean
+
+        Expect.isGreaterThan (List.length fromFull) 0 "the design must offer some ports"
+        Expect.equal (List.length fromLean) (List.length fromFull) "the same number of ports"
+
+        match List.zip fromFull fromLean |> List.tryFind (fun (a, b) -> a <> b) with
+        | Some(a, b) -> failtest $"a port differs:\n  with tables: {a}\n  without:     {b}"
+        | None -> ()
+
+        // And the width really is the one the driver table would have given, which is the step
+        // this rests on: every port, both numbers, on a build that still has the table to ask.
+        let widthPairs =
+            instances
+            |> List.collect (fun inst ->
+                (PortView.ofInstance full inst).ViewPorts
+                |> List.map (fun p ->
+                    let viaDriver =
+                        match Array.tryItem p.PortArrayIndex full.Drivers with
+                        | Some(Some d) -> d.DriverWidth
+                        | _ -> 0
+
+                    p.PortComp, p.PortIs, p.PortNum, p.PortWidth, viaDriver))
+
+        match widthPairs |> List.tryFind (fun (_, _, _, own, viaDriver) -> own <> viaDriver) with
+        | Some(comp, portType, pn, own, viaDriver) ->
+            failtest
+                $"{comp} {portType} port {pn}: the array says {own} bits, the driver table {viaDriver}"
+        | None -> ()
+    }
+
 let tests =
     testList "GoldenModel" [
         goldenTest "1fulladder" "fulladd" 8
@@ -185,4 +260,7 @@ let tests =
         // is where leaving a structure out would show
         noWaveTablesTest "1fulladder" "fulladd" 8
         noWaveTablesTest "3cpu" "eep1" 50
+        portViewWithoutTablesTest "1fulladder" "fulladd"
+        portViewWithoutTablesTest "adder4" "fa4"
+        portViewWithoutTablesTest "3cpu" "eep1"
     ]

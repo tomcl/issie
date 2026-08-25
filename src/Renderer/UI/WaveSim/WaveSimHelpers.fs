@@ -371,7 +371,7 @@ let isInsideLibraryComponent (fs: FastSimulation) (InstancePath ap) =
 /// The ports of one elaborated component that carry a waveform, as wave indices into the
 /// simulation as it is now.
 let waveIndicesOfFComp (fs: FastSimulation) (fId: FComponentId) : WaveIndexT list =
-    match Map.tryFind fId fs.WaveComps with
+    match fs.ComponentOf fId with
     | None -> []
     | Some fc ->
         let portsOf pType (arrays: IOArray array) =

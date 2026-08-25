@@ -74,10 +74,24 @@ module Probe =
 
     /// The font the label is written in. Named once because its width has to be measured with the
     /// same one it is drawn with, or the box and the text inside it disagree.
-    let private labelFont =
+    ///
+    /// **The same size as the waveform viewer's names column**, which is where the reader has just
+    /// come from: this label says what a waveform there would say, and two different sizes for the
+    /// same kind of thing is two things to read.
+    ///
+    /// Drawn at that size ON SCREEN, whatever the schematic's zoom. Everything else in the draw
+    /// block is part of the circuit and grows with it; this is a label about the circuit, put
+    /// beside the pointer, and a reader zoomed out to see a whole sheet wants it readable rather
+    /// than shrunk with the wires. So the size below is in SCREEN pixels and every measurement
+    /// made from it is divided by the zoom to reach draw block coordinates.
+    /// The waveform viewer's own names-column size, so the two follow each other if it is changed.
+    let private labelFontSize (model: Model) =
+        float (ModelHelpers.getWSModel model).WSConfig.FontSize
+
+    let private labelFont (size: float) =
         { DrawHelpers.defaultText with
             TextAnchor = "start"
-            FontSize = "11px"
+            FontSize = $"{size}px"
             FontFamily = "helvetica"
             Fill = "#443300" }
 
@@ -105,23 +119,29 @@ module Probe =
             | None -> []
             | Some text ->
                 let pos = model.Sheet.LastMousePos
+                // Draw block coordinates are screen pixels divided by the zoom, so a label meant
+                // to be the same size on screen at every zoom is this much of one.
+                let scale = 1.0 / model.Sheet.Zoom
+                let fontSize = labelFontSize model
                 // measured, not counted: the width decides where the label is allowed to sit, so a
-                // per-character guess would clip the very case this is here to prevent
-                let padding = 5.0
-                let w = DrawHelpers.getTextWidthInPixels labelFont text + 2.0 * padding
-                let h = 18.0
-                let y = pos.Y - h - 6.0
+                // per-character guess would clip the very case this is here to prevent. Measured at
+                // the size it is DRAWN at, then scaled, so the box fits the text at any zoom.
+                let padding = 5.0 * scale
+                let w = DrawHelpers.getTextWidthInPixels (labelFont fontSize) text * scale + 2.0 * padding
+                // tall enough for the text plus a little above and below it
+                let h = (fontSize + 9.0) * scale
+                let y = pos.Y - h - 6.0 * scale
                 // Beside the cursor, but never off the side of the window. Slid rather than
                 // flipped to the other side of the pointer: the label stays where the eye already
                 // is, and only the last few pixels of travel differ. Vertical needs no such care -
                 // the label sits above the cursor, and a wire at the very top of the window is
                 // reached by scrolling, which moves the label with it.
                 let x =
-                    let preferred = pos.X + 12.0
+                    let preferred = pos.X + 12.0 * scale
                     match visibleXSpan model.Sheet.Zoom with
                     | None -> preferred
                     | Some(visibleLeft, visibleRight) ->
-                        let margin = 4.0
+                        let margin = 4.0 * scale
                         // min first, then max: a label too wide for the window keeps its left edge
                         // on screen, which is the readable end of "NAME = value"
                         preferred
@@ -134,12 +154,16 @@ module Probe =
                     rect [
                         X x; Y y
                         SVGAttr.Width w; SVGAttr.Height h
-                        SVGAttr.Rx 3.0
+                        SVGAttr.Rx (3.0 * scale)
                         SVGAttr.Fill "#fffbe6"
                         SVGAttr.Stroke "#b0a060"
-                        SVGAttr.StrokeWidth 0.8
+                        SVGAttr.StrokeWidth (0.8 * scale)
                     ] []
-                    DrawHelpers.makeText (x + padding) (y + 4.0) text labelFont
+                    DrawHelpers.makeText
+                        (x + padding)
+                        (y + (fontSize + 2.0) * scale)
+                        text
+                        (labelFont (fontSize * scale))
                   ] ]
         | _ -> []
 

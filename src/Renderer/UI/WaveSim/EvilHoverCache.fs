@@ -191,8 +191,15 @@ let getWaveToolTip (sample: int) (drawn: WaveDrawn.Drawn) (wave: Wave) (ws: Wave
     let window = drawn.Spec.Window
     let cycle = window.FirstCycle + sample * window.Multiplier
 
+    // The gaps are recorded in DISPLAY CYCLES - WaveSimSVGs shifts them by the start cycle as it
+    // draws them - while `sample` is counted from the left edge of the picture. They coincide only
+    // at start cycle zero, which is why hovering a waveform scrolled anywhere else said nothing.
+    // Shifted by the window the wave was DRAWN over, not by the one the controls now ask for: the
+    // gaps belong to the picture on screen, which may be a window behind while its data arrives.
+    let hatchedAt = drawn.Spec.Window.StartSample + sample
+
     let hiddenValue =
-        if checkIfHatched drawn.Gaps sample then
+        if checkIfHatched drawn.Gaps hatchedAt then
             WaveDrawn.valueAtSample drawn sample
             |> Option.map (fun fd ->
                 match fd.Dat with

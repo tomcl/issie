@@ -50,10 +50,40 @@ let held (model: Model) (ram: FComponentId) : RamView option =
     | Some(heldKey, view) when heldKey = keyOf model ram -> Some view
     | _ -> None
 
-/// Whether this RAM's rows have to be asked for: nothing held answers the question the table is
+/// The rows held for one RAM, whatever question they answer.
+///
+/// What the table DRAWS, as against what it asks for. A table that draws nothing until the rows
+/// for the cycle it is on arrive flickers empty on every cursor move - and with two memories
+/// selected it flickers twice, since a pass fetches one of them and the next pass the other. The
+/// waveforms beside it have always behaved the other way round: they keep the last window that
+/// arrived and are redrawn when the next one does, because a viewer that empties itself while its
+/// data is in the air is what a broken viewer looks like.
+///
+/// The rows carry the cycle they are of, and the table says which that is, so nothing on screen
+/// claims to be of a cycle it is not.
+let heldAny (model: Model) (ram: FComponentId) : (RamKey * RamView) option =
+    Map.tryFind ram (Optic.get waveSimModel_ model).RamRows
+
+/// Whether this memory's rows have to be asked for: nothing held answers the question the table is
 /// about to ask. The caller uses it to decide whether to issue a command at all - a command that
 /// always resolved would dispatch a message, which would ask again, for ever.
-let needed (model: Model) (ram: FComponentId) = (held model ram).IsNone
+///
+/// **A ROM's cycle does not count.** What a ROM holds is part of its type and cannot change as the
+/// simulation runs, so rows fetched at one cycle answer for every cycle: only the location it is
+/// READING moves, and that is marked here from the address wave rather than asked for again
+/// (WaveSimRams). So a ROM is fetched when the window of addresses being shown changes, and not
+/// when the cursor moves - which on a design whose ROM is its program is most of the fetching that
+/// used to happen.
+let needed (model: Model) (ram: FComponentId) =
+    let wanted = keyOf model ram
+
+    match heldAny model ram with
+    | None -> true
+    | Some(heldKey, _) ->
+        if EvilHoverCache.isReadOnlyMemory (Simulator.getFastSim ()) ram then
+            heldKey.SparseUpTo <> wanted.SparseUpTo || heldKey.Start <> wanted.Start
+        else
+            heldKey <> wanted
 
 /// Read one RAM's rows from the sidecar, for the update function to put in the model.
 ///

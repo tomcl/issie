@@ -1,4 +1,4 @@
-/// Comments written against locations in a .ram file, and their appearance on the waveform of a
+﻿/// Comments written against locations in a .ram file, and their appearance on the waveform of a
 /// ROM reading those locations.
 ///
 /// A comment says what a word of memory is for. It is of no use in the memory viewer alone, where
@@ -44,6 +44,19 @@ let private simulateAt (ldc: LoadedComponent) (romId: int) (address: bigint) (ti
         |> List.iter (fun (cid, _, width) ->
             FastExtract.changeInput cid (IData(NumberHelpers.convertBigintToFastData width address)) 0 fs)
         FastRun.runFastSimulation None ticks fs |> ignore
+
+        // The comment is looked up from the address the ROM is reading, and that address is read
+        // through WaveData like every other value the wave simulator shows - so the test wires it
+        // to this simulation exactly as WaveProvider.selectSimulator does in the app. Reading the
+        // FastSimulation directly, as this used to, is the one thing the code under test must not
+        // do: it is what made these comments impossible to show when the simulator is the .NET one.
+        WaveData.setLocal
+            (fun (SignalHandle i) ->
+                Array.tryItem i fs.Drivers
+                |> Option.flatten
+                |> Option.map (fun driver -> driver.DriverData))
+            (fun () -> fs.ClockTick)
+
         let waves = TestFixtures.allWavesOf ModelHelpers.initWSModel fs
         let wave =
             waves

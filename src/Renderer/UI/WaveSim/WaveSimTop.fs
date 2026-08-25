@@ -493,9 +493,35 @@ let private missingForWaves (model: Model) (project: Project) : Missing option =
               Multiplier = ws.SamplingZoom
               SampleCount = ws.ShownCycles }
 
+        /// What each memory on screen is reading, cycle by cycle: the address input of every
+        /// selected memory, and of every ROM whose data output is drawn and whose .ram file has
+        /// comments.
+        ///
+        /// Fetched with the waveforms rather than asked for on demand, because both the things
+        /// that want it happen where nothing can wait - the read marker on a ROM's rows, drawn in
+        /// a render, and the .ram comment tooltip, written into the DOM by a mouse handler. One
+        /// signal per memory, in the request that is going out anyway.
+        ///
+        /// It is also what lets a ROM's rows be fetched once and shown at every cycle: the marker
+        /// moves without them, so scrolling and stepping cost no memory fetch at all.
+        let addressWaves =
+            let selectedMemories =
+                ws.SelectedRams
+                |> Map.toList
+                |> List.choose (fun (ramId, _) -> EvilHoverCache.addressDriverOf fs ramId)
+
+            let drawnRoms =
+                WaveSimStyle.selectedWaves ws
+                |> List.choose (fun wave -> EvilHoverCache.romAddressOf fs wave |> Option.map fst)
+
+            selectedMemories @ drawnRoms
+
         let toFetch =
             ws.SelectedWaves
             |> List.map (fun wi -> wi.SimArrayIndex)
+            |> List.append addressWaves
+            |> List.distinct
+            |> List.distinct
             |> List.filter (fun i -> i >= 0 && i < fs.Drivers.Length)
             |> List.map SignalHandle
             |> fun handles -> WaveProvider.wavesToFetch model.SimulateInRenderer handles window

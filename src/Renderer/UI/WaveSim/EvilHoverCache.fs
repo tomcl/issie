@@ -72,38 +72,103 @@ let checkIfHatched (store:GapStore) (cycle:int) =
     store.Gaps[0..store.NextGap-1]
     |> Array.exists (fun gap -> gap.Start <= cycle && gap.Length + gap.Start > cycle)
 
+/// Whether a memory's contents can change as a simulation runs.
+///
+/// A ROM's cannot: what it holds is part of its type. Only the location it is READING moves, which
+/// is why its rows are worth fetching once and marking again as the cursor moves, while a RAM's
+/// have to be fetched afresh for every cycle they are shown at.
+let isReadOnlyMemory (fs: FastSimulation) (ram: FComponentId) =
+    match fs.Design.ComponentOfInstance ram |> Option.map (fun comp -> comp.Type) with
+    | Some(CommonTypes.ROM1 _)
+    | Some(CommonTypes.AsyncROM1 _) -> true
+    | _ -> false
+
+/// The driver of a memory's address input, in the instance it is in - which is the wave that says
+/// what it is reading at each cycle.
+///
+/// A fact about the elaborated instance, so it comes from `PortView`, like every other driver the
+/// wave simulator uses. Fetched with the waveforms being drawn rather than asked for on demand:
+/// both the things that want it - the tooltip below, written into the DOM by a mouse handler, and
+/// the read marker on a ROM's rows, drawn in a render - happen where nothing can wait.
+let addressDriverOf (fs: FastSimulation) (ram: FComponentId) : int option =
+    let compId, path = ram
+
+    (PortView.ofInstanceCached fs (InstancePath path)).ViewPorts
+    |> List.tryFind (fun p ->
+        p.PortComp = compId && p.PortIs = CommonTypes.PortType.Input && p.PortNum = 0)
+    |> Option.map (fun p -> p.PortArrayIndex)
+
+/// The cycle at which a memory's address input says what it is reading, for a location shown at
+/// `step`. A write lands one clock after the address that caused it, and a synchronous read
+/// presents its data a clock late; an asynchronous one does not. RamView.readAndWritten draws the
+/// same distinction on the other side of the wire.
+let addressReadStep (fs: FastSimulation) (ram: FComponentId) (step: int) : int option =
+    match fs.Design.ComponentOfInstance ram |> Option.map (fun comp -> comp.Type) with
+    | Some(CommonTypes.AsyncROM1 _)
+    | Some(CommonTypes.AsyncRAM1 _) -> Some step
+    | Some(CommonTypes.ROM1 _)
+    | Some(CommonTypes.RAM1 _) -> if step > 0 then Some(step - 1) else None
+    | _ -> None
+
+/// The location a memory is reading at `step`, from whichever simulator is running.
+let addressReadAt (fs: FastSimulation) (ram: FComponentId) (step: int) : bigint option =
+    match addressDriverOf fs ram, addressReadStep fs ram step with
+    | Some driver, Some readStep ->
+        WaveData.valueAt (SignalHandle driver) readStep
+        |> Option.map (fun address -> address.GetBigInt)
+    | _ -> None
+
+/// The memory this wave is the data output of, when it has comments worth showing, together with
+/// the driver of the address it reads.
+///
+/// Which memory it is and what its .ram file said are facts about the component as DRAWN, so they
+/// come from the design. Where its address lies is a fact about the elaborated instance, so it
+/// comes from `PortView` - like every other width and driver the wave simulator uses.
+///
+/// Returned as a pair because both callers want both: the tooltip below, to write the comment, and
+/// WaveSimTop.missingForWaves, to fetch the address wave along with the ones being drawn. Fetched
+/// with them rather than on hover because a tooltip is written into the DOM by a mouse handler,
+/// which cannot wait for anything - so the address has to be there before the pointer arrives.
+let romAddressOf (fs: FastSimulation) (wave: Wave) : (int * Map<bigint, string>) option =
+    if wave.WaveId.PortType <> CommonTypes.PortType.Output then
+        None
+    else
+        let comments =
+            fs.Design.ComponentOfInstance wave.WaveId.Id
+            |> Option.bind (fun comp ->
+                match comp.Type with
+                | CommonTypes.AsyncROM1 mem
+                | CommonTypes.ROM1 mem -> mem.Comments
+                | _ -> None)
+            |> Option.filter (Map.isEmpty >> not)
+
+        comments
+        |> Option.bind (fun comments ->
+            addressDriverOf fs wave.WaveId.Id |> Option.map (fun driver -> driver, comments))
+
 /// The comment written in a .ram file against the location a ROM is reading at a given simulation
 /// step, if the ROM has any comments and this wave is its data output.
+///
 /// The location read is the address input one step earlier for a synchronous ROM and at the same
-/// step for an asynchronous one, which is the distinction WaveSimRams.addReadWrite also makes.
-/// Nothing to say if that simulation has never been run, which is what a clock tick of zero means.
-/// With the .NET simulator it never is - the renderer's copy is built for its structure alone - so
-/// the address read would be whatever an unrun array holds, and the comment shown would be the one
-/// against location zero, on every hover, confidently. No comment is better than a wrong one, and
-/// it is the same answer the schematic probe gives. Asked of the simulation rather than of the
-/// model because "has this been run" is the actual question, and it is the one thing here that
-/// knows.
+/// step for an asynchronous one, which is the distinction RamView.readAndWritten also makes.
+///
+/// The address comes from `WaveData`, which answers from whichever simulator is running - the local
+/// arrays where the renderer is simulating, and the window fetched from the sidecar where it is
+/// not. It used to be read straight out of the renderer's own FastSimulation, which in .NET mode is
+/// built for its structure and never run: every address would have been an unrun array's zero, so
+/// the comment against location zero was shown on every hover, confidently. That was guarded by
+/// refusing to answer at all, which is why these comments disappeared in that mode.
+///
+/// None where the address is not among the samples held - a synchronous ROM's address is one CYCLE
+/// back, and at a zoom where a column is several cycles wide that is not a sample that was fetched.
+/// No comment is better than the wrong one.
 let getRomCommentAtStep (fs: FastSimulation) (step: int) (wave: Wave) : string =
-    if fs.ClockTick = 0 then "" else
-    match Map.tryFind wave.WaveId.Id fs.WaveComps with
-    | Some fc when wave.WaveId.PortType = CommonTypes.PortType.Output ->
-        let readStep =
-            match fc.FType with
-            | CommonTypes.AsyncROM1 _ -> Some step
-            | CommonTypes.ROM1 _ -> if step > 0 then Some (step - 1) else None
-            | _ -> None
-        let comments : Map<bigint,string> =
-            match fc.FType with
-            | CommonTypes.AsyncROM1 mem
-            | CommonTypes.ROM1 mem -> Option.defaultValue Map.empty mem.Comments
-            | _ -> Map.empty
-        match readStep with
-        | Some readStep when not (Map.isEmpty comments) ->
-            FastExtract.getFastComponentInput fc 0 readStep
-            |> fun address -> Map.tryFind address comments
-            |> Option.defaultValue ""
-        | _ -> ""
-    | _ -> ""
+    match romAddressOf fs wave with
+    | None -> ""
+    | Some(_, comments) ->
+        addressReadAt fs wave.WaveId.Id step
+        |> Option.bind (fun address -> Map.tryFind address comments)
+        |> Option.defaultValue ""
 
 /// Text for the tooltip shown when hovering a waveform at a given cycle, or "" for no tooltip.
 /// A value is given when the wave is too narrow there to have its number printed on it - the cached

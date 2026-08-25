@@ -33,6 +33,35 @@ let ramTableRow (hasComments: bool) ((addr, data, comment, rowType): string * st
         if hasComments then td [Style [Color "grey"]] [ str comment ]
     ]
 
+/// Mark the location a read-only memory is reading at this cycle, in rows fetched at another.
+///
+/// A ROM's rows are fetched once and shown at every cycle, so whatever marker came with them is of
+/// the wrong cycle. This puts it where it belongs, from the address wave - which is fetched with
+/// the waveforms and so is here already. A location that has no row of its own gets one, exactly
+/// as RamView.markReadWrite does on the other side of the wire: a location being read is worth a
+/// row whatever it holds.
+let private markReadLocally (fs: FastSimulation) (ram: FComponentId) (step: int) (view: RamView) : RamView =
+    match EvilHoverCache.addressReadAt fs ram step with
+    | None -> view
+    | Some address ->
+        let mark (rows: RamRow list) =
+            let cleared =
+                rows
+                |> List.map (fun row ->
+                    if row.Row = RAMRead then { row with Row = RAMNormal } else row)
+
+            match cleared |> List.tryFind (fun row -> row.Addr = address) with
+            | Some _ ->
+                cleared
+                |> List.map (fun row -> if row.Addr = address then { row with Row = RAMRead } else row)
+            | None ->
+                { Addr = address; Value = 0I; Row = RAMRead } :: cleared
+                |> List.sortBy (fun row -> row.Addr)
+
+        match view with
+        | RamSparse rows -> RamSparse(mark rows)
+        | RamWindow(start, rows) -> RamWindow(start, mark rows)
+
 /// Table showing contents of a RAM component.
 let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ramId, ramLabel): FComponentId * string) : ReactElement =
     let wanted = calcWaveformAndScrollBarHeight wsModel
@@ -90,19 +119,36 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
         /// that goes out and the cache this reads cannot be of different questions.
         let key = RamData.keyOf model ramId
 
-        /// The rows, from whichever simulator holds the memory. `None` from the remote one means
-        /// the reply for this cycle has not landed yet - the request goes out from the update
-        /// function, and this render draws what it has.
-        let view =
+        /// The rows to draw and the cycle they are of.
+        ///
+        /// From the remote simulator this is whatever last arrived, not necessarily the answer to
+        /// the question the table is now asking - which is what the waveforms beside it do, and for
+        /// the same reason: emptying the table while its rows are in the air makes every cursor
+        /// move a flicker. The cycle drawn beside the Data heading is the one the ROWS are of, so
+        /// the table never claims to show a cycle it does not.
+        let view, shownStep =
             if model.SimulateInRenderer then
-                RamView.ofFastSim fs ramId step key.SparseUpTo key.Start Constants.maxRamRowsDisplayed
-                |> function
-                    | Ok v -> Some v
-                    | Error e ->
-                        Log.warn $"reading RAM '{ramLabel}' at cycle {step}: {e}"
-                        None
+                let rows =
+                    RamView.ofFastSim fs ramId step key.SparseUpTo key.Start Constants.maxRamRowsDisplayed
+                    |> function
+                        | Ok v -> Some v
+                        | Error e ->
+                            Log.warn $"reading RAM '{ramLabel}' at cycle {step}: {e}"
+                            None
+
+                rows, step
             else
-                RamData.held model ramId
+                match RamData.heldAny model ramId with
+                | None -> None, step
+                | Some(heldKey, rows) when not (EvilHoverCache.isReadOnlyMemory fs ramId) ->
+                    // a RAM's contents are of the cycle they were read at, so the table says so
+                    Some rows, heldKey.Cycle
+                | Some(_, rows) ->
+                    // A ROM's contents cannot change, so rows fetched at any cycle are the rows at
+                    // this one and the table is showing the cursor's cycle after all. What DOES
+                    // move is the location being read, which is marked here from the address wave
+                    // rather than asked for again - so scrolling and stepping cost no fetch.
+                    Some(markReadLocally fs ramId step rows), step
 
         let startDisplayLoc, windowedDisplay, viewRows =
             match view with
@@ -211,7 +257,7 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
             ] [ thead [] [
                     tr [] [
                         th [ centerAlignStyle ] [ str "Address"]
-                        th [ centerAlignStyle ] [ str "Data"; sub [Style [MarginLeft "2px"; FontSize "10px"]] [str (string wsModel.CursorExactClkCycle)]]
+                        th [ centerAlignStyle ] [ str "Data"; sub [Style [MarginLeft "2px"; FontSize "10px"]] [str (string shownStep)]]
                         if hasComments then th [ centerAlignStyle ] [ str "Comment"]
                     ]
                 ]

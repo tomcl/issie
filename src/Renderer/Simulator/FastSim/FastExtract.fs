@@ -104,6 +104,51 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
         | _ -> [||])
 
 
+/// The step array an output port's data lives in, resolved ONCE.
+///
+/// Everything `extractFastSimulationOutput` does per read except the read itself: the map lookup
+/// on (component, access path) - a structural comparison on a list - and the hop through
+/// FCustomOutputCompLookup that answers a custom component's output with the array of the Output
+/// component inside the subsheet. What comes back is the array and its width, from which a value
+/// at a cycle is an indexed load.
+///
+/// For anything reading MANY samples of the same signal. Reading a whole window per sample cost
+/// that lookup, a FastData and an FSInterface allocation, and a conversion to bigint, per sample -
+/// for a wave that is often one bit wide.
+///
+/// A Result, not an exception: the caller may be a server answering a request it did not compose,
+/// where a bad signal name is an answer rather than a crash.
+let rec tryFindOutputArray
+    (fs: FastSimulation)
+    ((cid, ap): FComponentId)
+    (opn: OutputPortNumber)
+    : Result<IOArray, string> =
+    let (OutputPortNumber n) = opn
+
+    match Map.tryFind (cid, ap) fs.FComps with
+    | Some fc ->
+        match Array.tryItem n fc.Outputs with
+        | None -> Error $"{fc.FullName} has no output port {n}"
+        // width 0 is the dummy array a port is created with: nothing was ever linked to it
+        | Some io when io.Width = 0 -> Error $"output {n} of {fc.FullName} carries no data"
+        | Some io -> Ok io
+    | None ->
+        match Map.tryFind ((cid, ap), opn) fs.FCustomOutputCompLookup with
+        | Some inner -> tryFindOutputArray fs inner (OutputPortNumber 0)
+        | None -> Error $"no component {cid} at {ap} in this simulation"
+
+/// One sample of a resolved array, as a bigint whatever the width.
+///
+/// The modulo is not optional. A step array is a REGION of a shared slab, so a step past the end
+/// of the region reads the next port's data with nothing to catch it - see IOArray.
+let sampleOfArray (fs: FastSimulation) (io: IOArray) (cycle: int) : bigint option =
+    let step = cycle % fs.MaxArraySize
+
+    if io.Width > 32 then
+        io.TryBig step
+    else
+        io.TryU32 step |> Option.map bigint
+
 /// return output port data from simulation as a Bit list
 /// Each element in list is one bit
 let rec extractFastSimulationOutput

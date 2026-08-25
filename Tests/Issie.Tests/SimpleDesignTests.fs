@@ -446,6 +446,166 @@ let tests =
             Issie.Sidecar.SimSession.endSession epoch |> ignore
         }
 
+        // What the read is FOR: a window of many samples of several signals at once, which is one
+        // request per view of the waveform viewer. Each signal is resolved once and its samples
+        // copied straight out of its step array, so this is where a wrong index, a wrong word
+        // order or a missed modulo would show - compared against the same simulation locally,
+        // sample for sample.
+        test "SimRead carries a window of mixed-width signals, sample for sample" {
+            let bit = makeComp 1 0 1 (Input1(1, None)) "B"
+            let word = makeComp 2 0 1 (Input1(16, None)) "W"
+            let wide = makeComp 3 0 1 (Input1(70, None)) "L"
+            // a register per input, so the values change from cycle to cycle rather than being
+            // the same sample repeated - a stuck index would pass otherwise
+            let rb = makeComp 4 1 1 (Register 1) "RB"
+            let rw = makeComp 5 1 1 (Register 16) "RW"
+            let rl = makeComp 6 1 1 (Register 70) "RL"
+            let ob = makeComp 7 1 0 (Output 1) "OB"
+            let ow = makeComp 8 1 0 (Output 16) "OW"
+            let ol = makeComp 9 1 0 (Output 70) "OL"
+
+            let ldc =
+                makeLdc
+                    "mixed"
+                    None
+                    ([ bit; word; wide; rb; rw; rl; ob; ow; ol ],
+                     [ conn bit 0 rb 0; conn word 0 rw 0; conn wide 0 rl 0
+                       conn rb 0 ob 0; conn rw 0 ow 0; conn rl 0 ol 0 ])
+
+            let design = CanvasExtractor.simpleDesignOfLoadedComponents [ ldc ]
+            let shimmed = shimDesign design
+            let arraySize = 250
+
+            let buildReply = Issie.Sidecar.SimSession.build design arraySize
+            Expect.isFalse (buildReply.Contains "error") $"build failed: {buildReply}"
+            let epoch = Issie.Sidecar.SimSession.currentEpoch ()
+
+            let localSim =
+                let top = shimmed |> List.find (fun l -> l.Name = design.TopSheet)
+
+                match Simulator.startCircuitSimulation arraySize design.TopSheet top.CanvasState shimmed with
+                | Ok simData -> simData
+                | Error e -> failtest $"local build failed: %A{e.ErrType}"
+
+            // Past the end of the circular buffer, so the modulo is exercised: samples are taken
+            // from cycles that wrap round the array rather than from the front of it.
+            let cycles = arraySize + 37
+            Issie.Sidecar.SimSession.run epoch cycles 0 |> ignore
+            FastRun.runFastSimulation None cycles localSim.FastSim |> ignore
+
+            let registers =
+                [ "RB"; "RW"; "RL" ]
+                |> List.map (fun label ->
+                    localSim.FastSim.FClockedComps
+                    |> Array.find (fun fc -> fc.FLabel = label)
+                    |> fun fc -> fc.fId)
+
+            let u32s (values: int list) =
+                values |> List.collect (System.BitConverter.GetBytes >> Array.toList) |> Array.ofList
+
+            // a window that wraps the buffer, every third cycle - the shape a zoomed-out view asks
+            let startCycle = cycles - 60
+            let rep = 3
+            let samples = 20
+
+            let payload =
+                [ startCycle; rep; samples; List.length registers ]
+                @ (registers
+                   |> List.collect (fun (ComponentId cid, path) ->
+                       [ cid; 0; List.length path ] @ (path |> List.map (fun (ComponentId p) -> p))))
+                |> u32s
+
+            match Issie.Sidecar.SimSession.read epoch payload with
+            | Error e -> failtest $"SimRead of a mixed-width window failed: {e}"
+            | Ok reply ->
+                let count = int (System.BitConverter.ToUInt32(reply, 0))
+                let gotSamples = int (System.BitConverter.ToUInt32(reply, 4))
+                let wordsPerSample = int (System.BitConverter.ToUInt32(reply, 8))
+
+                Expect.equal count 3 "three signals asked for"
+                Expect.equal gotSamples samples "the samples asked for"
+                Expect.equal wordsPerSample 3 "the widest signal is 70 bits, so three words a sample"
+                Expect.equal reply.Length (16 + 4 * count * samples * wordsPerSample)
+                    "the reply is exactly its stated shape"
+
+                let mutable different = 0
+
+                registers
+                |> List.iteri (fun signalIndex regId ->
+                    for j in 0 .. samples - 1 do
+                        let at = 16 + 4 * ((signalIndex * samples + j) * wordsPerSample)
+
+                        let wire =
+                            (0I, [ wordsPerSample - 1 .. -1 .. 0 ])
+                            ||> List.fold (fun v w ->
+                                (v <<< 32) + bigint (System.BitConverter.ToUInt32(reply, at + 4 * w)))
+
+                        let local =
+                            match
+                                FastExtract.extractFastSimulationOutput
+                                    localSim.FastSim (startCycle + j * rep) regId (OutputPortNumber 0)
+                            with
+                            | SimGraphTypes.IData d -> d.GetBigInt
+                            | _ -> failtest "algebraic value in local read"
+
+                        if wire <> local then
+                            different <- different + 1
+                            if different = 1 then
+                                failtest
+                                    $"signal {signalIndex} sample {j} (cycle {startCycle + j * rep}): \
+                                      wire {wire}, locally {local}")
+
+                // A narrow signal in the same reply as a wide one is zero-extended to the reply's
+                // word count. It used to be written word by word from a bigint; it is now one word
+                // with the rest left zero, which is the same thing only if the reply really was
+                // zeroed.
+                let highWordsOfNarrow =
+                    [ for j in 0 .. samples - 1 do
+                        for w in 1 .. wordsPerSample - 1 ->
+                            System.BitConverter.ToUInt32(reply, 16 + 4 * (j * wordsPerSample + w)) ]
+
+                Expect.allEqual highWordsOfNarrow 0u "a 1-bit signal's high words must be zero"
+
+            Issie.Sidecar.SimSession.endSession epoch |> ignore
+        }
+
+        // The renderer composes a read from what it believes the simulation holds, and it can be
+        // wrong - a design edited under a live session names components the build does not have.
+        // That is an answer, not a crash: this is a server, and the command handler in Program.fs
+        // does not wrap the call. It used to throw, from a width scan that ran before the guards.
+        test "SimRead of a signal the simulation does not hold is an error, not an exception" {
+            let input = makeComp 1 0 1 (Input1(4, None)) "IN"
+            let output = makeComp 2 1 0 (Output 4) "OUT"
+            let ldc = makeLdc "small" None ([ input; output ], [ conn input 0 output 0 ])
+
+            let design = CanvasExtractor.simpleDesignOfLoadedComponents [ ldc ]
+            let buildReply = Issie.Sidecar.SimSession.build design 250
+            Expect.isFalse (buildReply.Contains "error") $"build failed: {buildReply}"
+            let epoch = Issie.Sidecar.SimSession.currentEpoch ()
+            Issie.Sidecar.SimSession.run epoch 4 0 |> ignore
+
+            let u32s (values: int list) =
+                values |> List.collect (System.BitConverter.GetBytes >> Array.toList) |> Array.ofList
+
+            // startCycle, rep, samples, count, then (component, port, pathLen)
+            let readOf (compId: int) (port: int) =
+                Issie.Sidecar.SimSession.read epoch (u32s [ 0; 1; 3; 1; compId; port; 0 ])
+
+            match readOf 1 0 with
+            | Ok _ -> ()
+            | Error e -> failtest $"reading a signal the design does have should work: {e}"
+
+            match readOf 9999 0 with
+            | Ok _ -> failtest "reading a component the simulation does not hold should be an error"
+            | Error e -> Expect.stringContains e "9999" "the error should name what could not be found"
+
+            match readOf 1 7 with
+            | Ok _ -> failtest "reading a port the component does not have should be an error"
+            | Error _ -> ()
+
+            Issie.Sidecar.SimSession.endSession epoch |> ignore
+        }
+
         test "a command naming a session the sidecar no longer holds is refused" {
             // The renderer cannot see inside the sidecar, so everything it believes about the
             // session there - that one exists, that it is of the design last sent, how far its

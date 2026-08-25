@@ -464,7 +464,7 @@ type private Missing =
       /// the design to build, if it is not built
       MissDesign: SimpleDesign
       /// driver indices of waveforms that have not got the window they are drawn over
-      MissWaves: int list
+      MissWaves: WaveIndexT list
       MissWindow: WaveSlice.Window
       /// at most one RAM's rows. ONE, because the next pass takes the next: a round trip is a
       /// fifth of a millisecond, so this is not slower in any way a user could see
@@ -508,7 +508,7 @@ let private missingForWaves (model: Model) (project: Project) : Missing option =
             let selectedMemories =
                 ws.SelectedRams
                 |> Map.toList
-                |> List.choose (fun (ramId, _) -> EvilHoverCache.addressDriverOf fs ramId)
+                |> List.choose (fun (ramId, _) -> EvilHoverCache.addressWaveOf fs ramId)
 
             let drawnRoms =
                 WaveSimStyle.selectedWaves ws
@@ -516,16 +516,25 @@ let private missingForWaves (model: Model) (project: Project) : Missing option =
 
             selectedMemories @ drawnRoms
 
+        // The waves themselves and not their array indices: an index says where a wave's data
+        // lies in the build that answered, which is what the CACHE is keyed by, but naming a port
+        // is what lets a simulator holding the data find it. Both are wanted, so the wave - which
+        // carries both - is what travels.
         let toFetch =
-            ws.SelectedWaves
-            |> List.map (fun wi -> wi.SimArrayIndex)
-            |> List.append addressWaves
-            |> List.distinct
-            |> List.distinct
-            |> List.filter (fun i -> i >= 0 && i < fs.Drivers.Length)
-            |> List.map SignalHandle
-            |> fun handles -> WaveProvider.wavesToFetch model.SimulateInRenderer handles window
-            |> List.map (fun (SignalHandle i) -> i)
+            let candidates =
+                ws.SelectedWaves
+                |> List.append addressWaves
+                |> List.filter (fun wi -> wi.SimArrayIndex >= 0 && wi.SimArrayIndex < fs.Drivers.Length)
+                |> List.distinctBy (fun wi -> wi.SimArrayIndex)
+
+            let missing =
+                candidates
+                |> List.map (fun wi -> SignalHandle wi.SimArrayIndex)
+                |> fun handles -> WaveProvider.wavesToFetch model.SimulateInRenderer handles window
+                |> List.map (fun (SignalHandle i) -> i)
+                |> Set.ofList
+
+            candidates |> List.filter (fun wi -> Set.contains wi.SimArrayIndex missing)
 
         let ram =
             ws.SelectedRams

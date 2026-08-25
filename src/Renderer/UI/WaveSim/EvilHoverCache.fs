@@ -83,20 +83,27 @@ let isReadOnlyMemory (fs: FastSimulation) (ram: FComponentId) =
     | Some(CommonTypes.AsyncROM1 _) -> true
     | _ -> false
 
-/// The driver of a memory's address input, in the instance it is in - which is the wave that says
-/// what it is reading at each cycle.
+/// A memory's address input, in the instance it is in - the wave that says what it is reading at
+/// each cycle.
 ///
 /// A fact about the elaborated instance, so it comes from `PortView`, like every other driver the
 /// wave simulator uses. Fetched with the waveforms being drawn rather than asked for on demand:
 /// both the things that want it - the tooltip below, written into the DOM by a mouse handler, and
 /// the read marker on a ROM's rows, drawn in a render - happen where nothing can wait.
-let addressDriverOf (fs: FastSimulation) (ram: FComponentId) : int option =
+///
+/// A WAVE and not a driver index, because a fetch asks for waves: naming a port is what lets the
+/// simulator holding the data find it, and the index alone no longer names anything.
+let addressWaveOf (fs: FastSimulation) (ram: FComponentId) : WaveIndexT option =
     let compId, path = ram
 
     (PortView.ofInstanceCached fs (InstancePath path)).ViewPorts
     |> List.tryFind (fun p ->
         p.PortComp = compId && p.PortIs = CommonTypes.PortType.Input && p.PortNum = 0)
-    |> Option.map (fun p -> p.PortArrayIndex)
+    |> Option.map (PortView.waveIndexOf (InstancePath path))
+
+/// Where that address lies in the simulation that answered - the key the cache holds it under.
+let addressDriverOf (fs: FastSimulation) (ram: FComponentId) : int option =
+    addressWaveOf fs ram |> Option.map (fun wi -> wi.SimArrayIndex)
 
 /// The cycle at which a memory's address input says what it is reading, for a location shown at
 /// `step`. A write lands one clock after the address that caused it, and a synchronous read
@@ -129,7 +136,7 @@ let addressReadAt (fs: FastSimulation) (ram: FComponentId) (step: int) : bigint 
 /// WaveSimTop.missingForWaves, to fetch the address wave along with the ones being drawn. Fetched
 /// with them rather than on hover because a tooltip is written into the DOM by a mouse handler,
 /// which cannot wait for anything - so the address has to be there before the pointer arrives.
-let romAddressOf (fs: FastSimulation) (wave: Wave) : (int * Map<bigint, string>) option =
+let romAddressOf (fs: FastSimulation) (wave: Wave) : (WaveIndexT * Map<bigint, string>) option =
     if wave.WaveId.PortType <> CommonTypes.PortType.Output then
         None
     else
@@ -144,7 +151,7 @@ let romAddressOf (fs: FastSimulation) (wave: Wave) : (int * Map<bigint, string>)
 
         comments
         |> Option.bind (fun comments ->
-            addressDriverOf fs wave.WaveId.Id |> Option.map (fun driver -> driver, comments))
+            addressWaveOf fs wave.WaveId.Id |> Option.map (fun address -> address, comments))
 
 /// The comment written in a .ram file against the location a ROM is reading at a given simulation
 /// step, if the ROM has any comments and this wave is its data output.

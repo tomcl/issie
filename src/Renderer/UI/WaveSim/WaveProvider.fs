@@ -31,73 +31,30 @@ open WaveSlice
 /// simulator shares: the sidecar holds one simulation at a time, so one module knows what it is.
 let forget () = SidecarSession.forget ()
 
-/// (component id, output port, access path) for each driver, taken from the wave index.
+/// The signal a wave's data comes from, named as the sidecar names one: (component, output port,
+/// access path), with the width to read it at.
 ///
-/// A driver is a component OUTPUT, so the components name them all: every output carries the index
-/// of the driver it is (`IOArray.Index`). That is where this starts, and it is why a waveform the
-/// user picks can be asked for whatever kind of port it was picked as.
+/// A wave names a PORT, and a port is not always where the data lives - an input port reads the
+/// array of the output driving it. `PortView` has already worked that out for every port of the
+/// instance, so this is a lookup in a list the viewer holds anyway, costing one sheet per instance
+/// touched rather than anything proportional to the design's expansion.
 ///
-/// It used to work the other way round, from the wave index alone - an output-port entry names its
-/// own driver, an input-port entry has to be followed back through `InputDrivers` to the output
-/// feeding it - and a driver reachable by neither could not be named at all. Four of thirty
-/// waveforms on one design were, and the fetch that could not name them refused the whole view.
-/// The wave index is still read afterwards, for anything the components did not account for.
+/// It used to be a map from driver index to signal built by folding over EVERY component and then
+/// over the whole wave index - 7-10 MB on main5, rebuilt whenever the simulation was. The map
+/// existed because the caller had thrown the wave away and was passing a bare driver index; it now
+/// passes the wave, which knew the answer all along.
 ///
-/// Memoised on the simulation, like the viewer's other indices, because it walks every component
-/// and is asked for on every fetch. Cleared with them by `Helpers.clearIdentityMemos`.
-///
-/// A ComponentId IS an integer here - the whole design is reduced to integer ids when a project
-/// is opened (Helpers.RegenerateIds), which is what lets the sidecar name components at all - so
-/// this is a rename rather than a conversion.
-let private driverSignals: FastSimulation -> Map<int, int * int * int list> =
-    Helpers.memoizeByIdentity (fun (fs: FastSimulation) ->
-        let ofFId ((ComponentId comp), path) port =
-            comp, port, path |> List.map (fun (ComponentId p) -> p)
+/// A ComponentId IS an integer here - the whole design is reduced to integer ids when a project is
+/// opened (Helpers.RegenerateIds), which is what lets the sidecar name components at all - so the
+/// conversion below is a rename.
+let private signalOf (fs: FastSimulation) (wi: WaveIndexT) : ((int * int * int list) * int) option =
+    let compId, ap = wi.Id
 
-        let componentAt fId =
-            match Map.tryFind fId fs.FComps with
-            | Some fc -> Some fc
-            | None -> Map.tryFind fId fs.FCustomComps
-
-        // Every driver IS a component output, and an output knows which driver it is - `IOArray.Index`
-        // is that index. So the components between them name every driver there is, without anything
-        // having to be followed back. This is the whole answer; the wave index below only fills in
-        // what a custom component's output aliases.
-        let fromComponents =
-            (Map.empty, fs.FComps)
-            ||> Map.fold (fun found fId fc ->
-                (found, fc.Outputs |> Array.mapi (fun port io -> io.Index, ofFId fId port))
-                ||> Array.fold (fun found (index, signal) -> Map.add index signal found))
-
-        // Anything left: a driver no ordinary component owns an output for. Taken from the wave
-        // index, where an output-port entry names its own driver and an input-port entry has to be
-        // followed back through InputDrivers to the output feeding it.
-        let named =
-            (fromComponents, fs.WaveIndex)
-            ||> Array.fold (fun found wi ->
-                if Map.containsKey wi.SimArrayIndex found then
-                    found
-                else
-                    let signal =
-                        match wi.PortType with
-                        | PortType.Output -> Some(ofFId wi.Id wi.PortNumber)
-                        | PortType.Input ->
-                            componentAt wi.Id
-                            |> Option.bind (fun fc -> Array.tryItem wi.PortNumber fc.InputDrivers)
-                            |> Option.flatten
-                            |> Option.map (fun (fId, OutputPortNumber port) -> ofFId fId port)
-
-                    match signal with
-                    | Some s -> Map.add wi.SimArrayIndex s found
-                    | None -> found)
-
-        // Once per simulation, since this is memoised on it. Any driver named by neither route is a
-        // waveform that cannot be fetched, so it is worth being able to see the number.
-        Log.dbg
-            Log.Wave
-            $"drivers nameable for the .NET simulator: {Map.count fromComponents} from components, {Map.count named} in all, of {fs.Drivers.Length}"
-
-        named)
+    (PortView.ofInstanceCached fs (InstancePath ap)).ViewPorts
+    |> List.tryFind (fun p -> p.PortComp = compId && p.PortIs = wi.PortType && p.PortNum = wi.PortNumber)
+    |> Option.bind (fun p -> p.PortDrivenBy |> Option.map (fun driver -> driver, p.PortWidth))
+    |> Option.map (fun (((ComponentId comp, path), port), width) ->
+        (comp, port, path |> List.map (fun (ComponentId p) -> p)), width)
 
 /// Fetch some waves over the window they are about to be drawn over, and add them to the cache.
 ///
@@ -114,33 +71,30 @@ let private driverSignals: FastSimulation -> Map<int, int * int * int list> =
 let private fetchWaves
     (epoch: int)
     (fs: FastSimulation)
-    (driverIndices: int list)
+    (waves: WaveIndexT list)
     (window: Window)
     : JS.Promise<Result<unit, string>> =
-    let signals = driverSignals fs
-
-    // Every driver asked for, whatever its width - simRead carries a sample in as many words as it
+    // Every wave asked for, whatever its width - simRead carries a sample in as many words as it
     // needs. This used to drop anything over 32 bits while still recording it as asked for, so
     // coverage said yes, the wave came back with no row, and it kept whatever it had been showing
     // before, silently and for ever.
-    let asked = List.distinct driverIndices
+    //
+    // By driver, because that is what the cache is keyed by: two ports sharing an array - a custom
+    // component's output and the inner Output's - are one row, asked for once.
+    let asked = List.distinctBy (fun (wi: WaveIndexT) -> wi.SimArrayIndex) waves
 
     let wanted =
         asked
-        |> List.choose (fun i ->
-            match Map.tryFind i signals, Array.tryItem i fs.Drivers with
-            | Some sig_, Some(Some driver) -> Some(i, sig_, driver.DriverWidth)
-            | _ -> None)
+        |> List.choose (fun wi -> signalOf fs wi |> Option.map (fun (s, width) -> wi.SimArrayIndex, s, width))
 
-    // Waves this simulation offers no way to name. `simRead` asks by component and port, and a
-    // driver reachable only through a wave index the renderer cannot follow back to an output - a
-    // custom component's input port is the case that exists - has neither. They are recorded as
-    // having no driver rather than left missing: a missing wave is what asks for a fetch, so
-    // leaving them would ask again on every update, for ever. The rest of the view is fetched as
-    // usual, which is the point - refusing the whole request over them left the viewer blank.
+    // Waves this simulation offers no way to name: an input port with nothing driving it, which is
+    // an unconnected input. They are recorded as having no driver rather than left missing - a
+    // missing wave is what asks for a fetch, so leaving them would ask again on every update, for
+    // ever. The rest of the view is fetched as usual, which is the point: refusing the whole
+    // request over them left the viewer blank.
     let unnameable =
         let named = wanted |> List.map (fun (i, _, _) -> i) |> Set.ofList
-        asked |> List.filter (fun i -> not (Set.contains i named))
+        asked |> List.map (fun wi -> wi.SimArrayIndex) |> List.filter (fun i -> not (Set.contains i named))
 
     if not (List.isEmpty unnameable) then
         WaveData.setNoDriver unnameable window
@@ -150,7 +104,7 @@ let private fetchWaves
         Log.warnOnce
             $"no-driver-{fs.SimulatedTopSheet}-{List.length unnameable}"
             ($"{List.length unnameable} of {List.length asked} {plural} cannot be read from the .NET simulator:"
-             + " it has no driver to name them by, which a custom component's input port does not have."
+             + " nothing drives them, which is what an unconnected input port is."
              + " They are left blank; every other waveform is unaffected.")
 
     if List.isEmpty wanted then
@@ -211,9 +165,9 @@ let fetchProbeValue
     (wi: WaveIndexT)
     (cycle: int)
     : JS.Promise<bigint option> =
-    match Map.tryFind wi.SimArrayIndex (driverSignals fs) with
+    match signalOf fs wi with
     | None -> Promise.lift None
-    | Some signal ->
+    | Some(signal, _) ->
         promise {
             let! frame = SidecarClient.simRead epoch cycle 1 1 [ signal ]
             let asText = SidecarClient.decodeText frame
@@ -240,10 +194,10 @@ let fetchProbeValue
 let private fetchForView
     (epoch: int)
     (fs: FastSimulation)
-    (driverIndices: int list)
+    (waves: WaveIndexT list)
     (window: Window)
     : JS.Promise<Result<unit, string>> =
-    fetchWaves epoch fs driverIndices window
+    fetchWaves epoch fs waves window
 
 /// Choose the simulator for this refresh, and say what the renderer's own one reads through.
 ///
@@ -305,8 +259,8 @@ let wavesToFetch (inRenderer: bool) (handles: SignalHandle list) (window: Window
 let fetchWavesFor
     (epoch: int)
     (fs: FastSimulation)
-    (driverIndices: int list)
+    (waves: WaveIndexT list)
     (window: Window)
     : JS.Promise<Result<unit, string>> =
-    fetchForView epoch fs driverIndices window
+    fetchForView epoch fs waves window
     |> Promise.catch (fun e -> Error e.Message)

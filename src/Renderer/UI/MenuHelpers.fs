@@ -871,6 +871,18 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
             // its declared defaults. Must follow the choice above, which can change the top.
             PropagateParameters
 
+            // The ctrl-W above lands before the scroll event its own render raises, so centre
+            // once more after that scroll has been and gone, and record the canvas again so the
+            // recentring does not count as an edit. IN the sequence, deliberately: these used to
+            // be dispatched directly here, after SendSeqMsgAsynch below - which put them through
+            // the queue AHEAD of the list they were meant to follow. A SynchroniseCanvas that
+            // runs between ResetModel and SetProject copies whatever the draw block holds at
+            // that instant - a cleared canvas, or the PREVIOUS sheet's - into whichever sheet
+            // the project then names, which is how switching sheets could quietly empty a
+            // loaded component. Everything the load does now goes through one ordered list.
+            Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
+            SynchroniseCanvas
+
             // last of all: if this sheet is a library sheet being viewed, hold it at what it has
             // just become. Everything above changes the canvas as part of loading it, so nothing
             // may be pinned until they have all run.
@@ -882,14 +894,6 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
     //This will set a spinner for both Open project and Change sheet which are the two most lengthly processes
     dispatch <| (Sheet (SheetT.SetSpinner true))
     dispatch <| SendSeqMsgAsynch msgs
-    // msgs is bundled together and as a result a scroll from the ctrl-W scroll change is inserted in the event queue
-    // after the ctrl-w. We need anotehr ctrl-w to make sure this scroll event does not reset scroll
-    // the order in which messages get processed is problematic here - and the solution ad hoc - a better
-    // solution would be to understand exactly what determines event order in the event queue
-    dispatch <| Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
-    dispatch SynchroniseCanvas
-    //dispatch <| Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
-    //dispatch SynchroniseCanvas
 
 
 /// Load a new project as defined by parameters.
@@ -954,16 +958,12 @@ let setupProjectFromComponents (finishUI:bool) (sheetName: string) (ldComps: Loa
             |> Option.defaultValue savedWaveSim
 
 
+    // The load list loadStateIntoModel schedules is the WHOLE of the load: SetProject and
+    // SynchroniseCanvas used to be dispatched again here, directly - which sent them through the
+    // queue AHEAD of that list. The project was renamed before its canvas existed, and the
+    // synchronise then wrote an empty canvas into the newly named sheet. The list already
+    // carries both, in order, so the load is the one place that sequence lives.
     loadStateIntoModel finishUI compToSetup waveSim ldComps model dispatch
-    {
-        ProjectPath = dirName compToSetup.FilePath
-        OpenFileName =  compToSetup.Name
-        WorkingFileName = Some compToSetup.Name
-        LoadedComponents = ldComps
-    }
-    |> SetProject // this message actually changes the project in model
-    |> dispatch
-    dispatch SynchroniseCanvas
 
 
 /// Create a new empty .dgm file and return corresponding loaded component.

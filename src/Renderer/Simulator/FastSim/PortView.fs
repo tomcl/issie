@@ -85,9 +85,9 @@ type ComponentSlots =
 ///
 /// ALL ports, positionally - not the wave-carrying subset. Filtering would mean naming what was
 /// kept, which costs more than the entries it saves, and the rule for what carries a wave is a
-/// design fact the caller already has. The one build fact inside that rule - which member of an
-/// IOLabel group is elected to drive it - arrives implicitly: the members share a driver index,
-/// so deduplicating by driver keeps one of them, and name and data are the same whichever it is.
+/// design fact the caller already has - the IOLabel election included, which is read off the
+/// design's connections (see `ofSlice`). A group's members share their arrays here, so the DATA
+/// is the same whichever member is asked about.
 ///
 /// A width of 0 is a port with no signal: an unconnected input, still holding the dummy array it
 /// was created with.
@@ -121,68 +121,138 @@ let waveIndexOf (instance: InstancePath) (port: InstancePort) : WaveIndexT =
       PortType = port.PortIs
       PortNumber = port.PortNum }
 
-/// The ports of one instance that carry a waveform.
+/// Whether a port carries a waveform, decided from the design - the same rule as
+/// `FastCreate.portCarriesWave`, said without a FastComponent.
 ///
-/// Worked out from the DESIGN - the sheet that instance is a copy of names its own components -
-/// and each of those looked up in the simulation for its ports and their arrays. So this costs the
-/// size of one sheet, however many times that sheet is instantiated.
-///
-/// The rule deciding which ports carry a wave is `FastCreate.portCarriesWave`, the same one the
-/// built wave index comes from, so the two cannot disagree.
-let ofInstance (fs: FastSimulation) (InstancePath ap as instance) : InstanceView =
-    let sheet = fs.Design.SheetOfInstance instance
+/// Every clause of that rule is a design fact: the component's type; whether it sits inside a
+/// subsheet, where an Input or Output is the enclosing custom component's port and is offered
+/// there instead; and - the one that looks like a build fact and is not - which member of an
+/// IOLabel group is elected to drive its net. The build elects the member a wire DRIVES, and the
+/// wire is drawn on the sheet, so `electedIOLabel` below reads it off the design's connections.
+/// It cannot come from the slice: the group's members are wire-identical there, sharing not just
+/// their output array but the input driver too, because the graph ties the whole group together
+/// before the simulation is built.
+let private carriesWaveOfSlice
+    (compType: ComponentType)
+    (inSubSheet: bool)
+    (elected: bool)
+    (pType: PortType)
+    =
+    let ioLabelElected () = elected
+
+    match compType, pType with
+    | IOLabel, PortType.Input
+    | Input1 _, PortType.Input
+    | Viewer _, PortType.Input
+    | NotConnected, PortType.Input
+    | Output _, PortType.Input -> false
+    | Constant1 _, _ -> false
+    | IOLabel, _ when not (ioLabelElected ()) -> false
+    | _ ->
+        match compType with
+        | SplitWire _
+        | BusSelection _
+        | MergeWires
+        | MergeN _
+        | SplitN _
+        | Constant1 _ -> false
+        | Output _ when inSubSheet -> false
+        | Input1 _ when inSubSheet -> false
+        | _ -> true
+
+/// The rich per-instance view, derived from the DESIGN plus the port slice - no FastComponent
+/// anywhere. This is the memoised function the selector runs: its real inputs are the design and
+/// two ints a port, and it merely happens that a .NET simulator computed the ints.
+let ofSlice (design: SimulatedDesign) (InstancePath ap as instance) (slice: ComponentSlots list) : InstanceView =
+    let sheet = design.SheetOfInstance instance
+
+    let compsById =
+        Map.tryFind sheet design.DesignComponentsById |> Option.defaultValue Map.empty
+
+    let inSubSheet = not (List.isEmpty ap)
+
+    /// The member of an IOLabel group the build elects: the one a wire drives. The others read
+    /// and re-drive the same net, so name and data are the same whichever is shown - but ONE is
+    /// shown, and identity (the selection is keyed by component id) must match the build's choice.
+    let electedIOLabel (comp: Component) =
+        match List.tryItem 0 comp.InputPorts with
+        | None -> false
+        | Some port -> Map.containsKey { Sheet = sheet; PortOnComp = port } design.DesignConnectionsByPort
 
     let ports =
-        fs.Design.DesignSheets
-        |> List.tryFind (fun ldc -> ldc.Name = sheet)
-        |> Option.map (fun ldc ->
-            fst ldc.CanvasState
-            |> List.collect (fun comp ->
-                match fs.ComponentOf(ComponentId comp.Id, ap) with
-                | None -> []
-                | Some fc ->
-                    let portsOf portType (arrays: IOArray array) =
-                        if not (FastCreate.portCarriesWave fs fc portType) then
-                            []
-                        else
-                            arrays
-                            |> Array.toList
-                            |> List.mapi (fun pn io ->
-                                let displayName, portLabel =
-                                    match portType with
-                                    | PortType.Input ->
-                                        WaveNames.getInputName true fc (InputPortNumber pn),
-                                        WaveNames.getInputName false fc (InputPortNumber pn)
-                                    | PortType.Output ->
-                                        WaveNames.getOutputName true fc (OutputPortNumber pn) fs,
-                                        WaveNames.getOutputName false fc (OutputPortNumber pn) fs
+        slice
+        |> List.collect (fun slots ->
+            match Map.tryFind slots.SlotsComp compsById with
+            | None -> []
+            | Some comp ->
+                let insWidths = slots.SlotsIns |> Array.map (fun s -> s.SlotWidth)
+                let outsWidths = slots.SlotsOuts |> Array.map (fun s -> s.SlotWidth)
 
-                                // The array's own width, not the driver table's. They are the
-                                // same number - a driver's width is set from the width of the
-                                // output whose array it is, and an input link IS that array after
-                                // linking - and this one is there in a build made without the
-                                // wave tables.
-                                let width = io.Width
+                let portsOf portType (portSlots: PortSlot array) =
+                    if not (carriesWaveOfSlice comp.Type inSubSheet (electedIOLabel comp) portType) then
+                        []
+                    else
+                        portSlots
+                        |> Array.toList
+                        |> List.mapi (fun pn slot ->
+                            let displayName, portLabel =
+                                match portType with
+                                | PortType.Input ->
+                                    WaveNames.getInputNameW true comp.Type comp.Label insWidths outsWidths (InputPortNumber pn),
+                                    WaveNames.getInputNameW false comp.Type comp.Label insWidths outsWidths (InputPortNumber pn)
+                                | PortType.Output ->
+                                    WaveNames.getOutputNameW true comp.Type comp.Label insWidths outsWidths (OutputPortNumber pn),
+                                    WaveNames.getOutputNameW false comp.Type comp.Label insWidths outsWidths (OutputPortNumber pn)
 
-                                { PortComp = ComponentId comp.Id
-                                  PortIs = portType
-                                  PortNum = pn
-                                  PortArrayIndex = io.Index
-                                  PortDriver = io.Index
-                                  PortWidth = width
-                                  PortDisplayName = WaveNames.caseCompAndPortName displayName
-                                  PortLabel = portLabel
-                                  PortCompLabel = fc.FLabel })
+                            { PortComp = slots.SlotsComp
+                              PortIs = portType
+                              PortNum = pn
+                              PortArrayIndex = slot.SlotDriver
+                              PortDriver = slot.SlotDriver
+                              PortWidth = slot.SlotWidth
+                              PortDisplayName = WaveNames.caseCompAndPortName displayName
+                              PortLabel = portLabel
+                              PortCompLabel = comp.Label })
 
-                    portsOf PortType.Output fc.Outputs @ portsOf PortType.Input fc.InputLinks))
-        |> Option.defaultValue []
+                portsOf PortType.Output slots.SlotsOuts @ portsOf PortType.Input slots.SlotsIns)
 
     { ViewSheet = sheet
       ViewSubSheet =
         [ 1 .. ap.Length ]
         |> List.map (fun i ->
-            (fs.Design.LabelOfInstance(InstancePath ap[0 .. i - 1]) |> Option.defaultValue "?").ToUpper())
+            (design.LabelOfInstance(InstancePath ap[0 .. i - 1]) |> Option.defaultValue "?").ToUpper())
       ViewPorts = ports }
+
+/// The ports of one instance that carry a waveform, from the simulation in this process.
+///
+/// The DERIVATION is `ofSlice`'s - the design plus two ints a port - and this is only the local
+/// composition of it with the local slice. A renderer whose simulator is in another process runs
+/// the same `ofSlice` over a slice that arrived on the wire, and the two must be the same
+/// function or the two modes drift; that is why there is no second derivation here.
+let ofInstance (fs: FastSimulation) (instance: InstancePath) : InstanceView =
+    ofSlice fs.Design instance (sheetSliceOf fs instance)
+
+/// The raw name of one port of one instance - component label, port name, bit limits, uncased -
+/// which is what the probe label prints beside a value. The selector's rows use the cased
+/// `PortDisplayName` instead.
+let nameOfPort (fs: FastSimulation) (wi: WaveIndexT) : string =
+    let compId, ap = wi.Id
+
+    match fs.Design.ComponentOfInstance wi.Id with
+    | None -> "?"
+    | Some comp ->
+        sheetSliceOf fs (InstancePath ap)
+        |> List.tryFind (fun slots -> slots.SlotsComp = compId)
+        |> Option.map (fun slots ->
+            let insWidths = slots.SlotsIns |> Array.map (fun s -> s.SlotWidth)
+            let outsWidths = slots.SlotsOuts |> Array.map (fun s -> s.SlotWidth)
+
+            match wi.PortType with
+            | PortType.Input ->
+                WaveNames.getInputNameW true comp.Type comp.Label insWidths outsWidths (InputPortNumber wi.PortNumber)
+            | PortType.Output ->
+                WaveNames.getOutputNameW true comp.Type comp.Label insWidths outsWidths (OutputPortNumber wi.PortNumber))
+        |> Option.defaultValue "?"
 
 /// The ports of an instance, remembered for as long as the simulation is.
 ///

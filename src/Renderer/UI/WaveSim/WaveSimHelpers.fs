@@ -369,24 +369,12 @@ let isInsideLibraryComponent (fs: FastSimulation) (InstancePath ap) =
        |> List.exists (fun i -> Set.contains (fs.Design.SheetOfInstance(InstancePath ap[0 .. i - 1])) librarySheets)
 
 /// The ports of one elaborated component that carry a waveform, as wave indices into the
-/// simulation as it is now.
-let waveIndicesOfFComp (fs: FastSimulation) (fId: FComponentId) : WaveIndexT list =
-    match fs.ComponentOf fId with
-    | None -> []
-    | Some fc ->
-        let portsOf pType (arrays: IOArray array) =
-            if FastCreate.portCarriesWave fs fc pType then
-                arrays
-                |> Array.toList
-                |> List.mapi (fun pn io ->
-                    { SimArrayIndex = io.Index
-                      Id = fId
-                      PortType = pType
-                      PortNumber = pn })
-            else
-                []
-
-        portsOf PortType.Output fc.Outputs @ portsOf PortType.Input fc.InputLinks
+/// simulation as it is now. Read off the instance's port view - the one derivation of what
+/// carries a wave - rather than deciding again from a FastComponent.
+let waveIndicesOfFComp (fs: FastSimulation) ((compId, ap) as fId: FComponentId) : WaveIndexT list =
+    (PortView.ofInstanceCached fs (InstancePath ap)).ViewPorts
+    |> List.filter (fun p -> p.PortComp = compId)
+    |> List.map (PortView.waveIndexOf (InstancePath ap))
 
 /// The wave one index names, in the simulation as it is NOW - or None if that simulation does not
 /// offer it any more.

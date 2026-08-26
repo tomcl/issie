@@ -144,9 +144,11 @@ let SimReadRam = 0x0Cuy
 /// component id, uint32 LE input port count, uint32 LE output port count, then per input port
 /// and then per output port - positionally, index = the design's port number - uint32 LE width
 /// and uint32 LE driver index. ALL ports: which of them carry a wave is a design fact the caller
-/// already has, and the IOLabel election arrives implicitly, as members sharing a driver index.
-/// A width of 0 is a port with no signal. The driver index is the build's read handle - SimRead
-/// accepts it for as long as this build lives. An error reply is JSON text (starts with '{').
+/// already has, the IOLabel election included (it reads off the design's connections; a group's
+/// members share their arrays here, so the data is the same whichever member is asked about).
+/// A width of 0 is a port with no signal. The driver index is the build's read handle - the
+/// by-handle read accepts it for as long as this build lives. An error reply is JSON text
+/// (starts with '{').
 [<Literal>]
 let SimPorts = 0x0Duy
 

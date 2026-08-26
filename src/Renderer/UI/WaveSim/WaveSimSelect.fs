@@ -437,7 +437,7 @@ let probeLabelForWire
                          { Dat = Word(uint32 value); Width = width }
 
                  (NumberHelpers.fastDataToPaddedString 60 radix fd).Trim()))
-        |> Option.map (fun text -> $"{getName wi fs} = {text}"))
+        |> Option.map (fun text -> $"{PortView.nameOfPort fs wi} = {text}"))
 
 //--------------------------------------------------------------------------------------------------------//
 //------------------------------What is shown before anything has been chosen-----------------------------//

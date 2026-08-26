@@ -144,57 +144,6 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
     | SplitN _ -> failwithf "SplitN should not occur in getInputPortName"
     | BusSelection _ -> failwithf "BusSelection should not occur in getInputPortName"
 
-/// Get names for waves that are from Input ports
-/// TODO: unify this with DrawBlock and widthInferror logic
-
-let getInputName (withComp: bool) (comp: FastComponent) (port: InputPortNumber) : string =
-    let portName : string = getInputPortName comp.FType port
-    let bitLims : string =
-        match comp.FType with
-        // The enable and load inputs are one bit whatever the width of the register or counter
-        // they control - only the data input carries that width. getInputPortName has already put
-        // the leading '.' on, which is why the names compared against carry one too.
-        | RegisterE _ | Counter _ | CounterNoEnable _ | CounterNoLoad _
-                when portName = ".EN" || portName = ".LOAD" ->
-            bitLimsString (0, 0)
-        // An adder's carry in is one bit; it is the two operands that are as wide as the adder.
-        | NbitsAdder _ | NbitsAdderNoCout _ when portName = ".CIN" ->
-            bitLimsString (0, 0)
-        | Input1 (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
-        | NbitsXor(w, _) | NbitsNot w | NbitsAnd w | NbitsAdder w | NbitsOr w
-        | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w
-        | BusCompare(w,_) | BusCompare1(w,_,_)  |Register w | RegisterE w
-        | Counter w | CounterNoEnable w | NbitSpreader w ->
-            bitLimsString (w - 1, 0)
-        | Not | BusCompare _ | BusCompare1 _ | GateN _
-        | Mux2 | Mux4 | Mux8 | Decode4 | Demux2 | Demux4 | Demux8
-        | DFF | Register _ | DFFE | RegisterE _ |Counter _
-        |CounterNoEnable _ |CounterNoLoad _ |CounterNoEnableLoad _ ->
-            bitLimsString (0, 0)
-
-        | Shift(w,m,tp) -> bitLimsString (w - 1, 0)
-        // TODO: Find the right parameters for RAMs and ROMs.
-        | ROM1 _ | AsyncROM1 _ | RAM1 _ | AsyncRAM1 _ ->
-            ""
-
-        | Custom c ->
-            bitLimsString (snd c.InputLabels[getInputPortNumber port] - 1, 0)
-
-        | ROM _ | RAM _ | AsyncROM _ -> failwithf "What? Legacy RAM component types should never occur"
-        | Input _ -> failwithf "Legacy Input component types should never occur"
-        | NotConnected -> failwithf "NotConnected should not occur in getInputName"
-        | IOLabel -> failwithf "IOLabel should not occur in getInputName"
-        | MergeWires -> failwithf "MergeWires should not occur in getInputName"
-        | MergeN _ -> failwithf "MergeN should not occur in getInputName"
-        | SplitWire _ -> failwithf "SplitWire should not occur in getInputName"
-        | SplitN _ -> failwithf "SplitN should not occur in getInputName"
-        | BusSelection _ -> failwithf "BusSeleciton should not occur in getInputName"
-
-    if withComp then 
-        comp.FLabel + portName + bitLims
-    else 
-        portName[1..portName.Length-1] + bitLims
-
 /// Get port names for waves that are from Output ports
 /// Appended to comp.Label
 let getOutputPortName (compType: ComponentType) (port: OutputPortNumber) : string =
@@ -229,70 +178,135 @@ let getOutputPortName (compType: ComponentType) (port: OutputPortNumber) : strin
     | SplitN _ -> failwithf "SplitN should not occur in getOutputName"
     | BusSelection _ -> failwithf "BusSeleciton should not occur in getOutputName"
 
-/// Get names for waves that are from Output ports
-/// TODO: unify this with DrawBlock and widthInferror logic
-let getOutputName (withComp: bool) (comp: FastComponent) (port: OutputPortNumber) (fastSim: FastSimulation): string =
-    let portName = getOutputPortName comp.FType port
+// ------------------------------------------------------------------------------------------------
+// The same names, from the design plus the port slice - no FastComponent.
+//
+// The fc-based functions above read widths out of the ELABORATED component's type, which is a
+// fact about a build this process need not have made. These take the design's ComponentType -
+// which under parameters carries the sheet's DEFAULT widths, good only for structure: which port
+// is called SEL, which are one bit whatever the component's width - and the real widths as the
+// port slice reports them, which are the instance's own.
+//
+// Each quirk of the fc-based names is reproduced deliberately, because a selection is keyed by
+// what the selector showed: a spreader's one-bit input is named at the SPREAD width, a shifter's
+// shift-amount input at the DATA width, a comparator's one-bit output at the COMPARED width, and
+// a mux's data ports with no width at all. The equivalence of the two derivations over whole
+// designs, parameterised ones included, is pinned by test.
+// ------------------------------------------------------------------------------------------------
+
+/// The name of one input port, from design facts plus the instance's port widths.
+let getInputNameW
+    (withComp: bool)
+    (compType: ComponentType)
+    (label: string)
+    (insWidths: int array)
+    (outsWidths: int array)
+    (port: InputPortNumber)
+    : string =
+    let pn = getInputPortNumber port
+    let portName = getInputPortName compType port
+
+    let widthAt (widths: int array) i =
+        if i >= 0 && i < widths.Length then widths[i] else 0
+
     let bitLims =
-        match comp.FType with
-        | BusCompare(w,_) | BusCompare1(w,_,_) -> bitLimsString (w-1, 0)
-        // As with the carry in, the carry out is one bit whatever the width of the adder.
+        match compType with
+        // the enable and load inputs are one bit whatever the width of the register or counter
+        | RegisterE _ | Counter _ | CounterNoEnable _ | CounterNoLoad _
+                when portName = ".EN" || portName = ".LOAD" ->
+            bitLimsString (0, 0)
+        // an adder's carry in is one bit; it is the operands that are as wide as the adder
+        | NbitsAdder _ | NbitsAdderNoCout _ when portName = ".CIN" ->
+            bitLimsString (0, 0)
+        // the spreader's input is one bit but has always been named at the width it spreads TO
+        | NbitSpreader _ -> bitLimsString (widthAt outsWidths 0 - 1, 0)
+        // both of a shifter's inputs are named at the data width, the shift amount included
+        | Shift _ -> bitLimsString (widthAt insWidths 0 - 1, 0)
+        | Input1 _ | Output _ | Constant1 _ | Constant _ | Viewer _
+        | NbitsXor _ | NbitsNot _ | NbitsAnd _ | NbitsAdder _ | NbitsOr _
+        | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _
+        | BusCompare _ | BusCompare1 _ | Register _ | RegisterE _
+        | Counter _ | CounterNoEnable _
+        | Custom _ ->
+            bitLimsString (widthAt insWidths pn - 1, 0)
+        | Not | GateN _
+        | Mux2 | Mux4 | Mux8 | Decode4 | Demux2 | Demux4 | Demux8
+        | DFF | DFFE | CounterNoLoad _ | CounterNoEnableLoad _ ->
+            bitLimsString (0, 0)
+        | ROM1 _ | AsyncROM1 _ | RAM1 _ | AsyncRAM1 _ ->
+            ""
+        | ROM _ | RAM _ | AsyncROM _ -> failwithf "What? Legacy RAM component types should never occur"
+        | Input _ -> failwithf "Legacy Input component types should never occur"
+        | NotConnected -> failwithf "NotConnected should not occur in getInputNameW"
+        | IOLabel -> failwithf "IOLabel should not occur in getInputNameW"
+        | MergeWires -> failwithf "MergeWires should not occur in getInputNameW"
+        | MergeN _ -> failwithf "MergeN should not occur in getInputNameW"
+        | SplitWire _ -> failwithf "SplitWire should not occur in getInputNameW"
+        | SplitN _ -> failwithf "SplitN should not occur in getInputNameW"
+        | BusSelection _ -> failwithf "BusSelection should not occur in getInputNameW"
+
+    if withComp then
+        label + portName + bitLims
+    else
+        portName[1 .. portName.Length - 1] + bitLims
+
+/// The name of one output port, from design facts plus the instance's port widths. The IOLabel
+/// case is the one the fc-based version needed a whole simulation for - which member of the group
+/// drives the net - and needs nothing here: the slice width of an IOLabel's output IS the elected
+/// driver's, because the group shares its array.
+let getOutputNameW
+    (withComp: bool)
+    (compType: ComponentType)
+    (label: string)
+    (insWidths: int array)
+    (outsWidths: int array)
+    (port: OutputPortNumber)
+    : string =
+    let pn = getOutputPortNumber port
+    let portName = getOutputPortName compType port
+
+    let widthAt (widths: int array) i =
+        if i >= 0 && i < widths.Length then widths[i] else 0
+
+    let bitLims =
+        match compType with
+        // a comparator's output is one bit but has always been named at the width it compares
+        | BusCompare _ | BusCompare1 _ -> bitLimsString (widthAt insWidths 0 - 1, 0)
+        // as with the carry in, the carry out is one bit whatever the width of the adder
         | NbitsAdder _ | NbitsAdderNoCin _ when portName = ".COUT" -> bitLimsString (0, 0)
         | Not | GateN _
         | Decode4 | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
         | DFF | DFFE ->
             bitLimsString (0, 0)
-
-        | Input1 (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
-        | NbitsXor(w,_) | NbitsAnd w | NbitsOr w | NbitsNot w | NbitSpreader w | NbitsAdder w | Register w | RegisterE w 
-        | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w | Counter w |CounterNoEnable w |CounterNoLoad w |CounterNoEnableLoad w->
-            bitLimsString (w - 1, 0)
-
-        | Shift (w,m,tp) -> bitLimsString (w - 1, 0)
-        | RAM1 mem | AsyncRAM1 mem | AsyncROM1 mem | ROM1 mem ->
-            bitLimsString (mem.WordWidth - 1, 0)
-
-        | Custom c ->
-            bitLimsString (snd c.OutputLabels[getOutputPortNumber port] - 1, 0)
-
+        | Input1 _ | Output _ | Constant1 _ | Constant _ | Viewer _
+        | NbitsXor _ | NbitsAnd _ | NbitsOr _ | NbitsNot _ | NbitSpreader _ | NbitsAdder _
+        | Register _ | RegisterE _
+        | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _
+        | Counter _ | CounterNoEnable _ | CounterNoLoad _ | CounterNoEnableLoad _
+        | Shift _
+        | RAM1 _ | AsyncRAM1 _ | AsyncROM1 _ | ROM1 _
+        | Custom _ ->
+            bitLimsString (widthAt outsWidths pn - 1, 0)
         | IOLabel ->
-            let drivingComp = fastSim.FIOActive[ComponentLabel comp.FLabel,snd comp.fId]
-            let labelWidth = FastExtract.extractFastSimulationWidth fastSim (drivingComp.Id,snd drivingComp.fId) (OutputPortNumber 0)
-            match labelWidth with
-            | 0 ->
-                failwithf $"What? Can't find width for IOLabel {comp.FLabel}$ "
-            | width ->
-                bitLimsString (width - 1, 0)
-
+            match widthAt outsWidths 0 with
+            | 0 -> failwithf $"What? Can't find width for IOLabel {label}$ "
+            | width -> bitLimsString (width - 1, 0)
         | ROM _ | RAM _ | AsyncROM _ -> failwithf "What? Legacy RAM component types should never occur"
         | Input _ -> failwithf "Legacy Input component types should never occur"
-        | NotConnected -> failwithf "NotConnected should not occur in getOutputName"
-        | MergeWires -> failwithf "MergeWires should not occur in getOutputName"
-        | MergeN _ -> failwithf "MergeN should not occur in getOutputName"
-        | SplitWire _ -> failwithf "SplitWire should not occur in getOutputName"
-        | SplitN _ -> failwithf "SplitN should not occur in getOutputName"
-        | BusSelection _ -> failwithf "BusSelection should not occur in getOutputName"
+        | NotConnected -> failwithf "NotConnected should not occur in getOutputNameW"
+        | MergeWires -> failwithf "MergeWires should not occur in getOutputNameW"
+        | MergeN _ -> failwithf "MergeN should not occur in getOutputNameW"
+        | SplitWire _ -> failwithf "SplitWire should not occur in getOutputNameW"
+        | SplitN _ -> failwithf "SplitN should not occur in getOutputNameW"
+        | BusSelection _ -> failwithf "BusSelection should not occur in getOutputNameW"
 
-    if withComp then 
-        comp.FLabel + portName + bitLims
-    else 
-        portName[1..portName.Length-1] + bitLims
-
+    if withComp then
+        label + portName + bitLims
+    else
+        portName[1 .. portName.Length - 1] + bitLims
 
 let caseCompAndPortName (name:string) =
     let parts = name.Split([|'.'|])
     match parts.Length with
     | 0 | 1 -> name.ToUpper()
     | n -> (String.concat "." parts[0..n-2]).ToUpper() + "." + camelCaseDottedWords parts[n-1]
-
-
-
-
-/// Get name for a wave. Names are generated from component label, port name, and bit width of wave.
-let getName (index: WaveIndexT) (fastSim: FastSimulation) : string =
-    let fc = fastSim.FastComponentOf index.Id
-    match index.PortType with
-    | PortType.Input -> getInputName true fc (InputPortNumber index.PortNumber)
-    | PortType.Output -> getOutputName true fc (OutputPortNumber index.PortNumber) fastSim
-    |> caseCompAndPortName
-

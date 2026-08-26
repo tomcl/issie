@@ -269,10 +269,89 @@ let private clashSimulation =
          | Ok simData ->
              simData.FastSim, TestFixtures.allWavesOf ModelHelpers.initWSModel simData.FastSim)
 
+/// A parameterised child (S = A + B at width W, default 4) instantiated at W = 9. Everything a
+/// name carries about a width must come from the ELABORATED instance - the port slice - because
+/// the design's own component types hold the sheet's default widths, which parameters override.
+let private parameterisedAtNine () =
+    let declares (name: string) (expr: ParameterTypes.ParamExpression) =
+        ParameterTypes.ParamName name,
+        ({ Expression = expr; Description = $"test parameter {name}" }: ParameterTypes.ParamDefinition)
+
+    let a = makeComp 1 0 1 (Input1(4, None)) "A"
+    let b = makeComp 2 0 1 (Input1(4, None)) "B"
+    let add = makeComp 3 2 1 (NbitsAdderNoCinCout 4) "ADD"
+    let sOut = makeComp 4 1 0 (Output 4) "S"
+    let canvas = [ a; b; add; sOut ], [ conn a 0 add 0; conn b 0 add 1; conn add 0 sOut 0 ]
+
+    let wExpr: ParameterTypes.ConstrainedExpr =
+        { Expression = ParameterTypes.PParameter(ParameterTypes.ParamName "W")
+          Constraints = [] }
+
+    let paramDefs: ParameterTypes.ParameterDefs =
+        { DefaultBindings = Map [ declares "W" (ParameterTypes.PInt 4I) ]
+          ParamSlots =
+            Map [ { CompId = 1; CompSlot = ParameterTypes.IO "A" }, wExpr
+                  { CompId = 2; CompSlot = ParameterTypes.IO "B" }, wExpr
+                  { CompId = 3; CompSlot = ParameterTypes.Buswidth }, wExpr
+                  { CompId = 4; CompSlot = ParameterTypes.IO "S" }, wExpr ] }
+
+    let child = makeLdc "pchild" (Some paramDefs) canvas
+    let bindings = Some(Map [ ParameterTypes.ParamName "W", ParameterTypes.PInt 9I ])
+    let x = makeComp 1 0 1 (Input1(9, None)) "X"
+    let y = makeComp 2 0 1 (Input1(9, None)) "Y"
+    let cc = makeComp 3 2 1 (customOf child [ "A", 9; "B", 9 ] [ "S", 9 ] bindings) "CC"
+    let out = makeComp 4 1 0 (Output 9) "S"
+
+    let parent =
+        makeLdc "pparent" None ([ x; y; cc; out ], [ conn x 0 cc 0; conn y 0 cc 1; conn cc 0 out 0 ])
+
+    match Simulator.startCircuitSimulation maxArraySize "pparent" parent.CanvasState [ parent; child ] with
+    | Ok simData -> simData.FastSim
+    | Error e -> failwith $"parameterised build failed: %A{e.ErrType}"
+
 let tests =
     testList
         "WaveSelection"
-        [ testCase "a real design's waves all re-resolve, and its first start chooses some"
+        [ test "a parameterised instance's waves are named at the instance's widths" {
+            // The widths a name carries are the INSTANCE's, not the sheet's defaults. Inside
+            // pchild bound at W = 9 every design component still says 4; only the elaborated
+            // build knows 9, and the port slice is how that knowledge reaches a name. This is
+            // what would break if a width in WaveNames' derivation ever came from the design's
+            // component type.
+            let fs = parameterisedAtNine ()
+
+            let ccId =
+                fs.Design.DesignComponentsById["pparent"]
+                |> Map.pick (fun cid comp ->
+                    match comp.Type with
+                    | Custom _ -> Some cid
+                    | _ -> None)
+
+            let inside = PortView.ofInstance fs (InstancePath [ ccId ])
+            Expect.isNonEmpty inside.ViewPorts "the child instance must offer waves"
+
+            let adderOut =
+                inside.ViewPorts
+                |> List.find (fun p ->
+                    p.PortCompLabel = "ADD" && p.PortIs = PortType.Output && p.PortNum = 0)
+
+            Expect.equal adderOut.PortWidth 9 "the adder is 9 bits in this instance"
+            Expect.equal adderOut.PortDisplayName "ADD.Sum(8:0)" "and its wave is named at 9 bits"
+
+            let adderIn =
+                inside.ViewPorts
+                |> List.find (fun p ->
+                    p.PortCompLabel = "ADD" && p.PortIs = PortType.Input && p.PortNum = 0)
+
+            Expect.equal adderIn.PortDisplayName "ADD.P(8:0)" "operand names carry the instance width too"
+
+            for p in inside.ViewPorts do
+                Expect.isFalse
+                    (p.PortDisplayName.Contains "(3:0)")
+                    $"{p.PortDisplayName}: a name is showing the sheet's default width, not the instance's"
+          }
+
+          testCase "a real design's waves all re-resolve, and its first start chooses some"
           <| fun () ->
               // The small fixtures above have no Viewers, no IOLabels and no wide buses, and those
               // are exactly the components whose ports carry a wave under a rule of their own.
@@ -483,7 +562,7 @@ let tests =
               let fs, allWaves = simulation.Force()
               let chosen =
                   WaveSimSelect.defaultSelectedWaves fs
-                  |> List.map (fun wi -> WaveNames.getName wi fs)
+                  |> List.map (fun wi -> PortView.nameOfPort fs wi)
               // IN before OUT: inputs are ranked before outputs, and each group is sorted by label
               Expect.equal chosen [ "IN"; "OUT" ] "the top sheet's ports, inputs first"
 
@@ -540,7 +619,7 @@ let tests =
               let fs, allWaves = closedSimulation.Force()
               let chosen =
                   WaveSimSelect.defaultSelectedWaves fs
-                  |> List.map (fun wi -> WaveNames.getName wi fs)
+                  |> List.map (fun wi -> PortView.nameOfPort fs wi)
               // the Viewer is inside the instance, which is exactly the point: it is the one signal
               // the author of the design said was worth watching, and nothing on the top sheet is
               Expect.equal chosen [ "PROBE" ] "the Viewer in the subsheet"

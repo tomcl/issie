@@ -651,7 +651,13 @@ let private makeInstanceRows showDetails (ws: WaveSimModel) (fs: FastSimulation)
     |> List.map (fun (instance, wavesOfInstance) ->
         let groupRows =
             wavesOfInstance
-            |> List.groupBy (fun wave -> getCompGroup (fs.FastComponentOf wave.WaveId.Id).FType)
+            |> List.groupBy (fun wave ->
+                // the component's KIND is a fact about the design, so it is the design that is
+                // asked - the expansion map is empty when the .NET sidecar simulates, and this
+                // dialog draws from the design in that mode like everything else in it
+                fs.Design.ComponentOfInstance wave.WaveId.Id
+                |> Option.map (fun comp -> getCompGroup comp.Type)
+                |> Option.defaultValue (Component "unknown"))
             |> List.map (fun (grp, groupWaves) ->
                 makeFlatGroupRow showDetails ws [WaveSimHierarchy.pathKey instance] grp groupWaves dispatch)
         // The sheet's name, as everywhere else. This is the one place a row can stand for an
@@ -708,7 +714,13 @@ let private makeNodeRows
                 |> Option.defaultValue []
             let groupRows =
                 wavesOfNode
-                |> List.groupBy (fun wave -> getCompGroup (fs.FastComponentOf wave.WaveId.Id).FType)
+                |> List.groupBy (fun wave ->
+                // the component's KIND is a fact about the design, so it is the design that is
+                // asked - the expansion map is empty when the .NET sidecar simulates, and this
+                // dialog draws from the design in that mode like everything else in it
+                fs.Design.ComponentOfInstance wave.WaveId.Id
+                |> Option.map (fun comp -> getCompGroup comp.Type)
+                |> Option.defaultValue (Component "unknown"))
                 |> List.map (fun (grp, groupWaves) ->
                     makeFlatGroupRow showDetails ws node.NodeKey grp groupWaves dispatch)
 

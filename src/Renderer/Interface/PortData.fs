@@ -64,6 +64,14 @@ let fetch (epoch: int) (instances: InstancePath list) : JS.Promise<Result<int, s
 
     go (List.distinct instances) 0
 
+/// Test-only: what is held and whether it is keyed to `fs`, for the dev harness.
+let describeHeld (fs: SimTypes.FastSimulation) : string =
+    match held with
+    | None -> "nothing held"
+    | Some(heldFs, epoch, slices) ->
+        let current = System.Object.ReferenceEquals(heldFs, box fs)
+        $"epoch {epoch}, {slices.Count} instances, of the current build: {current}"
+
 /// Test-only: hold one instance's slice as if it had arrived on the wire.
 let storeForTest (epoch: int) (instance: InstancePath) (slice: PortView.ComponentSlots list) =
     match held with

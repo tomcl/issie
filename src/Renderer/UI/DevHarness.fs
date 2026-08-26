@@ -187,7 +187,19 @@ let private waveState () =
 /// which is what `drive.js wait` uses this for.
 let private sidecar () =
     let connected, pending = SidecarClient.connectionState ()
-    box {| connected = connected; pending = pending |}
+
+    box
+        {| connected = connected
+           pending = pending
+           // which build the fetched port slices are keyed to, and whether that is the build the
+           // views are asking about - the disagreement every "selector shows nothing" comes down to
+           ports = PortData.describeHeld (Simulator.getFastSim ())
+           // what the selector's own read path answers for the TOP instance: -1 not described
+           // yet, otherwise how many ports its slice resolved to
+           topPorts =
+               match PortView.tryOfInstanceCached (Simulator.getFastSim ()) (InstancePath []) with
+               | None -> -1
+               | Some v -> v.ViewPorts.Length |}
 
 /// What is currently holding a simulation, and how large each one is.
 ///

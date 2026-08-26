@@ -40,8 +40,14 @@ open WaveSimSelectHelpers
 /// Button to activate wave selection modal
 let selectWavesButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     // WaveDetails holds the SELECTED waves, so it says nothing about whether there is anything to
-    // select. The simulation does.
-    let hasWaves = wsModel.State = Success && not (Array.isEmpty (Simulator.getFastSim()).WaveIndex)
+    // select. The simulation does - and which simulation answers is derived from the build
+    // itself, as everywhere: a carrier, built when the .NET sidecar simulates, holds no local
+    // wave table at all, and its selectable waves come from the design it carries.
+    let hasWaves =
+        wsModel.State = Success
+        && (let fs = Simulator.getFastSim()
+            let isCarrier = fs.NumStepArrays = 0 && fs.SimulatedTopSheet <> ""
+            isCarrier || not (Array.isEmpty fs.WaveIndex))
     let props, buttonFunc =
         if hasWaves then
             selectWavesButtonProps "selectButton" true, (fun _ -> dispatch <| UpdateWSModel (fun ws -> {ws with WaveModalActive = true}))

@@ -45,7 +45,11 @@ let mutable uiStartTime: float = 0.
 /// Safe to call when there is no waveform simulation: it is then the releases, which are already
 /// empty, and a model that already says so.
 let private endWaveSimulation (model: Model) =
-    Simulator.simCacheWS <- Simulator.simCacheInit ()
+    // The simulation slot is NOT cleared here. This runs on two occasions: the wave simulation
+    // ending for good (the EndWaveSim handler, which releases the slot itself), and a STEP
+    // simulation having just been built (the StartSimulation handler) - where the slot already
+    // holds the new build, and clearing it would destroy the simulation being started.
+    //
     // the waveforms on screen are about to stop being on screen, and they are the only thing
     // this holds
     WaveDrawn.forget ()
@@ -505,14 +509,22 @@ let updateUnpinned (msg : Msg) oldModel =
         |> withNoMsg
 
     | EndSimulation ->
-        // The step simulator's cache is a module-level mutable holding a whole FastSimulation, and
-        // ending the simulation was not releasing it: it is only replaced when the NEXT simulation
-        // is built, so the design just simulated stayed in memory for the rest of the session.
-        // Editing afterwards then pays for it on every major garbage collection - measured at
-        // roughly a second per gigabyte retained - which is what made editing feel slow after
-        // simulating a large design, with nothing on screen to say why. EndWaveSim below has
-        // always done this for its own cache.
-        Simulator.simCache <- Simulator.simCacheInit()
+        // Releasing the slot matters: it is a module-level mutable holding a whole FastSimulation,
+        // only otherwise replaced when the NEXT simulation is built, so an unreleased design costs
+        // roughly a second per gigabyte retained on every major garbage collection - which is what
+        // made editing feel slow after simulating a large design, with nothing on screen to say
+        // why.
+        //
+        // Released only when the slot holds the STEP simulation this message ends - which the
+        // model says, by identity. There is one slot now, and this message is also dispatched by
+        // startWaveSimulation for mutual exclusion, arriving AFTER the wave build has taken the
+        // slot: clearing unconditionally would destroy the simulation being started. Under mutual
+        // exclusion the identity test is exact - the slot holds this step sim's build, or
+        // something newer that must be kept.
+        (match model.CurrentStepSimulationStep with
+         | Some(Ok sd) when System.Object.ReferenceEquals(sd.FastSim, Simulator.simCache.FastSim) ->
+             Simulator.simCache <- Simulator.simCacheInit ()
+         | _ -> ())
         // The indexes built over a simulation are memoised on the simulation itself, so an
         // unemptied memo holds the whole of it - step arrays and all - after this has let go.
         Helpers.clearIdentityMemos()
@@ -521,6 +533,13 @@ let updateUnpinned (msg : Msg) oldModel =
         |> withNoMsg
 
     | EndWaveSim ->
+        // The mirror of EndSimulation's release: let the slot go unless it holds a live STEP
+        // simulation's build - which it can, since ending the waveform state is also part of
+        // starting a step simulation, and by then the slot already holds the new build.
+        (match model.CurrentStepSimulationStep with
+         | Some(Ok sd) when System.Object.ReferenceEquals(sd.FastSim, Simulator.simCache.FastSim) -> ()
+         | _ -> Simulator.simCache <- Simulator.simCacheInit ())
+
         match model.WaveSimSheet with
         | None
         | Some "" ->

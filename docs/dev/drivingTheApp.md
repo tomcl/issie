@@ -111,7 +111,7 @@ startSimulation
 ## What `refs` is for
 
 ```json
-{ "inModel": 120084, "stepCache": 120084, "waveCache": 0, "truthTable": 0,
+{ "inModel": 120084, "cached": 120084, "truthTable": 0,
   "waveSimSheets": ["main5"], "usedHeapMB": 450, "heapLimitMB": 4192 }
 ```
 
@@ -119,7 +119,7 @@ A `FastSimulation` is reachable from several places and only one of them is the 
 still in memory" cannot be answered from the model alone. It also cannot reliably be answered from
 the heap: `usedJSHeapSize` counts typed arrays, does not shrink until a collection runs, and says
 nothing about *which* reference is keeping something alive. Ending a simulation shows
-`inModel` and `stepCache` drop to 0 immediately, while `usedHeapMB` stays where it was until the
+`inModel` and `cached` drop to 0 immediately, while `usedHeapMB` stays where it was until the
 next GC — the counts are the truthful signal.
 
 This was added because finding one retained simulation took a heap snapshot with a retainer path

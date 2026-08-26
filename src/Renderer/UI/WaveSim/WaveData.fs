@@ -15,7 +15,7 @@
 /// **Why the source is module state.** The functions here are called from view code -
 /// `getWaveValue` while laying out the value column, the hover cache while building a tooltip -
 /// which has no model to thread a flag through, and reaching for a global is what that code
-/// already does for the simulation itself (`Simulator.simCacheWS`). This mirrors it
+/// already does for the simulation itself (`Simulator.simCache`). This mirrors it
 /// deliberately rather than inventing a second convention: set when the waveform simulator
 /// refreshes, cleared when it ends, and read from view code. See docs/mutableState.md - this is
 /// a cache of what the app is displaying, not model state.

@@ -733,7 +733,7 @@ let tests =
               // no user wants to read out of a text box. The panel says which instance by its own
               // shape, so the filter only has to say which sheet.
               let fs, allWaves = deepSimulation.Force()
-              Simulator.simCacheWS <- { Simulator.simCacheInit () with FastSim = fs }
+              Simulator.simCache <- { Simulator.simCacheInit () with FastSim = fs }
               let ws = { ModelHelpers.initWSModel with WaveDetails = allWaves }
               let hierarchy = WaveSimHierarchy.getSelectorHierarchy fs ws
               let shown = hierarchy.HierOrder |> List.choose (fun node -> node.NodeInstance) |> Set.ofList
@@ -751,7 +751,7 @@ let tests =
                   WaveSimSelectHelpers.filterWaves (Some shown) { ws with SheetSearchString = "MID1.LEAF1" }
               Expect.isEmpty byIdentity.OfSheet "a path through the hierarchy is not what this box takes"
 
-              Simulator.simCacheWS <- Simulator.simCacheInit ()
+              Simulator.simCache <- Simulator.simCacheInit ()
 
           testCase "Show Only Selected reaches a wave chosen in an instance no node is showing"
           <| fun () ->
@@ -761,7 +761,7 @@ let tests =
               // the expansion - reading every wave in WaveDetails and every key of SimSheetStructure
               // made one click on the checkbox cost the whole of a design that multiplies out.
               let fs, allWaves = deepSimulation.Force()
-              Simulator.simCacheWS <- { Simulator.simCacheInit () with FastSim = fs }
+              Simulator.simCache <- { Simulator.simCacheInit () with FastSim = fs }
               let ws = { ModelHelpers.initWSModel with WaveDetails = allWaves }
               let hierarchy = WaveSimHierarchy.getSelectorHierarchy fs ws
               let shown = hierarchy.HierOrder |> List.choose (fun node -> node.NodeInstance) |> Set.ofList
@@ -794,7 +794,7 @@ let tests =
                   [ instanceNamed fs "MID2.LEAF2" ]
                   "and only the instances they are in, not every sheet instance in the design"
 
-              Simulator.simCacheWS <- Simulator.simCacheInit ()
+              Simulator.simCache <- Simulator.simCacheInit ()
 
           testCase "the waves of one row all sit at one depth, which is what its checkbox selects"
           <| fun () ->
@@ -996,7 +996,7 @@ let tests =
               // written for are four orders of magnitude worse.
               let fs, allWaves = deepSimulation.Force()
               // filterWaves reaches the simulation through the wave-sim cache, as the dialog does
-              Simulator.simCacheWS <- { Simulator.simCacheInit () with FastSim = fs }
+              Simulator.simCache <- { Simulator.simCacheInit () with FastSim = fs }
               let ws = { ModelHelpers.initWSModel with WaveDetails = allWaves }
               let hierarchy = WaveSimHierarchy.getSelectorHierarchy fs ws
               let shown = hierarchy.HierOrder |> List.choose (fun node -> node.NodeInstance) |> Set.ofList
@@ -1019,7 +1019,7 @@ let tests =
               Expect.equal (List.length unrestricted.All) 1
                   "the selected wave is found wherever in the design it was chosen"
 
-              Simulator.simCacheWS <- Simulator.simCacheInit ()
+              Simulator.simCache <- Simulator.simCacheInit ()
 
           testCase "too many waveforms warns, and far too many is refused"
           <| fun () ->

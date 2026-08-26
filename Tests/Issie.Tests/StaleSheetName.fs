@@ -98,7 +98,7 @@ let tests =
             Expect.isOk good "and the next simulation of a real sheet is built rather than cached away"
 
             // this suite's other groups share these globals
-            Simulator.simCacheWS <- Simulator.simCacheInit ()
+            Simulator.simCache <- Simulator.simCacheInit ()
             Simulator.simCache <- Simulator.simCacheInit ()
         }
 

@@ -214,7 +214,7 @@ let getWaveToolTip (sample: int) (drawn: WaveDrawn.Drawn) (wave: Wave) (ws: Wave
                 | BigWord v -> NumberHelpers.BigIntToPaddedString Constants.waveLegendMaxChars ws.Radix fd.Width v)
             |> Option.defaultValue ""
         else ""
-    match hiddenValue, getRomCommentAtStep Simulator.simCacheWS.FastSim cycle wave with
+    match hiddenValue, getRomCommentAtStep (Simulator.getFastSim ()) cycle wave with
     | "", "" -> ""
     | value, "" -> $"Value:{value}"
     | "", comment -> comment

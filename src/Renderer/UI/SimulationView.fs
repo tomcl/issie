@@ -1327,10 +1327,9 @@ let viewSimulationData (step: int) (simData : SimulationData) model dispatch =
 
 let tryGetSimData isWaveSim canvasState model =
     let model = MemoryEditorView.updateAllMemoryComps model
-    if isWaveSim then
-        simCacheWS <- simCacheInit ()
-    else
-        simCache <- simCacheInit ()
+    // A Start is a restart: force the build past the memo, so a fresh simulation begins at
+    // cycle 0 rather than the memoised one resuming wherever its clock had got to.
+    simCache <- simCacheInit ()
     match rendererStepArraySize model with
     | Error e -> Error e
     | Ok arraySize ->

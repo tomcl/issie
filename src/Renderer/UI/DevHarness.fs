@@ -202,8 +202,7 @@ let private simRefs () =
         | Some { CurrentStepSimulationStep = Some(Ok sd) } -> comps sd.FastSim
         | _ -> 0
     box
-        {| stepCache = comps (Simulator.simCache.FastSim)
-           waveCache = comps (Simulator.simCacheWS.FastSim)
+        {| cached = comps (Simulator.simCache.FastSim)
            inModel = inModel
            truthTable =
             match latestModel with
@@ -220,7 +219,7 @@ let private simRefs () =
 /// exact where estimating from the design would repeat the estimate being checked.
 let private simStats () =
     let fs =
-        [ Simulator.simCacheWS.FastSim; Simulator.simCache.FastSim ]
+        [ Simulator.simCache.FastSim ]
         |> List.tryFind (fun fs -> fs.FComps.Count > 0)
     match fs with
     | None -> box {| live = false |}

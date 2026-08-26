@@ -821,13 +821,26 @@ let sidecarChecks (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd<Msg>
     match model.CurrentProj with
     | None -> model, cmd
     | _ when model.SimulateInRenderer -> model, cmd
-    // something is already outstanding; its answer brings us back here
-    | _ when ModelHelpers.sidecarIsBusy model -> model, cmd
     | Some project ->
         match model.SidecarSession with
         | Session(_, _, epoch, clock) ->
             let dataVp = dataViewportOf model epoch
+
+            // The viewport's change is stamped whether or not anything can be issued right
+            // now: the stale banner's clock is "how long has THIS viewport been waiting",
+            // which starts when it appears, not when the wire happens to be free.
+            let model =
+                if Some dataVp <> model.CurrentViewport then
+                    model
+                    |> Optic.set currentViewport_ (Some dataVp)
+                    |> Optic.set viewportChangedAtMs_ (TimeHelpers.getTimeMs ())
+                else
+                    model
+
             let needed = neededCycleOf dataVp
+
+            /// something is already outstanding; its answer brings us back here
+            let busy = ModelHelpers.sidecarIsBusy model
 
             /// Long enough after a failed run or read to be worth trying again, rather than as
             /// fast as the message queue will carry it. Gates the RUN branch as well as the
@@ -838,7 +851,7 @@ let sidecarChecks (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd<Msg>
                 ws.FetchFailedAtMs > 0.0
                 && TimeHelpers.getTimeMs () - ws.FetchFailedAtMs < Constants.fetchRetryAfterMs
 
-            if backedOff then
+            if busy || backedOff then
                 model, cmd
             elif needed > clock then
                 // Run before read. The target beyond `needed` is the prefetch - one window

@@ -479,29 +479,29 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
             /// before the answer is made: every view change would show this banner for one frame,
             /// which is the opposite of a warning that means something.
             let staleWarning =
-                // The clock starts at whichever came LAST of: the build finishing, the run
-                // loop's final chunk landing, the last fetch completing. While the view is
-                // being kept current - scrolling, stepping - completions land continually and
-                // keep resetting it, so an up-to-date viewer can never show this however long
-                // it has been open. Time spent building or simulating is not staleness either;
-                // both have their own feedback.
+                // The banner's contract: NEVER in normal operation, up when there is an error.
+                //
+                // Whether the view is behind is the SAME comparison that starts a fetch: the
+                // current viewport differs from the one the last completed fetch was for - and
+                // an error reply never updates that record, so an errored fetch counts as
+                // still outstanding. How LONG it has been behind is measured from when this
+                // viewport appeared (ViewportChangedAtMs) or a build or run last finished,
+                // whichever is later - so starting a fetch (a scroll, a hover over a wire)
+                // resets the clock and can never flash the banner for the frames it is in
+                // flight, while a fetch that answers nothing ages honestly.
+                let outstanding =
+                    model.CurrentViewport.IsSome && model.CurrentViewport <> model.FetchedData
+
                 let sinceMs =
-                    [ model.SidecarBuildEndedMs; model.SidecarRunEndedMs; model.SidecarFetchEndedMs ]
+                    [ model.ViewportChangedAtMs; model.SidecarBuildEndedMs; model.SidecarRunEndedMs ]
                     |> List.max
 
                 let behindMs = TimeHelpers.getTimeMs () - sinceMs
 
-                // The banner's contract: NEVER in normal operation, up when there is an
-                // error. An error is STATE - a run or read failed and the latch has not been
-                // cleared by a success - so that case needs no clock at all; the timed case
-                // remains only for a fetch that is in flight but has answered nothing for
-                // longer than any healthy fetch takes. In normal operation neither holds:
-                // completions land continually and no failure is latched.
+                // An error is STATE - a run or read failed and no success has cleared the
+                // latch - and shows at once, steadily: the paced retries restamp the clocks,
+                // so a timed condition would flicker exactly when it matters most.
                 let errorLatched = model.FailedFetch.IsSome || wsModel.FetchFailedAtMs > 0.0
-
-                let fetchSlow =
-                    ModelHelpers.sidecarFetchInFlight model
-                    && behindMs > Constants.staleWaveformWarningMs
 
                 if
                     model.SpinnerPayload = None
@@ -509,16 +509,16 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
                     // stale then, it is early, and the ops table is what says so
                     && not (ModelHelpers.sidecarIsBuilding model)
                     && not (ModelHelpers.sidecarIsRunning model)
-                    && (errorLatched || fetchSlow)
+                    && (errorLatched || (outstanding && behindMs > Constants.staleWaveformWarningMs))
                 then
                     // Which case it is matters more than the fact - and the error case makes
                     // no seconds claim, because paced retries legitimately refresh the finish
                     // stamps and any figure built from them would be wrong.
                     let message =
                         if errorLatched then
-                            "The .NET simulator's last answer for this view was an error, and                              retries are paced. What is drawn is the last data that arrived,                              not what the cycle numbers above it say."
+                            "The .NET simulator stopped answering for this view - its last reply was an error, and retries are paced. What is drawn is the last data that arrived, not what the cycle numbers above it say."
                         else
-                            $"These waveforms have been showing an older view for                               %.0f{behindMs / 1000.0} seconds. Data for it has been asked for                               and has not arrived. What is drawn is not what the cycle numbers                               above it say."
+                            $"This view has been waiting %.0f{behindMs / 1000.0} seconds for its data. What is drawn is not what the cycle numbers above it say."
 
                     [ div
                           [ Style

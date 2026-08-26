@@ -1226,13 +1226,15 @@ type Model = {
     FailedFetch : FetchSnapshot option
     /// pokes into the running simulation so far - see DataViewport.VpStimulus
     StimulusGeneration : int
-    /// When the last fetch COMPLETED (successfully), ms on the performance clock. The third of
-    /// the stale-waveform warning's clocks, beside build end and run end: while the view keeps
-    /// converging - scrolling, stepping - completions land every fraction of a second and this
-    /// keeps resetting, so the warning stays down; when convergence stops, this ages honestly.
-    /// Deliberately NOT stamped on a failed fetch: the backoff retries would otherwise reset
-    /// the clock for ever and the warning could never say how long things have been broken.
-    SidecarFetchEndedMs : float
+    /// The data viewport as the checks last derived it, with when it last CHANGED. The pair
+    /// exists for one question the derivation alone cannot answer - how long has THIS viewport
+    /// been waiting to be served - which is what the stale banner is about: it shows when the
+    /// viewport is still unserved (differs from FetchedData; an error reply never updates that,
+    /// so an errored fetch counts as still outstanding) for longer than any healthy fetch
+    /// takes, measured from this stamp. A viewport change - a scroll, a hover - resets the
+    /// clock, so starting a fetch can never look stale for the frames it is in flight.
+    CurrentViewport : DataViewport option
+    ViewportChangedAtMs : float
     ShowLibrarySheets : bool
     /// The library sheets the user has asked to look inside, by name. A library component is an
     /// abstraction and its sheet is not normally reachable at all, but understanding how one
@@ -1326,7 +1328,8 @@ let fetchedData_ = Lens.create (fun a -> a.FetchedData) (fun s a -> {a with Fetc
 let fetchedStructure_ = Lens.create (fun a -> a.FetchedStructure) (fun s a -> {a with FetchedStructure = s})
 let failedFetch_ = Lens.create (fun a -> a.FailedFetch) (fun s a -> {a with FailedFetch = s})
 let stimulusGeneration_ = Lens.create (fun a -> a.StimulusGeneration) (fun s a -> {a with StimulusGeneration = s})
-let sidecarFetchEndedMs_ = Lens.create (fun a -> a.SidecarFetchEndedMs) (fun s a -> {a with SidecarFetchEndedMs = s})
+let currentViewport_ = Lens.create (fun a -> a.CurrentViewport) (fun s a -> {a with CurrentViewport = s})
+let viewportChangedAtMs_ = Lens.create (fun a -> a.ViewportChangedAtMs) (fun s a -> {a with ViewportChangedAtMs = s})
 let showLibrarySheets_ = Lens.create (fun a -> a.ShowLibrarySheets) (fun s a -> {a with ShowLibrarySheets = s})
 let openedLibrarySheets_ = Lens.create (fun a -> a.OpenedLibrarySheets) (fun s a -> {a with OpenedLibrarySheets = s})
 let readOnlyBaseline_ = Lens.create (fun a -> a.ReadOnlyBaseline) (fun s a -> {a with ReadOnlyBaseline = s})

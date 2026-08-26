@@ -707,7 +707,6 @@ let updateUnpinned (msg : Msg) oldModel =
                         | Some sv -> set fetchedStructure_ (Some sv)
                         | None -> id)
                     |> set failedFetch_ None
-                    |> set sidecarFetchEndedMs_ (TimeHelpers.getTimeMs ())
 
                 WaveSimTop.refreshWaveSim false model
                 |> fun (model, cmd) -> model, Cmd.batch [ cmd; continueRun ]

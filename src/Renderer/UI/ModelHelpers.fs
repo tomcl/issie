@@ -595,6 +595,7 @@ let removeAllSimulationsFromModel (model:Model) =
     |> Optic.set fetchedData_ None
     |> Optic.set fetchedStructure_ None
     |> Optic.set failedFetch_ None
+    |> Optic.set currentViewport_ None
     |> Optic.map waveSim_ (Map.map (fun _ -> releaseWaveSimData))
 
 /// The next operation number.

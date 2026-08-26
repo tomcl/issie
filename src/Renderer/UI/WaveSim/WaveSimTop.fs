@@ -218,9 +218,6 @@ let rec refreshWaveSim (newSimulation: bool) (model: Model): Model * Elmish.Cmd<
           Multiplier = ws.SamplingZoom
           SampleCount = ws.ShownCycles }
 
-    /// The view as it was before this refresh, to tell a refresh that changes it from one that
-    /// does not - which is the difference between a wait that starts now and one already running.
-    let previousWindow = windowOf (getWSModel model)
 
     // A RAM's rows are of a cycle of a session; a new simulation is a new session, and rows kept
     // across it would be drawn under the new one's clock. Cleared here, where the new wsModel is
@@ -230,16 +227,6 @@ let rec refreshWaveSim (newSimulation: bool) (model: Model): Model * Elmish.Cmd<
     // clear the flag here rather than wait for one that will not count.
     let wsModel = if newSimulation then { wsModel with RamRows = Map.empty } else wsModel
     let model = updateWSModel (fun _ -> wsModel) model |> updateViewerWidthInWaveSim model.WaveSimViewerWidth
-
-    // The one write of this timestamp. Everything that asks how long the waveforms have been
-    // behind is a pure function of it and the clock, worked out where it is asked.
-    let model =
-        model
-        |> updateWSModel (fun ws ->
-            if windowOf ws = previousWindow then
-                ws
-            else
-                { ws with ViewSetAtMs = TimeHelpers.getTimeMs () })
 
     let wsModel = getWSModel model
 
@@ -842,7 +829,18 @@ let sidecarChecks (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd<Msg>
             let dataVp = dataViewportOf model epoch
             let needed = neededCycleOf dataVp
 
-            if needed > clock then
+            /// Long enough after a failed run or read to be worth trying again, rather than as
+            /// fast as the message queue will carry it. Gates the RUN branch as well as the
+            /// read: a chunk that errors frees the wire, and an unpaced re-issue is a spin.
+            let backedOff =
+                let ws = getWSModel model
+
+                ws.FetchFailedAtMs > 0.0
+                && TimeHelpers.getTimeMs () - ws.FetchFailedAtMs < Constants.fetchRetryAfterMs
+
+            if backedOff then
+                model, cmd
+            elif needed > clock then
                 // Run before read. The target beyond `needed` is the prefetch - one window
                 // ahead, a user affordance - clamped to the configured run so a need at the end
                 // of it cannot chase an unreachable target.
@@ -865,14 +863,6 @@ let sidecarChecks (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd<Msg>
                           (fun exn -> SidecarReply(seq, AnsRan(Error exn.Message))) ]
             else
                 let structVp = structureViewportOf model epoch
-                let ws = getWSModel model
-
-                /// long enough after a failure to be worth trying again, rather than as fast as
-                /// the message queue will carry it
-                let backedOff =
-                    ws.FetchFailedAtMs > 0.0
-                    && TimeHelpers.getTimeMs () - ws.FetchFailedAtMs < Constants.fetchRetryAfterMs
-
                 let dataDiff = Some dataVp <> model.FetchedData
                 let structDiff = Some structVp <> model.FetchedStructure
 
@@ -880,7 +870,7 @@ let sidecarChecks (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd<Msg>
                     { SnapData = (if dataDiff then Some dataVp else None)
                       SnapStructure = (if structDiff then Some structVp else None) }
 
-                if (dataDiff || structDiff) && not backedOff && model.FailedFetch <> Some snapshot then
+                if (dataDiff || structDiff) && model.FailedFetch <> Some snapshot then
                     let panelSignals =
                         match dataVp.VpPanelCycle, model.CurrentStepSimulationStep with
                         | Some _, Some(Ok simData) -> SimulationView.panelSignals simData

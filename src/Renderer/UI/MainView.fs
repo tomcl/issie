@@ -93,7 +93,11 @@ module Probe =
             TextAnchor = "start"
             FontSize = $"{size}px"
             FontFamily = "helvetica"
-            Fill = "#443300" }
+            Fill = "#443300"
+            // centred on the y given, so the text can be told to sit at the box's middle -
+            // defaultText's "hanging" makes y the TOP of the glyphs, and the offset below was
+            // written for an alphabetic baseline, which drew the text about a line too low
+            DominantBaseline = "middle" }
 
     /// The horizontal span of the schematic the user can actually see, in draw block coordinates.
     ///
@@ -161,7 +165,7 @@ module Probe =
                     ] []
                     DrawHelpers.makeText
                         (x + padding)
-                        (y + (fontSize + 2.0) * scale)
+                        (y + h / 2.0)
                         text
                         (labelFont (fontSize * scale))
                   ] ]
@@ -295,6 +299,7 @@ let init() = {
     FetchedStructure = None
     FailedFetch = None
     StimulusGeneration = 0
+    SidecarFetchEndedMs = 0.0
     ShowLibrarySheets = false
     OpenedLibrarySheets = Set.empty
     ReadOnlyBaseline = None

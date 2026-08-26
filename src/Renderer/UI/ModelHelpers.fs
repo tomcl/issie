@@ -110,7 +110,7 @@ module Constants =
     let maxWarnSimulationSize = 100000
     /// The absolute ceiling on a waveform simulation's last clock, whatever fits in memory:
     /// past this the viewer itself cannot display the whole waveform nicely.
-    let maxSimulationSize = 4000000
+    let maxSimulationSize = 9999999
     let minScrollingWindow = 200
 
     let wsButtonHeight = 30
@@ -158,7 +158,6 @@ let initWSModel  : WaveSimModel = {
     State = Empty
     WaveDetails = Map.empty
     SelectedWaves = List.empty
-    ViewSetAtMs = 0.0
     FetchFailedAtMs = 0.0
     StartCycle = 0
     ShownCycles = 5

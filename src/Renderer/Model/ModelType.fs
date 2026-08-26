@@ -477,11 +477,6 @@ type WaveSimModel = {
     /// lasting a frame or two, and it looks exactly like "drawn for a view whose data is never
     /// coming". How long it has gone on is the only thing that tells them apart.
     ///
-    /// A timestamp and nothing else. WHETHER the waveforms match the view is derived - every Wave
-    /// carries the view it was drawn for - and needs no field; how long ago the view changed
-    /// cannot be worked out from anything, so it is recorded, once, where the view is settled.
-    /// Everything downstream is a pure function of this and the clock, read where it is used.
-    ViewSetAtMs: float
     /// When a fetch last failed, in ms on the performance clock, or 0 if none has.
     ///
     /// A fetch is asked for whenever a wave is missing the window it is drawn over, and that is
@@ -1231,6 +1226,13 @@ type Model = {
     FailedFetch : FetchSnapshot option
     /// pokes into the running simulation so far - see DataViewport.VpStimulus
     StimulusGeneration : int
+    /// When the last fetch COMPLETED (successfully), ms on the performance clock. The third of
+    /// the stale-waveform warning's clocks, beside build end and run end: while the view keeps
+    /// converging - scrolling, stepping - completions land every fraction of a second and this
+    /// keeps resetting, so the warning stays down; when convergence stops, this ages honestly.
+    /// Deliberately NOT stamped on a failed fetch: the backoff retries would otherwise reset
+    /// the clock for ever and the warning could never say how long things have been broken.
+    SidecarFetchEndedMs : float
     ShowLibrarySheets : bool
     /// The library sheets the user has asked to look inside, by name. A library component is an
     /// abstraction and its sheet is not normally reachable at all, but understanding how one
@@ -1324,6 +1326,7 @@ let fetchedData_ = Lens.create (fun a -> a.FetchedData) (fun s a -> {a with Fetc
 let fetchedStructure_ = Lens.create (fun a -> a.FetchedStructure) (fun s a -> {a with FetchedStructure = s})
 let failedFetch_ = Lens.create (fun a -> a.FailedFetch) (fun s a -> {a with FailedFetch = s})
 let stimulusGeneration_ = Lens.create (fun a -> a.StimulusGeneration) (fun s a -> {a with StimulusGeneration = s})
+let sidecarFetchEndedMs_ = Lens.create (fun a -> a.SidecarFetchEndedMs) (fun s a -> {a with SidecarFetchEndedMs = s})
 let showLibrarySheets_ = Lens.create (fun a -> a.ShowLibrarySheets) (fun s a -> {a with ShowLibrarySheets = s})
 let openedLibrarySheets_ = Lens.create (fun a -> a.OpenedLibrarySheets) (fun s a -> {a with OpenedLibrarySheets = s})
 let readOnlyBaseline_ = Lens.create (fun a -> a.ReadOnlyBaseline) (fun s a -> {a with ReadOnlyBaseline = s})

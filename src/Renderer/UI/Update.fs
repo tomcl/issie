@@ -631,7 +631,19 @@ let updateUnpinned (msg : Msg) oldModel =
 
         | Some(OpRunForWaves _), AnsRan(Error e) ->
             Log.error $"the .NET simulator could not run the design: {e}"
-            model |> set sidecarRunEndedMs_ (TimeHelpers.getTimeMs ()) |> withNoMsg
+
+            // NOT stamped as a run ending: that stamp is the stale banner's grace for
+            // legitimate completions, and an error stamped there would reset the banner's clock
+            // on every paced retry - each render follows a stamp, and the banner could never
+            // say how long the view has really been behind.
+            model
+            // The same backoff the fetch uses, for the same reason: this reply freed the wire,
+            // the checks run after this message, and the view still needs the cycle - without a
+            // latch the next chunk goes out at microtask speed, for ever, against a sidecar
+            // that just said no. With it the retry is paced, and the stale banner can say
+            // honestly how long the view has been behind.
+            |> updateWSModel (fun ws -> { ws with FetchFailedAtMs = TimeHelpers.getTimeMs () })
+            |> withNoMsg
 
         | Some(OpBuild _), AnsBuilt(Error e) ->
             Log.error $"the .NET simulator could not build the design: {e}"
@@ -695,6 +707,7 @@ let updateUnpinned (msg : Msg) oldModel =
                         | Some sv -> set fetchedStructure_ (Some sv)
                         | None -> id)
                     |> set failedFetch_ None
+                    |> set sidecarFetchEndedMs_ (TimeHelpers.getTimeMs ())
 
                 WaveSimTop.refreshWaveSim false model
                 |> fun (model, cmd) -> model, Cmd.batch [ cmd; continueRun ]

@@ -871,17 +871,25 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
             // its declared defaults. Must follow the choice above, which can change the top.
             PropagateParameters
 
-            // The ctrl-W above lands before the scroll event its own render raises, so centre
-            // once more after that scroll has been and gone, and record the canvas again so the
-            // recentring does not count as an edit. IN the sequence, deliberately: these used to
-            // be dispatched directly here, after SendSeqMsgAsynch below - which put them through
-            // the queue AHEAD of the list they were meant to follow. A SynchroniseCanvas that
-            // runs between ResetModel and SetProject copies whatever the draw block holds at
-            // that instant - a cleared canvas, or the PREVIOUS sheet's - into whichever sheet
-            // the project then names, which is how switching sheets could quietly empty a
-            // loaded component. Everything the load does now goes through one ordered list.
-            Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
-            SynchroniseCanvas
+            // Centre once more when the loaded sheet has actually been PAINTED. Replacing the
+            // canvas's content can move its DOM scroll, and that arrives afterwards as an
+            // ordinary scroll event which overwrites the fit the ctrl-W above computed - so the
+            // last word has to come after the paint, not merely after the messages above. Two
+            // animation frames from here is that paint (the fence runWhenPainted documents);
+            // NOT dispatched directly after the asynchronous batch, which put it through the
+            // queue AHEAD of the list and mid-load (how switching sheets could quietly empty a
+            // loaded component), and NOT the RunAfterRender slot, which a competing ask
+            // replaces silently. SynchroniseCanvas after the fit, as ever, so the recentring
+            // does not count as an edit.
+            ExecFuncInMessage(
+                (fun _ dispatch ->
+                    Browser.Dom.window.requestAnimationFrame (fun _ ->
+                        Browser.Dom.window.requestAnimationFrame (fun _ ->
+                            dispatch (Sheet (SheetT.KeyPress SheetT.KeyboardMsg.CtrlW))
+                            dispatch SynchroniseCanvas)
+                        |> ignore)
+                    |> ignore),
+                dispatch)
 
             // last of all: if this sheet is a library sheet being viewed, hold it at what it has
             // just become. Everything above changes the canvas as part of loading it, so nothing

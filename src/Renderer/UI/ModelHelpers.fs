@@ -589,6 +589,8 @@ let removeAllSimulationsFromModel (model:Model) =
     // handler against the new one, which is how switching projects under a live waveform
     // simulation corrupted the loaded sheets.
     |> Optic.set sidecarInFlight_ Map.empty
+    // a run in progress was of the simulation this ends
+    |> Optic.set stepRunTarget_ None
     |> Optic.map waveSim_ (Map.map (fun _ -> releaseWaveSimData))
 
 /// The next operation number.

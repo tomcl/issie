@@ -1163,6 +1163,24 @@ let simulationClockChangeAction dispatch simData (model': Model) =
     let numComps = float simData.FastSim.Design.ExpandedComponentCount
     let t1 = getTimeMs ()
 
+    if not model'.SimulateInRenderer then
+        // The .NET simulator runs it. No loop starts here: the target becomes model state, the
+        // bar goes up, and the update pipeline (continueStepRun below) issues one chunk whenever
+        // the wire is free and the clock is short of the target - so the run cannot collide with
+        // the panel's own fetches, and Cancel (closing the bar) simply stops it being asked.
+        // Going back is a restart: the model's clock is set to the start the bar counts from,
+        // and the sidecar restarts itself when asked for a cycle behind its own clock.
+        [ ClosePopup
+          SetPopupProgress(
+              Some
+                  { Speed = 0.0
+                    Value = 0
+                    Max = steps
+                    Title = "running simulation..." })
+          StartStepRun { InitialClock = initClock; FinalClock = clock } ]
+        |> List.iter dispatch
+    else
+
     // ONE CHUNK FIRST, then decide whether there is anything to show a bar for.
     //
     // Nothing is estimated. This used to SAMPLE the design - run the first few clocks, time them,
@@ -1354,3 +1372,64 @@ let tryGetSimData isWaveSim canvasState model =
             Log.dbg Log.Sim $"simulation error: {simError.ErrType}"
             Error simError
 
+
+/// One step of the step-simulation run's cascade: issue the next piece of sidecar work the run
+/// needs, or finish, or - if the wire is held by something else - do nothing.
+///
+/// The sequencing is Elmish and nothing else. The cascade is STARTED by a command (StartStepRun);
+/// every completion comes back as a message whose handler records the fact and calls this to
+/// issue the next chunk - so the set of places the run can continue from is exactly the reply
+/// handlers (AnsSteppedTo, AnsBuilt, and AnsFetched for a panel read that borrowed the wire),
+/// never "after every message". Cancelling is clearing StepRunTarget - closing the bar does it -
+/// and the next completion finds nothing to issue, which is the cancellation's response.
+///
+/// The renderer's own simulator never comes through here: its chunks are synchronous and
+/// message-sequenced (SimulateWithProgressBar), so nothing can interleave with them.
+let continueStepRun (model: Model) : Model * Elmish.Cmd<Msg> =
+    match model.StepRunTarget, model.PopupDialogData.Progress, model.CurrentStepSimulationStep with
+    | Some prog, Some _, Some(Ok simData) when not model.SimulateInRenderer ->
+        if simData.ClockTickNumber >= prog.FinalClock then
+            // arrived: the run is over, and the bar with it
+            model |> Optic.set stepRunTarget_ None, Elmish.Cmd.ofMsg (SetPopupProgress None)
+        elif not (Map.isEmpty model.SidecarInFlight) then
+            // the wire is held - a panel read that got in while the last chunk was ending. Its
+            // reply handler calls back here, so the run resumes the moment the wire is free.
+            model, Elmish.Cmd.none
+        else
+            match model.SidecarSession.Epoch, model.CurrentProj with
+            | Some epoch, _ ->
+                let seq = ModelHelpers.newSeq ()
+                let before = simData.ClockTickNumber
+                let t1 = TimeHelpers.getTimeMs ()
+
+                let chunk =
+                    Elmish.Cmd.OfPromise.either
+                        (fun () -> SidecarSession.runChunk epoch prog.FinalClock)
+                        ()
+                        (fun result -> SidecarReply(seq, AnsSteppedTo(before, t1, result)))
+                        (fun exn -> SidecarReply(seq, AnsSteppedTo(before, t1, Error exn.Message)))
+
+                model |> Optic.map sidecarInFlight_ (Map.add seq (OpStep prog.FinalClock)), chunk
+            | None, Some project ->
+                // no session yet: the first thing the run needs is the build, issued the same
+                // way, and its reply brings us back here for the first chunk
+                let top = simData.FastSim.SimulatedTopSheet
+
+                let design =
+                    ModelHelpers.designOf project (model.Sheet.GetCanvasState())
+                    |> CanvasExtractor.simpleDesignOfLoadedComponents
+                    |> fun d -> { d with TopSheet = top }
+
+                let arraySize = stepSimArraySize model |> Result.defaultValue Constants.maxArraySize
+                let seq = ModelHelpers.newSeq ()
+
+                let build =
+                    Elmish.Cmd.OfPromise.either
+                        (fun () -> SidecarSession.build design arraySize)
+                        ()
+                        (fun result -> SidecarReply(seq, AnsBuilt result))
+                        (fun exn -> SidecarReply(seq, AnsBuilt(Error exn.Message)))
+
+                model |> Optic.map sidecarInFlight_ (Map.add seq (OpBuild(top, arraySize))), build
+            | None, None -> model, Elmish.Cmd.none
+    | _ -> model, Elmish.Cmd.none

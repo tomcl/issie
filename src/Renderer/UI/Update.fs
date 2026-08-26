@@ -359,7 +359,9 @@ let updateUnpinned (msg : Msg) oldModel =
                         |> List.skip warmup
                         |> List.average
                         |> (fun time ->
-                            let speed = float (comps * step) / time
+                            // as floats BEFORE multiplying: int multiply wraps at 2^31 under Fable,
+                            // and comps * step passes that on any large design
+                            let speed = float comps * float step / time
                             Log.out $"simulated {c.Name} for {step} steps with {comps} effective components in %.3f{time}ms, average speed %.3f{speed} comp*step/ms"
                             speed))
                 |> geometricMean
@@ -588,7 +590,9 @@ let updateUnpinned (msg : Msg) oldModel =
             model
             |> set sidecarSession_ (Session(top, arraySize, epoch, 0))
             |> set sidecarBuildEndedMs_ (TimeHelpers.getTimeMs ())
-            |> withNoMsg
+            // a step run that started before there was a session issued this build; now there is
+            // one, its first chunk goes out. Does nothing when no run is wanted.
+            |> SimulationView.continueStepRun
 
         | Some(OpPorts _), AnsPorts(Ok described) ->
             Log.dbg Log.Wave $"described {described} instances for the wave selector"
@@ -669,12 +673,16 @@ let updateUnpinned (msg : Msg) oldModel =
                             | Ok() -> 0.0
                             | Error _ -> TimeHelpers.getTimeMs () })
 
+            // a step run parked while this read held the wire continues now (nothing, otherwise)
+            let model, continueRun = SimulationView.continueStepRun model
+
             match result with
             | Ok() ->
                 // What arrived is in the cache. The refresh redraws from it, and asks for anything the
                 // current view still needs - a wave just selected, or the window the user scrolled to
                 // while this was in flight.
                 WaveSimTop.refreshWaveSim false model
+                |> fun (model, cmd) -> model, Cmd.batch [ cmd; continueRun ]
             | Error e ->
                 // A fetch that fails now means a fault rather than a wait: the transport waits for a
                 // sidecar that is still starting, so what is left is a session that no longer exists, a
@@ -682,9 +690,43 @@ let updateUnpinned (msg : Msg) oldModel =
                 // asked again is a fault again, and the viewer's banner is what tells the user that
                 // what is on screen is not what the numbers above it say.
                 Log.error $"the .NET simulator could not answer for this view: {e}"
-                WaveSimTop.cancelSpinner model, Elmish.Cmd.none
+                WaveSimTop.cancelSpinner model, continueRun
 
         | Some(OpStep _), AnsStepped -> model |> withNoMsg
+
+        | Some(OpStep _), AnsSteppedTo(before, t1, result) ->
+            match result, model.CurrentStepSimulationStep with
+            | Ok(reached, _), Some(Ok simData) ->
+                // The clock is the simulator's FACT, written as reported - never incremented
+                // towards. The accumulation this replaces is how the model's belief could drift
+                // past the simulator's clock and show a negative speed.
+                let dt = TimeHelpers.getTimeMs () - t1
+                let nComps = float simData.FastSim.Design.ExpandedComponentCount
+                let speed = if dt <= 0.0 then 0.0 else (float reached - float before) * nComps / dt
+
+                model
+                |> set currentStepSimulationStep_ (Some(Ok { simData with ClockTickNumber = reached }))
+                |> Optic.map sidecarSession_ (fun session ->
+                    match session with
+                    | Session(top, size, epoch, _) -> Session(top, size, epoch, reached)
+                    | other -> other)
+                |> map
+                    (popupDialogData_ >-> progress_)
+                    (Option.map (fun bar ->
+                        let sinceStart =
+                            model.StepRunTarget
+                            |> Option.map (fun p -> max 0 (reached - p.InitialClock))
+                            |> Option.defaultValue bar.Value
+
+                        { bar with Value = sinceStart; Speed = speed }))
+                // the fact is recorded; the next chunk - or the finish - is issued from here,
+                // which with StartStepRun and the other two reply handlers is the WHOLE set of
+                // places the run continues from
+                |> SimulationView.continueStepRun
+            | Error e, _ ->
+                Log.error $"the .NET simulator could not run the step simulation: {e}"
+                model |> set stepRunTarget_ None |> withNoMsg
+            | _ -> model |> withNoMsg
 
         | Some op, answer ->
             Log.warn $"the .NET simulator answered %A{op} with %A{answer}, which does not belong to it"
@@ -899,7 +941,28 @@ let updateUnpinned (msg : Msg) oldModel =
         |> withNoMsg
 
     | SetPopupProgress progOpt ->
-        set (popupDialogData_ >-> progress_) progOpt model, Cmd.none
+        let model = set (popupDialogData_ >-> progress_) progOpt model
+
+        match progOpt with
+        // Closing the bar IS cancelling the run: the pipeline issues chunks only while the bar
+        // is up, so there is nothing to reach into and stop - it is simply no longer asked.
+        | None -> set stepRunTarget_ None model, Cmd.none
+        | Some _ -> model, Cmd.none
+
+    | StartStepRun prog ->
+        // The command that STARTS the run's cascade: target into the model, the clock to the
+        // run's start - a backward jump is a restart from the beginning, of the panel's clock
+        // here and of the simulator when the first chunk asks for a cycle behind its own - and
+        // the first piece of work issued. From here each completion's handler issues the next.
+        model
+        |> set stepRunTarget_ (Some prog)
+        |> (fun model ->
+            match model.CurrentStepSimulationStep with
+            | Some(Ok _) ->
+                let simData = getSimulationDataOrFail model "StartStepRun"
+                set currentStepSimulationStep_ (Some(Ok { simData with ClockTickNumber = prog.InitialClock })) model
+            | _ -> model)
+        |> SimulationView.continueStepRun
 
     | UpdatePopupProgress updateFn ->
         model

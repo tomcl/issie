@@ -290,6 +290,7 @@ let init() = {
     SidecarInFlight = Map.empty
     SidecarBuildEndedMs = 0.0
     SidecarRunEndedMs = 0.0
+    StepRunTarget = None
     ShowLibrarySheets = false
     OpenedLibrarySheets = Set.empty
     ReadOnlyBaseline = None

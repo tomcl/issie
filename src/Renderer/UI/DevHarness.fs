@@ -292,7 +292,7 @@ let private timeRuns (fs: SimTypes.FastSimulation) (steps: int) =
     + $""""ordered": {fs.FOrderedComps.Length}, "stepArrays": {fs.NumStepArrays}, """
     + $""""maxArraySize": {fs.MaxArraySize}, "typedArrayMB": %.1f{float fs.StepCost.TypedArrayBytes * float fs.MaxArraySize / 1.0e6}, """
     + $""""heapStepMB": %.1f{float fs.StepCost.HeapBytes * float fs.MaxArraySize / 1.0e6}, "usedHeapMB": %.0f{heapMB}, """
-    + $""""steps": {steps}, "medianMs": %.2f{median}, "compStepPerMs": %.0f{float (comps * steps) / median}, """
+    + $""""steps": {steps}, "medianMs": %.2f{median}, "compStepPerMs": %.0f{float comps * float steps / median}, """
     + $""""seriesMs": [{series}]}}"""
 
 /// Send the whole current design to the dotnet sidecar as SimpleSheets, timing every stage: the

@@ -187,6 +187,7 @@ let shortDisplayMsg (msg:Msg) =
     | SetPopupProgress _ 
     | UpdatePopupProgress _ 
     | SimulateWithProgressBar _ -> None
+    | StartStepRun p -> Some $"StartStepRun {p.InitialClock}->{p.FinalClock}"
     | SetSelectedComponentMemoryLocation _ -> Some "SetSelectedComponentMemoryLocation"
     | CloseDiagramNotification
     | SetSimulationNotification _ 

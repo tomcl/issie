@@ -327,6 +327,11 @@ type SidecarAnswer =
         (FComponentId * (RamView.RamKey * RamView.RamView)) option *
         (WaveIndexT * int * bigint) option
     | AnsStepped
+    /// One chunk of a step-simulation run completed: where the clock was when the chunk was
+    /// asked for, when it was asked (ms on the performance clock, for the speed display), and
+    /// where the SIMULATOR says it now is - the fact the model's clock is set to, never
+    /// incremented towards.
+    | AnsSteppedTo of before: int * startedMs: float * result: Result<int * bool, string>
     /// how many instances were described; the slices themselves are already in PortData
     | AnsPorts of Result<int, string>
 
@@ -750,6 +755,12 @@ type Msg =
     | SetPopupProgress of PopupProgress option
     | UpdatePopupProgress of (PopupProgress -> PopupProgress)
     | SimulateWithProgressBar of SimulationProgress
+    /// Start a step-simulation run towards a target cycle. The target becomes MODEL state and
+    /// the update pipeline is the one thing that issues the sidecar work for it, one chunk at a
+    /// time - there is no run loop to collide with anything, and cancelling is clearing the
+    /// state. The renderer's own simulator keeps its synchronous chunk loop
+    /// (SimulateWithProgressBar), which nothing can interleave with.
+    | StartStepRun of SimulationProgress
     | SetSelectedComponentMemoryLocation of bigint * bigint
     | CloseDiagramNotification
     | SetSimulationNotification of ((Msg -> unit) -> ReactElement)
@@ -1157,6 +1168,12 @@ type Model = {
     /// When the last run chunk's reply landed. Stamped per chunk: while the loop runs the warning
     /// is suppressed anyway, so the stamp that matters is the final one - the loop's end.
     SidecarRunEndedMs : float
+    /// The cycle a step-simulation run is heading for, when one is - with where it started, for
+    /// the progress bar. Model state, not a loop: after every message the update pipeline sees
+    /// this set, the wire free and the clock short of the target, and issues ONE chunk. Cleared
+    /// when the clock arrives, when the progress popup is closed (which is what Cancel is), and
+    /// when the simulation ends.
+    StepRunTarget : SimulationProgress option
     ShowLibrarySheets : bool
     /// The library sheets the user has asked to look inside, by name. A library component is an
     /// abstraction and its sheet is not normally reachable at all, but understanding how one
@@ -1245,6 +1262,7 @@ let probeRead_ = Lens.create (fun a -> a.ProbeRead) (fun s a -> {a with ProbeRea
 let sidecarInFlight_ = Lens.create (fun a -> a.SidecarInFlight) (fun s a -> {a with SidecarInFlight = s})
 let sidecarBuildEndedMs_ = Lens.create (fun a -> a.SidecarBuildEndedMs) (fun s a -> {a with SidecarBuildEndedMs = s})
 let sidecarRunEndedMs_ = Lens.create (fun a -> a.SidecarRunEndedMs) (fun s a -> {a with SidecarRunEndedMs = s})
+let stepRunTarget_ = Lens.create (fun a -> a.StepRunTarget) (fun s a -> {a with StepRunTarget = s})
 let showLibrarySheets_ = Lens.create (fun a -> a.ShowLibrarySheets) (fun s a -> {a with ShowLibrarySheets = s})
 let openedLibrarySheets_ = Lens.create (fun a -> a.OpenedLibrarySheets) (fun s a -> {a with OpenedLibrarySheets = s})
 let readOnlyBaseline_ = Lens.create (fun a -> a.ReadOnlyBaseline) (fun s a -> {a with ReadOnlyBaseline = s})

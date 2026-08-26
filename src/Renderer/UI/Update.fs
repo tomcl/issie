@@ -56,6 +56,7 @@ let private endWaveSimulation (model: Model) =
     // As EndSimulation: the wave selector's and the RAM list's indexes are memoised on the
     // simulation, so they have to be emptied or they retain it for the rest of the session.
     Helpers.clearIdentityMemos ()
+    PortData.forget ()
     let model = removeAllSimulationsFromModel model
 
     match model.WaveSimSheet with
@@ -528,6 +529,7 @@ let updateUnpinned (msg : Msg) oldModel =
         // The indexes built over a simulation are memoised on the simulation itself, so an
         // unemptied memo holds the whole of it - step arrays and all - after this has let go.
         Helpers.clearIdentityMemos()
+        PortData.forget ()
         model
         |> set currentStepSimulationStep_ None
         |> withNoMsg
@@ -567,7 +569,27 @@ let updateUnpinned (msg : Msg) oldModel =
             model |> withNoMsg
 
         | Some(OpBuild(top, arraySize)), AnsBuilt(Ok epoch) ->
+            // From this moment instance views answer from the slices the sidecar has been asked
+            // for. WHICH instances need asking is derived from the model by describeWhatIsShown,
+            // which runs at the end of this update like it runs after every message - so nothing
+            // here has to know what the selection or the selector currently references.
+            PortData.startEpoch epoch
             model |> set sidecarSession_ (Session(top, arraySize, epoch, 0)) |> withNoMsg
+
+        | Some(OpPorts _), AnsPorts(Ok described) ->
+            Log.dbg Log.Wave $"described {described} instances for the wave selector"
+            // whatever was waiting on a description - an unresolved wave, an empty selector row -
+            // resolves on the next refresh, so ask for one if a waveform view is up
+            model
+            |> withNoMsg
+            |> fun (model, cmd) ->
+                match model.WaveSimSheet with
+                | Some _ -> model, Cmd.batch [ cmd; Cmd.ofMsg GenerateCurrentWaveforms ]
+                | None -> model, cmd
+
+        | Some(OpPorts _), AnsPorts(Error e) ->
+            Log.error $"the .NET simulator could not describe the design's instances: {e}"
+            model |> withNoMsg
 
         | Some(OpRunForWaves _), AnsRan(Ok(clock, _)) ->
             // The clock it reached, and nothing else. Whether another chunk is needed is worked
@@ -1087,3 +1109,4 @@ let update (msg : Msg) oldModel =
     |> map fst_ (ModelHelpers.pinIfReadOnly msg)
     |> scheduleAfterRender oldModel
     |> WaveSimTop.fetchWhatIsMissing
+    |> WaveSimTop.describeWhatIsShown

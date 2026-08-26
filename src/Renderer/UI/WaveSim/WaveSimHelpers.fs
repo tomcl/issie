@@ -386,12 +386,20 @@ let waveIndicesOfFComp (fs: FastSimulation) ((compId, ap) as fId: FComponentId) 
 /// It used to be answered by indexing a map of every wave in the simulation, built by inverting
 /// that map's 208,896 keys. The component knows where its own ports are, so a selection of a
 /// hundred waves is a hundred lookups.
+/// None drops the wave. That is said only by an instance that HAS been described and does not
+/// offer the port - a component renamed or deleted. An instance not yet described (the sidecar
+/// has not answered for it) keeps the wave, unresolved: SimArrayIndex = -1, which nothing draws
+/// and nothing fetches, until the slice lands and the next refresh resolves it - or drops it
+/// then, knowing.
 let reResolveWave (fs: FastSimulation) (wi: WaveIndexT) : WaveIndexT option =
     let compId, ap = wi.Id
 
-    (PortView.ofInstanceCached fs (InstancePath ap)).ViewPorts
-    |> List.tryFind (fun p -> p.PortComp = compId && p.PortIs = wi.PortType && p.PortNum = wi.PortNumber)
-    |> Option.map (fun port -> { wi with SimArrayIndex = port.PortArrayIndex })
+    match PortView.tryOfInstanceCached fs (InstancePath ap) with
+    | None -> Some { wi with SimArrayIndex = -1 }
+    | Some view ->
+        view.ViewPorts
+        |> List.tryFind (fun p -> p.PortComp = compId && p.PortIs = wi.PortType && p.PortNum = wi.PortNumber)
+        |> Option.map (fun port -> { wi with SimArrayIndex = port.PortArrayIndex })
 
 /// Build a wave map in a scope that holds nothing.
 ///

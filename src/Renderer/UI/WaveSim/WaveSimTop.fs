@@ -71,13 +71,18 @@ let cancelSpinner (model:Model) =
 let private reconcileWaves (fs: FastSimulation) (ws: WaveSimModel) : WaveSimModel =
     let selected = ws.SelectedWaves |> List.choose (WaveSimHelpers.reResolveWave fs)
 
+    // For one simulation the circuit is frozen, so resolution can only change at a build
+    // boundary - which is when a wave in an instance the sidecar has not yet described comes
+    // through UNRESOLVED (SimArrayIndex = -1) rather than dropped. Such a wave gets no record
+    // built: there is nothing to build one from until the slice lands, and the next refresh
+    // after it does resolves the wave and builds it then.
     let details =
         selected
-        |> List.map (fun wi ->
-            wi,
+        |> List.choose (fun wi ->
             match Map.tryFind wi ws.WaveDetails with
-            | Some wave -> wave
-            | None -> WaveSimHelpers.makeWave ws fs wi)
+            | Some wave -> Some(wi, wave)
+            | None when wi.SimArrayIndex >= 0 -> Some(wi, WaveSimHelpers.makeWave ws fs wi)
+            | None -> None)
         |> WaveSimHelpers.makeWaveMap
 
     { ws with
@@ -1064,3 +1069,75 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
         
     ]
 
+/// Ask the .NET simulator to describe the instances the model references and it has not yet
+/// described - the STRUCTURE pass, beside the data pass above and deliberately not part of it.
+///
+/// Data is convergence-driven: what the view lacks changes with every scroll and cursor move, and
+/// depends on how far the simulation has run. Structure is event-driven and run-independent: for
+/// one build the circuit is frozen, so a slice is fetched once per instance and never again, and
+/// the set worth having changes only when a build completes or the model starts referencing an
+/// instance it did not - a wave selected, a RAM ticked, a selector node expanded. All of those are
+/// messages, so running after every message IS the event trigger, and the check is a handful of
+/// dictionary lookups.
+///
+/// One operation at a time, like everything on this connection: at most one OpPorts in flight, and
+/// the answer brings us back here for whatever is still missing.
+let describeWhatIsShown (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd<Msg> =
+    match model.SidecarSession.Epoch with
+    | _ when model.SimulateInRenderer -> model, cmd
+    | None -> model, cmd
+    | Some epoch when PortData.epochHeld () = Some epoch ->
+        let inFlight =
+            model.SidecarInFlight
+            |> Map.exists (fun _ op ->
+                match op with
+                | OpPorts _ -> true
+                | _ -> false)
+
+        if inFlight then
+            model, cmd
+        else
+            let fs = Simulator.getFastSim ()
+
+            let ws =
+                model.WaveSimSheet
+                |> Option.bind (fun sheet -> Map.tryFind sheet model.WaveSim)
+
+            /// what the open selector dialog is showing - the same derivation its view uses
+            let shownInSelector =
+                match ws with
+                | Some ws when ws.WaveModalActive && fs.SimulatedTopSheet <> "" ->
+                    (WaveSimHierarchy.getSelectorHierarchy fs ws).HierOrder
+                    |> List.choose (fun node -> node.NodeInstance)
+                | _ -> []
+
+            let referenced =
+                match ws with
+                | Some ws ->
+                    (ws.SelectedWaves |> List.map (fun wi -> InstancePath(snd wi.Id)))
+                    @ (ws.SelectedRams |> Map.toList |> List.map (fun ((_, ap), _) -> InstancePath ap))
+                | None -> []
+
+            /// instances holding a Viewer, for the step panel's rows - design-pruned, so a design
+            /// whose viewers sit in a handful of subsheets costs that handful
+            let viewerInstances =
+                fs.Design.InstancesOfComponents (fun c ->
+                    match c.Type with
+                    | Viewer _ -> true
+                    | _ -> false)
+                |> List.map snd
+
+            match PortData.missingOf (InstancePath [] :: referenced @ viewerInstances @ shownInSelector) with
+            | [] -> model, cmd
+            | missing ->
+                let seq = ModelHelpers.newSeq ()
+
+                model |> Optic.map sidecarInFlight_ (Map.add seq (OpPorts(List.length missing))),
+                Elmish.Cmd.batch
+                    [ cmd
+                      Elmish.Cmd.OfPromise.either
+                          (PortData.fetch epoch)
+                          missing
+                          (fun result -> SidecarReply(seq, AnsPorts result))
+                          (fun exn -> SidecarReply(seq, AnsPorts(Error exn.Message))) ]
+    | Some _ -> model, cmd

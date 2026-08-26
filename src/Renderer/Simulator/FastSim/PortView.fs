@@ -223,6 +223,27 @@ let ofSlice (design: SimulatedDesign) (InstancePath ap as instance) (slice: Comp
             (design.LabelOfInstance(InstancePath ap[0 .. i - 1]) |> Option.defaultValue "?").ToUpper())
       ViewPorts = ports }
 
+/// Where slices come from when the simulation is NOT in this process.
+///
+/// None (the default, and the only value under .NET) means slices are computed here, from the
+/// local build. The renderer sets it when the sidecar simulates: the function answers from what
+/// has arrived on the wire, and None from it means "this instance is not described YET" - a
+/// different thing from an empty slice, and the distinction is what lets a selection loaded
+/// before the wire answers pass through unresolved instead of being dropped.
+///
+/// A mutable hook rather than a parameter because slices are read from view code through the
+/// memo below, at call sites that have no business knowing which process simulates. The same
+/// pattern as WaveData's source switch, and permitted by the same reasoning in
+/// docs/mutableState.md: it is not model state, it is where a memo's evaluation happens.
+let mutable sliceSource: (InstancePath -> ComponentSlots list option) option = None
+
+/// The slice of one instance, from wherever slices come from: Some from the local build or the
+/// wire, None only when the sidecar simulates and this instance has not been described yet.
+let private trySliceOf (fs: FastSimulation) (instance: InstancePath) : ComponentSlots list option =
+    match sliceSource with
+    | Some fetched -> fetched instance
+    | None -> Some(sheetSliceOf fs instance)
+
 /// The ports of one instance that carry a waveform, from the simulation in this process.
 ///
 /// The DERIVATION is `ofSlice`'s - the design plus two ints a port - and this is only the local
@@ -241,7 +262,8 @@ let nameOfPort (fs: FastSimulation) (wi: WaveIndexT) : string =
     match fs.Design.ComponentOfInstance wi.Id with
     | None -> "?"
     | Some comp ->
-        sheetSliceOf fs (InstancePath ap)
+        trySliceOf fs (InstancePath ap)
+        |> Option.defaultValue []
         |> List.tryFind (fun slots -> slots.SlotsComp = compId)
         |> Option.map (fun slots ->
             let insWidths = slots.SlotsIns |> Array.map (fun s -> s.SlotWidth)
@@ -264,14 +286,29 @@ let nameOfPort (fs: FastSimulation) (wi: WaveIndexT) : string =
 /// selected waves are in - so what this holds is bounded by what the UI touches rather than by the
 /// expansion. Keyed on the simulation, which is rebuilt rather than mutated, so a new one is the
 /// signal that all of it is stale; emptied when a simulation ends, by Helpers.clearIdentityMemos.
-let ofInstanceCached: FastSimulation -> InstancePath -> InstanceView =
+/// None while the sidecar simulates and this instance's slice has not arrived - the case every
+/// display site answers with nothing-yet, and reconciliation answers by keeping the wave
+/// unresolved. A described instance is memoised; an undescribed one is asked again, because the
+/// answer changes when the slice lands.
+let tryOfInstanceCached: FastSimulation -> InstancePath -> InstanceView option =
     Helpers.memoizeByIdentity (fun (fs: FastSimulation) ->
         let held = System.Collections.Generic.Dictionary<InstancePath, InstanceView>()
 
         fun instance ->
             match held.TryGetValue instance with
-            | true, ports -> ports
+            | true, ports -> Some ports
             | _ ->
-                let ports = ofInstance fs instance
-                held[instance] <- ports
-                ports)
+                trySliceOf fs instance
+                |> Option.map (fun slice ->
+                    let ports = ofSlice fs.Design instance slice
+                    held[instance] <- ports
+                    ports))
+
+/// A view with nothing in it: what a display draws for an instance not yet described.
+let private emptyView (fs: FastSimulation) (instance: InstancePath) : InstanceView =
+    { ViewSheet = fs.Design.SheetOfInstance instance
+      ViewSubSheet = []
+      ViewPorts = [] }
+
+let ofInstanceCached (fs: FastSimulation) (instance: InstancePath) : InstanceView =
+    tryOfInstanceCached fs instance |> Option.defaultValue (emptyView fs instance)

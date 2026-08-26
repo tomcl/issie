@@ -74,10 +74,6 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
     | None -> div [] []
     | Some comp -> 
         let step = wsModel.CursorExactClkCycle
-        if fs.ClockTick < step then
-            Log.dbg Log.Wave $"extending the fast simulation to cycle {step} for the RAM table"
-        //FastRun.runFastSimulation None step fs |> ignore // not sure why this is needed
-        // in some cases fast sim is run for one cycle less than currClockCycle
         /// The memory as the component declares it. Its widths and its .ram-file comments are
         /// facts about the component's TYPE, so they are read here in both modes - the renderer
         /// builds a simulation for structure whichever simulator is running. Only the contents

@@ -304,9 +304,11 @@ type SidecarOp =
     /// A run is a sequence of these: the answer says how far it got, and the update function
     /// issues the next unless it has arrived or the user has cancelled
     | OpRunForWaves of toCycle: int
-    /// run to the cycle the view shows and read waveforms over its window, and at most one RAM's
-    /// rows after them - one operation because it is one promise, in order, over one connection
-    | OpFetch of waves: int * ram: FComponentId option
+    /// read everything the snapshot's viewports need - waves over the window, every selected
+    /// RAM's rows, the panel's signals, the probe, the wanted slices - one operation because it
+    /// is one promise, in order, over one connection. Carries the snapshot so the completion
+    /// records what WAS fetched, not what is current by then.
+    | OpFetch of FetchSnapshot
     /// run to a cycle and read back what the step panel shows there
     | OpStep of cycle: int
     /// read the value on the wire the pointer is resting on, at the cycle being shown
@@ -324,7 +326,7 @@ type SidecarAnswer =
     | AnsRan of Result<int * bool, string>
     | AnsFetched of
         Result<unit, string> *
-        (FComponentId * (RamView.RamKey * RamView.RamView)) option *
+        (FComponentId * (RamView.RamKey * RamView.RamView)) list *
         (WaveIndexT * int * bigint) option
     | AnsStepped
     /// One chunk of a step-simulation run completed: where the clock was when the chunk was
@@ -371,6 +373,48 @@ type SidecarSessionState =
         match this with
         | Session(built, size, _, _) -> built = top && size >= arraySize
         | _ -> false
+
+/// Everything that could change what DATA the view needs from the .NET simulation, as ONE value
+/// derived by one pure function of the model (WaveSimTop.dataViewportOf). This record's field
+/// list IS the enumeration that has to be kept right, in one reviewable place: the fetch
+/// decision is an equality - current viewport <> the viewport the last COMPLETED fetch was for
+/// => fetch the whole current one - and no cache is ever consulted to decide. See
+/// docs/dev/sidecarInvariants.md.
+type DataViewport =
+    { /// the session the values would come from; a rebuild changes this, so nothing fetched from
+      /// an older session can satisfy the comparison
+      VpEpoch: int
+      /// the waveform window on screen (a zero SampleCount when no waveform view is up)
+      VpWindow: WaveSlice.Window
+      /// the RESOLVED waves drawn over it, address waves included, canonically ordered.
+      /// Resolution state is part of the identity, so slices arriving cause a refetch.
+      VpWaves: WaveIndexT list
+      /// every selected memory and the key (cycle included) its rows are shown under
+      VpRams: (FComponentId * RamView.RamKey) list
+      /// the cycle the step panel is showing, when it is on screen. Its signal list is a
+      /// function of the design, which VpEpoch already names, so it is not repeated here.
+      VpPanelCycle: int option
+      /// the wire the pointer rests on and the cycle its value is wanted at
+      VpProbe: (WaveIndexT * int) option
+      /// how many inputs have been poked into the running simulation so far. The stimulus
+      /// itself is simulator state the model cannot hold, so the model counts the pokes -
+      /// each poke changes this, changes the viewport, and refetches.
+      VpStimulus: int }
+
+/// Which instances' port SLICES the selector and wave reconciliation need - the structure
+/// viewport beside the data one, separate because its lifetime is the build's: it only ever
+/// grows under one epoch, where the data viewport moves with every scroll.
+type StructureViewport =
+    { SvEpoch: int
+      /// canonical (distinct, sorted), so equality means set equality
+      SvInstances: InstancePath list }
+
+/// What one fetch was for - recorded on its completion as what WAS fetched, never what is
+/// current by then. Each part is Some only when that viewport differed when the fetch was
+/// issued.
+type FetchSnapshot =
+    { SnapData: DataViewport option
+      SnapStructure: StructureViewport option }
 
 type Wave = {
     /// Uniquely identifies a waveform
@@ -1174,6 +1218,19 @@ type Model = {
     /// when the clock arrives, when the progress popup is closed (which is what Cancel is), and
     /// when the simulation ends.
     StepRunTarget : SimulationProgress option
+    /// The data viewport the last COMPLETED fetch was for - None until one completes under the
+    /// current session. The fetch decision is `dataViewportOf model <> FetchedData`; nothing
+    /// clears this on rebuild because the epoch inside the viewport makes a rebuild an
+    /// inequality (EndSimulation clears it as hygiene only).
+    FetchedData : DataViewport option
+    /// the structure viewport the last completed fetch covered, likewise
+    FetchedStructure : StructureViewport option
+    /// The snapshot of a fetch that FAILED: not reissued while the current snapshot still
+    /// equals it - reset is inequality itself, so a changed viewport tries again and an
+    /// unchanged one does not retry at wire speed.
+    FailedFetch : FetchSnapshot option
+    /// pokes into the running simulation so far - see DataViewport.VpStimulus
+    StimulusGeneration : int
     ShowLibrarySheets : bool
     /// The library sheets the user has asked to look inside, by name. A library component is an
     /// abstraction and its sheet is not normally reachable at all, but understanding how one
@@ -1263,6 +1320,10 @@ let sidecarInFlight_ = Lens.create (fun a -> a.SidecarInFlight) (fun s a -> {a w
 let sidecarBuildEndedMs_ = Lens.create (fun a -> a.SidecarBuildEndedMs) (fun s a -> {a with SidecarBuildEndedMs = s})
 let sidecarRunEndedMs_ = Lens.create (fun a -> a.SidecarRunEndedMs) (fun s a -> {a with SidecarRunEndedMs = s})
 let stepRunTarget_ = Lens.create (fun a -> a.StepRunTarget) (fun s a -> {a with StepRunTarget = s})
+let fetchedData_ = Lens.create (fun a -> a.FetchedData) (fun s a -> {a with FetchedData = s})
+let fetchedStructure_ = Lens.create (fun a -> a.FetchedStructure) (fun s a -> {a with FetchedStructure = s})
+let failedFetch_ = Lens.create (fun a -> a.FailedFetch) (fun s a -> {a with FailedFetch = s})
+let stimulusGeneration_ = Lens.create (fun a -> a.StimulusGeneration) (fun s a -> {a with StimulusGeneration = s})
 let showLibrarySheets_ = Lens.create (fun a -> a.ShowLibrarySheets) (fun s a -> {a with ShowLibrarySheets = s})
 let openedLibrarySheets_ = Lens.create (fun a -> a.OpenedLibrarySheets) (fun s a -> {a with OpenedLibrarySheets = s})
 let readOnlyBaseline_ = Lens.create (fun a -> a.ReadOnlyBaseline) (fun s a -> {a with ReadOnlyBaseline = s})

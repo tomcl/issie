@@ -591,6 +591,11 @@ let removeAllSimulationsFromModel (model:Model) =
     |> Optic.set sidecarInFlight_ Map.empty
     // a run in progress was of the simulation this ends
     |> Optic.set stepRunTarget_ None
+    // hygiene, not correctness: the epoch inside each viewport already makes anything fetched
+    // for the dead session unequal to whatever comes next
+    |> Optic.set fetchedData_ None
+    |> Optic.set fetchedStructure_ None
+    |> Optic.set failedFetch_ None
     |> Optic.map waveSim_ (Map.map (fun _ -> releaseWaveSimData))
 
 /// The next operation number.

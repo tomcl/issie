@@ -381,10 +381,15 @@ let updateUnpinned (msg : Msg) oldModel =
         // while a waveform one was live left both in the model. With the .NET simulator that is
         // two things driving one session: the step simulator running and reading it, and
         // fetchWhatIsMissing still fetching waves and RAM rows for a view nobody is looking at.
-        model
-        |> endWaveSimulation
-        |> set currentStepSimulationStep_ (Some simData)
-        |> withNoMsg
+        let model =
+            model
+            |> endWaveSimulation
+            |> set currentStepSimulationStep_ (Some simData)
+
+        // the build is the START's to issue - see SimulationView.issueStepBuild
+        match simData, model.SimulateInRenderer with
+        | Ok sd, false -> SimulationView.issueStepBuild model sd
+        | _ -> model |> withNoMsg
 
     | SetWSModel wsModel ->
         setWSModel wsModel model
@@ -647,7 +652,7 @@ let updateUnpinned (msg : Msg) oldModel =
             |> updateWSModel (fun ws -> { ws with State = SimError shown })
             |> withNoMsg
 
-        | Some(OpFetch _), AnsFetched(result, ramRows, probed) ->
+        | Some(OpFetch snapshot), AnsFetched(result, ramRows, probed) ->
             // The entry has already left the table above, whether the fetch worked or not, so the
             // refresh below is free to ask for whatever is still missing. After a view that moved
             // while this fetch was in the air, that is the view the user is now looking at.
@@ -663,9 +668,8 @@ let updateUnpinned (msg : Msg) oldModel =
                         // beside it because the pane is memoised on the model: rows arriving anywhere
                         // else would not redraw the table they belong to.
                         RamRows =
-                            match ramRows with
-                            | Some(ram, held) -> Map.add ram held ws.RamRows
-                            | None -> ws.RamRows
+                            (ws.RamRows, ramRows)
+                            ||> List.fold (fun rows (ram, held) -> Map.add ram held rows)
                         // a fetch that worked clears the backoff, so the next failure gets the full
                         // wait rather than whatever is left of an older one
                         FetchFailedAtMs =
@@ -678,9 +682,20 @@ let updateUnpinned (msg : Msg) oldModel =
 
             match result with
             | Ok() ->
-                // What arrived is in the cache. The refresh redraws from it, and asks for anything the
-                // current view still needs - a wave just selected, or the window the user scrolled to
-                // while this was in flight.
+                // What arrived is in the caches, and the records say WHAT the fetch was for -
+                // the snapshot it carried, never what is current by then. If the view moved
+                // while it flew, the next end-of-update comparison sees the difference and
+                // fetches again; nothing diffs, nothing is tracked.
+                let model =
+                    model
+                    |> (match snapshot.SnapData with
+                        | Some vp -> set fetchedData_ (Some vp)
+                        | None -> id)
+                    |> (match snapshot.SnapStructure with
+                        | Some sv -> set fetchedStructure_ (Some sv)
+                        | None -> id)
+                    |> set failedFetch_ None
+
                 WaveSimTop.refreshWaveSim false model
                 |> fun (model, cmd) -> model, Cmd.batch [ cmd; continueRun ]
             | Error e ->
@@ -690,7 +705,9 @@ let updateUnpinned (msg : Msg) oldModel =
                 // asked again is a fault again, and the viewer's banner is what tells the user that
                 // what is on screen is not what the numbers above it say.
                 Log.error $"the .NET simulator could not answer for this view: {e}"
-                WaveSimTop.cancelSpinner model, continueRun
+                // the failed snapshot is remembered so an UNCHANGED viewport does not retry at
+                // wire speed; any change to it is a different snapshot and tries again
+                WaveSimTop.cancelSpinner (set failedFetch_ (Some snapshot) model), continueRun
 
         | Some(OpStep _), AnsStepped -> model |> withNoMsg
 
@@ -1201,5 +1218,4 @@ let update (msg : Msg) oldModel =
     updateUnpinned msg oldModel
     |> map fst_ (ModelHelpers.pinIfReadOnly msg)
     |> scheduleAfterRender oldModel
-    |> WaveSimTop.fetchWhatIsMissing
-    |> WaveSimTop.describeWhatIsShown
+    |> WaveSimTop.sidecarChecks

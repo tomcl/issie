@@ -681,6 +681,10 @@ let private viewSimulationInputs
                         let newBit = 1u - bit
                         let graph = simulationGraph
                         setInput model simulationData (ComponentId inputId) {Dat = Word newBit; Width = 1} (fun () ->
+                            // the poke changed simulator state the model cannot hold, so the
+                            // model counts it - the count is in the fetch viewport, and bumping
+                            // it is what refetches every value computed under the old stimulus
+                            dispatch <| UpdateModel(Optic.map stimulusGeneration_ ((+) 1))
                             dispatch <| SetSimulationGraph(graph, simulationData.FastSim))
                     )
                 ] [ str <| bitToString (match bit with 0u -> Zero | _ -> One)]
@@ -703,6 +707,8 @@ let private viewSimulationInputs
                                 // Feed input.
                                 let graph = simulationGraph
                                 setInput model simulationData (ComponentId inputId) bits (fun () ->
+                                    // as the bit toggle above: the poke count is viewport state
+                                    dispatch <| UpdateModel(Optic.map stimulusGeneration_ ((+) 1))
                                     dispatch <| SetSimulationGraph(graph, simulationData.FastSim))
                         ))
                     ]
@@ -1373,6 +1379,32 @@ let tryGetSimData isWaveSim canvasState model =
             Error simError
 
 
+/// Issue the .NET build a step simulation needs: the START's operation - StartSimulation and
+/// the goto's cascade both come here, and nothing else ever builds for the step simulator. Its
+/// completion (AnsBuilt) creates the session the reads and runs require.
+let issueStepBuild (model: Model) (simData: SimulationData) : Model * Elmish.Cmd<Msg> =
+    match model.CurrentProj with
+    | None -> model, Elmish.Cmd.none
+    | Some project ->
+        let top = simData.FastSim.SimulatedTopSheet
+
+        let design =
+            ModelHelpers.designOf project (model.Sheet.GetCanvasState())
+            |> CanvasExtractor.simpleDesignOfLoadedComponents
+            |> fun d -> { d with TopSheet = top }
+
+        let arraySize = stepSimArraySize model |> Result.defaultValue Constants.maxArraySize
+        let seq = ModelHelpers.newSeq ()
+
+        let build =
+            Elmish.Cmd.OfPromise.either
+                (fun () -> SidecarSession.build design arraySize)
+                ()
+                (fun result -> SidecarReply(seq, AnsBuilt result))
+                (fun exn -> SidecarReply(seq, AnsBuilt(Error exn.Message)))
+
+        model |> Optic.map sidecarInFlight_ (Map.add seq (OpBuild(top, arraySize))), build
+
 /// One step of the step-simulation run's cascade: issue the next piece of sidecar work the run
 /// needs, or finish, or - if the wire is held by something else - do nothing.
 ///
@@ -1410,26 +1442,9 @@ let continueStepRun (model: Model) : Model * Elmish.Cmd<Msg> =
                         (fun exn -> SidecarReply(seq, AnsSteppedTo(before, t1, Error exn.Message)))
 
                 model |> Optic.map sidecarInFlight_ (Map.add seq (OpStep prog.FinalClock)), chunk
-            | None, Some project ->
-                // no session yet: the first thing the run needs is the build, issued the same
-                // way, and its reply brings us back here for the first chunk
-                let top = simData.FastSim.SimulatedTopSheet
-
-                let design =
-                    ModelHelpers.designOf project (model.Sheet.GetCanvasState())
-                    |> CanvasExtractor.simpleDesignOfLoadedComponents
-                    |> fun d -> { d with TopSheet = top }
-
-                let arraySize = stepSimArraySize model |> Result.defaultValue Constants.maxArraySize
-                let seq = ModelHelpers.newSeq ()
-
-                let build =
-                    Elmish.Cmd.OfPromise.either
-                        (fun () -> SidecarSession.build design arraySize)
-                        ()
-                        (fun result -> SidecarReply(seq, AnsBuilt result))
-                        (fun exn -> SidecarReply(seq, AnsBuilt(Error exn.Message)))
-
-                model |> Optic.map sidecarInFlight_ (Map.add seq (OpBuild(top, arraySize))), build
+            | None, Some _ ->
+                // no session yet: the first thing the run needs is the build, issued by the one
+                // place that issues step builds, and its reply brings us back for the first chunk
+                issueStepBuild model simData
             | None, None -> model, Elmish.Cmd.none
     | _ -> model, Elmish.Cmd.none

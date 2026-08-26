@@ -543,6 +543,67 @@ been made to show nothing instead, which is honest but is not the requirement.
 
 ---
 
+## J. Who may ask, and how asking is decided
+
+The renderer's side of every operation obeys one sequencing model, stated here because the code
+that obeys it is spread over three files (`WaveSimTop.sidecarChecks`,
+`SimulationView.continueStepRun` and the start paths) and because its one recorded violation - a
+goto loop whose busy path re-dispatched itself synchronously, freezing the renderer inside a
+single Elmish drain - looked innocent at every call site.
+
+**The issuers are enumerable.** Exactly these put an operation on the wire:
+
+- the start paths - `StartWaveSimulation` and `StartSimulation`/`StartStepRun` issue `SimBuild`,
+  and nothing else ever builds. A missing session anywhere else is a stopped simulation, not a
+  build somebody forgot;
+- `WaveSimTop.sidecarChecks`, the end-of-update checks: one run chunk when the viewport needs a
+  cycle the session has not reached, else one read bundle when a viewport differs from what the
+  last completed fetch was for;
+- the step-run cascade: `StartStepRun` and the reply handlers (`AnsSteppedTo`, `AnsBuilt`,
+  `AnsFetched`) that continue it.
+
+**One operation in flight.** `SidecarInFlight` is the record and every issuer's gate. Whoever
+finds the wire held does NOTHING - no retry, no delay, no self-dispatch - because the held
+operation's completion is a message, every check runs after every message, and so the waiter is
+resumed the moment the wire is free. A loop that re-dispatches itself against a busy wire is the
+forbidden shape: it spins the drain that the freeing reply needs to end.
+
+**Decisions are state comparisons, never event tracking and never cache interrogation.** What
+the view needs from the simulation is derived as one pure function of the model - the
+`DataViewport` and `StructureViewport` records; their field lists are the enumeration that has
+to be right, in one reviewable place. The fetch decision is `current viewport <> the viewport
+the last COMPLETED fetch was for` (`FetchedData`/`FetchedStructure`, recorded from the snapshot
+the operation carried, never from what is current when it lands). Nothing is cleared on rebuild:
+the epoch inside each viewport makes a rebuild an inequality. The stimulus is in the viewport as
+a poke counter (`StimulusGeneration`), because the poked values live in the simulator, which the
+model cannot hold - the count is model state, and bumping it is what refetches everything
+computed under the old stimulus.
+
+**The MVU reading.** The built simulation is an implicit, immutable-for-its-lifetime component
+of the model, named by its epoch. The only places the implicit part lags the explicit part are
+the two bounded gaps - needs-running and needs-fetching - each visible as in-flight state, each
+converging by construction. A fetch is a sequence of reads chained inside one promise (wire
+speed, no Elmish round trip between reads) under one in-flight entry, answered by one message:
+fast by construction, so it gets no progress display. Run chunks each go through Elmish, which
+is where the progress displays come from.
+
+**The memoisation obligation.** `FetchedData = snapshot` is a claim that the caches hold
+everything the snapshot needs, so every read's result must be memoised, keyed by state the
+viewport covers - and every cache EVICTION policy must be a function of that same state.
+`WaveDrawn.keepOnly` on the selection is sound because the selection is in the viewport, so the
+eviction always coincides with an inequality that refetches. An eviction keyed on anything
+outside the viewport recreates silent staleness; that is the review rule for a new cache, and
+the viewport field lists are the thing to extend when a new kind of simulation-derived display
+is added.
+
+**Failure is latched by state too.** A failed fetch leaves the fetched-records alone and stores
+its snapshot in `FailedFetch`; the fetch check requires the current snapshot to differ from it,
+so an unchanged viewport does not retry at wire speed and any change tries again. The old shape
+- the fetch itself issuing `SimBuild` when it found no session - is what once turned one refused
+build into a retry storm; it is deleted by construction now, since nothing but a start builds.
+
+---
+
 ## I. The whole command set
 
 Everything above asks for seven commands. Nothing needs an eighth, and each of the collapses below

@@ -316,38 +316,10 @@ let tryStartSimulationAfterErrorFix (simType:SimSubTab) (model:Model) =
                     |> withMsgs (simErrFeedback simError feedbackMsg)
 
         | WaveSim ->
-            let model = MemoryEditorView.updateAllMemoryComps model
-            let wsSheet = 
-                match model.WaveSimSheet with
-                | None -> Option.get (getCurrFile model)
-                | Some sheet -> sheet
-            let model = 
-                model
-                |> removeAllSimulationsFromModel
-                |> fun model -> {model with WaveSimSheet = Some wsSheet}
-            let wsModel = getWSModel model
-            match simulateModel
-                    model.SimulateInRenderer
-                    true
-                    model.WaveSimSheet
-                    (wsModel.WSConfig.LastClock + Constants.maxStepsOverflow)
-                    canvasState
-                    model with
-
-            | (Error simError, _) ->
-                model
-                |> set currentStepSimulationStep_ (simError |> Error |> Some)
-                |> withMsgs (simErrFeedback simError (SetWSModelAndSheet ({ wsModel with State = SimError simError }, wsSheet)))
-            | (Ok simData, canvState) ->
-                if simData.IsSynchronous then
-                    setFastSimInputsToDefault simData.FastSim
-                    let wsModel = { wsModel with State = Loading}
-                    model
-                    |> set currentStepSimulationStep_ (simData |> Ok |> Some)
-                    |> withMsgs [SetWSModelAndSheet (wsModel, wsSheet) ; RefreshWaveSim wsModel]
-                else
-                    model
-                    |> set currentStepSimulationStep_ (simData |> Ok |> Some)
-                    |> withMsg (SetWSModelAndSheet ({ wsModel with State = NonSequential }, wsSheet))
+            // The unified start: stop whatever runs, rebuild, refresh - StartWaveSim's update
+            // branch, on the model as it then is. This branch used to duplicate that sequence,
+            // and its copy also recorded the wave build as a STEP simulation, which is how a
+            // fixed error could leave two simulations live at once.
+            model |> withMsg StartWaveSimulation
 
 

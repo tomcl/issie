@@ -18,7 +18,6 @@ let tests =
             let deps = ldcs |> List.filter (fun l -> l.Name <> "eep1")
 
             // the carrier, exactly as sidecar-mode start builds it
-            PortData.activate ()
             let carrier =
                 match Simulator.designOnlySimulation 2 "eep1" top.CanvasState ldcs with
                 | Ok sd -> sd
@@ -26,6 +25,8 @@ let tests =
             let cfs = carrier.FastSim
             Expect.equal cfs.SimulatedTopSheet "eep1" "the carrier knows its sheet"
             Expect.equal cfs.FComps.Count 0 "and holds no components at all"
+            Expect.isTrue carrier.IsSynchronous
+                "the carrier answers IsSynchronous as the real build does: eep1 is a CPU"
 
             // the design enumeration the harness selects with
             let rec instances (InstancePath ap as inst) sheet =
@@ -47,7 +48,7 @@ let tests =
                 match Simulator.startCircuitSimulation 250 "eep1" top.CanvasState ldcs with
                 | Ok sd -> sd.FastSim
                 | Error e -> failwith $"real: %A{e.ErrType}"
-            PortData.startEpoch 1
+            PortData.startEpoch cfs 1
             for inst in instances (InstancePath []) "eep1" do
                 PortData.storeForTest 1 inst (PortView.sheetSliceOf realFs inst)
 

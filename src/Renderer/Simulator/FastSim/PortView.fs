@@ -223,26 +223,36 @@ let ofSlice (design: SimulatedDesign) (InstancePath ap as instance) (slice: Comp
             (design.LabelOfInstance(InstancePath ap[0 .. i - 1]) |> Option.defaultValue "?").ToUpper())
       ViewPorts = ports }
 
-/// Where slices come from when the simulation is NOT in this process.
+/// Where wire-fetched slices are read from, when the simulation is NOT in this process.
 ///
-/// None (the default, and the only value under .NET) means slices are computed here, from the
-/// local build. The renderer sets it when the sidecar simulates: the function answers from what
-/// has arrived on the wire, and None from it means "this instance is not described YET" - a
-/// different thing from an empty slice, and the distinction is what lets a selection loaded
-/// before the wire answers pass through unresolved instead of being dropped.
+/// Installed ONCE, at startup, by the renderer's PortData - and never under .NET, where it stays
+/// None and every slice is computed locally. It is consulted only for a CARRIER build, and it
+/// answers from what has arrived for exactly that build: None means "this instance is not
+/// described YET" - a different thing from an empty slice, and the distinction is what lets a
+/// selection loaded before the wire answers pass through unresolved instead of being dropped.
 ///
-/// A mutable hook rather than a parameter because slices are read from view code through the
-/// memo below, at call sites that have no business knowing which process simulates. The same
-/// pattern as WaveData's source switch, and permitted by the same reasoning in
-/// docs/mutableState.md: it is not model state, it is where a memo's evaluation happens.
-let mutable sliceSource: (InstancePath -> ComponentSlots list option) option = None
+/// A hook rather than a parameter because slices are read from view code through the memo below,
+/// at call sites that have no business knowing which process simulates. Which build the hook is
+/// asked about travels WITH the ask - the same fs the caller holds - so there is no lifecycle
+/// here: nothing activates it, nothing clears it, and a stale answer is impossible because the
+/// store inside keys what it holds by the build it holds it for.
+let mutable sliceSource: (FastSimulation -> InstancePath -> ComponentSlots list option) option =
+    None
 
-/// The slice of one instance, from wherever slices come from: Some from the local build or the
-/// wire, None only when the sidecar simulates and this instance has not been described yet.
+/// The slice of one instance. Which source answers is derived from the BUILD itself, per call:
+/// a carrier - built for a simulation that lives in another process - holds no components, so
+/// its slices can only come off the wire; anything else computes them locally. No flag, no mode,
+/// nothing to keep in step with the model.
 let private trySliceOf (fs: FastSimulation) (instance: InstancePath) : ComponentSlots list option =
+    let isCarrier = fs.NumStepArrays = 0 && fs.SimulatedTopSheet <> ""
+
     match sliceSource with
-    | Some fetched -> fetched instance
-    | None -> Some(sheetSliceOf fs instance)
+    | Some fetched when isCarrier -> fetched fs instance
+    // A carrier with no wire source installed is still a carrier: its slices exist only in the
+    // other process, and computing one locally would always answer "empty" - which reads as
+    // described-empty and drops the selection. Not described is the truth.
+    | None when isCarrier -> None
+    | _ -> Some(sheetSliceOf fs instance)
 
 /// The wave-carrying ports of one instance, from the DESIGN alone - no simulation, no slices.
 ///

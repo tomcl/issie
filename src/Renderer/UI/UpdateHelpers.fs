@@ -99,11 +99,11 @@ let shortDisplayMsg (msg:Msg) =
     | AddWSModel (s,ws) -> Some $"AddWSModel:{s}->{shortDWSM ws}"
     | SetWSModel ws -> Some $"SetWSModel:{Simulator.getFastSim().SimulatedTopSheet}->{shortDWSM ws}"
     | UpdateWSModel _ -> Some "Updating WS model"
-    | SetWSModelAndSheet (ws,s)-> Some $"SetWSModelAndSheet:{s}->{shortDWSM ws}"
-    | GenerateWaveforms ws -> Some $"GenerateWaveforms:{shortDWSM ws}"
+    | GenerateWaveforms _ -> Some "GenerateWaveforms"
     | GenerateCurrentWaveforms -> Some $"Generate Current Waveforms"
     | CancelWaveSimulation -> Some "CancelWaveSimulation"
-    | RefreshWaveSim ws -> Some "RefreshWaveSim"
+    | StartWaveSimulation -> Some "StartWaveSimulation"
+    | RefreshWaveSim -> Some "RefreshWaveSim"
     | SetWaveSheetSelectionOpen _ -> Some "SetWaveSheetSelectionOpen"
     | SetWaveGroupSelectionOpen _
     | LockTabsToWaveSim 

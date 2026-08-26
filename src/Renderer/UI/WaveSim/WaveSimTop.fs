@@ -135,7 +135,7 @@ let private ramCompIdsOf: FastSimulation -> (FComponentId * string) list =
 /// 1. Extend the simulation to the current cycle (if not already done).
 /// 2. Remake the Wave headers, one for each selected waveform.
 /// 3. Remake (or make for first time) the saved waveform SVGs for all selected waveforms.
-let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Model): Model * Elmish.Cmd<Msg> =
+let rec refreshWaveSim (newSimulation: bool) (model: Model): Model * Elmish.Cmd<Msg> =
     // The function performs immediately the first part of the main long functions to determine their time and as needed splits
     // the rest of the work into multiple function calls using a spinner to alert the user to the delay.
     // The Spinner (in reality a progress bar) is used if the estimated time to completion is longer than
@@ -165,6 +165,12 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
             { model with RunAfterRenderWithSpinner = Some <| Option.defaultValue {FnToRun=focusCurrClk1;ButtonSpinnerOn=false} model.RunAfterRenderWithSpinner }
 
            
+    // The refresh works on the wave sim state as it IS. Taking it as a parameter is what let a
+    // dispatch made from a render inject a snapshot here, which the end of this function then
+    // wrote back over everything dispatched since - the viewer oscillated between two pasts.
+    // Nothing hands this function state any more; it reads it.
+    let wsModel = getWSModel model
+
     /// Make sure we always have consistent parameters. They will be written back to model after this function terminates.
     /// The validation may be done more than once because this function is recursive, but that is OK.
     /// validateSimparas is idempotent unless model changes.
@@ -292,8 +298,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
         /// It dispatches a continuation which will recursively call refreshWaveSim
         let runSimulationWithSpinner cyclesToDo model =
             let spinnerFunc = fun dispatch model ->
-                let wsModel = getWSModel model
-                refreshAndIssue dispatch false wsModel model
+                refreshAndIssue dispatch false model
             let model =
                 model
                 |> setProgressBar $"Extending Circuit Simulation..." spinnerFunc cyclesToDo
@@ -417,7 +422,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                     if not simulationIsStillUptodate || not viewIsUnchanged then
                         // The simulation or the view has changed under this refresh. Do it again
                         // for what we now have; we come back here when both are current.
-                        refreshWaveSim newSimulation wsModel model
+                        refreshWaveSim newSimulation model
                     else
                         // Read again rather than reusing what refreshWaveSim bound: this runs
                         // after a render, and re-resolving a selection against the simulation is
@@ -471,8 +476,8 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
 /// which is how the next fetch is asked for, and which the model records as in flight before it is
 /// issued. Dropping it would leave the viewer waiting for a fetch that was never made. A command is
 /// a list of functions of dispatch, and these continuations are given one, so run it here.
-and private refreshAndIssue (dispatch: Msg -> unit) (newSimulation: bool) (ws: WaveSimModel) (model: Model) =
-    let model, cmd = refreshWaveSim newSimulation ws model
+and private refreshAndIssue (dispatch: Msg -> unit) (newSimulation: bool) (model: Model) =
+    let model, cmd = refreshWaveSim newSimulation model
     cmd |> List.iter (fun sub -> sub dispatch)
     model
 
@@ -738,6 +743,11 @@ let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd
             }
 
         match model.SidecarSession with
+        // A build that FAILED is a state, not a retry schedule. The failure stands until
+        // something changes it - Start and End both reset the session to NoSession - so asking
+        // again on every update turned one refusal into a storm: the same build request every
+        // thirty milliseconds, each answered with the same refusal, for ever.
+        | SessionFailed _ -> model, cmd
         | session when not (session.Holds(miss.MissDesign.TopSheet, miss.MissArraySize)) ->
             Log.dbg
                 Log.Wave
@@ -808,99 +818,148 @@ let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd
                 (Map.add seq (OpFetch(miss.MissWaves.Length, miss.MissRam |> Option.map fst))),
             Elmish.Cmd.batch [ cmd; fetch ]
 
-/// Refresh the state of the wave simulator according to the model and canvas state.
-/// Redo a new simulation. Set inputs to default values. Then call refreshWaveSim via RefreshWaveSim message.
-/// 1st parameter ofrefreshWaveSin will be set true which causes all waves to be necessarily regenerated.
-let refreshButtonAction canvasState model dispatch = fun _ ->
-    let startWaveSimulation dispatch model =
-        /// update the model memories to match any updated linked initial contents files
-        let model = MemoryEditorView.updateAllMemoryComps model
-        // the simulation is about to use these contents, so say if a linked file did not load
-        MemoryEditorView.notifyMemoryFileErrors dispatch model
-        let wsSheet =
-            match model.WaveSimSheet with
-            | None ->
-                Option.get (getCurrFile model)
-            | Some sheet ->
-                sheet
-        // The two simulations are mutually exclusive, so starting this one ends the step
-        // simulation. As a MESSAGE, because the model built below is a local copy used to work out
-        // the new WaveSimModel and is never dispatched - removeAllSimulationsFromModel applied to
-        // it cleared a step simulation that stayed in the real model, which is how one could
-        // survive the start of a waveform simulation and leave two of them live at once.
-        dispatch EndSimulation
+/// Start - or restart - the waveform simulation, on the model as it IS: the update branch of the
+/// StartWaveSim message, which is the ONE way a waveform simulation begins. Start means first do
+/// stop: the step and waveform simulations are mutually exclusive, so whatever is running is
+/// ended here, synchronously, before the new build - sequencing that used to be spread across
+/// dispatched snapshots and a post-render closure, where it raced the renders it spanned.
+let startWaveSimulation (model: Model) : Model * Elmish.Cmd<Msg> =
+    if model.IsLoading then
+        // A project or sheet is part-way through loading: the draw block still holds the OLD
+        // canvas while the project already names the new sheets, and a simulation built from
+        // that pairing is a simulation of a circuit that never existed. Anything can dispatch
+        // this message - a queued script, a stale continuation - so the guard is here, not at
+        // the senders. Ignored rather than requeued: whoever wanted it can press Start.
+        Log.warn "cannot start a waveform simulation while a project is loading"
+        model, Elmish.Cmd.none
+    else
 
-        let model =
-            model
-            |> removeAllSimulationsFromModel
-            |> fun model -> {model with WaveSimSheet = Some wsSheet}
-        let wsModel =
+    /// update the model memories to match any updated linked initial contents files
+    let model = MemoryEditorView.updateAllMemoryComps model
+
+    // the simulation is about to use these contents, so say if a linked file did not load
+    let notifyBadMemories =
+        Elmish.Cmd.ofEffect (fun dispatch -> MemoryEditorView.notifyMemoryFileErrors dispatch model)
+
+    let canvasState = model.Sheet.GetCanvasState()
+
+    let wsSheet =
+        match model.WaveSimSheet with
+        | None -> Option.get (getCurrFile model)
+        | Some sheet -> sheet
+
+    // First do stop. The simulation slot is released as EndSimulation releases it: only when it
+    // holds the STEP simulation being ended. On a Refresh it holds the waveform build being
+    // refreshed, which prepareSimulationMemoized reuses when the design has not changed - the
+    // reuse that makes Refresh cheaper than Start.
+    (match model.CurrentStepSimulationStep with
+     | Some(Ok sd) when System.Object.ReferenceEquals(sd.FastSim, Simulator.simCache.FastSim) ->
+         Simulator.simCache <- Simulator.simCacheInit ()
+         PortData.forget ()
+     | _ -> ())
+    // the indexes memoised over whatever simulation there was would otherwise hold it alive
+    Helpers.clearIdentityMemos ()
+
+    let model =
+        model
+        |> removeAllSimulationsFromModel
+        |> fun model -> { model with WaveSimSheet = Some wsSheet }
+
+    let wsModel, startNotification =
+        let ws =
             getWSModel model
-            |> fun wsModel -> {wsModel with ScrollbarBkgRepCycs= Constants.scrollbarBkgRepCyclesInit}
-            // A simulation that is being STARTED starts at the beginning. The WaveSimModel outlives
-            // the simulation it was made for - ending one leaves it in the map, marked Ended, so
-            // that the selection and the configuration survive - and the cursor and the scroll
-            // position were surviving with them, which put a brand new simulation's cursor wherever
-            // the last one happened to be left. A Refresh keeps its place, which is the point of a
-            // Refresh.
-            |> fun wsModel ->
-                match wsModel.State with
-                | Success -> wsModel
-                | _ ->
-                    { wsModel with
-                        StartCycle = 0
-                        CursorDisplayCycle = 0
-                        CursorExactClkCycle = 0 }
+            |> fun ws -> { ws with ScrollbarBkgRepCycs = Constants.scrollbarBkgRepCyclesInit }
+
+        match ws.State with
+        // a Refresh keeps its place, which is the point of a Refresh
+        | Success -> ws, Elmish.Cmd.none
+        | _ ->
+            // A simulation that is being STARTED starts at the beginning. The WaveSimModel
+            // outlives the simulation it was made for - ending one leaves it in the map, marked
+            // Ended, so that the selection and the configuration survive - and the cursor and the
+            // scroll position were surviving with them, which put a brand new simulation's cursor
+            // wherever the last one happened to be left.
+            let ws =
+                { ws with
+                    StartCycle = 0
+                    CursorDisplayCycle = 0
+                    CursorExactClkCycle = 0 }
+
             // A simulation being started at the untouched default clock count is given one its
             // design can be started in - an explicitly configured count is honoured exactly, see
-            // startingLastClock. Only on starting: a Refresh of a running simulation keeps what
-            // the configuration says.
-            |> fun wsModel ->
-                match wsModel.State with
-                | Success -> wsModel
-                | _ ->
-                    let estimate = ModelHelpers.simulationHeapEstimate model.WaveSimSheet canvasState model
-                    let lastClock = ModelHelpers.startingLastClock wsModel.WSConfig.LastClock estimate
-                    if lastClock = wsModel.WSConfig.LastClock then
-                        wsModel
-                    else
-                        let message =
-                            $"This design is large, so its waveform simulation starts at {lastClock} clock cycles \
-                              rather than the default {wsModel.WSConfig.LastClock}. Set the cycle count in \
-                              Configure to simulate more."
-                        Log.warn message
-                        // in the UI as well as the log: the console is not where the user who
-                        // wonders why the viewer stops at 200 cycles will be looking
-                        dispatch <| SetSimulationNotification (Notifications.warningSimNotification message)
-                        Optic.set (wSConfig_ >-> lastClock_) lastClock wsModel
-        let simRes =
-            // Here is where the new fast simulation is created.
-            //
-            // Sized for what THIS process will read from it, which where the .NET simulator is
-            // simulating is none of it: the waveforms come off the wire, and the renderer's copy is
-            // built for its structure. What the sidecar allocates is a separate decision, made from
-            // the configuration where the fetch is issued.
-            let arraySize =
-                if model.SimulateInRenderer then
-                    Constants.waveSimRequiredArraySize wsModel
-                else
-                    min (Constants.waveSimRequiredArraySize wsModel) Constants.rendererArraySizeWhenSidecarSimulates
+            // startingLastClock.
+            let estimate = ModelHelpers.simulationHeapEstimate model.WaveSimSheet canvasState model
+            let lastClock = ModelHelpers.startingLastClock ws.WSConfig.LastClock estimate
 
-            ModelHelpers.simulateModel model.SimulateInRenderer true model.WaveSimSheet arraySize canvasState model
-
-        match simRes with
-        | (Error e, _) ->
-            dispatch <| SetWSModelAndSheet ({ wsModel with State = SimError e }, wsSheet)
-        | (Ok simData, canvState) ->
-            if simData.IsSynchronous then
-                SimulationView.setFastSimInputsToDefault simData.FastSim
-                let wsModel = { wsModel with State = Loading}
-                dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
-                dispatch <| RefreshWaveSim wsModel
-                dispatch <| UpdateWSModel (fun wsModel -> {wsModel with  DefaultCursor = Default})
+            if lastClock = ws.WSConfig.LastClock then
+                ws, Elmish.Cmd.none
             else
-                dispatch <| SetWSModelAndSheet ({ wsModel with State = NonSequential}, wsSheet)
-    dispatch <| RunAfterRender(true, fun dispatch model -> startWaveSimulation dispatch model; model)
+                let message =
+                    $"This design is large, so its waveform simulation starts at {lastClock} clock cycles \
+                      rather than the default {ws.WSConfig.LastClock}. Set the cycle count in \
+                      Configure to simulate more."
+                Log.warn message
+                // in the UI as well as the log: the console is not where the user who wonders
+                // why the viewer stops at 200 cycles will be looking
+                Optic.set (wSConfig_ >-> lastClock_) lastClock ws,
+                Elmish.Cmd.ofMsg (SetSimulationNotification(Notifications.warningSimNotification message))
+
+    let simRes =
+        // Here is where the new fast simulation is created.
+        //
+        // Sized for what THIS process will read from it, which where the .NET simulator is
+        // simulating is none of it: the waveforms come off the wire, and the renderer's copy is
+        // built for its structure. What the sidecar allocates is a separate decision, made from
+        // the configuration where the fetch is issued.
+        let arraySize =
+            if model.SimulateInRenderer then
+                Constants.waveSimRequiredArraySize wsModel
+            else
+                min (Constants.waveSimRequiredArraySize wsModel) Constants.rendererArraySizeWhenSidecarSimulates
+
+        ModelHelpers.simulateModel model.SimulateInRenderer true model.WaveSimSheet arraySize canvasState model
+
+    match simRes with
+    | Error e, _ ->
+        // the same feedback a failed step simulation start gives: the error pane, and the
+        // offending components highlighted on the sheet
+        let model = setWSModel { wsModel with State = SimError e } model
+
+        model,
+        Elmish.Cmd.batch
+            [ notifyBadMemories
+              startNotification
+              yield! SimulationView.getSimErrFeedbackMessages e model |> List.map Elmish.Cmd.ofMsg ]
+    | Ok simData, _ ->
+        if simData.IsSynchronous then
+            SimulationView.setFastSimInputsToDefault simData.FastSim
+
+            setWSModel { wsModel with State = Loading } model,
+            Elmish.Cmd.batch
+                [ notifyBadMemories
+                  startNotification
+                  Elmish.Cmd.ofMsg RefreshWaveSim
+                  Elmish.Cmd.ofMsg (UpdateWSModel(fun ws -> { ws with DefaultCursor = Default })) ]
+        else
+            setWSModel { wsModel with State = NonSequential } model,
+            Elmish.Cmd.batch [ notifyBadMemories; startNotification ]
+
+/// What the waveform viewer's Start and Refresh buttons do. The click itself is only a paint
+/// fence: the button's spinner must be ON SCREEN before StartWaveSimulation's update branch -
+/// which does the work, on the model as it then is - blocks the renderer for the build.
+///
+/// The start is NOT sent as the RunAfterRender slot's continuation. That slot is one deep and a
+/// competing ask - a sheet open finishing, a progress bar re-arming - REPLACES what is pending,
+/// and the loser is dropped without a trace, which is how a Start click could do nothing. The
+/// slot is used only for what it draws (the spinner); the message goes through its own two
+/// animation frames - the same paint guarantee runWhenPainted documents - and then the ordinary
+/// queue, where nothing can swallow it.
+let refreshButtonAction canvasState model dispatch = fun _ ->
+    dispatch <| RunAfterRender(true, fun _ model -> model)
+
+    Browser.Dom.window.requestAnimationFrame (fun _ ->
+        Browser.Dom.window.requestAnimationFrame (fun _ -> dispatch StartWaveSimulation) |> ignore)
+    |> ignore
     
 
 
@@ -957,7 +1016,9 @@ let topHalf canvasState (model: Model) dispatch : ReactElement * bool =
             match model.RunAfterRenderWithSpinner, model.SpinnerPayload with
             | Some {ButtonSpinnerOn = true}, _ -> true
             | _ , Some _ -> true
-            | _ -> false
+            // the .NET simulator building is the same state the local spinner covers: a start
+            // that has not finished. Derived from the ops table, like everything about it.
+            | _ -> ModelHelpers.sidecarIsBuilding model
         let startEndButton =
             button 
                 (topHalfButtonPropsLoading isLoading wbo.StartEndColor "startEndButton" false) 

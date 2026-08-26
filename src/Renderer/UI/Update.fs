@@ -134,7 +134,7 @@ let updateUnpinned (msg : Msg) oldModel =
                 |> Optic.map waveSim_ (fun ws ->
                     let wsModel = ws[sheet]
                     Map.add sheet (WaveSimNavigation.changeMultiplier (table[key]) wsModel) ws)
-                |> (fun model -> WaveSimTop.refreshWaveSim false (getWSModel model) model)
+                |> WaveSimTop.refreshWaveSim false
                 
 
     | CheckMemory ->
@@ -392,12 +392,6 @@ let updateUnpinned (msg : Msg) oldModel =
         updateWSModel updateFn model
         |> withNoMsg
 
-    | SetWSModelAndSheet (wsModel, wsSheet) ->
-        model
-        |> set waveSimSheet_ (if wsSheet = "" then None else Some wsSheet)
-        |> setWSModel wsModel
-        |> withNoMsg
-
     | UpdateModel( updateFn: Model -> Model) ->
         updateFn model, Cmd.none
 
@@ -437,24 +431,30 @@ let updateUnpinned (msg : Msg) oldModel =
        
         updatedModel, Cmd.none
 
-    | RefreshWaveSim ws ->
-        // restart the wave simulator after design change etc that invalidates all waves
-        WaveSimTop.refreshWaveSim true ws model
+    | StartWaveSimulation ->
+        // The waveform viewer's Start and Refresh buttons, and the restart after an error fix:
+        // the whole stop-then-start sequence, in this update, on the model as it is now.
+        WaveSimTop.startWaveSimulation model
+
+    | RefreshWaveSim ->
+        // restart the wave simulator after design change etc that invalidates all waves. No
+        // payload: the refresh reads the model as it IS, which is what keeps a queued refresh
+        // harmless - each acts on current state, so a superseded one changes nothing.
+        WaveSimTop.refreshWaveSim true model
 
     | AddWSModel (sheet, wsModel) ->
         model
         |> map waveSim_ (Map.add sheet wsModel)
         |> withNoMsg
 
-    | GenerateWaveforms ws ->
-        // Update the wave simulator with new waveforms
-        // Is called whenever any waveform might need to be changed
-        WaveSimTop.refreshWaveSim false ws model
+    | GenerateWaveforms transform ->
+        // change the wave viewer's state, then refresh its waveforms to match
+        updateWSModel transform model
+        |> WaveSimTop.refreshWaveSim false
 
     | GenerateCurrentWaveforms ->
         // Update the wave simulator with new waveforms based on current WsModel
-        let ws = getWSModel model
-        WaveSimTop.refreshWaveSim false ws model
+        WaveSimTop.refreshWaveSim false model
 
     | CancelWaveSimulation ->
         // The simulation-extension loop re-arms itself through RunAfterRenderWithSpinner, so
@@ -537,6 +537,9 @@ let updateUnpinned (msg : Msg) oldModel =
         Helpers.clearIdentityMemos()
         model
         |> set currentStepSimulationStep_ None
+        // as removeAllSimulationsFromModel: the in-flight operations were for the simulation
+        // this ends, and emptying the table is what discards their replies
+        |> set sidecarInFlight_ Map.empty
         |> withNoMsg
 
     | EndWaveSim ->
@@ -580,8 +583,12 @@ let updateUnpinned (msg : Msg) oldModel =
             // for. WHICH instances need asking is derived from the model by describeWhatIsShown,
             // which runs at the end of this update like it runs after every message - so nothing
             // here has to know what the selection or the selector currently references.
-            PortData.startEpoch epoch
-            model |> set sidecarSession_ (Session(top, arraySize, epoch, 0)) |> withNoMsg
+            PortData.startEpoch (Simulator.getFastSim ()) epoch
+
+            model
+            |> set sidecarSession_ (Session(top, arraySize, epoch, 0))
+            |> set sidecarBuildEndedMs_ (TimeHelpers.getTimeMs ())
+            |> withNoMsg
 
         | Some(OpPorts _), AnsPorts(Ok described) ->
             Log.dbg Log.Wave $"described {described} instances for the wave selector"
@@ -610,15 +617,31 @@ let updateUnpinned (msg : Msg) oldModel =
                 match session with
                 | Session(top, size, epoch, _) -> Session(top, size, epoch, clock)
                 | other -> other)
+            |> set sidecarRunEndedMs_ (TimeHelpers.getTimeMs ())
             |> withNoMsg
 
         | Some(OpRunForWaves _), AnsRan(Error e) ->
             Log.error $"the .NET simulator could not run the design: {e}"
-            model |> withNoMsg
+            model |> set sidecarRunEndedMs_ (TimeHelpers.getTimeMs ()) |> withNoMsg
 
         | Some(OpBuild _), AnsBuilt(Error e) ->
             Log.error $"the .NET simulator could not build the design: {e}"
-            model |> set sidecarSession_ (SessionFailed e) |> withNoMsg
+
+            // The refusal is written for the user - a design too large to simulate says what to
+            // set the cycle count to - so it goes where a simulation error is shown, not only to
+            // the log. Silently blank waveforms over a refusal the user never sees are what this
+            // used to be.
+            let shown: SimulationError =
+                { ErrType = SimGraphTypes.GenericSimError e
+                  InDependency = None
+                  ComponentsAffected = []
+                  ConnectionsAffected = [] }
+
+            model
+            |> set sidecarSession_ (SessionFailed e)
+            |> set sidecarBuildEndedMs_ (TimeHelpers.getTimeMs ())
+            |> updateWSModel (fun ws -> { ws with State = SimError shown })
+            |> withNoMsg
 
         | Some(OpFetch _), AnsFetched(result, ramRows, probed) ->
             // The entry has already left the table above, whether the fetch worked or not, so the
@@ -651,7 +674,7 @@ let updateUnpinned (msg : Msg) oldModel =
                 // What arrived is in the cache. The refresh redraws from it, and asks for anything the
                 // current view still needs - a wave just selected, or the window the user scrolled to
                 // while this was in flight.
-                WaveSimTop.refreshWaveSim false (getWSModel model) model
+                WaveSimTop.refreshWaveSim false model
             | Error e ->
                 // A fetch that fails now means a fault rather than a wait: the transport waits for a
                 // sidecar that is still starting, so what is left is a session that no longer exists, a

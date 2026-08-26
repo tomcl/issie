@@ -583,6 +583,12 @@ let removeAllSimulationsFromModel (model:Model) =
     // caller is what makes "one simulation stopped means the other rebuilds from scratch" true of
     // both of them: this is the one place both of them go through.
     |> Optic.set sidecarSession_ NoSession
+    // The operations in flight die with the sessions they were for. Their replies still arrive -
+    // a promise cannot be recalled - and finding their number gone from the table is what
+    // discards them: without this, a reply from a simulation of the PREVIOUS project ran its
+    // handler against the new one, which is how switching projects under a live waveform
+    // simulation corrupted the loaded sheets.
+    |> Optic.set sidecarInFlight_ Map.empty
     |> Optic.map waveSim_ (Map.map (fun _ -> releaseWaveSimData))
 
 /// The next operation number.
@@ -604,6 +610,11 @@ let newSeq () =
 /// no window in which both are true, and none in which neither is.
 let sidecarIsBuilding (model: Model) =
     model.SidecarInFlight |> Map.exists (fun _ op -> match op with OpBuild _ -> true | _ -> false)
+
+/// Whether a run chunk is in flight - the loop that advances the .NET simulation, which shows
+/// its own progress and must suppress the stale-waveform warning while it does.
+let sidecarIsRunning (model: Model) =
+    model.SidecarInFlight |> Map.exists (fun _ op -> match op with OpRunForWaves _ -> true | _ -> false)
 
 /// Whether a fetch of waveform data is running.
 ///
@@ -885,11 +896,6 @@ let simulateModel (localBuild: bool) (isWaveSim: bool) (simulatedSheet: string o
     | _, None -> 
         Error (Simulator.makeDummySimulationError "What - Internal Simulation Error starting simulation - I don't think this can happen!"), openSheetCanvasState
     | canvasState, Some project ->
-        // The slice source must match the build being made, from before the first render that
-        // reads it: local computation for a real build, the wire for a carrier - see
-        // PortData.activate.
-        if localBuild then PortData.forget () else PortData.activate ()
-
         let simSheet = Option.defaultValue project.OpenFileName simulatedSheet
         let otherComponents = 
             project.LoadedComponents 

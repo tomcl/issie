@@ -484,13 +484,16 @@ let waveSelectBreadcrumbs
 // naming and grouping of components in WaveSimHelpers.
 
 let toggleWaveSelection (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: Msg -> unit) =
-    let selectedWaves =
-        if List.contains index wsModel.SelectedWaves then
-            List.except [index] wsModel.SelectedWaves
-        else
-            index :: wsModel.SelectedWaves
-    let wsModel' = { wsModel with SelectedWaves = selectedWaves }
-    dispatch (GenerateWaveforms wsModel')
+    // a transform, so two quick toggles compose instead of the second undoing the first
+    dispatch
+    <| GenerateWaveforms(fun wsModel ->
+        let selectedWaves =
+            if List.contains index wsModel.SelectedWaves then
+                List.except [index] wsModel.SelectedWaves
+            else
+                index :: wsModel.SelectedWaves
+
+        { wsModel with SelectedWaves = selectedWaves })
 
 /// Select or deselect every wave a row covers.
 ///
@@ -500,12 +503,15 @@ let toggleWaveSelection (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: M
 /// waves of one component group within one sheet INSTANCE, or of one instance, so they are all at
 /// one depth and the shallowest of them is all of them.
 let toggleSelectSubGroup (wsModel: WaveSimModel) (dispatch: Msg -> unit) (selected: bool) (waves: WaveIndexT list) =
-    let selectedWaves =
-        if selected then
-            List.append wsModel.SelectedWaves waves
-        else
-            List.except waves wsModel.SelectedWaves
-    dispatch (GenerateWaveforms { wsModel with SelectedWaves = selectedWaves })
+    dispatch
+    <| GenerateWaveforms(fun wsModel ->
+        let selectedWaves =
+            if selected then
+                List.append wsModel.SelectedWaves waves
+            else
+                List.except waves wsModel.SelectedWaves
+
+        { wsModel with SelectedWaves = selectedWaves })
 
 let waveCheckBoxItem (wsModel: WaveSimModel) (waveIds: WaveIndexT list) dispatch =
     let checkBoxState = List.exists (fun w -> List.contains w wsModel.SelectedWaves) waveIds

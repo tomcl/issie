@@ -51,7 +51,7 @@ let radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement 
             Tabs.Tab.Props radixTabProps
         ] [ a [
             radixTabAStyle
-            OnClick(fun _ -> dispatch <| GenerateWaveforms {wsModel with Radix = radix})
+            OnClick(fun _ -> dispatch <| GenerateWaveforms(fun wsModel -> { wsModel with Radix = radix }))
             ] [ str radixStr ]
         ]
 
@@ -479,7 +479,15 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
             /// before the answer is made: every view change would show this banner for one frame,
             /// which is the opposite of a warning that means something.
             let staleWarning =
-                let behindMs = TimeHelpers.getTimeMs () - wsModel.ViewSetAtMs
+                // The clock starts at whichever came LAST of: the view changing, the .NET build
+                // finishing, the run loop's final chunk landing. Time spent building or
+                // simulating is not staleness - both have their own feedback - so a long build
+                // or run gets a fresh second of grace before this warns about the fetch.
+                let sinceMs =
+                    [ wsModel.ViewSetAtMs; model.SidecarBuildEndedMs; model.SidecarRunEndedMs ]
+                    |> List.max
+
+                let behindMs = TimeHelpers.getTimeMs () - sinceMs
 
                 let anyWaveBehind () =
                     let window: WaveSlice.Window =
@@ -495,6 +503,10 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
 
                 if
                     model.SpinnerPayload = None
+                    // never while the simulator is building or running: what is on screen is not
+                    // stale then, it is early, and the ops table is what says so
+                    && not (ModelHelpers.sidecarIsBuilding model)
+                    && not (ModelHelpers.sidecarIsRunning model)
                     && behindMs > Constants.staleWaveformWarningMs
                     && anyWaveBehind ()
                 then
@@ -518,7 +530,44 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
                 else
                     []
 
+            /// The run loop's own feedback: a thin bar while the .NET simulator is advancing,
+            /// derived from the ops table (the chunk in flight carries its target) and the
+            /// session's clock - no state of its own. It occupies the same strip the stale
+            /// warning would, and the two are mutually exclusive by construction: the warning is
+            /// suppressed while this shows.
+            let runProgress =
+                if not (ModelHelpers.sidecarIsRunning model) then
+                    []
+                else
+                    let target =
+                        model.SidecarInFlight
+                        |> Map.tryPick (fun _ op ->
+                            match op with
+                            | OpRunForWaves toCycle -> Some toCycle
+                            | _ -> None)
+                        |> Option.defaultValue 0
+
+                    let clock =
+                        match model.SidecarSession with
+                        | Session(_, _, _, clock) -> clock
+                        | _ -> 0
+
+                    [ div
+                          [ Style
+                                [ Background "#e3f2fd"
+                                  BorderBottom "1px solid #64b5f6"
+                                  Color "#0d47a1"
+                                  Padding "4px 8px"
+                                  FontSize "12px" ] ]
+                          [ str $"Simulating: cycle {clock} of {target}"
+                            progress
+                                [ HTMLAttr.Custom("style", "width: 40%; height: 8px; margin-left: 12px; vertical-align: middle")
+                                  HTMLAttr.Value(string clock)
+                                  HTMLAttr.Max(string (max 1 target)) ]
+                                [] ] ]
+
             div [ HTMLAttr.Id "Scroller"; waveformScrollerStyle ] [
+                yield! runProgress
                 yield! staleWarning
                 div [ HTMLAttr.Id "WaveCols" ;showWaveformsStyle ]
                     [

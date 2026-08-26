@@ -18,54 +18,35 @@ module PortData
 open Fable.Core
 open CommonTypes
 
-/// The build the held slices belong to, and the slices themselves. None when the sidecar is not
-/// the simulator, or nothing has been built.
-let mutable private held: (int * System.Collections.Generic.Dictionary<InstancePath, PortView.ComponentSlots list>) option =
+/// The build the held slices belong to - the carrier itself, by reference - its epoch, and the
+/// slices. Keying by the BUILD is what makes staleness impossible rather than managed: a slice
+/// is served only to the exact fs it was fetched for, so a new build reads nothing of the old
+/// one's, with no clearing choreography to get right. None when nothing has been described.
+let mutable private held:
+    (obj * int * System.Collections.Generic.Dictionary<InstancePath, PortView.ComponentSlots list>) option =
     None
 
-/// Drop everything, and stop being the slice source. Called when a simulation ends or the
-/// renderer's own simulator takes over.
-let forget () =
-    held <- None
-    PortView.sliceSource <- None
+/// Release what is held. Memory hygiene only - correctness never needs it, because the keying
+/// above already refuses stale answers.
+let forget () = held <- None
 
-/// Become the slice source, holding nothing yet: every instance answers "not described", which
-/// displays draw as nothing and reconciliation keeps unresolved.
-///
-/// Called the moment the design-only carrier is chosen as the build - NOT when the sidecar's
-/// build completes. In between the two, view code already asks for instance views, and with the
-/// local source still installed those would be computed from the carrier: empty, but Some, and
-/// memoised - poisoning every instance the first render touches as described-and-empty, which
-/// reconciliation reads as the design having lost the whole selection.
-let activate () =
-    held <- None
-
-    PortView.sliceSource <-
-        Some(fun instance ->
-            match held with
-            | Some(_, slices) ->
-                match slices.TryGetValue instance with
-                | true, slice -> Some slice
-                | _ -> None
-            | None -> None)
-
-/// Start holding for a build: what arrives is served from here on.
-let startEpoch (epoch: int) =
-    held <- Some(epoch, System.Collections.Generic.Dictionary())
+/// Start holding for a build: the carrier `fs` under session `epoch`.
+let startEpoch (fs: SimTypes.FastSimulation) (epoch: int) =
+    held <- Some(box fs, epoch, System.Collections.Generic.Dictionary())
 
 /// The build the held slices are of, or None when nothing is held.
-let epochHeld () = held |> Option.map fst
+let epochHeld () = held |> Option.map (fun (_, epoch, _) -> epoch)
 
 /// The instances of `wanted` this build has not yet been asked about.
 let missingOf (wanted: InstancePath list) : InstancePath list =
     match held with
     | None -> []
-    | Some(_, slices) -> wanted |> List.distinct |> List.filter (fun i -> not (slices.ContainsKey i))
+    | Some(_, _, slices) -> wanted |> List.distinct |> List.filter (fun i -> not (slices.ContainsKey i))
 
 /// Fetch and hold the slices of some instances, sequentially in one promise - a slice is a few
 /// hundred bytes and a round trip a fifth of a millisecond, so even a whole design is tens of
 /// milliseconds, and the selector's ask is a handful. Answers landing for a superseded build are
-/// dropped by the epoch check in `store`-time `held` match.
+/// dropped by the epoch check at store time.
 let fetch (epoch: int) (instances: InstancePath list) : JS.Promise<Result<int, string>> =
     let rec go remaining fetched =
         match remaining with
@@ -76,7 +57,7 @@ let fetch (epoch: int) (instances: InstancePath list) : JS.Promise<Result<int, s
                 | Error e -> Promise.lift (Error $"describing {instance}: {e}")
                 | Ok slice ->
                     (match held with
-                     | Some(heldEpoch, slices) when heldEpoch = epoch -> slices[instance] <- slice
+                     | Some(_, heldEpoch, slices) when heldEpoch = epoch -> slices[instance] <- slice
                      | _ -> ())
 
                     go rest (fetched + 1))
@@ -86,5 +67,18 @@ let fetch (epoch: int) (instances: InstancePath list) : JS.Promise<Result<int, s
 /// Test-only: hold one instance's slice as if it had arrived on the wire.
 let storeForTest (epoch: int) (instance: InstancePath) (slice: PortView.ComponentSlots list) =
     match held with
-    | Some(heldEpoch, slices) when heldEpoch = epoch -> slices[instance] <- slice
+    | Some(_, heldEpoch, slices) when heldEpoch = epoch -> slices[instance] <- slice
     | _ -> ()
+
+// Static wiring, not lifecycle: from the moment this module loads, a CARRIER's slices come from
+// here - and only the exact build they were fetched for is ever answered, by reference. Local
+// builds never consult this (PortView derives the source from the build itself).
+do
+    PortView.sliceSource <-
+        Some(fun fs instance ->
+            match held with
+            | Some(heldFs, _, slices) when System.Object.ReferenceEquals(heldFs, box fs) ->
+                match slices.TryGetValue instance with
+                | true, slice -> Some slice
+                | _ -> None
+            | _ -> None)

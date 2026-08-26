@@ -650,10 +650,13 @@ type Msg =
     | UpdateWSModel of (WaveSimModel -> WaveSimModel)
     /// Set the current WaveSimModel to the specified sheet
     /// and update the WaveSimModel of the specified sheet.
-    | SetWSModelAndSheet of WaveSimModel * string
     /// Generate waveforms according to the current parameters
     /// of the given WaveSimModel
-    | GenerateWaveforms of WaveSimModel
+    /// Change the waveform viewer's state and refresh its waveforms to match. Carries a
+    /// TRANSFORM of the state the message lands on, never a snapshot of the state the sender was
+    /// drawn from: a snapshot written back undoes, on arrival, everything dispatched since it was
+    /// taken - which is how the viewer could oscillate between two pasts.
+    | GenerateWaveforms of (WaveSimModel -> WaveSimModel)
     /// Generate waveforms according to the model paramerts of Wavesim
     | GenerateCurrentWaveforms
     /// A fetch of waveform data has landed, or failed. Carries nothing: what arrived is in the
@@ -667,7 +670,11 @@ type Msg =
     /// everything simulated so far, with the viewer moved to the last simulated cycle.
     | CancelWaveSimulation
     /// Run, or rerun, the FastSimulation with the current state of the Canvas.
-    | RefreshWaveSim of WaveSimModel
+    /// Start - or restart - the waveform simulation: stop whatever simulation runs, build, then
+    /// refresh. The ONE way a waveform simulation begins, and an update branch rather than a
+    /// button's closure so the whole sequence runs on the model as it is when the message lands.
+    | StartWaveSimulation
+    | RefreshWaveSim
     /// Sets or clears ShowSheetDetail (clearing will remove all child values in the set)
     | SetWaveSheetSelectionOpen of (string list list * bool)
     /// Sets or clears GroupDetail
@@ -1141,6 +1148,15 @@ type Model = {
     /// synchronous operation never waits behind an asynchronous one, because it is never issued
     /// while one exists.
     SidecarInFlight : Map<SeqNum, SidecarOp>
+    /// When the .NET simulator's last build reply landed, ms on the performance clock. With
+    /// SidecarRunEndedMs, what the stale-waveform warning times itself from: the warning must not
+    /// count time spent building or simulating - both have their own feedback - so its clock
+    /// starts at whichever came last of the view changing and these two ending. Zero when no such
+    /// thing has happened, which max then ignores.
+    SidecarBuildEndedMs : float
+    /// When the last run chunk's reply landed. Stamped per chunk: while the loop runs the warning
+    /// is suppressed anyway, so the stamp that matters is the final one - the loop's end.
+    SidecarRunEndedMs : float
     ShowLibrarySheets : bool
     /// The library sheets the user has asked to look inside, by name. A library component is an
     /// abstraction and its sheet is not normally reachable at all, but understanding how one
@@ -1227,6 +1243,8 @@ let simulateInRenderer_ = Lens.create (fun a -> a.SimulateInRenderer) (fun s a -
 let sidecarSession_ = Lens.create (fun a -> a.SidecarSession) (fun s a -> {a with SidecarSession = s})
 let probeRead_ = Lens.create (fun a -> a.ProbeRead) (fun s a -> {a with ProbeRead = s})
 let sidecarInFlight_ = Lens.create (fun a -> a.SidecarInFlight) (fun s a -> {a with SidecarInFlight = s})
+let sidecarBuildEndedMs_ = Lens.create (fun a -> a.SidecarBuildEndedMs) (fun s a -> {a with SidecarBuildEndedMs = s})
+let sidecarRunEndedMs_ = Lens.create (fun a -> a.SidecarRunEndedMs) (fun s a -> {a with SidecarRunEndedMs = s})
 let showLibrarySheets_ = Lens.create (fun a -> a.ShowLibrarySheets) (fun s a -> {a with ShowLibrarySheets = s})
 let openedLibrarySheets_ = Lens.create (fun a -> a.OpenedLibrarySheets) (fun s a -> {a with OpenedLibrarySheets = s})
 let readOnlyBaseline_ = Lens.create (fun a -> a.ReadOnlyBaseline) (fun s a -> {a with ReadOnlyBaseline = s})

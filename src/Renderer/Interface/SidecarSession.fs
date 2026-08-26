@@ -35,13 +35,30 @@ module Constants =
 /// reach through a side channel is one the view cannot draw from.
 let forget () = ()
 
-/// The error text of a sidecar reply, or None when it is not an error. Every reply that can fail
-/// answers with a JSON object whose only key is "error".
-let errorIn (reply: string) =
-    if reply.StartsWith "{\"error\"" then Some reply else None
-
 [<Emit("JSON.parse($0)")>]
 let parseJson (text: string) : obj = jsNative
+
+[<Emit("(function(o){ return typeof o.error === 'string' ? o.error : null })($0)")>]
+let private errorField (parsed: obj) : string = jsNative
+
+/// The error text of a sidecar reply, or None when it is not an error. Every reply that can fail
+/// answers with a JSON object whose only key is "error" - and what is UNDER that key is the
+/// message written for the user (a refused build says exactly what to set the cycle count to),
+/// so this unwraps it rather than passing the wire envelope on to a screen.
+let errorIn (reply: string) =
+    if reply.StartsWith "{\"error\"" then
+        let inner =
+            try
+                match errorField (parseJson reply) with
+                | null -> reply
+                | text -> text
+            with _ ->
+                reply
+
+        // the simulator's own prefix restates what the context already says
+        Some(inner.Replace("simulation build failed: GenericSimError   '", "").TrimEnd('''))
+    else
+        None
 
 
 /// Build the design on the sidecar, and answer with the session epoch that build issued.

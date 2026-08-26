@@ -505,13 +505,27 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
               $"showing {List.length rams} of {List.length ws.RamComps} RAMs"
 
       "waveSelect",
-      // "<n>" - show the first n waves the simulation offers, as picking them in the selector would.
-      // Which waves those are does not matter for driving the data path; how many there are does.
+      // "<n>" - show the first n waves the design offers, as picking them in the selector would.
+      // Enumerated from the DESIGN, unresolved, in one deterministic order - so the same command
+      // selects the same waves whichever simulator is running, and reconciliation resolves them
+      // against whichever it is. It used to read the local build's wave index, which a renderer
+      // whose simulator is in another process does not have.
       fun arg _ dispatch ->
           match System.Int32.TryParse arg with
           | false, _ -> $"waveSelect needs a number, not '{arg}'"
           | true, n ->
-              let waves = (Simulator.getFastSim ()).WaveIndex |> Array.truncate n |> Array.toList
+              let design = (Simulator.getFastSim ()).Design
+
+              let rec instances (InstancePath ap as inst) sheet =
+                  inst
+                  :: (design.SubSheetsOf sheet
+                      |> List.collect (fun (cid, child) -> instances (InstancePath(ap @ [ cid ])) child))
+
+              let waves =
+                  instances (InstancePath []) design.DesignTopSheet
+                  |> List.collect (PortView.waveIndicesOfDesign design)
+                  |> List.truncate n
+
               dispatch (UpdateWSModel(fun ws -> { ws with SelectedWaves = waves }))
               dispatch GenerateCurrentWaveforms
               $"selected {List.length waves} waves"

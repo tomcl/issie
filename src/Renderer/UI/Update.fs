@@ -55,8 +55,12 @@ let private endWaveSimulation (model: Model) =
     WaveDrawn.forget ()
     // As EndSimulation: the wave selector's and the RAM list's indexes are memoised on the
     // simulation, so they have to be emptied or they retain it for the rest of the session.
+    // PortData is NOT forgotten here: like the simulation slot, this runs when the OTHER
+    // simulator has just started, and its build has already installed the slice source it needs
+    // - tearing it down would make the next render compute an empty slice locally on the carrier
+    // and memoise the poison. The End handlers forget it under the same identity guard that
+    // releases the slot.
     Helpers.clearIdentityMemos ()
-    PortData.forget ()
     let model = removeAllSimulationsFromModel model
 
     match model.WaveSimSheet with
@@ -461,7 +465,8 @@ let updateUnpinned (msg : Msg) oldModel =
         // the cycles that exist.
         let model = { model with SpinnerPayload = None; RunAfterRenderWithSpinner = None }
         let fs = Simulator.getFastSim ()
-        if fs.NumStepArrays = 0 then
+
+        if fs.SimulatedTopSheet = "" then
             model |> withNoMsg
         else
             // The clock of whichever simulator is running. fs.ClockTick is the renderer's own, and
@@ -525,11 +530,11 @@ let updateUnpinned (msg : Msg) oldModel =
         (match model.CurrentStepSimulationStep with
          | Some(Ok sd) when System.Object.ReferenceEquals(sd.FastSim, Simulator.simCache.FastSim) ->
              Simulator.simCache <- Simulator.simCacheInit ()
+             PortData.forget ()
          | _ -> ())
         // The indexes built over a simulation are memoised on the simulation itself, so an
         // unemptied memo holds the whole of it - step arrays and all - after this has let go.
         Helpers.clearIdentityMemos()
-        PortData.forget ()
         model
         |> set currentStepSimulationStep_ None
         |> withNoMsg
@@ -540,7 +545,9 @@ let updateUnpinned (msg : Msg) oldModel =
         // starting a step simulation, and by then the slot already holds the new build.
         (match model.CurrentStepSimulationStep with
          | Some(Ok sd) when System.Object.ReferenceEquals(sd.FastSim, Simulator.simCache.FastSim) -> ()
-         | _ -> Simulator.simCache <- Simulator.simCacheInit ())
+         | _ ->
+             Simulator.simCache <- Simulator.simCacheInit ()
+             PortData.forget ())
 
         match model.WaveSimSheet with
         | None

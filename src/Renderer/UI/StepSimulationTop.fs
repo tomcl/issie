@@ -298,7 +298,8 @@ let tryStartSimulationAfterErrorFix (simType:SimSubTab) (model:Model) =
                     |> withMsgs (simErrFeedback simError (StartSimulation (Error simError)))
 
         | TruthTable ->
-            simulateModel false None 2 canvasState model
+            // a truth table reads its own local simulation whatever the simulator mode
+            simulateModel true false None 2 canvasState model
             |> function
                 | Ok (simData), state ->
                     if simData.IsSynchronous = false then
@@ -326,6 +327,7 @@ let tryStartSimulationAfterErrorFix (simType:SimSubTab) (model:Model) =
                 |> fun model -> {model with WaveSimSheet = Some wsSheet}
             let wsModel = getWSModel model
             match simulateModel
+                    model.SimulateInRenderer
                     true
                     model.WaveSimSheet
                     (wsModel.WSConfig.LastClock + Constants.maxStepsOverflow)

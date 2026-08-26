@@ -244,6 +244,44 @@ let private trySliceOf (fs: FastSimulation) (instance: InstancePath) : Component
     | Some fetched -> fetched instance
     | None -> Some(sheetSliceOf fs instance)
 
+/// The wave-carrying ports of one instance, from the DESIGN alone - no simulation, no slices.
+///
+/// Every wave comes back UNRESOLVED (SimArrayIndex = -1): where its data lies is a build fact
+/// this deliberately does not know. Reconciliation resolves them against whichever simulator
+/// runs - which is what makes this enumeration mode-agnostic, and what the dev harness selects
+/// with. Port counts and numbering are the design's own; the carries-a-wave rule is the same one
+/// ofSlice applies, election by connection included. The one thing a slice adds - dropping an
+/// unconnected input's width-0 port - is left to resolution, where the fetch already records
+/// such a wave as having no driver.
+let waveIndicesOfDesign (design: SimulatedDesign) (InstancePath ap as instance) : WaveIndexT list =
+    let sheet = design.SheetOfInstance instance
+    let inSubSheet = not (List.isEmpty ap)
+
+    let electedIOLabel (comp: Component) =
+        match List.tryItem 0 comp.InputPorts with
+        | None -> false
+        | Some port -> Map.containsKey { Sheet = sheet; PortOnComp = port } design.DesignConnectionsByPort
+
+    design.DesignSheets
+    |> List.tryFind (fun ldc -> ldc.Name = sheet)
+    |> Option.map (fun ldc ->
+        fst ldc.CanvasState
+        |> List.collect (fun comp ->
+            let portsOf portType count =
+                if not (carriesWaveOfSlice comp.Type inSubSheet (electedIOLabel comp) portType) then
+                    []
+                else
+                    [ 0 .. count - 1 ]
+                    |> List.map (fun pn ->
+                        { SimArrayIndex = -1
+                          Id = ComponentId comp.Id, ap
+                          PortType = portType
+                          PortNumber = pn })
+
+            portsOf PortType.Output (List.length comp.OutputPorts)
+            @ portsOf PortType.Input (List.length comp.InputPorts)))
+    |> Option.defaultValue []
+
 /// The ports of one instance that carry a waveform, from the simulation in this process.
 ///
 /// The DERIVATION is `ofSlice`'s - the design plus two ints a port - and this is only the local

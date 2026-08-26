@@ -103,6 +103,35 @@ let setFastSimInputsToDefault (fs:FastSimulation) =
         | _, None -> cid, convertBigintToFastData w 0I)
     |> List.iter (fun (cid, wire) -> FastExtract.changeInput cid (FSInterface.IData wire) 0 fs)
 
+/// The top sheet's components of one kind, as DRAWN, in canvas order - what the step panel's
+/// rows are derived from. A fact about the design: the panel shows top-level components only, so
+/// no instance walk is needed, and the one thing the design cannot say - each port's width - comes
+/// from the top instance's port slice like every other width.
+let private topComponentsWhere (chosen: Component -> bool) (fs: FastSimulation) =
+    fs.Design.DesignSheets
+    |> List.tryFind (fun ldc -> ldc.Name = fs.Design.DesignTopSheet)
+    |> Option.map (fun ldc -> fst ldc.CanvasState |> List.filter chosen)
+    |> Option.defaultValue []
+
+/// The panel's register rows: top-level clocked components that are signals - a memory's contents
+/// are not on a wire and get their own rows.
+let private topRegisters (fs: FastSimulation) =
+    fs
+    |> topComponentsWhere (fun comp ->
+        isClockedPrimitive comp.Type
+        && (match comp.Type with
+            | RAM1 _
+            | AsyncRAM1 _
+            | ROM1 _ -> false
+            | _ -> true))
+
+let private topLevelInputs (fs: FastSimulation) =
+    fs
+    |> topComponentsWhere (fun comp ->
+        match comp.Type with
+        | Input1 _ -> true
+        | _ -> false)
+
 /// The value one top-level input holds at a clock, from whichever simulator is running.
 ///
 /// The renderer's own simulation is built for its structure and never run when the .NET simulator
@@ -110,31 +139,31 @@ let setFastSimInputsToDefault (fs:FastSimulation) =
 /// functions decide whether the inputs on screen match the defaults saved in the sheet, and write
 /// those defaults. Getting that wrong saves zeros over what the user set. In sidecar mode the
 /// value comes from the panel snapshot, which holds exactly these signals for exactly this clock.
-let private inputValueAt (model: Model) (fs: FastSimulation) (fc: FastComponent) (tick: int) =
+let private inputValueAt (model: Model) (fs: FastSimulation) (comp: Component) (tick: int) =
     if model.SimulateInRenderer then
-        FastExtract.getFastComponentOutput fc 0 (tick % fs.MaxArraySize)
+        match FastExtract.extractFastSimulationOutput fs tick (ComponentId comp.Id, []) (OutputPortNumber 0) with
+        | IData fd -> fd.GetBigInt
+        | IAlg _ -> 0I
     else
-        let (ComponentId cid), _ = fc.fId
-
-        StepPanelData.valueAt tick { Comp = cid; Path = []; Port = 0 }
+        StepPanelData.valueAt tick { Comp = comp.Id; Path = []; Port = 0 }
         |> Option.defaultValue 0I
 
 let InputDefaultsEqualInputs fs (model:Model) (clocktick : int)=
     let tick = clocktick
-    fs.FComps
-    |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
-    |> Map.map (fun fid fc ->
-        let cid = fst fid
+
+    topLevelInputs fs
+    |> List.forall (fun comp ->
+        let cid = ComponentId comp.Id
+
         if Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) then
-            let newDefault = inputValueAt model fs fc tick
+            let newDefault = inputValueAt model fs comp tick
             let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
+
             match typ with
             | Input1(_, Some d) -> d = newDefault
             | _ -> newDefault = 0I
         else
             true)
-    |> Map.values
-    |> Seq.forall id
 
 /// Whether Refresh can rebuild without asking: have the inputs held their default values for the
 /// whole run so far, so that restarting loses nothing the user set?
@@ -174,17 +203,17 @@ let setInputDefaultsFromInputs (model: Model) fs (dispatch: Msg -> Unit) (clockt
             {comp with Type = ct}
         {sym with Component = comp'}
     let tick = clocktick
-    fs.FComps
-    |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
-    |> Map.map (fun fid fc ->
-        let cid = fst fid
-        let newDefault = inputValueAt model fs fc tick
+
+    topLevelInputs fs
+    |> List.iter (fun comp ->
+        let cid = ComponentId comp.Id
+        let newDefault = inputValueAt model fs comp tick
+
         SymbolUpdate.updateSymbol (setInputDefault newDefault) cid
         |> Optic.map DrawModelType.SheetT.symbol_
         |> Optic.map ModelType.sheet_
         |> UpdateModel
         |> dispatch)
-    |> ignore
 
 
 
@@ -263,21 +292,11 @@ let panelSignals (simData: SimulationData) : StepPanelData.PanelSignal list =
         viewerInstances simData.FastSim
         |> List.map (fun (comp, InstancePath ap) -> asSignal (ComponentId comp.Id, ap))
 
-    // The stateful rows that are signals; a RAM's and a ROM's contents are not. Still taken from
-    // the simulation's clocked-component array, which is what statefulValues below displays from -
-    // one derivation, so a row cannot be shown that was never asked for. Both move together when
-    // that display stops needing FastComponent records.
+    // the stateful rows that are signals; a RAM's and a ROM's contents are not. The same design
+    // list statefulValues displays from, so a row cannot be shown that was never asked for
     let registers =
-        simData.FastSim.FClockedComps
-        |> Array.toList
-        |> List.filter (fun fc ->
-            fc.AccessPath = []
-            && (match fc.FType with
-                | RAM1 _
-                | AsyncRAM1 _
-                | ROM1 _ -> false
-                | _ -> true))
-        |> List.map (fun fc -> asSignal fc.fId)
+        topRegisters simData.FastSim
+        |> List.map (fun comp -> asSignal (ComponentId comp.Id, []))
 
     ios @ viewers @ registers |> List.distinct
 
@@ -555,24 +574,18 @@ let viewerValues (model: Model) (simData: SimulationData) =
 let statefulValues (model: Model) (simData: SimulationData) =
     if model.SimulateInRenderer then
         FastExtract.extractStatefulComponents simData.ClockTickNumber simData.FastSim
+        |> Array.map (fun (fc, state) -> fc.FullName, fc.FType, state)
     else
-        simData.FastSim.FClockedComps
-        |> Array.filter (fun fc ->
-            fc.AccessPath = []
-            && (match fc.FType with
-                | RAM1 _
-                | AsyncRAM1 _
-                | ROM1 _ -> false
-                | _ -> true))
-        |> Array.map (fun fc ->
-            let (ComponentId cid), _ = fc.fId
-            let width = fc.OutputWidth 0
+        topRegisters simData.FastSim
+        |> List.map (fun comp ->
+            let width = outputWidthOf simData.FastSim (ComponentId comp.Id, [])
 
             let value =
-                StepPanelData.valueAt simData.ClockTickNumber { Comp = cid; Path = []; Port = 0 }
+                StepPanelData.valueAt simData.ClockTickNumber { Comp = comp.Id; Path = []; Port = 0 }
                 |> Option.defaultValue 0I
 
-            fc, RegisterState(convertBigintToFastData width value))
+            comp.Label, comp.Type, RegisterState(convertBigintToFastData width value))
+        |> Array.ofList
 
 /// The top-level memories the stateful panel offers a View button for.
 ///
@@ -580,14 +593,12 @@ let statefulValues (model: Model) (simData: SimulationData) =
 /// rather than on a wire, so they are not a signal to be read with the rest - and are listed here
 /// instead, to be read only when the button is pressed.
 let ramComponents (simData: SimulationData) =
-    simData.FastSim.FClockedComps
-    |> Array.filter (fun fc ->
-        fc.AccessPath = []
-        && (match fc.FType with
-            | RAM1 _
-            | AsyncRAM1 _ -> true
-            | _ -> false))
-    |> Array.toList
+    simData.FastSim
+    |> topComponentsWhere (fun comp ->
+        match comp.Type with
+        | RAM1 _
+        | AsyncRAM1 _ -> true
+        | _ -> false)
 
 /// Read one memory from the .NET simulator and open the diff against its initial contents.
 ///
@@ -599,17 +610,17 @@ let ramComponents (simData: SimulationData) =
 /// else. A window coming back means the memory is written in too many places to read whole -
 /// `RamStore.Constants.maxSlotsForWholeRead` - which is the same answer the local button gives by
 /// disabling itself, said after the fact because only the far side knows.
-let openRemoteRamDiff (fc: FastComponent) (cycle: int) (model: Model) (dispatch: Msg -> unit) =
+let openRemoteRamDiff (ram: Component) (cycle: int) (model: Model) (dispatch: Msg -> unit) =
     let initial =
-        match fc.FType with
+        match ram.Type with
         | RAM1 m
         | AsyncRAM1 m -> m
-        | _ -> failwithf $"what? openRemoteRamDiff expected a RAM but got {fc.FType}"
+        | _ -> failwithf $"what? openRemoteRamDiff expected a RAM but got {ram.Type}"
 
     match model.SidecarSession.Epoch with
     | None -> Log.error "there is no .NET simulation to read a memory from"
     | Some epoch ->
-        let (ComponentId cid), path = fc.fId
+        let cid, path = ram.Id, []
 
         promise {
             let! reply =
@@ -623,10 +634,10 @@ let openRemoteRamDiff (fc: FastComponent) (cycle: int) (model: Model) (dispatch:
                     0
 
             match reply with
-            | Error e -> Log.error $"the .NET simulator could not read memory '{fc.FLabel}': {e}"
+            | Error e -> Log.error $"the .NET simulator could not read memory '{ram.Label}': {e}"
             | Ok(RamView.RamWindow _) ->
                 errorNotification
-                    $"'{fc.FLabel}' has been written in too many places to compare with its initial                       contents. The waveform simulator's RAM table shows a window of it."
+                    $"'{ram.Label}' has been written in too many places to compare with its initial                       contents. The waveform simulator's RAM table shows a window of it."
                     CloseSimulationNotification
                 |> SetSimulationNotification
                 |> dispatch
@@ -747,8 +758,8 @@ let private viewViewers numBase (simViewers : ((string*string) * int * FSInterfa
 
 let private viewStatefulComponents step comps numBase model dispatch =
     let getWithDefault (lab:string) = if lab = "" then "no-label" else lab
-    let makeStateLine ((fc,state) : FastComponent*SimulationComponentState) =
-        let label = getWithDefault fc.FullName
+    let makeStateLine ((fullName, compType, state): string * ComponentType * SimulationComponentState) =
+        let label = getWithDefault fullName
         match state with
         | RegisterState fd when fd.Width = 1 ->
             let bit = if fd = SimGraphTypes.fastDataZero then Zero else One
@@ -788,7 +799,7 @@ let private viewStatefulComponents step comps numBase model dispatch =
                     Button.OnClick (fun _ -> dispatch <| ExecFuncInMessage(
                         (fun model _ ->
                             match RamStore.toMemoryIfSmall ram step with
-                            | Some mem -> openMemoryDiffViewer (initialMem fc.FType) mem model dispatch
+                            | Some mem -> openMemoryDiffViewer (initialMem compType) mem model dispatch
                             | None -> ()), dispatch)
                     )
                 ] [ str "View" ]
@@ -1062,7 +1073,7 @@ let private simulationClockChangePopup (simData: SimulationData) (dispatch: Msg 
     let restartsimrequired (lastStepNeeded: int) = (simData.FastSim.ClockTick - lastStepNeeded) >= simData.FastSim.MaxArraySize
     div [] 
         [
-            h6 [] [str $"This simulation contains {simData.FastSim.FComps.Count} components"]
+            h6 [] [str $"This simulation contains {simData.FastSim.Design.ExpandedComponentCount} components"]
             (match dialog.Int with 
             | Some n when restartsimrequired n -> 
                 Text.p 
@@ -1100,7 +1111,7 @@ let doBatchOfMsgsAsynch (msgs: seq<Msg>) =
 let simulateWithProgressBar (simProg: SimulationProgress) (model:Model) =
     match model.CurrentStepSimulationStep, model.PopupDialogData.Progress with
     | Some (Ok simData), Some barData ->
-        let nComps = float simData.FastSim.FComps.Count
+        let nComps = float simData.FastSim.Design.ExpandedComponentCount
         let oldClock = clockNow model simData
         let t1 = getTimeMs()
         // Cmd.ofEffect rather than a run and a batch of messages: with the .NET simulator the
@@ -1149,7 +1160,7 @@ let simulationClockChangeAction dispatch simData (model': Model) =
             clock - simData.ClockTickNumber
         else 
             clock
-    let numComps = float simData.FastSim.FComps.Count
+    let numComps = float simData.FastSim.Design.ExpandedComponentCount
     let t1 = getTimeMs ()
 
     // ONE CHUNK FIRST, then decide whether there is anything to show a bar for.
@@ -1258,14 +1269,14 @@ let viewSimulationData (step: int) (simData : SimulationData) model dispatch =
             if model.SimulateInRenderer then []
             else
                 ramComponents simData
-                |> List.map (fun fc ->
+                |> List.map (fun ram ->
                     splittedLine
-                        (str $"RAM: %s{fc.FullName}")
+                        (str $"RAM: %s{ram.Label}")
                         (Button.button [
                             Button.Props [ simulationBitStyle ]
                             Button.Color IsPrimary
                             Button.OnClick (fun _ -> dispatch <| ExecFuncInMessage(
-                                (fun model _ -> openRemoteRamDiff fc simData.ClockTickNumber model dispatch), dispatch))
+                                (fun model _ -> openRemoteRamDiff ram simData.ClockTickNumber model dispatch), dispatch))
                          ] [ str "View" ]))
         match List.isEmpty stateful && List.isEmpty remoteRams with
         | true -> div [] []
@@ -1333,7 +1344,7 @@ let tryGetSimData isWaveSim canvasState model =
     match rendererStepArraySize model with
     | Error e -> Error e
     | Ok arraySize ->
-    simulateModel isWaveSim None arraySize canvasState model
+    simulateModel model.SimulateInRenderer isWaveSim None arraySize canvasState model
     |> function
         | Ok (simData), state -> 
             if simData.FastSim.ClockTick = 0 then 

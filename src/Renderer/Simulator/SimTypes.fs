@@ -501,6 +501,22 @@ type SimulatedDesign =
                 counts
                 |> Map.change child (fun c -> Some(min ceiling (Option.defaultValue 0 c + here)))))
 
+    /// How many components the design expands to - what the simulation holds, said without
+    /// holding one. One canvas component becomes one simulated component per instance of its
+    /// sheet, so the expansion count is per-sheet arithmetic over the instance counts, saturating
+    /// where they do.
+    member this.ExpandedComponentCount : int =
+        this.SheetInstanceCounts
+        |> Map.fold
+            (fun total sheet count ->
+                let compsOnSheet =
+                    Map.tryFind sheet this.DesignComponentsById
+                    |> Option.map Map.count
+                    |> Option.defaultValue 0
+
+                total + count * compsOnSheet)
+            0
+
     /// The one instance of a sheet, where the design has exactly one; None where it has none or
     /// several.
     ///

@@ -902,7 +902,7 @@ let viewTruthTableData (table: TruthTable) (model:Model) dispatch =
 let restartTruthTable canvasState model dispatch = fun _ ->
     let ttDispatch (ttMsg: TTMsg) : Unit = dispatch (TruthTableMsg ttMsg)
 
-    let wholeSimRes = ModelHelpers.simulateModel false None 2 canvasState model
+    let wholeSimRes = ModelHelpers.simulateModel true false None 2 canvasState model
     match wholeSimRes with
     | Error simError, _ ->
         SimulationView.setSimErrorFeedback simError model dispatch
@@ -989,7 +989,7 @@ let viewTruthTable canvasState model dispatch =
 
     match model.CurrentTruthTable with
     | None ->
-        let wholeSimRes = ModelHelpers.simulateModel false None 2 canvasState model
+        let wholeSimRes = ModelHelpers.simulateModel true false None 2 canvasState model
         let wholeButton =
             match wholeSimRes with
             | Error simError, _ ->

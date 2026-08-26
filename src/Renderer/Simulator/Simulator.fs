@@ -400,9 +400,52 @@ let makeDummySimulationError msg = {
         ComponentsAffected = []
     }
 
+/// A simulation carrier with no simulation in it: what the renderer holds when the .NET sidecar
+/// is the one simulating.
+///
+/// It carries the DESIGN - which answers every structure question the UI asks - the top sheet's
+/// IOs, whether the circuit is clocked, and the checked graph, exactly as a real build would. What
+/// it does not hold is the expansion: no components, no step arrays, no drivers. Widths and data
+/// come from the sidecar - widths through the port slices, data through the reads - and the local
+/// fields every gate consults say so: NumStepArrays 0, empty maps.
+///
+/// The design is still validated here, by the same checks a build runs, so a design that cannot
+/// simulate is refused synchronously with the same error the user has always seen - components
+/// highlighted and all. What is skipped is everything after validation: the flatten, the arrays,
+/// the ordering.
+let designOnlySimulation
+    (simulationArraySize: int)
+    (diagramName: string)
+    (canvasState: CanvasState)
+    (loadedDependencies: LoadedComponent list)
+    : Result<SimulationData, SimulationError> =
+    match validateCircuitSimulation diagramName canvasState loadedDependencies with
+    | Error e -> Error e
+    | Ok graph ->
+        let fs =
+            { FastCreate.emptyFastSimulation diagramName with MaxArraySize = simulationArraySize }
+            |> saveStateInSimulation canvasState diagramName loadedDependencies
+
+        let components, _ = canvasState
+        let inputs, outputs = getSimulationIOs components
+
+        Ok
+            { FastSim = fs
+              Graph = graph
+              Inputs = inputs
+              Outputs = outputs
+              IsSynchronous = hasSynchronousComponents graph
+              NumberBase = Hex
+              ClockTickNumber = 0 }
+
 /// Start up a simulation, doing all necessary checks and generating simulation errors
 /// if necesary. The code to do this is quite long so results are memoized. 
+///
+/// `localBuild` false builds the design-only carrier above instead of a real simulation - what
+/// the renderer wants when the sidecar simulates. Truth tables always pass true: they read their
+/// own local simulation whatever mode the simulators are in.
 let prepareSimulationMemoized
+        (localBuild: bool)
         (isWaveSim: bool)
         (simulationArraySize: int)
         (openFileName: string)
@@ -415,21 +458,33 @@ let prepareSimulationMemoized
     // below, so switching simulators always misses the memo and rebuilds.
     let storedArraySize = simCache.FastSim.MaxArraySize
 
+    // A carrier and a real build of the same design must not answer for each other, and which the
+    // slot holds is written in it: a real build has step arrays, a carrier has none.
+    let storedIsLocal = simCache.FastSim.NumStepArrays > 0
+
     let ldcs = addStateToLoadedComponents openFileName canvasState loadedDependencies
     let isSame =
             storedArraySize = simulationArraySize &&
+            localBuild = storedIsLocal &&
             diagramName = simCache.Name &&
             cacheIsEqual simCache ldcs
     if isSame then
         simCache.StoredResult, canvasState
     else
-        let kind = if isWaveSim then "waveform simulation" else "simulation"
+        let kind =
+            (if isWaveSim then "waveform simulation" else "simulation")
+            + (if localBuild then "" else " (design-only: the .NET sidecar simulates)")
+
         Log.dbg Log.Sim $"new {kind} of {simulationArraySize} clocks"
         simCache <- {simCache with StoredResult = Error <| makeDummySimulationError "Simulation deleted"; FastSim = FastCreate.simulationPlaceholder}
         let simResult =
             getStateAndDependencies diagramName ldcs
             |> Result.mapError makeDummySimulationError
-            |> Result.bind (fun (_, state, ldcs) -> startCircuitSimulation simulationArraySize diagramName state ldcs)
+            |> Result.bind (fun (_, state, ldcs) ->
+                if localBuild then
+                    startCircuitSimulation simulationArraySize diagramName state ldcs
+                else
+                    designOnlySimulation simulationArraySize diagramName state ldcs)
         let fastSim =
             simResult
             |> Result.map (fun sd -> sd.FastSim)

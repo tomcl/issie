@@ -89,12 +89,12 @@ let tests =
             let deps = List.tail newProject
             let stale, _ =
                 Simulator.prepareSimulationMemoized
-                    true 100 openSheet.Name "eep1" openSheet.CanvasState deps
+                    true true 100 openSheet.Name "eep1" openSheet.CanvasState deps
             Expect.isError stale "the stale name is refused"
 
             let good, _ =
                 Simulator.prepareSimulationMemoized
-                    true 100 openSheet.Name openSheet.Name openSheet.CanvasState deps
+                    true true 100 openSheet.Name openSheet.Name openSheet.CanvasState deps
             Expect.isOk good "and the next simulation of a real sheet is built rather than cached away"
 
             // this suite's other groups share these globals

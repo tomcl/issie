@@ -41,6 +41,7 @@ let main argv =
         KeyBindingTests.tests
         VerilogOutput.tests
         SourceHygiene.tests
+        CarrierTests.tests
         // The VerilogCompiler group spawns node for every parse (the real nearley parser) and
         // takes most of the suite's runtime, so it runs locally only, not on CI runners.
         // GitHub Actions (and most CI systems) set CI=true.

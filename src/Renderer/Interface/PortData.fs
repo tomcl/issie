@@ -29,11 +29,16 @@ let forget () =
     held <- None
     PortView.sliceSource <- None
 
-/// Start holding for a build, and become the slice source: from this moment instance views in
-/// sidecar mode answer from what has arrived, and an instance not yet described answers None -
-/// which every display draws as nothing-yet, and reconciliation keeps unresolved.
-let startEpoch (epoch: int) =
-    held <- Some(epoch, System.Collections.Generic.Dictionary())
+/// Become the slice source, holding nothing yet: every instance answers "not described", which
+/// displays draw as nothing and reconciliation keeps unresolved.
+///
+/// Called the moment the design-only carrier is chosen as the build - NOT when the sidecar's
+/// build completes. In between the two, view code already asks for instance views, and with the
+/// local source still installed those would be computed from the carrier: empty, but Some, and
+/// memoised - poisoning every instance the first render touches as described-and-empty, which
+/// reconciliation reads as the design having lost the whole selection.
+let activate () =
+    held <- None
 
     PortView.sliceSource <-
         Some(fun instance ->
@@ -43,6 +48,10 @@ let startEpoch (epoch: int) =
                 | true, slice -> Some slice
                 | _ -> None
             | None -> None)
+
+/// Start holding for a build: what arrives is served from here on.
+let startEpoch (epoch: int) =
+    held <- Some(epoch, System.Collections.Generic.Dictionary())
 
 /// The build the held slices are of, or None when nothing is held.
 let epochHeld () = held |> Option.map fst
@@ -73,3 +82,9 @@ let fetch (epoch: int) (instances: InstancePath list) : JS.Promise<Result<int, s
                     go rest (fetched + 1))
 
     go (List.distinct instances) 0
+
+/// Test-only: hold one instance's slice as if it had arrived on the wire.
+let storeForTest (epoch: int) (instance: InstancePath) (slice: PortView.ComponentSlots list) =
+    match held with
+    | Some(heldEpoch, slices) when heldEpoch = epoch -> slices[instance] <- slice
+    | _ -> ()

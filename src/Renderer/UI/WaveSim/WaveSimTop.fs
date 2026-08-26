@@ -254,7 +254,13 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
     if model.SimulateInRenderer && cycleLimit >= fs.MaxArraySize then
         failwithf $"Sanity check failed: lastCycleNeeded = {cycleLimit} >= fs.MaxArraySize = {fs.MaxArraySize}"
 
-    if fs.NumStepArrays = 0 then
+    // Whether there is a simulation to draw from. The renderer's own build answers with its
+    // arrays; the sidecar's answers with the design the carrier holds, because in that mode the
+    // local array count is zero by construction, however real the simulation.
+    let nothingBuilt =
+        if model.SimulateInRenderer then fs.NumStepArrays = 0 else fs.SimulatedTopSheet = ""
+
+    if nothingBuilt then
         // There is no simulation to draw from. That is not a quiet case to skip: the viewer is
         // showing waveforms, this refresh has just recorded that the view changed, and returning
         // here leaves those waveforms drawn for a view that will now never be fetched - silently,
@@ -302,7 +308,10 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
         let driversOf (ws: WaveSimModel) =
             ws.SelectedWaves
             |> List.map (fun wi -> wi.SimArrayIndex)
-            |> List.filter (fun i -> i >= 0 && i < fs.Drivers.Length)
+            // Negative means unresolved - nothing to read. The upper bound is only the renderer's
+            // own driver table; a handle in sidecar mode is valid because the build's slices
+            // issued it, and the local table is empty by construction.
+            |> List.filter (fun i -> i >= 0 && (not model.SimulateInRenderer || i < fs.Drivers.Length))
 
         // Which simulator is answering, decided once. Nothing below asks again: the refresh has
         // one question - is the data for this view here yet - and only the answer differs.
@@ -547,7 +556,9 @@ let private missingForWaves (model: Model) (project: Project) : Missing option =
             let candidates =
                 ws.SelectedWaves
                 |> List.append addressWaves
-                |> List.filter (fun wi -> wi.SimArrayIndex >= 0 && wi.SimArrayIndex < fs.Drivers.Length)
+                // negative is unresolved; the local driver table bounds nothing here, because in
+                // this mode the handles were issued by the sidecar's own slices
+                |> List.filter (fun wi -> wi.SimArrayIndex >= 0)
                 |> List.distinctBy (fun wi -> wi.SimArrayIndex)
 
             let missing =
@@ -566,7 +577,7 @@ let private missingForWaves (model: Model) (project: Project) : Missing option =
             |> List.tryHead
             |> Option.map (fun (ramId, _) -> ramId, RamData.keyOf model ramId)
 
-        if fs.NumStepArrays = 0 then
+        if fs.SimulatedTopSheet = "" then
             None
         else
             // What the SIDECAR allocates, from the configuration - not from the renderer's own
@@ -606,7 +617,7 @@ let private missingForWaves (model: Model) (project: Project) : Missing option =
 /// talking to the sidecar that had to be kept in step with this one.
 let private missingForPanel (model: Model) (project: Project) : Missing option =
     match model.CurrentStepSimulationStep with
-    | Some(Ok simData) when simData.FastSim.NumStepArrays > 0 ->
+    | Some(Ok simData) when simData.FastSim.SimulatedTopSheet <> "" ->
         let cycle = simData.ClockTickNumber
 
         if StepPanelData.cycleHeld () = Some cycle then
@@ -681,14 +692,17 @@ let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd
             |> Option.map (fun miss -> { miss with MissProbe = probe })
         with
         | None -> model, cmd
-        | Some miss when
+        | Some miss ->
+
+        /// Nothing fetchable right now. That must not skip the BUILD below: with the sidecar
+        /// simulating, a freshly loaded selection is entirely unresolved until the build's slices
+        /// arrive, so at the very moment a build is most needed there is nothing to fetch - the
+        /// early-out that stood here kept the session unbuilt for ever, quietly showing nothing.
+        let nothingToRead =
             List.isEmpty miss.MissWaves
             && miss.MissRam.IsNone
             && miss.MissPanel.IsNone
             && miss.MissProbe.IsNone
-            ->
-            model, cmd
-        | Some miss ->
 
         /// Everything this pass wants read, in order, in one promise. The session has already been
         /// run far enough - that is a separate operation, sequenced below - so nothing here
@@ -755,6 +769,8 @@ let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd
                       ()
                       (fun result -> SidecarReply(seq, AnsRan result))
                       (fun exn -> SidecarReply(seq, AnsRan(Error exn.Message))) ]
+
+        | _ when nothingToRead -> model, cmd
 
         | session ->
             let alsoRam =
@@ -870,7 +886,7 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
                 else
                     min (Constants.waveSimRequiredArraySize wsModel) Constants.rendererArraySizeWhenSidecarSimulates
 
-            ModelHelpers.simulateModel true model.WaveSimSheet arraySize canvasState model
+            ModelHelpers.simulateModel model.SimulateInRenderer true model.WaveSimSheet arraySize canvasState model
 
         match simRes with
         | (Error e, _) ->

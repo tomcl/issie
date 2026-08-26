@@ -879,18 +879,23 @@ let stepSimCycles (wanted: int) (cost: SimTypes.StepCost) : int option =
     | affordable when affordable >= Constants.minStepArraySize -> Some affordable
     | _ -> None
 
-let simulateModel (isWaveSim: bool) (simulatedSheet: string option) (simulationArraySize: int) openSheetCanvasState model =
+let simulateModel (localBuild: bool) (isWaveSim: bool) (simulatedSheet: string option) (simulationArraySize: int) openSheetCanvasState model =
     let start = TimeHelpers.getTimeMs()
     match openSheetCanvasState, model.CurrentProj with
     | _, None -> 
         Error (Simulator.makeDummySimulationError "What - Internal Simulation Error starting simulation - I don't think this can happen!"), openSheetCanvasState
     | canvasState, Some project ->
+        // The slice source must match the build being made, from before the first render that
+        // reads it: local computation for a real build, the wire for a carrier - see
+        // PortData.activate.
+        if localBuild then PortData.forget () else PortData.activate ()
+
         let simSheet = Option.defaultValue project.OpenFileName simulatedSheet
         let otherComponents = 
             project.LoadedComponents 
             |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
         (canvasState, otherComponents)
-        ||> Simulator.prepareSimulationMemoized isWaveSim simulationArraySize project.OpenFileName simSheet 
+        ||> Simulator.prepareSimulationMemoized localBuild isWaveSim simulationArraySize project.OpenFileName simSheet 
         |> TimeHelpers.instrumentInterval "MakeSimData" start
 
 //------------------------------------------------------------------------------------------------//

@@ -470,6 +470,13 @@ and private refreshAndIssue (dispatch: Msg -> unit) (newSimulation: bool) (ws: W
 type private Missing =
     { /// the cycle the session must have reached before any of it can be read
       MissCycle: int
+      /// the cycle a run should aim FOR - MissCycle plus prefetch. The waveform viewer runs one
+      /// window ahead of the one being read, so that stepping forward finds the next window
+      /// already simulated: one longer run instead of an annoying gap on every step. A user
+      /// affordance, not a correctness need, and deliberately one expression to adjust. Reads do
+      /// not wait for it - a chunk that reaches MissCycle unblocks the fetch, and whatever the
+      /// chunk ran beyond it is the prefetch banked.
+      MissRunTo: int
       /// how many cycles of arrays the sidecar's build must hold
       MissArraySize: int
       /// the design to build, if it is not built
@@ -562,12 +569,17 @@ let private missingForWaves (model: Model) (project: Project) : Missing option =
             // whatever the configuration says.
             let arraySize = ModelHelpers.Constants.waveSimRequiredArraySize ws
 
+            let readableAt =
+                ram
+                |> Option.map (fun (_, key) -> key.Cycle)
+                |> Option.defaultValue 0
+                |> max (window.LastCycle + 1)
+
             Some
-                { MissCycle =
-                    ram
-                    |> Option.map (fun (_, key) -> key.Cycle)
-                    |> Option.defaultValue 0
-                    |> max (window.LastCycle + 1)
+                { MissCycle = readableAt
+                  // never below MissCycle: at the end of the configured run readableAt can pass
+                  // LastClock, and a run target short of the gate would run forever reaching it
+                  MissRunTo = max readableAt (min ws.WSConfig.LastClock (readableAt + window.SampleCount * window.Multiplier))
                   MissArraySize = arraySize
                   MissDesign =
                     ModelHelpers.designOf project (model.Sheet.GetCanvasState())
@@ -602,6 +614,8 @@ let private missingForPanel (model: Model) (project: Project) : Missing option =
             else
                 Some
                     { MissCycle = cycle
+                      // no prefetch: the step simulator's next cycle is one click away and cheap
+                      MissRunTo = cycle
                       MissArraySize =
                         SimulationView.stepSimArraySize model
                         |> Result.defaultValue SimulationView.Constants.maxArraySize
@@ -726,7 +740,7 @@ let fetchWhatIsMissing (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd
         | session when session.Clock < miss.MissCycle ->
             let seq = ModelHelpers.newSeq ()
             let epoch = Option.get session.Epoch
-            let runOne () = SidecarSession.runChunk epoch miss.MissCycle
+            let runOne () = SidecarSession.runChunk epoch miss.MissRunTo
 
             model |> Optic.map sidecarInFlight_ (Map.add seq (OpRunForWaves miss.MissCycle)),
             Elmish.Cmd.batch

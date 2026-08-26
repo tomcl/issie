@@ -150,6 +150,15 @@ let SimReadRam = 0x0Cuy
 [<Literal>]
 let SimPorts = 0x0Duy
 
+/// SimRead by driver HANDLE: the indices the port slice (SimPorts) handed out, valid for this
+/// build. Payload: uint32 LE epoch, uint32 LE start cycle, uint32 LE rep, uint32 LE sample
+/// count, uint32 LE signal count, then that many uint32 LE driver indices. Reply: exactly
+/// SimRead's layout. The signal is already resolved - the handle IS the array - so this does no
+/// lookup by name at all; an index this build did not issue, or one naming an array that is not
+/// a signal (a state array, an unconnected input's dummy), is an error reply.
+[<Literal>]
+let SimReadDrivers = 0x0Euy
+
 [<Literal>]
 let ResponseFlag = 0x80uy
 

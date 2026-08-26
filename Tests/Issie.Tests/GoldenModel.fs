@@ -183,7 +183,7 @@ let private portsAsText (fs: FastSimulation) (inst: InstancePath) =
     (PortView.ofInstance fs inst).ViewPorts
     |> List.map (fun p ->
         $"{p.PortComp} {p.PortIs} {p.PortNum} idx={p.PortArrayIndex} w={p.PortWidth} \
-          drv={p.PortDrivenBy} '{p.PortDisplayName}' '{p.PortLabel}' '{p.PortCompLabel}'")
+          '{p.PortDisplayName}' '{p.PortLabel}' '{p.PortCompLabel}'")
 
 /// The waveform viewer asks PortView which ports an instance offers, how wide each is, and where
 /// its data lies. That is the ONE thing about a build the viewer cannot get from the design - and

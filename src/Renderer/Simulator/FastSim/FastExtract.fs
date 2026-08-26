@@ -137,6 +137,35 @@ let rec tryFindOutputArray
         | Some inner -> tryFindOutputArray fs inner (OutputPortNumber 0)
         | None -> Error $"no component {cid} at {ap} in this simulation"
 
+/// Every step array of a build, dense by its own index - what turns a driver HANDLE back into
+/// the array it names, in one indexed load.
+///
+/// A driver index is what the port slice hands the renderer (PortView.sheetSliceOf) and what a
+/// read quotes back, so the simulator answering reads must be able to look one up without the
+/// wave tables a lean build does not have. Slots nothing owns - a clocked component's state
+/// array, allocated an index but not an IOArray - stay None, and a read naming one is an error.
+///
+/// Memoised on the simulation: one array per build, the length of NumStepArrays, filled by one
+/// walk of the components. On the renderer this is never built - the renderer reads no arrays by
+/// handle - so the memo costs nothing there.
+let driverArraysOf: FastSimulation -> IOArray option array =
+    Helpers.memoizeByIdentity (fun (fs: FastSimulation) ->
+        let arrays: IOArray option array = Array.create fs.NumStepArrays None
+
+        let add (io: IOArray) =
+            if io.Index >= 0 && io.Index < arrays.Length then
+                arrays[io.Index] <- Some io
+
+        let addAllOf (comps: Map<FComponentId, FastComponent>) =
+            comps
+            |> Map.iter (fun _ fc ->
+                Array.iter add fc.Outputs
+                Array.iter add fc.InputLinks)
+
+        addAllOf fs.FComps
+        addAllOf fs.FCustomComps
+        arrays)
+
 /// One sample of a resolved array, as a bigint whatever the width.
 ///
 /// The modulo is not optional. A step array is a REGION of a shared slab, so a step past the end

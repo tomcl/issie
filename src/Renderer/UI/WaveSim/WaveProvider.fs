@@ -31,30 +31,22 @@ open WaveSlice
 /// simulator shares: the sidecar holds one simulation at a time, so one module knows what it is.
 let forget () = SidecarSession.forget ()
 
-/// The signal a wave's data comes from, named as the sidecar names one: (component, output port,
-/// access path), with the width to read it at.
+/// The width of a wave's signal, or None where there is no signal - an input port with nothing
+/// driving it. A lookup in the instance's port list, which the viewer holds anyway.
 ///
-/// A wave names a PORT, and a port is not always where the data lives - an input port reads the
-/// array of the output driving it. `PortView` has already worked that out for every port of the
-/// instance, so this is a lookup in a list the viewer holds anyway, costing one sheet per instance
-/// touched rather than anything proportional to the design's expansion.
-///
-/// It used to be a map from driver index to signal built by folding over EVERY component and then
-/// over the whole wave index - 7-10 MB on main5, rebuilt whenever the simulation was. The map
-/// existed because the caller had thrown the wave away and was passing a bare driver index; it now
-/// passes the wave, which knew the answer all along.
-///
-/// A ComponentId IS an integer here - the whole design is reduced to integer ids when a project is
-/// opened (Helpers.RegenerateIds), which is what lets the sidecar name components at all - so the
-/// conversion below is a rename.
-let private signalOf (fs: FastSimulation) (wi: WaveIndexT) : ((int * int * int list) * int) option =
+/// This is all that is asked about a wave before fetching it. WHERE the data lies needs no lookup
+/// at all: the wave's SimArrayIndex is the driver HANDLE this build issued (the port slice hands
+/// them out, and an input port's index is already the array of the output driving it, resolved by
+/// the simulator's own linker), and the fetch quotes it straight back. It used to be turned back
+/// into a (component, port, path) name here for the simulator to resolve again on arrival - the
+/// same fact, derived twice.
+let private widthOf (fs: FastSimulation) (wi: WaveIndexT) : int option =
     let compId, ap = wi.Id
 
     (PortView.ofInstanceCached fs (InstancePath ap)).ViewPorts
     |> List.tryFind (fun p -> p.PortComp = compId && p.PortIs = wi.PortType && p.PortNum = wi.PortNumber)
-    |> Option.bind (fun p -> p.PortDrivenBy |> Option.map (fun driver -> driver, p.PortWidth))
-    |> Option.map (fun (((ComponentId comp, path), port), width) ->
-        (comp, port, path |> List.map (fun (ComponentId p) -> p)), width)
+    |> Option.map (fun p -> p.PortWidth)
+    |> Option.filter (fun width -> width > 0)
 
 /// Fetch some waves over the window they are about to be drawn over, and add them to the cache.
 ///
@@ -85,7 +77,7 @@ let private fetchWaves
 
     let wanted =
         asked
-        |> List.choose (fun wi -> signalOf fs wi |> Option.map (fun (s, width) -> wi.SimArrayIndex, s, width))
+        |> List.choose (fun wi -> widthOf fs wi |> Option.map (fun width -> wi.SimArrayIndex, width))
 
     // Waves this simulation offers no way to name: an input port with nothing driving it, which is
     // an unconnected input. They are recorded as having no driver rather than left missing - a
@@ -93,7 +85,7 @@ let private fetchWaves
     // ever. The rest of the view is fetched as usual, which is the point: refusing the whole
     // request over them left the viewer blank.
     let unnameable =
-        let named = wanted |> List.map (fun (i, _, _) -> i) |> Set.ofList
+        let named = wanted |> List.map fst |> Set.ofList
         asked |> List.map (fun wi -> wi.SimArrayIndex) |> List.filter (fun i -> not (Set.contains i named))
 
     if not (List.isEmpty unnameable) then
@@ -114,10 +106,10 @@ let private fetchWaves
         let leadIn = window.StartSample > 0
         let firstCycle = if leadIn then window.FirstCycle - window.Multiplier else window.FirstCycle
         let samples = window.SampleCount + (if leadIn then 1 else 0)
-        let requested = wanted |> List.map (fun (_, s, _) -> s)
+        let requested = wanted |> List.map fst
 
         promise {
-            let! frame = SidecarClient.simRead epoch firstCycle window.Multiplier samples requested
+            let! frame = SidecarClient.simReadDrivers epoch firstCycle window.Multiplier samples requested
             let asText = SidecarClient.decodeText frame
 
             if asText.StartsWith "{" then
@@ -138,7 +130,7 @@ let private fetchWaves
                 // one array, shared: the reply is signal-major, and each wave records where its
                 // own row starts rather than the rows being copied apart
                 wanted
-                |> List.mapi (fun row (i, _, width) ->
+                |> List.mapi (fun row (i, width) ->
                     i,
                     { WaveData.Window = window
                       WaveData.Width = width
@@ -153,7 +145,7 @@ let private fetchWaves
 
 /// One signal's value at one cycle: what the schematic probe shows.
 ///
-/// A read like any other - the same `simRead`, one signal and one sample of it - so the probe uses
+/// A read like any other - the same by-handle read, one signal and one sample of it - so the probe uses
 /// the mechanism everything else uses rather than a transport of its own. It was briefly a
 /// BLOCKING read over a second transport, so that the value could be had inside the render that
 /// draws it. That cost 2.2ms against this path's 0.2ms, because a synchronous XMLHttpRequest is
@@ -165,11 +157,11 @@ let fetchProbeValue
     (wi: WaveIndexT)
     (cycle: int)
     : JS.Promise<bigint option> =
-    match signalOf fs wi with
+    match widthOf fs wi with
     | None -> Promise.lift None
-    | Some(signal, _) ->
+    | Some _ ->
         promise {
-            let! frame = SidecarClient.simRead epoch cycle 1 1 [ signal ]
+            let! frame = SidecarClient.simReadDrivers epoch cycle 1 1 [ wi.SimArrayIndex ]
             let asText = SidecarClient.decodeText frame
 
             if asText.StartsWith "{" then

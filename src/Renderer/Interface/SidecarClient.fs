@@ -57,6 +57,7 @@ module Constants =
     let simReadCmd = 11
     let simReadRamCmd = 12
     let simPortsCmd = 13
+    let simReadDriversCmd = 14
 
     /// Command byte, uint32 correlation id, three bytes of padding - 8, so binary response
     /// payloads start 8-aligned for zero-copy typed-array views.
@@ -497,6 +498,21 @@ let simRead
     let payload = makeBytes (4 * List.length args)
     args |> List.iteri (fun i value -> writeUint32At payload (4 * i) (float value))
     request Constants.simReadCmd payload
+
+/// SimRead by driver handle: the indices the port slice handed out, valid for this build.
+/// Resolves with the raw response frame, exactly as `simRead` does - same reply layout, same
+/// zero-copy view - so the two are interchangeable to everything downstream.
+let simReadDrivers
+    (epoch: int)
+    (startCycle: int)
+    (rep: int)
+    (samples: int)
+    (drivers: int list)
+    : JS.Promise<obj> =
+    let args = [ epoch; startCycle; rep; samples; List.length drivers ] @ drivers
+    let payload = makeBytes (4 * List.length args)
+    args |> List.iteri (fun i value -> writeUint32At payload (4 * i) (float value))
+    request Constants.simReadDriversCmd payload
 
 /// The response payload as text, for reading an error reply from a binary command.
 let decodeText (frame: obj) : string = decodeTextPayload frame

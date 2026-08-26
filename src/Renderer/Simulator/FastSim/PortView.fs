@@ -35,16 +35,11 @@ type InstancePort =
       PortNum: int
       /// where this port's data lies in the simulation that answered: the step array...
       PortArrayIndex: int
-      /// ...and the driver, which is what a waveform is read from
+      /// ...and the driver, which is what a waveform is read from. This is the build's read
+      /// HANDLE: the fetch quotes it back, and the simulator answers with no lookup by name at
+      /// all. An input port's is already the array of the output driving it - the simulator's own
+      /// linker resolved that, crossing sheet boundaries where the net does.
       PortDriver: int
-      /// the OUTPUT this port's data comes from, as a component and port a simulator can be asked
-      /// for: itself for an output port, and for an input port the output driving it.
-      ///
-      /// None where nothing drives the port, which is an unconnected input. That is the only case
-      /// left: a driver used to be nameable only by walking the whole wave index, and one reachable
-      /// by neither route - a custom component's input port - could not be asked for at all, so
-      /// those waveforms were drawn blank.
-      PortDrivenBy: (FComponentId * int) option
       PortWidth: int
       /// comp.port(w:0), as the selector lists it and the viewer titles it
       PortDisplayName: string
@@ -169,22 +164,11 @@ let ofInstance (fs: FastSimulation) (InstancePath ap as instance) : InstanceView
                                 // wave tables.
                                 let width = io.Width
 
-                                // An output IS its own driver. An input reads the array of the
-                                // output feeding it, which is what InputDrivers names.
-                                let drivenBy =
-                                    match portType with
-                                    | PortType.Output -> Some((ComponentId comp.Id, ap), pn)
-                                    | PortType.Input ->
-                                        Array.tryItem pn fc.InputDrivers
-                                        |> Option.flatten
-                                        |> Option.map (fun (fId, OutputPortNumber port) -> fId, port)
-
                                 { PortComp = ComponentId comp.Id
                                   PortIs = portType
                                   PortNum = pn
                                   PortArrayIndex = io.Index
                                   PortDriver = io.Index
-                                  PortDrivenBy = drivenBy
                                   PortWidth = width
                                   PortDisplayName = WaveNames.caseCompAndPortName displayName
                                   PortLabel = portLabel

@@ -330,6 +330,72 @@ let readRam (askedEpoch: int) (body: byte array) : Result<byte array, string> =
 
                 reply)
 
+/// Write `samples` values of each resolved array, every `rep` cycles from `startCycle`, in
+/// SimRead's reply layout - shared by the by-name and by-handle read commands, so the two cannot
+/// disagree about a single byte of it.
+let private writeSamples
+    (fs: SimTypes.FastSimulation)
+    (arrays: SimTypes.IOArray list)
+    (startCycle: int)
+    (rep: int)
+    (samples: int)
+    : Result<byte array, string> =
+    let count = List.length arrays
+    let lastWanted = startCycle + (samples - 1) * rep
+
+    if rep < 1 || samples <= 0 || count <= 0 then
+        Error "SimRead needs rep >= 1 and at least one sample and one signal"
+    elif fs.ClockTick < lastWanted then
+        Error $"simulation has only reached cycle {fs.ClockTick} - run to {lastWanted} first"
+    elif lastWanted - startCycle >= fs.MaxArraySize || fs.ClockTick - startCycle >= fs.MaxArraySize then
+        Error $"cycles {startCycle}..{lastWanted} are outside the {fs.MaxArraySize}-entry circular buffer"
+    else
+        /// How wide the widest signal asked for is, in uint32 words. Read from the simulation
+        /// rather than taken from the request: the renderer knows the widths too, but a reply
+        /// that states its own layout cannot be misread by a caller whose idea of a width is
+        /// stale.
+        let wordsPerSample =
+            (1, arrays) ||> List.fold (fun widest io -> max widest ((io.Width + 31) / 32))
+
+        // 16 bytes of header - three counts and four bytes of padding - so that the values
+        // begin 8-aligned once the frame's own 8-byte header is in front of them
+        let reply = Array.zeroCreate (16 + 4 * count * samples * wordsPerSample)
+        BitConverter.GetBytes(uint32 count).CopyTo(reply, 0)
+        BitConverter.GetBytes(uint32 samples).CopyTo(reply, 4)
+        BitConverter.GetBytes(uint32 wordsPerSample).CopyTo(reply, 8)
+
+        let mutable error = None
+
+        arrays
+        |> List.iteri (fun signalIndex io ->
+            for j in 0 .. samples - 1 do
+                if error.IsNone then
+                    let cycle = startCycle + j * rep
+                    let sampleAt = 16 + 4 * ((signalIndex * samples + j) * wordsPerSample)
+
+                    // The modulo is not optional: a step array is a REGION of a shared slab,
+                    // so a step past the end of the region reads the next port's data with
+                    // nothing to catch it. See IOArray.
+                    let step = cycle % fs.MaxArraySize
+
+                    // least significant word first, so a reader that wants only the low 32
+                    // bits reads word 0 whatever the width
+                    if io.Width <= 32 then
+                        match io.TryU32 step with
+                        | Some word -> BitConverter.GetBytes(word).CopyTo(reply, sampleAt)
+                        | None -> error <- Some $"cycle {cycle} is outside the array of a signal"
+                    else
+                        match io.TryBig step with
+                        | Some value ->
+                            for w in 0 .. wordsPerSample - 1 do
+                                let word = uint32 ((value >>> (32 * w)) &&& 4294967295I)
+                                BitConverter.GetBytes(word).CopyTo(reply, sampleAt + 4 * w)
+                        | None -> error <- Some $"cycle {cycle} is outside the array of a signal")
+
+        match error with
+        | Some e -> Error e
+        | None -> Ok reply
+
 let read (askedEpoch: int) (body: byte array) : Result<byte array, string> =
     match checkEpoch askedEpoch, session with
     | Error _, _ ->
@@ -351,80 +417,58 @@ let read (askedEpoch: int) (body: byte array) : Result<byte array, string> =
                 (ComponentId compId, path, outPort), offset + 12 + 4 * pathLen)
             |> fst
 
-        let lastWanted = startCycle + (samples - 1) * rep
+        // Each signal resolved ONCE to the step array its data lives in - the map lookup keyed
+        // by (component, access path), and the hop that answers a custom component's output with
+        // the array of the Output inside it.
+        //
+        // Resolution can fail - a signal the caller named that this simulation does not have -
+        // and it is an Error rather than an exception because this is a server answering a
+        // request it did not compose.
+        let resolved =
+            signals
+            |> List.map (fun (cid, path, outPort) ->
+                FastExtract.tryFindOutputArray fs (cid, path) (OutputPortNumber outPort))
 
-        if rep < 1 || samples <= 0 || count <= 0 then
-            Error "SimRead needs rep >= 1 and at least one sample and one signal"
-        elif fs.ClockTick < lastWanted then
-            Error $"simulation has only reached cycle {fs.ClockTick} - run to {lastWanted} first"
-        elif lastWanted - startCycle >= fs.MaxArraySize || fs.ClockTick - startCycle >= fs.MaxArraySize then
-            Error $"cycles {startCycle}..{lastWanted} are outside the {fs.MaxArraySize}-entry circular buffer"
-        else
-            // Each signal resolved ONCE to the step array its data lives in. This used to happen
-            // per SAMPLE, inside the loop below: a map lookup keyed by (component, access path) -
-            // a structural comparison on a list - then a FastData and an FSInterface allocated and
-            // converted to bigint, for a wave that is often one bit wide. A window of 500 samples
-            // of 40 waves did all of that 20,000 times to copy 20,000 words.
-            //
-            // Resolution can fail - a signal the caller named that this simulation does not have -
-            // and it is an Error rather than an exception because this is a server answering a
-            // request it did not compose. It used to throw, from the width scan below, and the
-            // command handler does not wrap this call.
-            let resolved =
-                signals
-                |> List.map (fun (cid, path, outPort) ->
-                    FastExtract.tryFindOutputArray fs (cid, path) (OutputPortNumber outPort))
+        match resolved |> List.tryPick (function Error e -> Some e | Ok _ -> None) with
+        | Some e -> Error e
+        | None ->
+            writeSamples
+                fs
+                (resolved |> List.choose (function Ok io -> Some io | Error _ -> None))
+                startCycle
+                rep
+                samples
 
-            let arrays, failures =
-                (resolved |> List.choose (function Ok io -> Some io | Error _ -> None)),
-                (resolved |> List.choose (function Error e -> Some e | Ok _ -> None))
+/// SimRead by driver handle: no resolution at all, because the handle IS the array. An index
+/// this build never issued, or one naming an array that is not a signal - a state array's slot,
+/// an unconnected input's width-0 dummy - is an error naming the index.
+let readDrivers (askedEpoch: int) (body: byte array) : Result<byte array, string> =
+    match checkEpoch askedEpoch, session with
+    | Error _, _ ->
+        Error $"stale session: command names epoch {askedEpoch}, this sidecar holds {currentEpoch ()}"
+    | _, None -> Error "no simulation built - send SimBuild first"
+    | Ok(), Some(fs, _) ->
+        let startCycle = u32 body 0
+        let rep = u32 body 4
+        let samples = u32 body 8
+        let count = u32 body 12
+        let drivers = List.init count (fun i -> u32 body (16 + 4 * i))
+        let lookup = FastExtract.driverArraysOf fs
 
-            match failures with
-            | e :: _ -> Error e
-            | [] ->
+        let resolved =
+            drivers
+            |> List.map (fun index ->
+                match Array.tryItem index lookup |> Option.flatten with
+                | Some io when io.Width > 0 -> Ok io
+                | Some _ -> Error $"driver {index} carries no data - nothing drives that port"
+                | None -> Error $"no driver {index} in this build")
 
-            /// How wide the widest signal asked for is, in uint32 words. Read from the simulation
-            /// rather than taken from the request: the renderer knows the widths too, but a reply
-            /// that states its own layout cannot be misread by a caller whose idea of a width is
-            /// stale.
-            let wordsPerSample =
-                (1, arrays) ||> List.fold (fun widest io -> max widest ((io.Width + 31) / 32))
-
-            // 16 bytes of header - three counts and four bytes of padding - so that the values
-            // begin 8-aligned once the frame's own 8-byte header is in front of them
-            let reply = Array.zeroCreate (16 + 4 * count * samples * wordsPerSample)
-            BitConverter.GetBytes(uint32 count).CopyTo(reply, 0)
-            BitConverter.GetBytes(uint32 samples).CopyTo(reply, 4)
-            BitConverter.GetBytes(uint32 wordsPerSample).CopyTo(reply, 8)
-
-            let mutable error = None
-
-            arrays
-            |> List.iteri (fun signalIndex io ->
-                for j in 0 .. samples - 1 do
-                    if error.IsNone then
-                        let cycle = startCycle + j * rep
-                        let sampleAt = 16 + 4 * ((signalIndex * samples + j) * wordsPerSample)
-
-                        // The modulo is not optional: a step array is a REGION of a shared slab,
-                        // so a step past the end of the region reads the next port's data with
-                        // nothing to catch it. See IOArray.
-                        let step = cycle % fs.MaxArraySize
-
-                        // least significant word first, so a reader that wants only the low 32
-                        // bits reads word 0 whatever the width
-                        if io.Width <= 32 then
-                            match io.TryU32 step with
-                            | Some word -> BitConverter.GetBytes(word).CopyTo(reply, sampleAt)
-                            | None -> error <- Some $"cycle {cycle} is outside the array of a signal"
-                        else
-                            match io.TryBig step with
-                            | Some value ->
-                                for w in 0 .. wordsPerSample - 1 do
-                                    let word = uint32 ((value >>> (32 * w)) &&& 4294967295I)
-                                    BitConverter.GetBytes(word).CopyTo(reply, sampleAt + 4 * w)
-                            | None -> error <- Some $"cycle {cycle} is outside the array of a signal")
-
-            match error with
-            | Some e -> Error e
-            | None -> Ok reply
+        match resolved |> List.tryPick (function Error e -> Some e | Ok _ -> None) with
+        | Some e -> Error e
+        | None ->
+            writeSamples
+                fs
+                (resolved |> List.choose (function Ok io -> Some io | Error _ -> None))
+                startCycle
+                rep
+                samples

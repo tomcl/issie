@@ -606,6 +606,103 @@ let tests =
             Issie.Sidecar.SimSession.endSession epoch |> ignore
         }
 
+        // The by-HANDLE read: the same window as by name, byte for byte. A handle is a driver
+        // index the port slice issued, so the simulator resolves nothing at all - and an index it
+        // never issued is an error naming the index, not a crash, because the renderer can quote
+        // a stale one whenever a design is edited under a live session.
+        test "SimRead by driver handle returns the bytes the by-name read returns" {
+            let bit = makeComp 1 0 1 (Input1(1, None)) "B"
+            let wide = makeComp 2 0 1 (Input1(70, None)) "L"
+            let rb = makeComp 3 1 1 (Register 1) "RB"
+            let rl = makeComp 4 1 1 (Register 70) "RL"
+            let ob = makeComp 5 1 0 (Output 1) "OB"
+            let ol = makeComp 6 1 0 (Output 70) "OL"
+
+            let ldc =
+                makeLdc
+                    "handles"
+                    None
+                    ([ bit; wide; rb; rl; ob; ol ],
+                     [ conn bit 0 rb 0; conn wide 0 rl 0; conn rb 0 ob 0; conn rl 0 ol 0 ])
+
+            let design = CanvasExtractor.simpleDesignOfLoadedComponents [ ldc ]
+            let shimmed = shimDesign design
+            let arraySize = 250
+
+            let buildReply = Issie.Sidecar.SimSession.build design arraySize
+            Expect.isFalse (buildReply.Contains "error") $"build failed: {buildReply}"
+            let epoch = Issie.Sidecar.SimSession.currentEpoch ()
+
+            let localFs =
+                let top = shimmed |> List.find (fun l -> l.Name = design.TopSheet)
+
+                match Simulator.startCircuitSimulation arraySize design.TopSheet top.CanvasState shimmed with
+                | Ok simData -> simData.FastSim
+                | Error e -> failtest $"local build failed: %A{e.ErrType}"
+
+            // past the circular buffer, so the modulo is exercised on the handle path too
+            let cycles = arraySize + 21
+            Issie.Sidecar.SimSession.run epoch cycles 0 |> ignore
+
+            let registers =
+                [ "RB"; "RL" ]
+                |> List.map (fun label -> localFs.FClockedComps |> Array.find (fun fc -> fc.FLabel = label))
+
+            let u32s (values: int list) =
+                values |> List.collect (System.BitConverter.GetBytes >> Array.toList) |> Array.ofList
+
+            let startCycle = cycles - 40
+            let rep = 2
+            let samples = 15
+
+            let byName =
+                let payload =
+                    [ startCycle; rep; samples; List.length registers ]
+                    @ (registers
+                       |> List.collect (fun fc ->
+                           let (ComponentId cid), path = fc.fId
+                           [ cid; 0; List.length path ] @ (path |> List.map (fun (ComponentId p) -> p))))
+                    |> u32s
+
+                Issie.Sidecar.SimSession.read epoch payload
+
+            let byHandle =
+                let payload =
+                    [ startCycle; rep; samples; List.length registers ]
+                    @ (registers |> List.map (fun fc -> fc.Outputs[0].Index))
+                    |> u32s
+
+                Issie.Sidecar.SimSession.readDrivers epoch payload
+
+            match byName, byHandle with
+            | Ok a, Ok b -> Expect.equal b a "the two reads must return identical bytes"
+            | Error e, _ -> failtest $"by-name read failed: {e}"
+            | _, Error e -> failtest $"by-handle read failed: {e}"
+
+            // an index this build never issued: past every allocated array
+            let past =
+                u32s [ startCycle; rep; samples; 1; localFs.NumStepArrays + 5 ]
+
+            match Issie.Sidecar.SimSession.readDrivers epoch past with
+            | Ok _ -> failtest "an index the build never issued must be an error"
+            | Error e ->
+                Expect.stringContains e (string (localFs.NumStepArrays + 5)) "the error should name the index"
+
+            // an index that was allocated but names no signal: a dummy an input link replaced.
+            // The two processes allocate identical indices for identical input (pinned by the
+            // SimPorts round-trip test), so the local lookup says which those are.
+            let lookup = FastExtract.driverArraysOf localFs
+
+            match [ 0 .. localFs.NumStepArrays - 1 ] |> List.tryFind (fun i -> (Array.tryItem i lookup |> Option.flatten).IsNone) with
+            | None -> () // every array is owned in this design - nothing to test
+            | Some orphan ->
+                match Issie.Sidecar.SimSession.readDrivers epoch (u32s [ startCycle; rep; samples; 1; orphan ]) with
+                | Ok _ -> failtest $"index {orphan} names no signal and must be an error"
+                | Error _ -> ()
+
+            Issie.Sidecar.SimSession.endSession epoch |> ignore
+        }
+
         // The wave selector's read: width and driver index of every port of every component on
         // one instance's sheet. What is tested is the WIRE - encode on the sidecar, decode as the
         // renderer decodes - against the shared function both simulators answer with, for every

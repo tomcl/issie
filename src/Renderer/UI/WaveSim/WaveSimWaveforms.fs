@@ -561,7 +561,11 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
                                   FontSize "12px" ] ]
                           [ str $"Simulating: cycle {clock} of {target}"
                             progress
-                                [ HTMLAttr.Custom("style", "width: 40%; height: 8px; margin-left: 12px; vertical-align: middle")
+                                [ Style
+                                      [ Width "40%"
+                                        Height "8px"
+                                        MarginLeft "12px"
+                                        VerticalAlign "middle" ]
                                   HTMLAttr.Value(string clock)
                                   HTMLAttr.Max(string (max 1 target)) ]
                                 [] ] ]

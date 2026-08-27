@@ -39,6 +39,7 @@ let main argv =
         RomComments.tests
         RamStoreTests.tests
         RamBenchmark.tests
+        SimBenchmark.tests
         KeyBindingTests.tests
         VerilogOutput.tests
         SourceHygiene.tests

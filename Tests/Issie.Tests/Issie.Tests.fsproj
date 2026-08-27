@@ -42,6 +42,7 @@
     <Compile Include="RomComments.fs" />
     <Compile Include="RamStoreTests.fs" />
     <Compile Include="RamBenchmark.fs" />
+    <Compile Include="SimBenchmark.fs" />
     <Compile Include="KeyBindingTests.fs" />
     <Compile Include="VerilogOutput.fs" />
     <Compile Include="VerilogCompiler.fs" />

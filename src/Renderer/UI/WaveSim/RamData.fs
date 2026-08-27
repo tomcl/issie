@@ -31,6 +31,17 @@ open Optics.Operators
 /// `SparseUpTo` is zero when the user has typed a start address, since that is a request for a
 /// window whatever the memory holds - and asking for a listing that will be thrown away is a read
 /// that need not happen.
+///
+/// **A read-only memory's key carries no cycle.** What a ROM holds is part of its type and cannot
+/// change as the simulation runs, so rows read at any cycle are the rows at every cycle. The key is
+/// what decides whether they must be read again - it is part of the data viewport, so any change to
+/// it refetches - and carrying the cursor's cycle in it meant every cursor move re-read every ROM on
+/// screen, which on a design whose ROM is its program is most of the fetching there was. What DOES
+/// move is the location being read, and the table marks that itself from the address wave
+/// (`WaveSimRams.markReadLocally`), which travels with the waveforms.
+///
+/// The cycle a ROM's table SAYS it is showing is the cursor's, not this - WaveSimRams draws the
+/// cursor's cycle for a read-only memory precisely because the rows are of every cycle.
 let keyOf (model: Model) (ram: FComponentId) : RamKey =
     // waveSimModel_ throughout, not getWSModel: the two index the WaveSim map by different
     // fields - WaveSimOrCurrentSheet and WaveSimSheet - and where they disagree the rows would be
@@ -40,7 +51,11 @@ let keyOf (model: Model) (ram: FComponentId) : RamKey =
     let typed, start =
         Map.tryFind ram ws.RamStartLocation |> Option.defaultValue ("", 0I)
 
-    { Cycle = ws.CursorExactClkCycle
+    { Cycle =
+        if EvilHoverCache.isReadOnlyMemory (Simulator.getFastSim ()) ram then
+            0
+        else
+            ws.CursorExactClkCycle
       SparseUpTo = (if typed = "" then WaveSimTypes.Constants.maxRamLocsWithSparseDisplay else 0)
       Start = start }
 
@@ -65,25 +80,24 @@ let heldAny (model: Model) (ram: FComponentId) : (RamKey * RamView) option =
     Map.tryFind ram (Optic.get waveSimModel_ model).RamRows
 
 /// Whether this memory's rows have to be asked for: nothing held answers the question the table is
-/// about to ask. The caller uses it to decide whether to issue a command at all - a command that
-/// always resolved would dispatch a message, which would ask again, for ever.
+/// about to ask.
 ///
-/// **A ROM's cycle does not count.** What a ROM holds is part of its type and cannot change as the
-/// simulation runs, so rows fetched at one cycle answer for every cycle: only the location it is
-/// READING moves, and that is marked here from the address wave rather than asked for again
-/// (WaveSimRams). So a ROM is fetched when the window of addresses being shown changes, and not
-/// when the cursor moves - which on a design whose ROM is its program is most of the fetching that
-/// used to happen.
-let needed (model: Model) (ram: FComponentId) =
-    let wanted = keyOf model ram
+/// One comparison for both kinds of memory, because whether a ROM's contents depend on the cycle is
+/// settled in the KEY (see `keyOf`) rather than tested again here. It was tested in both places, and
+/// only one of them was consulted by the code that actually fetches.
+let needed (model: Model) (ram: FComponentId) = (held model ram).IsNone
 
-    match heldAny model ram with
-    | None -> true
-    | Some(heldKey, _) ->
-        if EvilHoverCache.isReadOnlyMemory (Simulator.getFastSim ()) ram then
-            heldKey.SparseUpTo <> wanted.SparseUpTo || heldKey.Start <> wanted.Start
-        else
-            heldKey <> wanted
+/// Of these memories and the keys their tables are asking under, the ones whose rows are not
+/// already held for exactly that key.
+///
+/// A fetch reads everything the viewport covers, and a viewport changes whenever ANY of it does -
+/// so a scroll, which moves the waveform window and nothing else, asked for every selected memory's
+/// rows again. Skipping what is already held keeps the memoisation obligation intact: `FetchedData
+/// = snapshot` claims the caches hold what the snapshot needs, and rows held under exactly that key
+/// are what that claims.
+let notHeld (model: Model) (rams: (FComponentId * RamKey) list) =
+    rams
+    |> List.filter (fun (ram, key) -> (heldAny model ram |> Option.map fst) <> Some key)
 
 /// Read one RAM's rows from the sidecar, for the update function to put in the model.
 ///

@@ -134,7 +134,17 @@ let viewSimulation canvasState model dispatch =
                         div [Style [Flex "1 1 auto"; MinHeight "0px"; OverflowY OverflowOptions.Auto]]
                             [viewSimulationError canvasState simError model StepSim dispatch]
                     | Ok simData ->
-                        if (simData.ClockTickNumber = 0 && not (simCache.ClockTickRefresh = 0)) then
+                        // The wire being FREE is part of the condition, not a detail of what to do
+                        // once it is met. A refresh is end, push, build, start - and with the .NET
+                        // simulator the build is an operation in flight, so the first render after
+                        // the click always finds one. Taking the remembered clock then spent it on
+                        // an advance that could only decline, and the panel came back at zero: the
+                        // restore worked in the renderer, where the build is synchronous and there
+                        // is nothing in flight to find. Left where it is, it is picked up by the
+                        // render that follows the build's own answer.
+                        if simData.ClockTickNumber = 0
+                           && simCache.ClockTickRefresh <> 0
+                           && not (ModelHelpers.sidecarIsBusy model) then
                             // A Refresh puts the simulation back at the clock it was showing.
                             // Through advanceTo, so it is the RUNNING simulator that is put there:
                             // running the renderer's own would leave the .NET one at zero and the

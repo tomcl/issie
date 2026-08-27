@@ -564,20 +564,20 @@ let private releaseWaveSimData (ws: WaveSimModel) : WaveSimModel =
             | Success | Loading -> Ended
             | s -> s }
 
-/// For reasons of space efficiency, ensure that no non-empty unused FastSimulation records are kept.
-/// A FastSimulation holds a step array per net and a SimulationGraph node per component instance, so a
-/// large design's is hundreds of MB: one left behind slows every later edit, because each major GC must
-/// trace all of it. Call this before building a new simulation.
+/// Everything the model believes about the .NET simulator's session, forgotten together.
 ///
-/// CurrentStepSimulationStep is the only field of the model holding one. Every WaveSim entry is
-/// released as well - see releaseWaveSimData - which covers the sheet the caller is about to
-/// resimulate (its WaveDetails is rebuilt by the refresh), the sheets left behind by switching the
-/// waveform simulator between sheets, and the entry EndWaveSim is about to mark Ended. The truth
-/// table's TableSimData is deliberately left alone: it is what regenerates the table when a
-/// constraint changes, so it is in use rather than stale.
-let removeAllSimulationsFromModel (model:Model) =
+/// These fields are one fact between them - there is a session, this is how far it has run, this is
+/// what has been asked of it and what the last completed fetch was for - and a path that drops some
+/// of them leaves the rest describing a simulation that is not there. That is not hypothetical: the
+/// End Simulation button released the port slices and left the session behind, so the model went on
+/// naming a build whose slices it no longer had, with `FetchedData` still claiming the caches were
+/// serving it.
+///
+/// Ending a simulation is the only thing that does this. Nothing is told to the SIDECAR: it drops
+/// its own session when the first sheet of the next design arrives, which is what makes a design
+/// upload safe (docs/dev/sidecarInvariants.md, section E).
+let forgetSidecarSession (model: Model) =
     model
-    |> Optic.set currentStepSimulationStep_ None
     // Whatever the sidecar was holding is no longer wanted. Saying so here rather than in each
     // caller is what makes "one simulation stopped means the other rebuilds from scratch" true of
     // both of them: this is the one place both of them go through.
@@ -596,6 +596,22 @@ let removeAllSimulationsFromModel (model:Model) =
     |> Optic.set fetchedStructure_ None
     |> Optic.set failedFetch_ None
     |> Optic.set currentViewport_ None
+
+/// For reasons of space efficiency, ensure that no non-empty unused FastSimulation records are kept.
+/// A FastSimulation holds a step array per net and a SimulationGraph node per component instance, so a
+/// large design's is hundreds of MB: one left behind slows every later edit, because each major GC must
+/// trace all of it. Call this before building a new simulation.
+///
+/// CurrentStepSimulationStep is the only field of the model holding one. Every WaveSim entry is
+/// released as well - see releaseWaveSimData - which covers the sheet the caller is about to
+/// resimulate (its WaveDetails is rebuilt by the refresh), the sheets left behind by switching the
+/// waveform simulator between sheets, and the entry EndWaveSim is about to mark Ended. The truth
+/// table's TableSimData is deliberately left alone: it is what regenerates the table when a
+/// constraint changes, so it is in use rather than stale.
+let removeAllSimulationsFromModel (model:Model) =
+    model
+    |> Optic.set currentStepSimulationStep_ None
+    |> forgetSidecarSession
     |> Optic.map waveSim_ (Map.map (fun _ -> releaseWaveSimData))
 
 /// The next operation number.

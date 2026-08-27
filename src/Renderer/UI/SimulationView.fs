@@ -319,6 +319,24 @@ let private panelValue (cycle: int) (width: int) (signal: StepPanelData.PanelSig
 let clockNow (model: Model) (simData: SimulationData) =
     if model.SimulateInRenderer then simData.FastSim.ClockTick else simData.ClockTickNumber
 
+/// Where the step panel is after a chunk that was aiming for `target`, given what the chunk
+/// answered: the clock it reached, and whether it got there.
+///
+/// **Not the clock the simulator reports.** Those are different numbers - section G2 of
+/// docs/dev/sidecarInvariants.md says so in as many words: the simulator's clock is how far it has
+/// RUN, the panel's is where the user is LOOKING, and stepping back to a cycle still inside the
+/// circular buffer needs no running at all. `runFastSimulationCore` answers such a step
+/// `RunCompleted` with its clock untouched and AHEAD of the target, which taken for the panel's
+/// position sent a goto backwards forwards instead - to wherever the simulation happened to have
+/// run to, with the progress bar past its own maximum.
+///
+/// So a chunk that finished puts the panel at the cycle that was asked for, and one that ran out
+/// of budget puts it at the clock reached, which is honest progress towards it. The local
+/// simulator has always been read this way (`RunCompleted -> cycle`); this is the same rule said
+/// once, for both.
+let panelClockAfter (target: int) ((reached, finished): int * bool) =
+    if finished then target else reached
+
 /// How many clock cycles of history the step simulator can afford on this design, or why it
 /// cannot be simulated at all.
 ///
@@ -439,28 +457,41 @@ let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (dispatch: M
                 let seq = ModelHelpers.newSeq ()
                 dispatch (SidecarOpStarted(seq, OpStep cycle))
 
-                promise {
-                    let! reached =
-                        promise {
-                            match! SidecarSession.runChunk epoch cycle with
-                            | Error e ->
-                                failed $"run to cycle {cycle}" e
-                                return simData.ClockTickNumber
-                            | Ok(reached, _) -> return reached
-                        }
-
+                /// However the chunk ends, the operation is ANSWERED and the caller told where the
+                /// panel now is. The entry this put in the in-flight table is the gate every other
+                /// issuer waits behind, so a promise that rejects without dispatching leaves the
+                /// table holding an operation that can never complete and nothing is issued on this
+                /// wire again - no fetch, no run, and nothing on screen saying why. Every other
+                /// issuer gets this from `Cmd.OfPromise.either`; this one is started from a click
+                /// and has to say it.
+                let finish (reached: int) =
                     dispatch (SidecarReply(seq, AnsStepped))
                     whenReady reached
+
+                promise {
+                    match! SidecarSession.runChunk epoch cycle with
+                    | Error e ->
+                        failed $"run to cycle {cycle}" e
+                        finish simData.ClockTickNumber
+                    | Ok outcome -> finish (panelClockAfter cycle outcome)
                 }
+                // a rejection, not an error reply: the socket closed under it, which fails every
+                // request in flight (invariant A4)
+                |> Promise.catch (fun e ->
+                    failed $"run to cycle {cycle}" e.Message
+                    finish simData.ClockTickNumber)
 
             match model.SidecarSession with
+            | _ when ModelHelpers.sidecarIsBusy model ->
+                // Something is already outstanding - a build, a fetch, or another advance's chunk -
+                // and one operation at a time is the rule the whole protocol is sequenced by
+                // (docs/dev/sidecarInvariants.md, sections C3 and J). Nothing is retried here: the
+                // panel's clock moves anyway, so the end-of-update checks see a cycle the session
+                // has not reached and run to it as soon as the wire is free.
+                whenReady simData.ClockTickNumber
+
             | session when session.Holds(top, sidecarArraySize) ->
                 runOneChunk (Option.get session.Epoch) |> Promise.start
-
-            | _ when ModelHelpers.sidecarIsBusy model ->
-                // something is already outstanding - a build, or another advance's chunk. Its
-                // answer redraws, and the next advance picks up from where that left the session.
-                whenReady simData.ClockTickNumber
 
             | _ ->
                 // No session: the START issues builds (StartSimulation, StartStepRun - see
@@ -516,6 +547,12 @@ let setInput (model: Model) (simData: SimulationData) (compId: ComponentId) (val
 
                 whenReady ()
             }
+            // as advanceTo: a rejection is the socket closing under the request, and the caller
+            // must still be told, or the poke leaves the panel waiting for a redraw that never comes
+            |> Promise.catch (fun e ->
+                Log.error $"the .NET simulator could not set an input: {e.Message}"
+                StepPanelData.forget ()
+                whenReady ())
             |> Promise.start
 
 /// The panel's top-level input or output values, from whichever simulator is running.

@@ -134,6 +134,17 @@ let private bytesResponse (header: byte array) (payload: byte array) =
 let private textResponse (header: byte array) (text: string) =
     bytesResponse header (Text.Encoding.UTF8.GetBytes(text: string))
 
+/// A response frame carrying an error message instead of the answer a BINARY command asked for.
+///
+/// The error is announced in the command byte rather than left for the receiver to notice in the
+/// payload. A binary payload begins with a count, and a count whose low byte is 0x7B - 123
+/// signals, 379 of them, a sheet of 123 components - decodes as text beginning with '{', which is
+/// how a JSON error used to be told apart from an answer. See Protocol.ErrorFlag.
+let private errorResponse (header: byte array) (message: string) =
+    let frame = textResponse header (sprintf """{"error":"%s"}""" (message.Replace("\"", "'")))
+    frame[0] <- frame[0] ||| Protocol.ErrorFlag
+    frame
+
 /// The uint32 at a byte offset of a command payload, 0 when the payload is too short.
 let private argAt (body: byte array) (offset: int) =
     if body.Length >= offset + 4 then int (BitConverter.ToUInt32(body, offset)) else 0
@@ -267,28 +278,28 @@ let private serve (ws: WebSocket) (ct: CancellationToken) =
                     let frame =
                         match SimSession.read (argAt body 0) (body[4..]) with
                         | Ok payload -> bytesResponse header payload
-                        | Error e -> textResponse header (sprintf """{"error":"%s"}""" (e.Replace("\"", "'")))
+                        | Error e -> errorResponse header e
 
                     do! send ws frame ct
                 | Protocol.SimReadDrivers ->
                     let frame =
                         match SimSession.readDrivers (argAt body 0) (body[4..]) with
                         | Ok payload -> bytesResponse header payload
-                        | Error e -> textResponse header (sprintf """{"error":"%s"}""" (e.Replace("\"", "'")))
+                        | Error e -> errorResponse header e
 
                     do! send ws frame ct
                 | Protocol.SimPorts ->
                     let frame =
                         match SimSession.ports (argAt body 0) (body[4..]) with
                         | Ok payload -> bytesResponse header payload
-                        | Error e -> textResponse header (sprintf """{"error":"%s"}""" (e.Replace("\"", "'")))
+                        | Error e -> errorResponse header e
 
                     do! send ws frame ct
                 | Protocol.SimReadRam ->
                     let frame =
                         match SimSession.readRam (argAt body 0) (body[4..]) with
                         | Ok payload -> bytesResponse header payload
-                        | Error e -> textResponse header (sprintf """{"error":"%s"}""" (e.Replace("\"", "'")))
+                        | Error e -> errorResponse header e
 
                     do! send ws frame ct
                 | other ->

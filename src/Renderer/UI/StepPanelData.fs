@@ -62,11 +62,10 @@ let fill (epoch: int) (cycle: int) (signals: PanelSignal list) : JS.Promise<Resu
 
         promise {
             let! frame = SidecarClient.simRead epoch cycle 1 1 requested
-            let asText = SidecarClient.decodeText frame
 
-            if asText.StartsWith "{" then
-                return Error asText
-            else
+            match SidecarClient.errorOfFrame frame with
+            | Some e -> return Error e
+            | None ->
                 // the reply states its own layout, so a signal whose width the renderer has stale
                 // is still read the way the sender wrote it
                 let wordsPerSample = SidecarClient.simReadWordsPerSample frame

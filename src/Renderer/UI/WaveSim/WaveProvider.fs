@@ -110,11 +110,10 @@ let private fetchWaves
 
         promise {
             let! frame = SidecarClient.simReadDrivers epoch firstCycle window.Multiplier samples requested
-            let asText = SidecarClient.decodeText frame
 
-            if asText.StartsWith "{" then
-                return Error asText
-            else
+            match SidecarClient.errorOfFrame frame with
+            | Some e -> return Error e
+            | None ->
                 // the reply states its own layout, so a signal whose width the renderer has stale
                 // is still read the way the sender wrote it
                 let wordsPerSample = SidecarClient.simReadWordsPerSample frame
@@ -162,12 +161,12 @@ let fetchProbeValue
     | Some _ ->
         promise {
             let! frame = SidecarClient.simReadDrivers epoch cycle 1 1 [ wi.SimArrayIndex ]
-            let asText = SidecarClient.decodeText frame
 
-            if asText.StartsWith "{" then
-                Log.dbg Log.Wave $"reading the probe's wire at cycle {cycle}: {asText}"
+            match SidecarClient.errorOfFrame frame with
+            | Some e ->
+                Log.dbg Log.Wave $"reading the probe's wire at cycle {cycle}: {e}"
                 return None
-            else
+            | None ->
                 let wordsPerSample = SidecarClient.simReadWordsPerSample frame
                 let data: uint32 array = unbox (SidecarClient.viewSimReadData frame wordsPerSample)
 

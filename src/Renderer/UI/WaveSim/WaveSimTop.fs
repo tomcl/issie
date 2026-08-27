@@ -709,8 +709,8 @@ let private dataViewportOf (model: Model) (epoch: int) : DataViewport =
       VpStimulus = model.StimulusGeneration }
 
 /// The instances whose port slices the model references - ModelType.StructureViewport's one
-/// derivation: the selection, the RAM ticks, the Viewer components (design-pruned) and whatever
-/// the open selector dialog is showing, always including the top.
+/// derivation: the selection, the RAM ticks, the Viewer components (design-pruned), the sheet on
+/// the draw block and whatever the open selector dialog is showing, always including the top.
 let private structureViewportOf (model: Model) (epoch: int) : StructureViewport =
     let fs = Simulator.getFastSim ()
     let ws = model.WaveSimSheet |> Option.bind (fun sheet -> Map.tryFind sheet model.WaveSim)
@@ -736,9 +736,27 @@ let private structureViewportOf (model: Model) (epoch: int) : StructureViewport 
             | _ -> false)
         |> List.map snd
 
+    /// The instance of the sheet the draw block is SHOWING, where the design holds exactly one of
+    /// it.
+    ///
+    /// That is the whole of what the schematic can ask about: the probe and the wire and component
+    /// right-click menus all resolve a component through `copiesOfCanvasComp`, which answers only
+    /// for a sheet with a sole instance - and answers with this one. A sheet placed twice has two
+    /// runtime signals per wire and is declined whatever is held (invariant H1).
+    ///
+    /// It has to be derived from the DESIGN, and it is, because the deadlock is otherwise
+    /// unbreakable: with no slice for this instance, `PortView.ofInstanceCached` answers with an
+    /// empty view, so the probe resolves no wave, so nothing names the instance, so no slice is
+    /// ever asked for. The probe worked on the top sheet and on whatever sheet happened to hold a
+    /// selected wave, a ticked RAM or a viewer, and silently did nothing everywhere else.
+    let openInstance =
+        ModelHelpers.getCurrFile model
+        |> Option.bind fs.Design.SoleInstanceOfSheet
+        |> Option.toList
+
     { SvEpoch = epoch
       SvInstances =
-        InstancePath [] :: referenced @ viewerInstances @ shownInSelector
+        InstancePath [] :: openInstance @ referenced @ viewerInstances @ shownInSelector
         |> List.distinct
         |> List.sort }
 
@@ -766,6 +784,7 @@ let private readBundle
     (epoch: int)
     (snapshot: FetchSnapshot)
     (panelSignals: StepPanelData.PanelSignal list)
+    (ramsToRead: (FComponentId * RamView.RamKey) list)
     ()
     =
     promise {
@@ -776,10 +795,11 @@ let private readBundle
             | _ -> Promise.lift (Ok())
 
         let! rows =
-            let rams =
-                snapshot.SnapData |> Option.map (fun vp -> vp.VpRams) |> Option.defaultValue []
-
-            (Promise.lift [], rams)
+            // Only the memories whose rows are not already held under exactly the key their table
+            // is asking under - `ramsToRead`, worked out by the caller, which has the model the
+            // rows live in. Reading the whole of `VpRams` meant a scroll, which changes the
+            // waveform window and nothing about any memory, re-read every one of them.
+            (Promise.lift [], ramsToRead)
             ||> List.fold (fun acc (ramId, key) ->
                 acc
                 |> Promise.bind (fun collected ->
@@ -802,7 +822,12 @@ let private readBundle
 
         match snapshot.SnapStructure with
         | Some sv ->
-            match! PortData.fetch epoch sv.SvInstances with
+            // Only the ones this build has not been asked about. A slice never goes stale within a
+            // build - PortData holds them BY the build and a new one starts an empty store - so
+            // re-describing an instance already held is a round trip that can only produce the
+            // answer already in hand. It costs nothing while the list barely moves, and the list
+            // now grows by an entry for every sheet the user visits.
+            match! PortData.fetch epoch (PortData.missingOf sv.SvInstances) with
             | Error e -> Log.warn $"describing instances for the selector: {e}"
             | Ok _ -> ()
         | None -> ()
@@ -889,6 +914,12 @@ let sidecarChecks (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd<Msg>
                         | Some _, Some(Ok simData) -> SimulationView.panelSignals simData
                         | _ -> []
 
+                    // Worked out here rather than inside the promise, because the rows already
+                    // held are in the model and the promise has no model - the same reason
+                    // panelSignals is passed in.
+                    let ramsToRead =
+                        if dataDiff then RamData.notHeld model dataVp.VpRams else []
+
                     let structNote =
                         if structDiff then $", {structVp.SvInstances.Length} instances" else ""
 
@@ -902,7 +933,7 @@ let sidecarChecks (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd<Msg>
                     Elmish.Cmd.batch
                         [ cmd
                           Elmish.Cmd.OfPromise.either
-                              (readBundle epoch snapshot panelSignals)
+                              (readBundle epoch snapshot panelSignals ramsToRead)
                               ()
                               (fun (waves, rows, probed) -> SidecarReply(seq, AnsFetched(waves, rows, probed)))
                               (fun exn -> SidecarReply(seq, AnsFetched(Error exn.Message, [], None))) ]

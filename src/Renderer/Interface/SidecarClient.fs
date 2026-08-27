@@ -2,7 +2,8 @@
 ///
 /// Wire protocol, shared with src/Sidecar/Protocol.fs - the two files change together:
 ///
-///     byte 0        command; a response carries the request's command with bit 7 set
+///     byte 0        command; a response carries the request's command with bit 7 set, and bit 6
+///                   as well when its payload is an error message rather than the answer
 ///     bytes 1..4    correlation id, uint32 little-endian, echoed back by the sidecar
 ///     bytes 5..7    padding, always zero: an 8-byte header means a binary response payload
 ///                   starts 8-aligned, so Uint32Array/Float64Array views need no copy
@@ -110,6 +111,17 @@ let private setCommand (frame: obj) (cmd: int) : unit = jsNative
 
 [<Emit("$0[0]")>]
 let private commandOf (frame: obj) : int = jsNative
+
+/// Whether a response carries an error message instead of the answer that was asked for -
+/// Protocol.ErrorFlag, in the command byte.
+///
+/// Told from the header and never from the payload. A binary reply BEGINS with a count, and a
+/// count whose low byte is 0x7B - 123 signals, 379 of them, a sheet of 123 components - decodes
+/// as text starting with '{', which is what "does the payload look like JSON?" used to ask. One
+/// reply in every 256 was taken for an error carrying binary rubbish, and which ones depended on
+/// the size of the design being simulated.
+[<Emit("($0[0] & 0x40) !== 0")>]
+let private isErrorFrame (frame: obj) : bool = jsNative
 
 [<Emit("$0.set($1, 8)")>]
 let private blitPayload (frame: obj) (payload: obj) : unit = jsNative
@@ -225,73 +237,107 @@ let rec private endpoint (deadline: float) : JS.Promise<int * string> =
         Promise.create (fun resolve _ -> JS.setTimeout (fun () -> resolve ()) 100 |> ignore)
         |> Promise.bind (fun () -> endpoint deadline)
 
+/// The connect that is under way, when one is - so that a second caller joins it rather than
+/// starting another.
+///
+/// `socket` is only written when a socket is OPEN, which is the whole of the connect's duration
+/// later, so two callers arriving before the first one opened both found None and both made a
+/// WebSocket. The second is not merely wasted: **this sidecar serves one connection at a time**.
+/// Its accept loop does not come back round to `GetContext` until the serve loop for the current
+/// connection has returned, so a second handshake is not refused - it sits in the listener's queue,
+/// unanswered, until the first socket closes. The caller waiting on it waits for ever, which is
+/// invariant A4's failure one layer further down, where there is no pending table to fail.
+///
+/// Cleared when the attempt settles, either way: a connect that failed must be retryable, and a
+/// rejected promise remembered here would be handed to every caller for the rest of the session.
+let mutable private connecting: JS.Promise<unit> option = None
+
 /// Resolves once the socket is open, WAITING for the sidecar to be listening if it is still
-/// starting. One socket per renderer: a second connect while one is open resolves immediately.
+/// starting. One socket per renderer: a second connect while one is open resolves immediately, and
+/// one made while another is still connecting waits on that one.
 ///
 /// Rejects only when the sidecar is genuinely not there - it never started, or it has died - which
 /// is a fault and is reported as one. That distinction is the point of the wait above: everything
 /// over this is written as though the sidecar is simply there, because by the time it is called it
 /// is.
 let connect () : JS.Promise<unit> =
-    match socket with
-    | Some _ -> Promise.lift ()
-    | None ->
-        endpoint (TimeHelpers.getTimeMs () + startupBudgetMs)
-        |> Promise.bind (fun (port, token) ->
+    match socket, connecting with
+    | Some _, _ -> Promise.lift ()
+    | None, Some inFlight -> inFlight
+    | None, None ->
+
+        let attempt =
             Promise.create (fun resolve reject ->
-                let ws = newWebSocket $"ws://127.0.0.1:{port}/?token={token}"
-                setBinaryTypeArrayBuffer ws
+                endpoint (TimeHelpers.getTimeMs () + startupBudgetMs)
+                |> Promise.map (fun (port, token) ->
+                    let ws = newWebSocket $"ws://127.0.0.1:{port}/?token={token}"
+                    setBinaryTypeArrayBuffer ws
 
-                setOnOpen (fun _ -> socket <- Some ws; resolve ()) ws
+                    setOnOpen
+                        (fun _ ->
+                            socket <- Some ws
+                            connecting <- None
+                            resolve ())
+                        ws
 
-                setOnError
-                    (fun _ ->
-                        socket <- None
-                        reject (System.Exception "sidecar websocket failed"))
-                    ws
+                    setOnError
+                        (fun _ ->
+                            socket <- None
+                            connecting <- None
+                            reject (System.Exception "sidecar websocket failed"))
+                        ws
 
-                // Every in-flight request now has no possible answer, so every caller waiting on one
-                // is FAILED. Clearing the table instead dropped the resolvers without calling them,
-                // and a promise that neither resolves nor rejects makes "still working" and "gone"
-                // the same thing to everything above it - which is the shape of hang that is hardest
-                // to find, because nothing anywhere reports it.
-                setOnClose
-                    (fun _ ->
-                        socket <- None
-                        let dropped = List.ofSeq pending.Values
-                        pending.Clear()
+                    // Every in-flight request now has no possible answer, so every caller waiting on one
+                    // is FAILED. Clearing the table instead dropped the resolvers without calling them,
+                    // and a promise that neither resolves nor rejects makes "still working" and "gone"
+                    // the same thing to everything above it - which is the shape of hang that is hardest
+                    // to find, because nothing anywhere reports it.
+                    setOnClose
+                        (fun _ ->
+                            socket <- None
+                            let dropped = List.ofSeq pending.Values
+                            pending.Clear()
 
-                        if not (List.isEmpty dropped) then
-                            Log.warn $"sidecar connection closed with {dropped.Length} requests unanswered"
+                            if not (List.isEmpty dropped) then
+                                Log.warn $"sidecar connection closed with {dropped.Length} requests unanswered"
 
-                        dropped
-                        |> List.iter (fun entry -> entry.Fail (System.Exception "the sidecar connection closed")))
-                    ws
+                            dropped
+                            |> List.iter (fun entry -> entry.Fail (System.Exception "the sidecar connection closed")))
+                        ws
 
-                setOnMessage
-                    (fun ev ->
-                        let frame = eventBytes ev
-                        let corrId = readCorrId frame
+                    setOnMessage
+                        (fun ev ->
+                            let frame = eventBytes ev
+                            let corrId = readCorrId frame
 
-                        match pending.TryGetValue corrId with
-                        | true, entry ->
-                            pending.Remove corrId |> ignore
+                            match pending.TryGetValue corrId with
+                            | true, entry ->
+                                pending.Remove corrId |> ignore
 
-                            // a reply that came, but too slowly to be one of the bounded commands the
-                            // protocol says this is - reported as well as the ones that never come,
-                            // because it is the same invariant and this is the half that is testable
-                            let took = TimeHelpers.getTimeMs () - entry.SentAtMs
+                                // a reply that came, but too slowly to be one of the bounded commands the
+                                // protocol says this is - reported as well as the ones that never come,
+                                // because it is the same invariant and this is the half that is testable
+                                let took = TimeHelpers.getTimeMs () - entry.SentAtMs
 
-                            match budgetMs entry.Cmd with
-                            | Some budget when took > budget && not entry.Warned ->
-                                Log.warn
-                                    $"sidecar {nameOf entry.Cmd} answered after %.0f{took}ms, past its %.0f{budget}ms budget (invariant A6)"
-                            | _ -> ()
+                                match budgetMs entry.Cmd with
+                                | Some budget when took > budget && not entry.Warned ->
+                                    Log.warn
+                                        $"sidecar {nameOf entry.Cmd} answered after %.0f{took}ms, past its %.0f{budget}ms budget (invariant A6)"
+                                | _ -> ()
 
-                            reportOverdue ()
-                            entry.Resolve frame
-                        | false, _ -> Log.error $"sidecar: unmatched response, command {commandOf frame}")
-                    ws))
+                                reportOverdue ()
+                                entry.Resolve frame
+                            | false, _ -> Log.error $"sidecar: unmatched response, command {commandOf frame}")
+                        ws)
+                |> Promise.catch (fun e ->
+                    // the endpoint never appeared, or the socket could not be made: the attempt is
+                    // over, so the next caller starts a fresh one rather than joining this
+                    connecting <- None
+                    reject e)
+                |> ignore)
+
+        connecting <- Some attempt
+        attempt
 
 /// One request, resolved with the whole response frame - header included, so a caller can size
 /// what came back. The payload is a Uint8Array from makeBytes.
@@ -343,6 +389,14 @@ let private encodeText (text: string) : obj = jsNative
 // the subarray skips the 8-byte header (Constants.headerSize, which an Emit cannot name)
 [<Emit("new TextDecoder().decode($0.subarray(8))")>]
 let private decodeTextPayload (frame: obj) : string = jsNative
+
+/// The error message a response carries, or None when it carries the answer that was asked for.
+///
+/// THE test every reader of a binary reply makes, and the only one: the sender said which it was
+/// sending. Reading the payload to find out cannot work, because a payload of numbers is allowed
+/// to start with any byte at all - see isErrorFrame.
+let errorOfFrame (frame: obj) : string option =
+    if isErrorFrame frame then Some(decodeTextPayload frame) else None
 
 [<Emit("$0.set($1, $2)")>]
 let private blitAt (target: obj) (source: obj) (offset: int) : unit = jsNative
@@ -482,7 +536,7 @@ let simSetInputs (epoch: int) (cycle: int) (values: (int * float) list) : JS.Pro
 /// are the same (StartCycle, SamplingZoom, ShownCycles) parameters the waveform viewer's own
 /// generation runs on, so a view at any zoom is one request. Resolves with the raw response
 /// frame: on success the values are `viewSimReadData frame (signals * samples)`, signal-major
-/// and zero-copy; an error response is JSON text (`decodeText frame` starts with '{').
+/// and zero-copy; an error response is one `errorOfFrame` answers for.
 let simRead
     (epoch: int)
     (startCycle: int)
@@ -514,9 +568,6 @@ let simReadDrivers
     args |> List.iteri (fun i value -> writeUint32At payload (4 * i) (float value))
     request Constants.simReadDriversCmd payload
 
-/// The response payload as text, for reading an error reply from a binary command.
-let decodeText (frame: obj) : string = decodeTextPayload frame
-
 /// One memory's contents at one clock, as a RAM table shows them.
 ///
 /// `sparseUpTo` is the most non-zero locations worth listing; past that a window of `rows` from
@@ -545,11 +596,9 @@ let simReadRam
 
     request Constants.simReadRamCmd payload
     |> Promise.map (fun frame ->
-        let asText = decodeTextPayload frame
-
-        if asText.StartsWith "{" then
-            Error asText
-        else
+        match errorOfFrame frame with
+        | Some e -> Error e
+        | None ->
             let isSparse = readUint32At frame 8 = 1.0
             let rowCount = int (readUint32At frame 12)
             let wordsPerValue = int (readUint32At frame 16)
@@ -586,11 +635,9 @@ let simPorts (epoch: int) (path: int list) : JS.Promise<Result<PortView.Componen
 
     request Constants.simPortsCmd payload
     |> Promise.map (fun frame ->
-        let asText = decodeTextPayload frame
-
-        if asText.StartsWith "{" then
-            Error asText
-        else
+        match errorOfFrame frame with
+        | Some e -> Error e
+        | None ->
             // 8 bytes of frame header, then the layout Protocol.SimPorts states
             let compCount = int (readUint32At frame 8)
             let mutable at = 12
@@ -627,5 +674,6 @@ let simReadPoint
     : JS.Promise<Result<float, string>> =
     simRead epoch clock 1 1 [ compId, outPort, path ]
     |> Promise.map (fun frame ->
-        let asText = decodeText frame
-        if asText.StartsWith "{" then Error asText else Ok(readUint32At frame 24))
+        match errorOfFrame frame with
+        | Some e -> Error e
+        | None -> Ok(readUint32At frame 24))

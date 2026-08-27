@@ -2,7 +2,9 @@
 ///
 /// Every WebSocket message is binary, and one message is one request or one response:
 ///
-///     byte 0        command; a response carries the request's command with ResponseFlag set
+///     byte 0        command; a response carries the request's command with ResponseFlag set,
+///                   and ErrorFlag as well when the payload is a message instead of the
+///                   answer that was asked for
 ///     bytes 1..4    correlation id, uint32 little-endian - chosen by the renderer, echoed
 ///                   back unchanged, and how the renderer matches a response to its request
 ///     bytes 5..7    padding, always zero - the header is 8 bytes so that a BINARY response
@@ -112,7 +114,7 @@ let SimSetInputs = 0x0Auy
 /// uint32 LE words least significant first - so values start at byte 16 of the frame, 8-aligned
 /// for a zero-copy Uint32Array view. Any width: the words per sample are read from the simulation
 /// and stated in the reply, so a caller whose idea of a width is stale still reads what was sent.
-/// An error reply is JSON text (starts with '{').
+/// An error reply carries ErrorFlag and a JSON message.
 [<Literal>]
 let SimRead = 0x0Buy
 
@@ -131,7 +133,7 @@ let SimRead = 0x0Buy
 /// count, uint32 LE words per value, four bytes of padding, then per row uint32 LE address low
 /// word, uint32 LE address high word, uint32 LE row type (0 normal, 1 read, 2 written), and
 /// `words` uint32 LE value words least significant first. Bounded by construction: at most
-/// max(sparseUpTo, rows) rows. An error reply is JSON text (starts with '{').
+/// max(sparseUpTo, rows) rows. An error reply carries ErrorFlag and a JSON message.
 [<Literal>]
 let SimReadRam = 0x0Cuy
 
@@ -147,8 +149,8 @@ let SimReadRam = 0x0Cuy
 /// already has, the IOLabel election included (it reads off the design's connections; a group's
 /// members share their arrays here, so the data is the same whichever member is asked about).
 /// A width of 0 is a port with no signal. The driver index is the build's read handle - the
-/// by-handle read accepts it for as long as this build lives. An error reply is JSON text
-/// (starts with '{').
+/// by-handle read accepts it for as long as this build lives. An error reply carries ErrorFlag
+/// and a JSON message.
 [<Literal>]
 let SimPorts = 0x0Duy
 
@@ -157,12 +159,23 @@ let SimPorts = 0x0Duy
 /// count, uint32 LE signal count, then that many uint32 LE driver indices. Reply: exactly
 /// SimRead's layout. The signal is already resolved - the handle IS the array - so this does no
 /// lookup by name at all; an index this build did not issue, or one naming an array that is not
-/// a signal (a state array, an unconnected input's dummy), is an error reply.
+/// a signal (a state array, an unconnected input's dummy), is an ErrorFlag reply.
 [<Literal>]
 let SimReadDrivers = 0x0Euy
 
 [<Literal>]
 let ResponseFlag = 0x80uy
+
+/// Set in a response's command byte when the payload is an error message rather than the answer.
+///
+/// It is a flag and not something to spot in the payload because a BINARY payload begins with a
+/// count, and a count whose low byte is 0x7B - 123 signals, 379 of them, a sheet of 123
+/// components - decodes as text beginning with '{', which is exactly how a JSON error used to be
+/// told apart from an answer. One reply in every 256 was read as an error carrying binary rubbish,
+/// and which replies those were depended on the size of the design. The command byte cannot be
+/// mistaken for anything: it is written by the sender and says what it is sending.
+[<Literal>]
+let ErrorFlag = 0x40uy
 
 /// Command byte, four bytes of correlation id, three bytes of padding: 8, so that binary
 /// response payloads start 8-aligned for zero-copy typed-array views on the renderer side.

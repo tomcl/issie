@@ -529,24 +529,40 @@ let updateUnpinned (msg : Msg) oldModel =
         // why.
         //
         // Released only when the slot holds the STEP simulation this message ends - which the
-        // model says, by identity. There is one slot now, and this message is also dispatched by
-        // startWaveSimulation for mutual exclusion, arriving AFTER the wave build has taken the
-        // slot: clearing unconditionally would destroy the simulation being started. Under mutual
-        // exclusion the identity test is exact - the slot holds this step sim's build, or
-        // something newer that must be kept.
-        (match model.CurrentStepSimulationStep with
-         | Some(Ok sd) when System.Object.ReferenceEquals(sd.FastSim, Simulator.simCache.FastSim) ->
-             Simulator.simCache <- Simulator.simCacheInit ()
-             PortData.forget ()
-         | _ -> ())
+        // model says, by identity. There is one slot, and this message is dispatched from several
+        // places that mean "stop whatever is running" - opening a file, opening a project, the
+        // development harness - so it can arrive after something newer has taken the slot, and
+        // clearing unconditionally would destroy a simulation somebody is starting. The identity
+        // test is exact: the slot holds this step sim's build, or something newer that must be
+        // kept.
+        /// Whether the simulation this message ends is still the one everything else is holding.
+        /// The three releases below - the slot, the port slices and the session - are one act and
+        /// have to agree about it, which is what the identity test buys: they either all let go of
+        /// this build or none of them touches something newer.
+        let endsTheHeldBuild =
+            match model.CurrentStepSimulationStep with
+            | Some(Ok sd) -> System.Object.ReferenceEquals(sd.FastSim, Simulator.simCache.FastSim)
+            | _ -> false
+
+        if endsTheHeldBuild then
+            Simulator.simCache <- Simulator.simCacheInit ()
+            PortData.forget ()
+
         // The indexes built over a simulation are memoised on the simulation itself, so an
         // unemptied memo holds the whole of it - step arrays and all - after this has let go.
         Helpers.clearIdentityMemos()
         model
         |> set currentStepSimulationStep_ None
-        // as removeAllSimulationsFromModel: the in-flight operations were for the simulation
-        // this ends, and emptying the table is what discards their replies
-        |> set sidecarInFlight_ Map.empty
+        // The SESSION goes with them. It used to be left standing while the port slices beside it
+        // were forgotten, so the model went on naming a build it no longer held the slices of -
+        // and FetchedData went on claiming the caches were serving a viewport of it, which the
+        // comments on those fields already said this message clears.
+        |> (if endsTheHeldBuild then
+                ModelHelpers.forgetSidecarSession
+            else
+                // not this build's to end, but the operations in flight were still asked for the
+                // simulation this message ends, and emptying the table is what discards their replies
+                set sidecarInFlight_ Map.empty)
         |> withNoMsg
 
     | EndWaveSim ->
@@ -723,12 +739,20 @@ let updateUnpinned (msg : Msg) oldModel =
 
         | Some(OpStep _), AnsStepped -> model |> withNoMsg
 
-        | Some(OpStep _), AnsSteppedTo(before, t1, result) ->
+        | Some(OpStep target), AnsSteppedTo(before, t1, result) ->
             match result, model.CurrentStepSimulationStep with
-            | Ok(reached, _), Some(Ok simData) ->
-                // The clock is the simulator's FACT, written as reported - never incremented
-                // towards. The accumulation this replaces is how the model's belief could drift
-                // past the simulator's clock and show a negative speed.
+            | Ok outcome, Some(Ok simData) ->
+                // Where the PANEL is, which is not the clock the simulator reports - see
+                // SimulationView.panelClockAfter. The target comes from the in-flight table, which
+                // is what that table is for: the answer names the operation and the table says what
+                // the operation was. Written as a fact either way, never incremented towards - the
+                // accumulation this replaces is how the model's belief could drift past the
+                // simulator's clock and show a negative speed.
+                let reached = SimulationView.panelClockAfter target outcome
+                // and where the SIMULATOR is, which is the other of section G2's numbers: what it
+                // reported, as it reported it, because that is what decides whether the next thing
+                // the view wants has been run to yet
+                let simClock = fst outcome
                 let dt = TimeHelpers.getTimeMs () - t1
                 let nComps = float simData.FastSim.Design.ExpandedComponentCount
                 let speed = if dt <= 0.0 then 0.0 else (float reached - float before) * nComps / dt
@@ -737,7 +761,7 @@ let updateUnpinned (msg : Msg) oldModel =
                 |> set currentStepSimulationStep_ (Some(Ok { simData with ClockTickNumber = reached }))
                 |> Optic.map sidecarSession_ (fun session ->
                     match session with
-                    | Session(top, size, epoch, _) -> Session(top, size, epoch, reached)
+                    | Session(top, size, epoch, _) -> Session(top, size, epoch, simClock)
                     | other -> other)
                 |> map
                     (popupDialogData_ >-> progress_)

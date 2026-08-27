@@ -52,40 +52,59 @@ type RamView =
 /// The address the design read at this clock, and the one it overwrote, if any.
 ///
 /// A write is visible one clock after the address and WEN that caused it, so it is looked up at
-/// `step - 1`; a read is at `step` for an asynchronous memory and `step - 1` for a synchronous
-/// one, since a synchronous read presents its data a clock late.
-let private readAndWritten (fc: FastComponent) (step: int) =
+/// the step before; a read is at this step for an asynchronous memory and the step before for a
+/// synchronous one, since a synchronous read presents its data a clock late.
+///
+/// **Two different numbers, and they were the same one.** Which clock this is - and so whether
+/// there IS a clock before it - is a question about the clock number; where that clock's port
+/// values LIE is an index into the circular step arrays, which `stepIndexOf` wraps. They agree
+/// only until the arrays wrap, which the waveform simulator never does and the step simulator does
+/// on its 551st cycle: past that, `cycle - 1` used as an index read another port's region of the
+/// shared slab, and past the end of the slab it threw - on the sidecar, inside the serve loop,
+/// which drops the connection and takes every request in flight with it.
+///
+/// A cycle the arrays have run past is shown WITHOUT markers rather than refused. What the memory
+/// held then is still known - `RamStore` keeps its writes by absolute clock, not in the step
+/// arrays - so the only thing lost is which location the ports named, and a table of contents with
+/// nothing highlighted is a better answer than no table.
+let private readAndWritten (fs: FastSimulation) (fc: FastComponent) (cycle: int) =
+    if cycle < 0 || fs.ClockTick - cycle >= fs.MaxArraySize then
+        None, None
+    else
+
+    let step = stepIndexOf fs.MaxArraySize cycle
     let addressAt s = FastExtract.getFastComponentInput fc 0 s
 
     let readAt =
         match fc.FType with
         | AsyncROM1 _
-        | AsyncRAM1 _ -> step
+        | AsyncRAM1 _ -> step.SimStep
         | ROM1 _
-        | RAM1 _ -> step - 1
+        | RAM1 _ -> step.SimStepOld
         | _ -> failwithf $"What? {fc.FullName} should be a memory component"
 
     let read =
-        match step, fc.FType with
+        match cycle, fc.FType with
         | 0, ROM1 _
         | 0, RAM1 _ -> None
         | _ -> Some(addressAt readAt)
 
     let written =
-        match step, fc.FType with
+        match cycle, fc.FType with
         | _, ROM1 _
         | _, AsyncROM1 _
         | 0, _ -> None
         | _, RAM1 _
-        | _, AsyncRAM1 _ when FastExtract.getFastComponentInput fc 2 (step - 1) = 1I -> Some(addressAt (step - 1))
+        | _, AsyncRAM1 _ when FastExtract.getFastComponentInput fc 2 step.SimStepOld = 1I ->
+            Some(addressAt step.SimStepOld)
         | _ -> None
 
     read, written
 
 /// Mark the read and written locations, adding a row for either if the display does not already
 /// have one - a location read or written is worth a row whatever it holds.
-let private markReadWrite (fc: FastComponent) (step: int) (rows: (bigint * bigint) list) =
-    let read, written = readAndWritten fc step
+let private markReadWrite (fs: FastSimulation) (fc: FastComponent) (cycle: int) (rows: (bigint * bigint) list) =
+    let read, written = readAndWritten fs fc cycle
 
     let marked =
         (rows |> List.map (fun (a, v) -> a, (v, RAMNormal)) |> Map.ofList, [ read, RAMRead; written, RAMWritten ])
@@ -141,10 +160,10 @@ let ofFastSim
             let lastLocation = (1I <<< ram.AddressWidth) - 1I
 
             match RamStore.sparseUpTo ram cycle sparseUpTo with
-            | Some locations -> RamSparse(markReadWrite fc cycle locations)
+            | Some locations -> RamSparse(markReadWrite fs fc cycle locations)
             | None ->
                 let window =
                     [ start .. min lastLocation (start + bigint rows - 1I) ]
                     |> List.map (fun addr -> addr, RamStore.wordAt ram cycle addr)
 
-                RamWindow(start, markReadWrite fc cycle window))
+                RamWindow(start, markReadWrite fs fc cycle window))

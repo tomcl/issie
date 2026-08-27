@@ -860,11 +860,9 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
                       let! _ = SidecarClient.simRun epoch (cycles - 1) 0
                       let! frame = SidecarClient.simRead epoch 0 1 cycles items
 
-                      let asText = SidecarClient.decodeText frame
-
-                      if asText.StartsWith "{" then
-                          Log.error $"sidecarProbe: SimRead failed: {asText} (build: {built})"
-                      else
+                      match SidecarClient.errorOfFrame frame with
+                      | Some e -> Log.error $"sidecarProbe: SimRead failed: {e} (build: {built})"
+                      | None ->
                           let count = List.length items * cycles
                           let view = SidecarClient.viewSimReadData frame count
 

@@ -765,6 +765,32 @@ let mutable private sidecarProc: ChildProcess option = None
 /// 0 until the sidecar has printed its handshake; back to 0 if it exits.
 let mutable private sidecarPort = 0
 
+/// Set when the app is going down, so that the sidecar being killed on purpose is not mistaken
+/// for it dying and started again in the middle of a shutdown.
+let mutable private sidecarQuitting = false
+
+/// Consecutive starts that never got as far as the handshake.
+///
+/// Reset by every start that does, which is what makes the two failures behave differently. A
+/// sidecar that worked and then died - killed for memory by a build too large, or taking a fault
+/// this side could not answer - is worth starting again however often it happens, because each
+/// time it comes back. One that cannot start at all - no dotnet, a source tree that will not
+/// build, a missing binary in a packaged app - would otherwise be started for ever, several times
+/// a second, writing the same failure to the log each time.
+let mutable private sidecarFailedStarts = 0
+
+/// How many consecutive failures to start before giving up until the app is restarted.
+let private sidecarStartAttempts = 5
+
+/// How long to wait before starting it again. Long enough not to spin, short enough that a
+/// simulation started straight after a crash finds the transport there.
+let private sidecarRestartMs = 1000
+
+/// Registered once rather than per process: the handler is about the sidecar in general, and a
+/// restart that added a second copy would kill twice and, worse, keep the dead child alive in the
+/// closure it captured.
+let mutable private sidecarQuitHooked = false
+
 [<Emit("require('crypto').randomBytes(16).toString('hex')")>]
 let private randomHexToken () : string = jsNative
 
@@ -791,11 +817,23 @@ let private sidecarToken = randomHexToken ()
 [<Emit("Object.assign({}, process.env, { ISSIE_SIDECAR_TOKEN: $0, DOTNET_TC_CallCountingDelayMs: '0' })")>]
 let private envWithSidecarToken (token: string) : obj = jsNative
 
-/// Start the sidecar. In development that is `dotnet run`, which builds first when it must - the
-/// port channel below answers null until the handshake lands, so a slow first build costs nothing
-/// but waiting. In production it is the self-contained binary electron-builder placed under
-/// resources/sidecar (scripts/publish-sidecar.js). No respawn on exit: this is a skeleton.
-let startSidecar () =
+/// Start the sidecar, and start it again if it dies. In development that is `dotnet run`, which
+/// builds first when it must - the port channel below answers null until the handshake lands, so a
+/// slow first build costs nothing but waiting. In production it is the self-contained binary
+/// electron-builder placed under resources/sidecar (scripts/publish-sidecar.js).
+///
+/// **What a restart does and does not recover.** The transport comes back on its own: the port
+/// channel answers the new port, and the renderer's `request` connects when it has no socket, so
+/// the next thing asked of the simulator reaches the new process. What does NOT come back is the
+/// simulation - the new process holds no design and no session, so every command naming the old
+/// session's epoch is refused by name, which is exactly what that number is for. The user's next
+/// Start or Refresh builds again and works.
+///
+/// It is deliberately left there. Rebuilding from here would mean this side deciding to simulate,
+/// and "nothing but a start path builds" is the rule that deleted the build-retry storm
+/// (docs/dev/sidecarInvariants.md, section J). A restart that silently rebuilt would also be a
+/// simulation the user did not ask for, of whatever design happened to be open.
+let rec startSidecar () =
     let prog, args =
         if isDev () then
             "dotnet", [ "run"; "-c"; "Release"; "--project"; path.join (cwd (), "src", "Sidecar") ]
@@ -826,6 +864,8 @@ let startSidecar () =
 
                     if line.StartsWith "SIDECAR_LISTENING " then
                         sidecarPort <- int (line.Substring "SIDECAR_LISTENING ".Length)
+                        // it started, so whatever went wrong before it is not what is wrong now
+                        sidecarFailedStarts <- 0
                         Log.dbg Log.Misc $"sidecar listening on port {sidecarPort}")
         |> ignore
 
@@ -834,17 +874,41 @@ let startSidecar () =
         child.on (
             "exit",
             fun code ->
-                Log.dbg Log.Misc $"sidecar exited with {code}"
                 sidecarPort <- 0
-                sidecarProc <- None)
+                sidecarProc <- None
+
+                if sidecarQuitting then
+                    Log.dbg Log.Misc $"sidecar exited with {code}"
+                elif sidecarFailedStarts >= sidecarStartAttempts then
+                    Log.error
+                        $"the .NET simulator has failed to start {sidecarFailedStarts} times in a row and will not be started again. Restart Issie to simulate."
+                else
+                    sidecarFailedStarts <- sidecarFailedStarts + 1
+                    Log.warn $"the .NET simulator exited with {code}; starting it again"
+                    JS.setTimeout startSidecar sidecarRestartMs |> ignore)
         |> ignore
 
-        // Belt: take it down with the app. The braces are the sidecar's own stdin-EOF watchdog,
-        // which catches every exit path this handler cannot.
-        mainProcess.app.``on_will-quit`` (fun _ -> sidecarProc |> Option.iter (fun c -> c.kill ()))
-        |> ignore
+        if not sidecarQuitHooked then
+            sidecarQuitHooked <- true
+
+            // Said as early as the app says it, so that a sidecar dying during a shutdown - taken
+            // down by the OS with everything else - is not started again on the way out.
+            mainProcess.app.``on_before-quit`` (fun _ -> sidecarQuitting <- true) |> ignore
+
+            // Belt: take it down with the app. The braces are the sidecar's own stdin-EOF watchdog,
+            // which catches every exit path this handler cannot.
+            mainProcess.app.``on_will-quit`` (fun _ ->
+                sidecarQuitting <- true
+                sidecarProc |> Option.iter (fun c -> c.kill ()))
+            |> ignore
     with e ->
         Log.error $"sidecar: could not start '{prog}': {e.Message}"
+
+        // A spawn that throws never reaches the exit handler above, so the retry is issued here or
+        // a missing dotnet would end the sidecar for the session.
+        if not sidecarQuitting && sidecarFailedStarts < sidecarStartAttempts then
+            sidecarFailedStarts <- sidecarFailedStarts + 1
+            JS.setTimeout startSidecar sidecarRestartMs |> ignore
 
 // ---------------------------------------------------------------------------------------------
 // The debug UART

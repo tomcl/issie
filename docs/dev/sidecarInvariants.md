@@ -65,6 +65,7 @@ WebSocket; the renderer connects directly and the main process is not in the dat
 | A3 | Every reply matches a request in flight. | **holds** — an unmatched reply is logged rather than ignored |
 | A4 | Every request eventually settles — resolves or rejects. | **holds** — failed on close, and failed on a deadline when there is no close |
 | A7 | A closed connection is recoverable without a rebuild. | **holds** — `request` connects when there is no socket |
+| A8 | A sidecar that dies is started again, and a simulation is not silently rebuilt on top of it. | **holds** — main restarts it; the epoch refuses commands naming the session it lost |
 | A5 | Replies arrive in the order the requests were sent. | **holds**, and is deliberately *not* relied on: correlation ids mean it could stop being true without breaking anything |
 | A6 | Every request is answered within its command's budget, except the two declared long. | **holds** — checked, see F |
 
@@ -106,9 +107,20 @@ is its own failure — the sidecar serves one connection at a time, so a second 
 refused but sits unanswered in the listener's queue), and it rejects rather than looping when the
 sidecar is genuinely gone.
 
-What this does **not** recover is the sidecar process dying: main does not respawn it and reports no
-port, so `connect` waits out its startup budget and fails. That is a skeleton limitation and is
-named in `Main/Bridge.fs` rather than here.
+The sidecar process dying is recovered the same way, one layer down. Main starts it again — after a
+second, and only while a start that reaches the handshake keeps resetting the count, so a sidecar
+that worked and then died comes back however often it happens while one that cannot start at all
+gives up rather than spinning. The port channel then answers the new port, `connect` reads it at the
+moment of connecting, and the request that was waiting goes to the new process. Nothing above the
+transport is told, because nothing above it has to be.
+
+What is NOT recovered is the **simulation**, and deliberately. The new process holds no design and
+no session, so every command naming the old epoch is refused by name — which is the case section C
+introduced the epoch for, and it arrives as an error the viewer's banner shows rather than as data
+from a simulation that no longer exists. The user's next Start or Refresh builds again and works.
+Rebuilding from main would mean this side deciding to simulate: it breaks "nothing but a start path
+builds" (section J), the rule that deleted the build-retry storm, and it would be a simulation
+nobody asked for, of whatever design happened to be open.
 
 ---
 

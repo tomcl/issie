@@ -511,7 +511,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3168', 3168)" onmouseover="showTip(event, '3168', 3168)">
+              <code onmouseout="hideTip(event, '3170', 3170)" onmouseover="showTip(event, '3170', 3170)">
                 <p>
                   <a id="cancelSpinner">
                     <a href="#cancelSpinner">
@@ -520,7 +520,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3168">
+              <div class="fsdocs-tip" id="3170">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>cancelSpinner&#32;<span>model</span></span></code>
@@ -590,7 +590,124 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3169', 3169)" onmouseover="showTip(event, '3169', 3169)">
+              <code onmouseout="hideTip(event, '3171', 3171)" onmouseover="showTip(event, '3171', 3171)">
+                <p>
+                  <a id="noteWaveScroll">
+                    <a href="#noteWaveScroll">
+                      <code><span>noteWaveScroll&#32;<span>oldModel&#32;<span>(<span>model,&#32;cmd</span>)</span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="3171">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>noteWaveScroll&#32;<span>oldModel&#32;<span>(<span>model,&#32;cmd</span>)</span></span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        oldModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        model
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        cmd
+                      </b>
+                      :
+                      <code><span>Cmd&lt;<a href="/issie/reference/modeltype-msg.html">Msg</a>&gt;</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="/issie/reference/modeltype-model.html">Model</a>&#32;*&#32;<span>Cmd&lt;<a href="/issie/reference/modeltype-msg.html">Msg</a>&gt;</span></span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:WaveSimTop.noteWaveScroll`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimTop.noteWaveScroll\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimTop.fs#L872-872" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Suppress the run banner while the waveform viewer is being scrolled horizontally, and arm the
+ delayed message that lets it show again once the scrolling has stopped.
+
+ Here, once, rather than at each of the things that scroll - the scrollbar, its arrow buttons, a
+ zoom, a cursor move that pulls the window along - because what they have in common is what they
+ did to StartCycle, and none of them should have to know that there is a banner. Every one of
+ them reaches this on the way out of the update.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    oldModel
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    model
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    cmd
+                  </span>
+                  :
+                  <code><span>Cmd&lt;<a href="/issie/reference/modeltype-msg.html">Msg</a>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span><a href="/issie/reference/modeltype-model.html">Model</a>&#32;*&#32;<span>Cmd&lt;<a href="/issie/reference/modeltype-msg.html">Msg</a>&gt;</span></span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '3172', 3172)" onmouseover="showTip(event, '3172', 3172)">
                 <p>
                   <a id="refreshButtonAction">
                     <a href="#refreshButtonAction">
@@ -599,7 +716,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3169">
+              <div class="fsdocs-tip" id="3172">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>refreshButtonAction&#32;<span>canvasState&#32;model&#32;dispatch&#32;arg4</span></span></code>
@@ -655,7 +772,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimTop.refreshButtonAction``3\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimTop.fs#L1156-1156" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimTop.fs#L1182-1182" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -712,7 +829,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3170', 3170)" onmouseover="showTip(event, '3170', 3170)">
+              <code onmouseout="hideTip(event, '3173', 3173)" onmouseover="showTip(event, '3173', 3173)">
                 <p>
                   <a id="refreshWaveSim">
                     <a href="#refreshWaveSim">
@@ -721,7 +838,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3170">
+              <div class="fsdocs-tip" id="3173">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>refreshWaveSim&#32;<span>newSimulation&#32;model</span></span></code>
@@ -813,7 +930,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3171', 3171)" onmouseover="showTip(event, '3171', 3171)">
+              <code onmouseout="hideTip(event, '3174', 3174)" onmouseover="showTip(event, '3174', 3174)">
                 <p>
                   <a id="setButtonSpinner">
                     <a href="#setButtonSpinner">
@@ -822,7 +939,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3171">
+              <div class="fsdocs-tip" id="3174">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>setButtonSpinner&#32;<span>payload&#32;model</span></span></code>
@@ -890,7 +1007,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3172', 3172)" onmouseover="showTip(event, '3172', 3172)">
+              <code onmouseout="hideTip(event, '3175', 3175)" onmouseover="showTip(event, '3175', 3175)">
                 <p>
                   <a id="setProgressBar">
                     <a href="#setProgressBar">
@@ -899,7 +1016,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3172">
+              <div class="fsdocs-tip" id="3175">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>setProgressBar&#32;<span>name&#32;payload&#32;numToDo&#32;model</span></span></code>
@@ -1017,7 +1134,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3173', 3173)" onmouseover="showTip(event, '3173', 3173)">
+              <code onmouseout="hideTip(event, '3176', 3176)" onmouseover="showTip(event, '3176', 3176)">
                 <p>
                   <a id="sidecarChecks">
                     <a href="#sidecarChecks">
@@ -1026,7 +1143,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3173">
+              <div class="fsdocs-tip" id="3176">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sidecarChecks&#32;<span><span>(<span>model,&#32;cmd</span>)</span></span></span></code>
@@ -1071,7 +1188,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimTop.sidecarChecks\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimTop.fs#L872-872" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimTop.fs#L898-898" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1118,7 +1235,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3174', 3174)" onmouseover="showTip(event, '3174', 3174)">
+              <code onmouseout="hideTip(event, '3177', 3177)" onmouseover="showTip(event, '3177', 3177)">
                 <p>
                   <a id="startWaveSimulation">
                     <a href="#startWaveSimulation">
@@ -1127,7 +1244,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3174">
+              <div class="fsdocs-tip" id="3177">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>startWaveSimulation&#32;<span>model</span></span></code>
@@ -1164,7 +1281,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimTop.startWaveSimulation\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimTop.fs#L999-999" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimTop.fs#L1025-1025" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1201,7 +1318,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3175', 3175)" onmouseover="showTip(event, '3175', 3175)">
+              <code onmouseout="hideTip(event, '3178', 3178)" onmouseover="showTip(event, '3178', 3178)">
                 <p>
                   <a id="topHalf">
                     <a href="#topHalf">
@@ -1210,7 +1327,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3175">
+              <div class="fsdocs-tip" id="3178">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>topHalf&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span>&#32;model&#32;dispatch</span></span></code>
@@ -1271,7 +1388,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimTop.topHalf\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimTop.fs#L1169-1169" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimTop.fs#L1195-1195" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1328,7 +1445,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3176', 3176)" onmouseover="showTip(event, '3176', 3176)">
+              <code onmouseout="hideTip(event, '3179', 3179)" onmouseover="showTip(event, '3179', 3179)">
                 <p>
                   <a id="viewWaveSim">
                     <a href="#viewWaveSim">
@@ -1337,7 +1454,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3176">
+              <div class="fsdocs-tip" id="3179">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>viewWaveSim&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span>&#32;model&#32;dispatch</span></span></code>
@@ -1398,7 +1515,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimTop.viewWaveSim\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimTop.fs#L1312-1312" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimTop.fs#L1338-1338" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

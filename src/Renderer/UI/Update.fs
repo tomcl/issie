@@ -603,10 +603,21 @@ let updateUnpinned (msg : Msg) oldModel =
 
         | Some(OpBuild(top, arraySize)), AnsBuilt(Ok epoch) ->
             // From this moment instance views answer from the slices the sidecar has been asked
-            // for. WHICH instances need asking is derived from the model by describeWhatIsShown,
-            // which runs at the end of this update like it runs after every message - so nothing
-            // here has to know what the selection or the selector currently references.
+            // for. WHICH instances need asking is the StructureViewport, derived from the model by
+            // the end-of-update checks like everything else, and the slices are read by the fetch
+            // bundle they issue - so nothing here has to know what the selection or the selector
+            // currently references. There is no operation of its own for it: describing instances
+            // is one of the reads a bundle makes, and it fails the bundle when it fails, which is
+            // what keeps "the caches hold what this viewport needs" true.
             PortData.startEpoch (Simulator.getFastSim ()) epoch
+
+            // The waveform cache is pointed at the new session in the same breath, and for the same
+            // reason: both hold what a BUILD answered, so both belong to the build rather than to
+            // the refresh that happens to notice it. Left to the refresh, there was a window - from
+            // here until the fetch this build's session allows completes - in which the cache still
+            // named the session before it and refused everything that arrived (invariant D4), while
+            // the fetch that filled it recorded the viewport as served. Nothing then asked again.
+            WaveData.holdNothing epoch
 
             model
             |> set sidecarSession_ (Session(top, arraySize, epoch, 0))
@@ -614,21 +625,6 @@ let updateUnpinned (msg : Msg) oldModel =
             // a step run that started before there was a session issued this build; now there is
             // one, its first chunk goes out. Does nothing when no run is wanted.
             |> SimulationView.continueStepRun
-
-        | Some(OpPorts _), AnsPorts(Ok described) ->
-            Log.dbg Log.Wave $"described {described} instances for the wave selector"
-            // whatever was waiting on a description - an unresolved wave, an empty selector row -
-            // resolves on the next refresh, so ask for one if a waveform view is up
-            model
-            |> withNoMsg
-            |> fun (model, cmd) ->
-                match model.WaveSimSheet with
-                | Some _ -> model, Cmd.batch [ cmd; Cmd.ofMsg GenerateCurrentWaveforms ]
-                | None -> model, cmd
-
-        | Some(OpPorts _), AnsPorts(Error e) ->
-            Log.error $"the .NET simulator could not describe the design's instances: {e}"
-            model |> withNoMsg
 
         | Some(OpRunForWaves _), AnsRan(Ok(clock, _)) ->
             // The clock it reached, and nothing else. Whether another chunk is needed is worked

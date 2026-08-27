@@ -313,10 +313,6 @@ type SidecarOp =
     | OpStep of cycle: int
     /// read the value on the wire the pointer is resting on, at the cycle being shown
     | OpProbe of wave: WaveIndexT * cycle: int
-    /// describe some instances: width and driver of every port, into PortData. Dispatched when a
-    /// build completes (for the instances the selection references) and when the selector shows
-    /// an instance not yet described - structure is event-driven where data is convergence-driven
-    | OpPorts of instances: int
 
 /// What an operation answered. One case per operation, so that an answer cannot be handled as
 /// though it were the answer to something else.
@@ -334,8 +330,6 @@ type SidecarAnswer =
     /// where the SIMULATOR says it now is - the fact the model's clock is set to, never
     /// incremented towards.
     | AnsSteppedTo of before: int * startedMs: float * result: Result<int * bool, string>
-    /// how many instances were described; the slices themselves are already in PortData
-    | AnsPorts of Result<int, string>
 
 /// The session the sidecar holds, which is what an operation commands.
 ///

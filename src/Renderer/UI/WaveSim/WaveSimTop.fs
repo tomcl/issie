@@ -312,7 +312,8 @@ let rec refreshWaveSim (newSimulation: bool) (model: Model): Model * Elmish.Cmd<
         // for as long as the cache lived.
         WaveProvider.selectSimulator
             model.SimulateInRenderer
-            newSimulation
+            // the session the cache must be of; 0 - a number no build issues - when there is none
+            (model.SidecarSession.Epoch |> Option.defaultValue 0)
             localDriverData
             (fun () -> (Simulator.getFastSim()).ClockTick)
 

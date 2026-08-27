@@ -26,11 +26,6 @@ open CommonTypes
 open SimTypes
 open WaveSlice
 
-/// Forget what the sidecar holds, so the next refresh builds again. Called when the waveform
-/// simulation ends or the design changes. The session itself is SidecarSession's, which the step
-/// simulator shares: the sidecar holds one simulation at a time, so one module knows what it is.
-let forget () = SidecarSession.forget ()
-
 /// The width of a wave's signal, or None where there is no signal - an input port with nothing
 /// driving it. A lookup in the instance's port list, which the viewer holds anyway.
 ///
@@ -89,7 +84,7 @@ let private fetchWaves
         asked |> List.map (fun wi -> wi.SimArrayIndex) |> List.filter (fun i -> not (Set.contains i named))
 
     if not (List.isEmpty unnameable) then
-        WaveData.setNoDriver unnameable window
+        WaveData.setNoDriver epoch unnameable window
 
         let plural = if List.length unnameable = 1 then "waveform" else "waveforms"
 
@@ -120,11 +115,12 @@ let private fetchWaves
                 let data: uint32 array =
                     unbox (SidecarClient.viewSimReadData frame (List.length requested * samples * wordsPerSample))
 
-                // Written unconditionally. Whether this answer is still of the simulation being
-                // drawn is a question about the model - which session it believes is live - and it
-                // is asked where the model is, when this promise's completion message lands
-                // (Update.discardIfSessionMoved). A promise reaching for that belief through a
-                // side channel is what put a fact the UI must draw somewhere the UI could not read.
+                // Written under the session it was asked of, which is what the cache checks it
+                // against (invariant D4). It used to be written unconditionally, on the argument
+                // that whether the answer is still of the simulation being drawn is a question
+                // about the model and so belongs where the model is - but a promise finishes
+                // BEFORE its completion message is handled, and view code reads the cache in
+                // between, so there was no later that came before the next render.
                 //
                 // one array, shared: the reply is signal-major, and each wave records where its
                 // own row starts rather than the rows being copied apart
@@ -137,7 +133,7 @@ let private fetchWaves
                       WaveData.WordsPerSample = wordsPerSample
                       WaveData.RowBase = row * samples * wordsPerSample
                       WaveData.Data = data })
-                |> WaveData.setFetched
+                |> WaveData.setFetched epoch
 
                 return Ok()
         }
@@ -193,26 +189,28 @@ let private fetchForView
 /// Choose the simulator for this refresh, and say what the renderer's own one reads through.
 ///
 /// Called once per refresh so that nothing below has to branch on which simulator is running.
-/// A new simulation means the design or its shape changed: what the sidecar holds is then not it,
-/// and any window already fetched was read from a simulation that no longer exists.
+///
+/// **The session decides, and nothing else has to.** This took a `newSimulation` flag from the
+/// caller as well, which said the design or its shape had changed and so what was cached had been
+/// read from a simulation that no longer exists. That is exactly what a different epoch says, and
+/// the epoch says it without anyone having to remember to pass it: a build issues a new one, so a
+/// cache of the old one is emptied here on the next refresh whether or not the refresh knew it was
+/// the first after a build. `epoch` is 0 when there is no session, which is a session number no
+/// build ever issues, so the cache of a stopped simulation is not mistaken for a live one either.
 let selectSimulator
     (inRenderer: bool)
-    (newSimulation: bool)
+    (epoch: int)
     (localLookup: SignalHandle -> IOArray option)
     (localClock: unit -> int)
     =
-    match inRenderer, newSimulation, WaveData.current () with
-    | true, _, _ -> WaveData.setLocal localLookup localClock
-    | false, true, _ ->
-        // the design or its shape changed: what the sidecar holds is not it, and every wave already
-        // fetched was read from a simulation that no longer exists
-        forget ()
-        WaveData.holdNothing ()
-    | false, false, WaveData.Source.Local ->
-        // the sidecar is simulating and the cache is still reading the renderer's own step arrays -
+    match inRenderer, WaveData.current () with
+    | true, _ -> WaveData.setLocal localLookup localClock
+    | false, WaveData.Source.Fetched(held, _) when held = epoch -> ()
+    | false, _ ->
+        // either the cache is of another session - so every wave in it was read from a simulation
+        // that is not the one being drawn - or it is still reading the renderer's own step arrays,
         // which in this mode are never run. Ask, rather than draw a simulation nobody has run.
-        WaveData.holdNothing ()
-    | false, false, _ -> ()
+        WaveData.holdNothing epoch
 
 /// How many cycles the simulation being shown has actually been run for.
 ///

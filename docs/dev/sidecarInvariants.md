@@ -251,7 +251,7 @@ the decision never consults.
 | D2 | A wave is in the cache only if its data is. | **holds** — by construction: the entry and the data are put there together |
 | D3 | The data received is `signals × samples × wordsPerSample` values long. | **holds** — and is checked, because a short reply is silent |
 | D5 | A wave asked for over a window holds an answer for it - samples, or "no driver". | **holds** — by construction, and it is what stops an unfetchable wave being asked for for ever |
-| D4 | Nothing fetched under a session that has ended is ever written. | **holds** — and is checked, by epoch, on receipt |
+| D4 | Nothing fetched under a session that has ended is ever written. | **holds** — the cache carries the session it is of, and a write naming another is refused |
 
 D1 is stricter than it needs to be and that is intentional: a containment test would let the viewer
 draw a sub-window of stale data without anything noticing. The cost is a refetch when the view
@@ -262,7 +262,20 @@ the truncation point somebody else's data, drawn confidently.
 
 D4 matters because the cache is emptied when the design changes but a fetch already in the air is
 not: without the check its reply would land beside waves of the design that replaced it, each
-looking exactly as trustworthy as the other.
+looking exactly as trustworthy as the other. Worse than beside — a driver index names a different
+signal in the next build, so the old samples land *under the new signal's name*.
+
+**It is checked where the writing happens, and it has to be.** This was written unconditionally for
+a while, on the argument that which session is live is a fact about the model and so the question
+belongs where the model is, when the completion message lands. That is a real principle and it is
+the wrong one here: a promise finishes *before* its completion message is handled, and view code
+reads this cache on every render in between. There was no later that came before the next render,
+and the check the code named had never been written. So `Source.Fetched` carries the epoch it is of
+and a write naming another is dropped.
+
+The same number is what empties the cache: `selectSimulator` compares the session on the model with
+the session the cache holds, so a build empties it on the next refresh. It used to take a
+`newSimulation` flag from the caller saying the same thing less reliably.
 
 ### What is drawn, and what that means for the tooltip
 
@@ -367,7 +380,7 @@ An invariant that cannot be checked is a comment. These can be, cheaply.
 | a request unanswered past ten times its budget failed, and the socket dropped | `SidecarClient.request`, armed per request | A4, where there is no close to notice |
 | a handler that threw answered as an error rather than unwinding | the sidecar's serve loop | B6 |
 | data length = signals × samples × wordsPerSample | `WaveData.setFetched` | D3 |
-| the session that answered is the session that exists | `WaveProvider`, on receipt | D4 |
+| the session that answered is the session the cache is of | `WaveData.setFetched`, at the write | D4 |
 | the viewport unserved for longer than a fetch takes, or an error latched | the viewer, per render | C3, D1 |
 | correlation id already in `pending` | `SidecarClient.request` | A2 |
 

@@ -30,11 +30,6 @@ module Constants =
     /// second bought no more of either, and cost ten times the messages.
     let runChunkMs = 1000
 
-/// Nothing here is state. What the sidecar holds and how far it has been run are both model
-/// facts - `Model.SidecarSession` - because both have to be drawn, and a belief the view can only
-/// reach through a side channel is one the view cannot draw from.
-let forget () = ()
-
 [<Emit("JSON.parse($0)")>]
 let parseJson (text: string) : obj = jsNative
 

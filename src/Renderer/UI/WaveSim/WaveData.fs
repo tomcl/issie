@@ -66,10 +66,18 @@ let private windowHeld =
 type Source =
     /// the renderer's own simulation - read its step arrays where they lie
     | Local
-    /// what has been fetched from the sidecar, by driver index. A wave is here when it has been
-    /// asked for, whatever window it was asked over; whether that window is the one being drawn is
-    /// the caller's question and is answered by `hasData`
-    | Fetched of Map<int, Held>
+    /// what has been fetched from the sidecar SESSION `epoch`, by driver index. A wave is here
+    /// when it has been asked for, whatever window it was asked over; whether that window is the
+    /// one being drawn is the caller's question and is answered by `hasData`.
+    ///
+    /// **The epoch is what makes invariant D4 true rather than intended.** A driver index names a
+    /// different signal in the next build, and a fetch already in the air when one starts still
+    /// lands - so without a session on the cache itself, the previous build's samples were written
+    /// under indices the new build had reused and drawn under the new signal's name. The comment
+    /// here used to point at a check in the update function; there was no such check, and there is
+    /// nowhere for one to be, because this is written from inside a promise where the model is not
+    /// reachable. Saying which session the cache is OF settles it where the writing happens.
+    | Fetched of epoch: int * Map<int, Held>
 
 /// What the viewer is currently drawing from. Local until the waveform simulator says otherwise.
 let mutable private source = Source.Local
@@ -99,48 +107,58 @@ let setLocal (lookup: SignalHandle -> IOArray option) (clock: unit -> int) =
     localClock <- clock
     source <- Source.Local
 
-/// Read from the sidecar, holding nothing yet: every wave has to be asked for.
+/// Read from the sidecar session `epoch`, holding nothing yet: every wave has to be asked for.
 ///
 /// NOT the same as Local, which is what the renderer's own simulation is. In .NET mode the
 /// renderer's step arrays exist but are never run, so reading through to them would draw a column
 /// of zeros with the confidence of simulation output. This says "ask", where Local says "look".
-let holdNothing () = source <- Source.Fetched Map.empty
+let holdNothing (epoch: int) = source <- Source.Fetched(epoch, Map.empty)
 
-/// Add fetched waves to what the viewer reads, keeping any it already had that this fetch did not
+/// Add what a fetch of session `epoch` carried, keeping any waves already held that it did not
 /// carry - a fetch asks only for the waves that were missing, so the rest are still current.
+///
+/// **Refused unless the cache is of that session** (invariant D4). This is written from inside the
+/// promise that fetched, where the model - and so which session is on screen - is not reachable;
+/// the alternative was to write regardless and check somewhere later, and there is no later that
+/// comes before the next render. A reply from a build that has been replaced would otherwise land
+/// under driver indices the new build has reused, and be drawn under the new signal's name until
+/// something moved.
 ///
 /// The length is checked because a short reply is silent: every wave after the truncation point
 /// would read somebody else's samples, drawn as confidently as the rest.
-let setFetched (waves: (int * CachedWave) list) =
-    waves
-    |> List.iter (fun (handle, cached) ->
-        let samples = cached.Window.SampleCount + (if cached.LeadIn then 1 else 0)
-        let needs = cached.RowBase + samples * cached.WordsPerSample
+let setFetched (epoch: int) (waves: (int * CachedWave) list) =
+    match source with
+    | Source.Fetched(held, existing) when held = epoch ->
+        waves
+        |> List.iter (fun (handle, cached) ->
+            let samples = cached.Window.SampleCount + (if cached.LeadIn then 1 else 0)
+            let needs = cached.RowBase + samples * cached.WordsPerSample
 
-        if cached.Data.Length < needs then
-            Log.error
-                $"waveform cache: wave {handle} needs {needs} values and the reply holds {cached.Data.Length} (invariant D3)")
+            if cached.Data.Length < needs then
+                Log.error
+                    $"waveform cache: wave {handle} needs {needs} values and the reply holds {cached.Data.Length} (invariant D3)")
 
-    let existing =
-        match source with
-        | Source.Fetched held -> held
-        | Source.Local -> Map.empty
+        source <- Source.Fetched(epoch, (existing, waves) ||> List.fold (fun m (h, c) -> Map.add h (Samples c) m))
+    | _ ->
+        Log.dbg
+            Log.Wave
+            $"a fetch of session {epoch} landed after the cache moved on; {List.length waves} waves dropped (invariant D4)"
 
-    source <- Source.Fetched((existing, waves) ||> List.fold (fun m (h, c) -> Map.add h (Samples c) m))
-
-/// Record that these waves were asked for over this window and the simulation cannot name them.
+/// Record that these waves were asked for over this window under session `epoch`, and the
+/// simulation cannot name them.
 ///
 /// Not an error and not a gap to be retried: a wave whose driver the simulation does not offer is
 /// one this build has no way of fetching, so what is recorded is that answer. It goes in the cache
 /// rather than in a list of exceptions because the question - "has this wave got the window it is
 /// drawn over" - is the same one, and one answer is easier to keep true than two.
-let setNoDriver (handles: int list) (window: Window) =
-    let existing =
-        match source with
-        | Source.Fetched held -> held
-        | Source.Local -> Map.empty
-
-    source <- Source.Fetched((existing, handles) ||> List.fold (fun m h -> Map.add h (NoDriver window) m))
+///
+/// Session-checked exactly as `setFetched` is, and for the same reason: "no driver" is an answer
+/// about one build, and the next build may well have one.
+let setNoDriver (epoch: int) (handles: int list) (window: Window) =
+    match source with
+    | Source.Fetched(held, existing) when held = epoch ->
+        source <- Source.Fetched(epoch, (existing, handles) ||> List.fold (fun m h -> Map.add h (NoDriver window) m))
+    | _ -> ()
 
 let current () = source
 
@@ -151,7 +169,7 @@ let current () = source
 let hasData (SignalHandle handle) (window: Window) =
     match source with
     | Source.Local -> true
-    | Source.Fetched waves ->
+    | Source.Fetched(_, waves) ->
         match Map.tryFind handle waves with
         | Some held -> windowHeld held = window
         | None -> false
@@ -164,7 +182,7 @@ let hasData (SignalHandle handle) (window: Window) =
 let heldWindow (SignalHandle handle) =
     match source with
     | Source.Local -> None
-    | Source.Fetched waves ->
+    | Source.Fetched(_, waves) ->
         match Map.tryFind handle waves with
         | Some(Samples c) -> Some c.Window
         | Some(NoDriver _)
@@ -184,7 +202,7 @@ let needFetching (handles: SignalHandle list) (window: Window) =
 let slice (SignalHandle handle as h) (window: Window) : WaveSlice option =
     match source with
     | Source.Local -> localData h |> Option.bind (fun io -> ofLocalDriver io (localClock ()) window)
-    | Source.Fetched waves ->
+    | Source.Fetched(_, waves) ->
         match Map.tryFind handle waves with
         | Some(Samples c) when c.Window = window ->
             if c.Width <= 32 then
@@ -213,7 +231,7 @@ let valueAt (SignalHandle handle as h) (cycle: int) : FastData option =
                 io.TryBig cycle |> Option.map (fun v -> { Dat = BigWord v; Width = io.Width })
             else
                 io.TryU32 cycle |> Option.map (fun v -> { Dat = Word v; Width = io.Width }))
-    | Source.Fetched waves ->
+    | Source.Fetched(_, waves) ->
         // Answered from the window this wave HOLDS, which is the window it is drawn over - so the
         // value column and the tooltip say what the waveform beside them says, whether or not that
         // is the view the controls now ask for.

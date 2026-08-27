@@ -34,9 +34,6 @@ let forget () = held <- None
 let startEpoch (fs: SimTypes.FastSimulation) (epoch: int) =
     held <- Some(box fs, epoch, System.Collections.Generic.Dictionary())
 
-/// The build the held slices are of, or None when nothing is held.
-let epochHeld () = held |> Option.map (fun (_, epoch, _) -> epoch)
-
 /// The instances of `wanted` this build has not yet been asked about.
 let missingOf (wanted: InstancePath list) : InstancePath list =
     match held with

@@ -124,21 +124,29 @@ let holdNothing (epoch: int) = source <- Source.Fetched(epoch, Map.empty)
 /// under driver indices the new build has reused, and be drawn under the new signal's name until
 /// something moved.
 ///
-/// The length is checked because a short reply is silent: every wave after the truncation point
-/// would read somebody else's samples, drawn as confidently as the rest.
+/// A wave short of its own samples is reported AND kept out (invariant D3). A short reply is
+/// silent: reading past the end of a typed array is `undefined` in JavaScript rather than a fault,
+/// so every wave after the truncation point drew somebody else's samples - or NaNs - as
+/// confidently as the rest. Reporting it and then storing it anyway made the check a description
+/// of the failure instead of a stop to it. A wave with no entry draws nothing, which is what the
+/// viewer already does for one whose data has not arrived.
 let setFetched (epoch: int) (waves: (int * CachedWave) list) =
     match source with
     | Source.Fetched(held, existing) when held = epoch ->
-        waves
+        /// how far into the reply this wave's row reaches: where it starts, plus a sample per
+        /// drawn cycle and the lead-in, each of them WordsPerSample words wide
+        let needsOf (cached: CachedWave) =
+            cached.RowBase
+            + (cached.Window.SampleCount + (if cached.LeadIn then 1 else 0)) * cached.WordsPerSample
+
+        let sound, short = waves |> List.partition (fun (_, c) -> c.Data.Length >= needsOf c)
+
+        short
         |> List.iter (fun (handle, cached) ->
-            let samples = cached.Window.SampleCount + (if cached.LeadIn then 1 else 0)
-            let needs = cached.RowBase + samples * cached.WordsPerSample
+            Log.error
+                $"waveform cache: wave {handle} needs {needsOf cached} values and the reply holds {cached.Data.Length}; it is left blank (invariant D3)")
 
-            if cached.Data.Length < needs then
-                Log.error
-                    $"waveform cache: wave {handle} needs {needs} values and the reply holds {cached.Data.Length} (invariant D3)")
-
-        source <- Source.Fetched(epoch, (existing, waves) ||> List.fold (fun m (h, c) -> Map.add h (Samples c) m))
+        source <- Source.Fetched(epoch, (existing, sound) ||> List.fold (fun m (h, c) -> Map.add h (Samples c) m))
     | _ ->
         Log.dbg
             Log.Wave

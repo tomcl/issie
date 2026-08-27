@@ -185,3 +185,18 @@ let HeaderSize = 8
 /// 64MB. Nothing the latency test sends is near it; anything larger is a protocol error.
 [<Literal>]
 let MaxMessage = 67108864
+
+/// A string made safe to put inside the small JSON replies this protocol hand-builds.
+///
+/// Hand-built because a reply is three or four fields and a serialiser would be a dependency for
+/// nothing - but a hand-built object still has to survive whatever is put in it, and what goes in
+/// is exception messages and sheet names: Windows paths and line breaks. Escaping only the quotes
+/// produced `{"error":"...C:\Users\..."}`, which is not JSON, so the renderer's `JSON.parse` threw
+/// and it showed the wire envelope instead of the message written for the user.
+///
+/// Replaced rather than escaped, because this is for someone to read in an error: a backslash
+/// becoming a forward slash and a newline becoming a space cost nothing and cannot themselves go
+/// wrong. Both sides of every error reply go through here, which is why it is in the protocol
+/// rather than beside one of them - it was written twice and only one copy did all four.
+let jsonSafe (text: string) =
+    text.Replace("\\", "/").Replace("\"", "'").Replace("\n", " ").Replace("\r", " ")

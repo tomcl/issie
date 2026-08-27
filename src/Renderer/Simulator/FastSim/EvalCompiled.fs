@@ -35,8 +35,10 @@ open Fable.Core.JsInterop
 /// Under Fable an ordinary arr[i] on a local binding compiles to fable-library's item/setItem,
 /// which compare the index twice and can throw. Profiling the app found those two functions
 /// taking 70% of all simulation time - more than the component logic and the dispatch put
-/// together. (fastReduce escapes them by accident: it writes through comp.Outputs[n].SetU32, a member on the record,
-/// a property chain, which Fable emits as a raw index.)
+/// together. (fastReduce escapes them through comp.Outputs[n].SetU32, which is the same shim by
+/// another name: IOArray's members go through SimTypes.stepGet/stepSet, an Emit of a raw index.
+/// It used to escape by ACCIDENT, writing through a property chain that Fable happened to emit
+/// as one, which stopped being true when a step store became a region of a shared slab.)
 ///
 /// Every index here is either a step index, which is < MaxArraySize by construction and so
 /// always within a step array, or a multiplexer select, which the masking invariant keeps

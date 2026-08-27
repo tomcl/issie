@@ -141,7 +141,7 @@ let private textResponse (header: byte array) (text: string) =
 /// signals, 379 of them, a sheet of 123 components - decodes as text beginning with '{', which is
 /// how a JSON error used to be told apart from an answer. See Protocol.ErrorFlag.
 let private errorResponse (header: byte array) (message: string) =
-    let frame = textResponse header (sprintf """{"error":"%s"}""" (message.Replace("\"", "'")))
+    let frame = textResponse header (sprintf """{"error":"%s"}""" (Protocol.jsonSafe message))
     frame[0] <- frame[0] ||| Protocol.ErrorFlag
     frame
 
@@ -263,8 +263,7 @@ let private serve (ws: WebSocket) (ct: CancellationToken) =
                                     stopwatch.Elapsed.TotalMilliseconds
                             | Error e ->
                                 staged <- None
-                                let safe = e.Replace("\\", "/").Replace("\"", "'").Replace("\n", " ").Replace("\r", " ")
-                                sprintf """{"error":"%s"}""" safe
+                                sprintf """{"error":"%s"}""" (Protocol.jsonSafe e)
 
                         do! send ws (textResponse header reply) ct
                     | Protocol.SimBuild ->

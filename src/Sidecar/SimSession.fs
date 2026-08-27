@@ -34,11 +34,8 @@ let mutable private session: (SimTypes.FastSimulation * (ComponentId * Component
 /// one by accident.
 let mutable private epoch = 0
 
-let private escape (text: string) =
-    text.Replace("\\", "/").Replace("\"", "'").Replace("\n", " ").Replace("\r", " ")
-
 let private errorReply (message: string) =
-    sprintf """{"error":"%s"}""" (escape message)
+    sprintf """{"error":"%s"}""" (Protocol.jsonSafe message)
 
 /// The epoch a session-dependent command must carry, or 0 when there is no session.
 let currentEpoch () = if session.IsSome then epoch else 0
@@ -97,7 +94,7 @@ let build (design: SimpleDesign) (maxArraySize: int) : string =
             sprintf
                 """{"epoch":%d,"sheet":"%s","components":%d,"maxArraySize":%d,"buildMs":%.2f}"""
                 epoch
-                (escape design.TopSheet)
+                (Protocol.jsonSafe design.TopSheet)
                 (fs.FComps.Count + fs.FCustomComps.Count)
                 fs.MaxArraySize
                 sw.Elapsed.TotalMilliseconds

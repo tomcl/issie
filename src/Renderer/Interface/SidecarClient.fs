@@ -56,8 +56,14 @@ module Constants =
 
     [<Literal>]
     let simReadCmd = 11
+
+    [<Literal>]
     let simReadRamCmd = 12
+
+    [<Literal>]
     let simPortsCmd = 13
+
+    [<Literal>]
     let simReadDriversCmd = 14
 
     /// Command byte, uint32 correlation id, three bytes of padding - 8, so binary response
@@ -454,9 +460,6 @@ let request (cmd: int) (payload: obj) : JS.Promise<obj> =
 /// started the app to wait rather than to conclude the simulator is broken.
 let connectionState () = Option.isSome socket, pending.Count
 
-/// Drop the connection; the next request makes a fresh one.
-let disconnect () = dropSocket ()
-
 // ---- text payloads: UTF-8 strings over the same binary frames ----
 
 [<Emit("new TextEncoder().encode($0)")>]
@@ -611,8 +614,13 @@ let simSetInputs (epoch: int) (cycle: int) (values: (int * float) list) : JS.Pro
 /// path root-first) - read `samples` values taken every `rep` cycles from `startCycle`. These
 /// are the same (StartCycle, SamplingZoom, ShownCycles) parameters the waveform viewer's own
 /// generation runs on, so a view at any zoom is one request. Resolves with the raw response
-/// frame: on success the values are `viewSimReadData frame (signals * samples)`, signal-major
-/// and zero-copy; an error response is one `errorOfFrame` answers for.
+/// frame: on success the values are
+/// `viewSimReadData frame (signals * samples * simReadWordsPerSample frame)`, signal-major and
+/// zero-copy; an error response is one `errorOfFrame` answers for.
+///
+/// The word count is part of it and not a detail. A sample is as many uint32s as the widest signal
+/// asked for needs, so a request carrying one wide bus widens every sample in that reply - and a
+/// caller sizing the view as `signals * samples` reads a fraction of what was sent, silently.
 let simRead
     (epoch: int)
     (startCycle: int)
@@ -738,18 +746,3 @@ let simPorts (epoch: int) (path: int list) : JS.Promise<Result<PortView.Componen
                       { PortView.SlotsComp = CommonTypes.ComponentId cid
                         PortView.SlotsIns = readSlots nIns
                         PortView.SlotsOuts = readSlots nOuts } ])
-
-/// One signal at one clock - the tooltip case, which is simRead's degenerate form: one signal,
-/// one sample, rep 1.
-let simReadPoint
-    (epoch: int)
-    (compId: int)
-    (outPort: int)
-    (path: int list)
-    (clock: int)
-    : JS.Promise<Result<float, string>> =
-    simRead epoch clock 1 1 [ compId, outPort, path ]
-    |> Promise.map (fun frame ->
-        match errorOfFrame frame with
-        | Some e -> Error e
-        | None -> Ok(readUint32At frame 24))

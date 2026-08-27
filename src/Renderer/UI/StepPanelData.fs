@@ -39,9 +39,14 @@ let forget () = snapshot <- None
 /// The cycle the held values are of, or None when nothing has been fetched.
 let cycleHeld () = snapshot |> Option.map (fun (_, cycle, _) -> cycle)
 
-/// The value of one signal, if this snapshot is of the cycle asked for. `None` means "not
-/// fetched", which the caller must show as unknown rather than as zero: on a design being
-/// stepped, a missing value and a value of zero look identical and only one of them is true.
+/// The value of one signal, if this snapshot is of the cycle asked for.
+///
+/// `None` is "not fetched", which is a different thing from a value of zero and only this can tell
+/// them apart. What the panel then DRAWS for one is zero all the same - see
+/// `SimulationView.panelValue`, which argues for it: a row appearing and disappearing as replies
+/// land is worse to read than a value a moment out of date, and an unread port already looks like
+/// this. The distinction is kept here rather than thrown away because the decision is the
+/// caller's, and a caller that wants to make the other one has something to make it from.
 let valueAt (cycle: int) (signal: PanelSignal) : bigint option =
     match snapshot with
     | Some(_, held, values) when held = cycle ->

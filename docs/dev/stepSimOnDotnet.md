@@ -1,7 +1,7 @@
 # Run the step simulator under .NET
 
-Done, except a RAM's contents - see the last section. Kept because it records why each piece is
-where it is, and what is still missing.
+Done, RAM contents included (docs/dev/ramOverTheWire.md). Kept because it records why each
+piece is where it is; where later work changed a mechanism, the entry says so in place.
 
 ## Why
 
@@ -66,8 +66,12 @@ The stateful section splits three ways, and only one of them is missing:
 `SimulationView` gained one section - "the step panel, from whichever simulator is running" - and
 every site that ran or read the simulation goes through it:
 
-- `advanceTo` replaces the five `FastRun.runFastSimulation` calls. Local: runs and calls back at
-  once, as before. Sidecar: `ensureBuilt`, `runTo`, then one `SimRead` of the panel's signals.
+- `advanceTo` replaces the five `FastRun.runFastSimulation` calls. Local: runs and calls back
+  at once, as before. Sidecar: one budgeted run chunk, and nothing else - it does NOT build (the
+  start paths issue builds; docs/dev/sidecarInvariants.md section J) and it does not read the
+  panel (the panel's cycle is part of the fetch viewport, so the read rides the ordinary
+  convergence). A goto is not this at all: it is the `StartStepRun` cascade in `Update`, chunks
+  continued from reply handlers, cancelled by closing the bar.
 - `StepPanelData` is the cache, in the shape of `WaveData`'s: one snapshot, of one cycle of one
   session, so a value can only ever be read back for the cycle and epoch it was fetched for.
 - `ioValues`, `viewerValues` and `statefulValues` replace the four `FastExtract` calls.
@@ -123,8 +127,6 @@ Values agree: `3cpu/eep1` stepped to clock 5 gives `NZCV=8, PCV=x0002, R0=x0002`
 
 ## Still to do
 
-- **A RAM's contents.** Shown as unavailable, the way `WaveSimRams` shows them. A command that
-  reads a memory store over the wire would give both back at once.
 - **Input values above 2^53.** `SimSetInputs` carries a value as two 32-bit words. A wider input
   is refused by name rather than sent truncated.
 - **`ISimulator` is still not implemented.** `advanceTo` and the three value functions are the
@@ -134,11 +136,13 @@ Values agree: `3cpu/eep1` stepped to clock 5 gives `NZCV=8, PCV=x0002, R0=x0002`
 ## The one real difficulty
 
 The step simulator's update path is synchronous today: a click runs the simulation and the next
-render shows the result. Over the wire it cannot be. The waveform simulator has already solved
-this - view code reads a cache synchronously, only the update function talks to an `ISimulator`,
-and a reply carries the epoch it belongs to so a superseded answer is discarded rather than shown
-(`SimInterface.fs`, and `docs/dev/sidecarInvariants.md` section C). Copy that; do not invent a
-second pattern.
+render shows the result. Over the wire it cannot be. Resolved as
+`docs/dev/sidecarInvariants.md` sections C and J describe: view code reads caches
+synchronously, the update function is the one sequencer, in-flight operations live in the
+model's table, and a reply carries the epoch it belongs to so a superseded answer is discarded
+rather than shown. The goto's first wire implementation violated it - a chunk loop of its own
+whose busy path re-dispatched synchronously - and froze the renderer at 10M cycles; the
+StartStepRun cascade is the conforming replacement, kept in section J as the worked example.
 
 ## Verification
 

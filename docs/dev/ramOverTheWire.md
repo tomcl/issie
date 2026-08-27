@@ -169,19 +169,16 @@ There were two routes to it, and the second is the one worth remembering:
   held, and they are not held until the reply lands. The waveform path has `FetchInProgress` for
   exactly this; the RAM path had nothing.
 
-The fix is not to arbitrate between two askers but to have one. `fetchWhatIsMissing` now issues a
-single command that fetches whatever this update wants **in order**: the waves, which build the
-session and run it to the view, and then at most one RAM's rows, by which time the session exists
-and its own `ensureBuilt` returns at once. One command, under the one `FetchInProgress` bit that
-already stops the next message asking again. A round trip is sub-millisecond, so one RAM per
-update is not a delay anyone can see; the next update takes the next.
-
-`ensureBuilt` keeps its in-flight guard, but it is no longer what makes this correct: it is there
-because the step simulator builds too (`SimulationView.advanceTo`) and is not sequenced with a
-live waveform simulation.
-
-A RAM table has to be able to build at all, because it can be the only thing on screen: with no
-waves selected, nothing else would ever have done it.
+The fix is not to arbitrate between two askers but to have one. The end-of-update checks
+(`WaveSimTop.sidecarChecks` - this began life in `fetchWhatIsMissing`, since replaced by the
+viewport-equality decision of docs/dev/sidecarInvariants.md section J) issue a single bundle
+that reads whatever the snapshot viewport covers **in order**: the waves, then EVERY selected
+RAM's rows, then the panel, the probe and the slices - chained in one promise, under one entry
+in the model's `SidecarInFlight` table, which is what stops the next message asking again. The
+session already exists when any of it is read: builds are the start paths' operations alone,
+issued by `StartWaveSimulation` and `StartSimulation`/`StartStepRun`, so neither the RAM tables
+nor the step simulator builds - a missing session is a stopped simulation, not something a read
+path quietly repairs.
 
 ## 2. What a viewer asks for
 

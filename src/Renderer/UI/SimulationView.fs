@@ -417,11 +417,6 @@ let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (dispatch: M
         | Some project ->
             let top = simData.FastSim.SimulatedTopSheet
 
-            let design =
-                ModelHelpers.designOf project (model.Sheet.GetCanvasState())
-                |> CanvasExtractor.simpleDesignOfLoadedComponents
-                |> fun d -> { d with TopSheet = top }
-
             let failed (what: string) (e: string) =
                 // The panel keeps whatever it last held, which is of an earlier cycle, so say so
                 // rather than let the clock move under values that did not.
@@ -468,22 +463,14 @@ let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (dispatch: M
                 whenReady simData.ClockTickNumber
 
             | _ ->
-                let seq = ModelHelpers.newSeq ()
-                dispatch (SidecarOpStarted(seq, OpBuild(top, sidecarArraySize)))
+                // No session: the START issues builds (StartSimulation, StartStepRun - see
+                // docs/dev/sidecarInvariants.md section J), so an advance finding none is a
+                // stopped simulation or a coding error, said out loud rather than quietly
+                // repaired by a second builder nothing sequences.
+                Log.error
+                    "cannot advance the step simulation: the .NET simulator holds no session for it"
 
-                promise {
-                    let! result = SidecarSession.build design sidecarArraySize
-                    dispatch (SidecarReply(seq, AnsBuilt result))
-
-                    match result with
-                    | Error e -> failed "build the design" e
-                    | Ok _ -> ()
-
-                    // Nothing is run here: a build IS this advance's chunk of work. The clock has
-                    // not moved, so the caller asks again and that ask finds a session.
-                    whenReady simData.ClockTickNumber
-                }
-                |> Promise.start
+                whenReady simData.ClockTickNumber
 
 /// Set a top-level input at the shown cycle, on whichever simulator is running, and make the
 /// panel's values for that cycle current again.

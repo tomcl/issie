@@ -111,24 +111,26 @@ and nothing currently checks that the beliefs are true.
 
 | # | Invariant | Status |
 |---|---|---|
-| C1 | `WaveProvider.built` describes the session the sidecar actually holds. | **holds** — the epoch is checked on every session-dependent command |
-| C2 | `sidecarClockTick` equals the sidecar's clock. | **holds** — it is written only from replies the epoch has already vouched for |
+| C1 | `Model.SidecarSession` describes the session the sidecar actually holds. | **holds** — the epoch is checked on every session-dependent command |
+| C2 | The session's recorded clock equals the sidecar's. | **holds** — it is written only from replies the epoch has already vouched for |
 | C3 | At most one fetch chain runs against a session at a time. | **holds** — enforced by single-flight, not merely checked |
 | C4 | A reply is applied only to the simulation it was asked of. | **holds** — a superseded epoch is refused |
 
 ### C1, C2 and C4 — one mechanism: the session epoch
 
-`built` is set after a successful `SimBuild` and cleared by `forget`. Nothing else keeps the two
-sides in step, so they diverge whenever something happens that the renderer does not see: the
-sidecar process restarting, a build failing after `built` was set, a second Issie window building
-over the top.
+`Model.SidecarSession` becomes `Session(top, size, epoch, clock)` when `AnsBuilt(Ok epoch)`
+lands and `NoSession` when a simulation ends. Nothing else keeps the two sides in step, so they
+would diverge whenever something happens the renderer does not see: the sidecar process
+restarting, a build failing after the session was recorded, a second Issie window building over
+the top.
 
-`sidecarClockTick` has the same shape — it is written from `SimRun` chunk replies and is right only
-because nothing else advances the clock.
+The session's clock has the same shape — it is written from run-chunk replies (`AnsRan`,
+`AnsSteppedTo`) as the value the sidecar REPORTED, never incremented towards, and is right only
+because nothing else advances it.
 
-C4 is the timing version of the same problem. `forget` empties the renderer's cache when the design
-changes, but a `SimRead` already in flight resolves afterwards and writes data from the old
-simulation into the new one's cache.
+C4 is the timing version of the same problem. Ending a simulation empties the caches and the
+in-flight table, but a `SimRead` already in flight resolves afterwards - finding its number gone
+from the table is what discards it, and the epoch check is the second lock on the same door.
 
 **Fix**: the sidecar issues a **session epoch** — an integer, bumped on every successful
 `SimBuild`. It is returned by the build reply, and every session-dependent request (`SimRun`,
@@ -151,20 +153,26 @@ being strictly serial — will happily serve them in whatever order they arrive:
                               └─ rebuilds the session under A, so A's read is of a
                                  simulation that no longer exists at the cycle it wants
 
-**Holds, by a single bit in the model.** `WaveSimModel.FetchInProgress` is set where the fetch is
-issued - the end of `update`, the one place that decides - and cleared by the `WaveFetchDone`
-message that carries its reply. A refresh that finds it
-set does nothing at all: the fetch in flight refreshes when it lands, and *that* refresh asks for
-whatever is missing by then — this view, or a later one, but never one the user has scrolled past.
+**Holds, by the in-flight table in the model.** `Model.SidecarInFlight` maps an operation number
+to what was asked (`SidecarOp`); every issuer - the fetch checks, the run chunks, the builds the
+start paths issue, the step-run cascade - adds its entry there, every reply
+(`SidecarReply(seq, answer)`) removes it, and nothing is issued while the table is non-empty.
+Emptying the table when a simulation ends is also what discards stale replies: an answer whose
+number is no longer there belonged to a simulation that has gone. What to issue is decided by
+viewport equality at the end of update - section J - so a check that finds the wire held does
+nothing at all, and is re-entered by the completion that frees it.
 
-That bit is almost the only state in the waveform data path, and it is here because it cannot be
-derived. WHICH waves need fetching is a question about the cache and the view, answered afresh at
-the end of every update; whether a request is already in the air is a fact about the outside world.
+The table is in the model because whether a request is in the air is a fact about the outside
+world that cannot be derived - and because the UI draws from it (the run-progress strip, the
+Start button's spinner while a build is in flight).
 
 The other piece is `FetchFailedAtMs`, and it is there because deriving the ask makes failure
 self-perpetuating: a fetch that fails leaves exactly the state that asks for another, and the two
-spin as fast as the message queue will carry them. The same waves are not asked for again for a
-couple of seconds. It is a timestamp and not a flag because the fetch must be tried again
+spin as fast as the message queue will carry them. It paces failed RUN chunks for the same reason
+- an errored chunk frees the wire, and an unpaced re-issue against a dead sidecar was measured as
+thousands of identical errors inside one drain. The same asks are not made again for a couple of
+seconds, and a failed fetch also latches its snapshot (`Model.FailedFetch`) so an UNCHANGED
+viewport does not retry at all - any change to it is a different snapshot and tries again. It is a timestamp and not a flag because the fetch must be tried again
 eventually - the commonest failure is asking while the sidecar is still starting, which fixes itself
 a moment later, and a user action after that is what picks it up.
 
@@ -185,11 +193,12 @@ having: the epoch stops wrong data, the bit stops wasted work.
 `WaveData.fs`. Module state, deliberately: it is read synchronously from `view` on every render,
 per wave, and is megabytes in size.
 
-**Keyed by wave, not by view.** What the viewer needs to know is "has this wave got the cycles it is
-being drawn over", and that is a question about one wave: a wave just added to the selection is
-missing while every other wave is fine, and a window that has moved leaves them all missing
-together. One entry per wave says both without a special case; a single entry for the whole view
-could only say all or none, and so refetched every wave to get the one that had just been selected.
+**Keyed by wave, not by view - for READS.** Drawing asks "has this wave got the cycles it is
+drawn over", per wave, per render, and one entry per wave answers it without a special case.
+What the keying no longer serves is the fetch DECISION: that is viewport equality (section J),
+which deliberately refetches the whole snapshot when anything in it changes - a lying cache then
+costs a redundant read instead of a silently starved view, and the caches are pure memoisation
+the decision never consults.
 
 | # | Invariant | Status |
 |---|---|---|
@@ -312,12 +321,12 @@ An invariant that cannot be checked is a comment. These can be, cheaply.
 | pending requests failed rather than dropped on close | `SidecarClient.onclose` | A4 |
 | data length = signals × samples × wordsPerSample | `WaveData.setFetched` | D3 |
 | the session that answered is the session that exists | `WaveProvider`, on receipt | D4 |
-| a wave drawn without the window it is drawn over, for longer than a fetch takes | the viewer, per render | C3, D1 |
+| the viewport unserved for longer than a fetch takes, or an error latched | the viewer, per render | C3, D1 |
 | correlation id already in `pending` | `SidecarClient.request` | A2 |
 
-C3 has no check because it is **enforced**: a refresh will not start a second chain while
-`FetchInProgress` is set. An invariant that cannot be broken needs no detector - what the viewer's
-banner catches is the other half, a fetch that should have been made and was not.
+C3 has no check because it is **enforced**: nothing issues while `SidecarInFlight` is
+non-empty. An invariant that cannot be broken needs no detector - what the viewer's banner
+catches is the other half, a view that stays unserved.
 
 ### Timestamps, not a tick
 
@@ -356,14 +365,14 @@ is not what you asked for*.
   cycle and not the configured last clock: the waveform simulator runs lazily, so a bar measured
   against a four-million-cycle configuration would sit at zero forever.
 - **The stale screen** — one visual form of an invariant violation, and nothing more. It should
-  never appear. It exists so that a violation is something a user sees rather than a log line
-  nobody reads. Built the same way as the checks above: the moment the view last changed is
-  recorded, and how long ago that was is worked out where it is read.
-
-  It asks the **data** - is any wave being drawn without the window it is drawn over - and not what
-  is on screen. What is on screen is filled in by the render itself, so asking it during that render
-  is asking before the answer is made: the banner then appeared for one frame on every view change,
-  which is the opposite of a warning that means something.
+  never appear in normal operation, and it comes up when there is an error. Behind is the SAME
+  comparison that starts a fetch - the current viewport differs from the one the last completed
+  fetch was for, an error reply counting as still outstanding since it never updates that record
+  - and the age is measured from when THIS viewport appeared (`ViewportChangedAtMs`, stamped by
+  the checks when the derived viewport changes) or a build or run last finished. Starting a
+  fetch resets the clock, so the in-flight frames of a scroll or a hover can never flash it; a
+  latched error shows at once and steadily, with no seconds figure that paced retries would
+  falsify.
 
 ### What cannot be checked
 
@@ -398,7 +407,7 @@ designed for those would be machinery in the way of four round trips.
 |---|---|---|
 | G1 | The panel shows values for the inputs the user set. | **violated** - a restart replaces them with the design's defaults |
 | G2 | A step backwards inside the live range costs no re-run. | **holds** - it is a read of cycles already computed |
-| G3 | A RAM is read at one cycle, in a shape bounded by how much it holds. | **to build** |
+| G3 | A RAM is read at one cycle, in a shape bounded by how much it holds. | **holds** - `ReadRam` with a sparse/window reply, see docs/dev/ramOverTheWire.md |
 
 ### The commands it needs
 
@@ -483,6 +492,17 @@ The renderer chooses between the last two using the count. That is the decision
 `RamStore.liveCountExceeds` makes locally today, and it has to move because it needs the store: a
 64K RAM displayed densely means materialising 65,536 words to show fifty.
 
+### As implemented
+
+The section above is the design; what shipped differs in one respect worth naming. The panel's
+values are not the reply to a write or a step - they ride the SAME fetch mechanism as everything
+else: the panel's cycle is part of the data viewport, so a step or a goto changes the viewport
+and the next bundle reads the panel's signals along with whatever else changed. A poke
+(`SimSetInputs`) bumps `Model.StimulusGeneration`, which is in the viewport, so everything
+computed under the old stimulus refetches - G1's stickiness is unchanged, but the re-read is the
+ordinary convergence rather than a special reply shape. A single step (+1/-1) issues one
+budgeted run chunk through `SimulationView.advanceTo`; a goto is the `StartStepRun` cascade.
+
 ### What this leaves the cache doing
 
 Mediating the waveform simulator's reads, and nothing else. The step simulator's commands are
@@ -560,7 +580,9 @@ single Elmish drain - looked innocent at every call site.
   cycle the session has not reached, else one read bundle when a viewport differs from what the
   last completed fetch was for;
 - the step-run cascade: `StartStepRun` and the reply handlers (`AnsSteppedTo`, `AnsBuilt`,
-  `AnsFetched`) that continue it.
+  `AnsFetched`) that continue it;
+- a single step of the step simulator (`SimulationView.advanceTo`): one budgeted run chunk per
+  click, gated on the same table, its panel read riding the ordinary fetch.
 
 **One operation in flight.** `SidecarInFlight` is the record and every issuer's gate. Whoever
 finds the wire held does NOTHING - no retry, no delay, no self-dispatch - because the held
@@ -650,7 +672,7 @@ Unchanged, and small - it serves the waveform viewer's drawing and nothing else:
 
 | | |
 |---|---|
-| `needFetching handles window` | which of these waves has not got this window |
+| `needFetching handles window` | which of these waves has not got this window (diagnostics; the fetch decision is viewport equality, section J) |
 | `slice handle window` | the samples to draw |
 | `valueAt handle cycle` | the cursor column, and the waveform tooltip |
 | `setFetched` | fill it |

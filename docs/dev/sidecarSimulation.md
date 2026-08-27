@@ -163,9 +163,9 @@ SamplingZoom, ShownCycles) parameters the waveform viewer's own generation runs 
 at any zoom is one request, and a tooltip is the degenerate one-signal one-sample case
 (`SidecarClient.simReadPoint`). Both are pinned by a wire-payload parity test against a locally
 driven simulation — dense, strided (rep 3) and single-sample — and live by the DevHarness
-`sidecarProbe` command (measured word-identical on 3cpu). Signals wider than 32 bits are
-refused for now. The waveform generation code itself is unchanged: the interface delivers the
-data it already consumes.
+`sidecarProbe` command (measured word-identical on 3cpu). Any width: `wordsPerSample` is
+computed from the widest signal asked for, laid out least-significant word first. The waveform
+generation code itself is unchanged: the interface delivers the data it already consumes.
 
 The app's own progress bar drives chunked sidecar runs: `DevHarness.runOnSidecarWithProgress`
 (Development > Play > Run Design On Sidecar, or `drive.js send sidecarRun <cycles>`) loops
@@ -437,8 +437,11 @@ so per-chunk SimLog sums are what to compare.
 
 ## What the skeleton does not yet do
 
-Single client, no respawn on crash, no reconnect in `SidecarClient`; the header needs the 8-byte
-padding above before binary typed-array payloads; macOS signing of the published binary is
-expected to work (the entitlements already allow JIT) but has not been exercised. Dev runs
+Single client, and no respawn after a crash: `SidecarClient` waits for the sidecar to START
+listening (a startup budget, so first contact after spawn is a wait rather than an error), but a
+process that dies mid-session stays dead until the app restarts - the failure is bounded by the
+paced-retry latching of sidecarInvariants.md section J and surfaced by the viewer's banner. The
+8-byte header padding is in place; macOS signing of the published binary is expected to work
+(the entitlements already allow JIT) but has not been exercised. Dev runs
 require a dotnet SDK (`dotnet run` spawns it); production ships a self-contained binary under
 `resources/sidecar/` via `scripts/publish-sidecar.js`.

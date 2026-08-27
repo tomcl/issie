@@ -933,8 +933,10 @@ let tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
     | Ok (Ok state) ->
         // one conversion for canvas, wave info and sheet info together, so all three see the
         // same id mapping - wave selections reference canvas components
+        let jsonCanvas = getLatestJsonCanvas state
+
         let (comps, conns), waveInfo, sheetInfo =
-            Helpers.sheetOfJson (getLatestJsonCanvas state) state.getWaveInfo state.getSheetInfo
+            Helpers.sheetOfJson jsonCanvas state.getWaveInfo state.getSheetInfo
 
         let canvas = List.map getLatestComp comps, conns
         makeLoadedComponentFromCanvasData
@@ -944,6 +946,11 @@ let tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
             waveInfo
             sheetInfo
         |> fst // ignore ram change info, they will always be loaded
+        // A file written before ids were integers holds uuids, and loading it has just allocated
+        // integers for them: what is in memory is not what is on disk, which is exactly what this
+        // flag means. Opening a project that can be written acts on it - see
+        // MenuHelpers.convertProjectIdsOnDisk - and one that cannot simply keeps its old ids.
+        |> fun ldc -> { ldc with LoadedComponentIsOutOfDate = Helpers.jsonCanvasHasOldIds jsonCanvas }
         |> Result.Ok
 
 

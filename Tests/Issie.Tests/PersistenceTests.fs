@@ -310,10 +310,12 @@ let tests =
         //
         // The demo-loading test above covers the same fallback across every shipped project; this
         // one names the case, so that the day it starts failing says what broke.
-        test "a shipped sheet holding a legacy wave selection loads its canvas without it" {
+        test "a sheet holding a legacy wave selection loads its canvas without it" {
+            // The fixture copy, not the shipped demo: the demos are written in the current form
+            // now, so the old shape survives only where it is KEPT on purpose, which is here.
             let alu =
                 System.IO.Path.GetFullPath(
-                    System.IO.Path.Combine(__SOURCE_DIRECTORY__, "..", "..", "static", "demos", "3cpu", "alu.dgm"))
+                    System.IO.Path.Combine(__SOURCE_DIRECTORY__, "..", "fixtures", "3cpu", "alu.dgm"))
             let json = System.IO.File.ReadAllText alu
             Expect.stringContains json "\"SimArrayIndex\""
                 "alu.dgm is meant to hold a selection in the old shape - pick another sheet if it no longer does"
@@ -322,5 +324,123 @@ let tests =
             | Ok saved ->
                 Expect.isNone saved.getWaveInfo "the unreadable selection is dropped"
                 Expect.isNonEmpty (fst saved.getCanvas) "and the canvas is kept"
+        }
+
+        //-----------------------------------------------------------------------------------//
+        // Putting a project's files into the current id form
+        //-----------------------------------------------------------------------------------//
+
+        // The fixture projects are deliberately in the OLD form - uuids, as written before ids
+        // were integers - which is what makes them the corpus for this. They are copied out
+        // before being converted, so the corpus survives the test.
+        test "a project written before ids were integers is converted when it is opened" {
+            withTempDir (fun folder ->
+                let source =
+                    System.IO.Path.GetFullPath(
+                        System.IO.Path.Combine(__SOURCE_DIRECTORY__, "..", "fixtures", "1fulladder"))
+
+                System.IO.Directory.GetFiles(source, "*.dgm")
+                |> Array.iter (fun path ->
+                    System.IO.File.Copy(path, System.IO.Path.Combine(folder, System.IO.Path.GetFileName path)))
+
+                let load () =
+                    match FilesIO.loadAllComponentFiles folder with
+                    | Error msg -> failtest msg
+                    | Ok statuses ->
+                        statuses
+                        |> List.map (function
+                            | FilesIO.OkComp ldc | FilesIO.OkAuto ldc | FilesIO.Resolve(ldc, _) -> ldc)
+                        |> Helpers.RegenerateIds.admitDesign
+                        |> fst
+
+                let loaded = load ()
+                Expect.isNonEmpty loaded "the fixture project has sheets"
+                Expect.all loaded (fun ldc -> ldc.LoadedComponentIsOutOfDate)
+                    "every sheet came out of a file whose ids are in the old form"
+
+                let converted = MenuHelpers.convertProjectIdsOnDisk loaded
+                Expect.all converted (fun ldc -> not ldc.LoadedComponentIsOutOfDate)
+                    "and once written none of them is waiting to be written"
+
+                let reloaded = load ()
+
+                Expect.all reloaded (fun ldc -> not ldc.LoadedComponentIsOutOfDate)
+                    "reading the files back finds ids that need no converting"
+
+                // the point of the whole thing: what the file says is now what the app holds
+                let idsOf (ldcs: LoadedComponent list) =
+                    ldcs
+                    |> List.map (fun ldc -> ldc.Name, fst ldc.CanvasState |> List.map (fun comp -> comp.Id))
+                    |> List.sortBy fst
+
+                Expect.equal (idsOf reloaded) (idsOf converted)
+                    "the ids on disk are the ones the design was using"
+
+                // Which sheet is newest is what decides the sheet a project opens on, so a
+                // rewrite that is not the user's edit must not touch the ranking. The ORDER
+                // rather than the stamps themselves: the .NET writer these tests run against
+                // normalises the time zone the app's writer keeps, which moves every stamp by
+                // the same offset and so is not what this is about.
+                let ranked (ldcs: LoadedComponent list) =
+                    ldcs |> List.sortBy (fun ldc -> ldc.TimeStamp) |> List.map (fun ldc -> ldc.Name)
+
+                Expect.equal (ranked reloaded) (ranked loaded)
+                    "the sheets still rank by when they were last saved as they did before"
+
+                Expect.all reloaded
+                    (fun ldc -> ldc.TimeStamp < System.DateTime.Now.AddMinutes -1.0)
+                    "and none of them is stamped with the moment of the conversion"
+
+                Expect.equal
+                    (reloaded |> List.map (fun ldc -> ldc.Name, ldc.Form) |> List.sortBy fst)
+                    (loaded |> List.map (fun ldc -> ldc.Name, ldc.Form) |> List.sortBy fst)
+                    "the sheet info is written back as it was read")
+        }
+
+        test "a project that cannot be written keeps its old ids" {
+            // Nothing is asked in advance about whether a directory can be written - the refusal
+            // is the answer - so a project Issie may only read is left exactly as it was, rather
+            // than half converted.
+            withTempDir (fun folder ->
+                let source =
+                    System.IO.Path.GetFullPath(
+                        System.IO.Path.Combine(__SOURCE_DIRECTORY__, "..", "fixtures", "1fulladder"))
+
+                System.IO.Directory.GetFiles(source, "*.dgm")
+                |> Array.iter (fun path ->
+                    System.IO.File.Copy(path, System.IO.Path.Combine(folder, System.IO.Path.GetFileName path)))
+
+                let loaded =
+                    match FilesIO.loadAllComponentFiles folder with
+                    | Error msg -> failtest msg
+                    | Ok statuses ->
+                        statuses
+                        |> List.map (function
+                            | FilesIO.OkComp ldc | FilesIO.OkAuto ldc | FilesIO.Resolve(ldc, _) -> ldc)
+                    // a directory that is not there stands in for one that may not be written
+                    |> List.map (fun ldc ->
+                        { ldc with
+                            FilePath =
+                                System.IO.Path.Combine(folder, "not-a-folder", ldc.Name + ".dgm") })
+
+                let before =
+                    System.IO.Directory.GetFiles(folder, "*.dgm")
+                    |> Array.map System.IO.File.ReadAllText
+
+                let after = MenuHelpers.convertProjectIdsOnDisk loaded
+
+                Expect.equal
+                    (System.IO.Directory.GetFiles(folder, "*.dgm") |> Array.map System.IO.File.ReadAllText)
+                    before
+                    "the files are exactly as they were - not one of them half converted"
+                Expect.isFalse
+                    (System.IO.Directory.Exists(System.IO.Path.Combine(folder, "not-a-folder")))
+                    "and nothing was created to write into"
+                // Not left waiting to be written either: a project that cannot be written would
+                // otherwise say it had unsaved changes at every close, about something the user
+                // never did and cannot act on.
+                Expect.all after
+                    (fun ldc -> not ldc.LoadedComponentIsOutOfDate)
+                    "and the sheets are not left claiming to be unsaved")
         }
     ]

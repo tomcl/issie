@@ -1,4 +1,4 @@
-(*
+﻿(*
     Helpers.fs
 
     Some miscellaneous fsharp only (no JS) utility functions.
@@ -104,8 +104,7 @@ open System.Text.RegularExpressions
         /// Code to convert a CanvasState to a JSON string, does not work for bigints (I think).
         /// A serialisation failure is an Error: it must never be written to the sheet's
         /// .dgm file, which would overwrite the sheet with garbage.
-        let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : Result<string,string> =
-            let time = System.DateTime.Now
+        let stateToJsonStringAt (time: System.DateTime) (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : Result<string,string> =
             try
                  let savedInfo =
                      NewCanvasWithFileWaveSheetInfoAndNewConns (
@@ -124,6 +123,13 @@ open System.Text.RegularExpressions
             with
             | e ->
                 Error $"JSON serialisation of the sheet failed, so it was not saved: {e.Message}"
+        /// The ordinary save: stamped with the time it is written, which is what says which sheet
+        /// the user was last working on - see MenuHelpers.chooseWhichToOpen. A rewrite that is not
+        /// an edit of the user's, such as the id conversion a project open does, keeps the stamp it
+        /// read and goes through stateToJsonStringAt instead.
+        let stateToJsonString (state: CanvasState * SavedWaveInfo option * SheetInfo option) : Result<string,string> =
+            stateToJsonStringAt System.DateTime.Now state
+
         /// Code to convert a CanvasState to a JSON string, allowing bigints
         let stateToJsonStringExperimental (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : Result<string,string> =
             let time = System.DateTime.Now
@@ -678,6 +684,22 @@ let private tryIdInt (s: string) : int option =
         Some(int s)
     else
         None
+
+/// Whether a saved sheet's ids are in the OLD form: uuids, written before ids were integers.
+///
+/// Loading such a sheet allocates integers for them, so what is then in memory is not what is on
+/// disk - deterministically, so nothing is wrong with it, but the file keeps its uuids until
+/// something writes it. Opening a project that can be written is where that is settled: see
+/// MenuHelpers.convertProjectIdsOnDisk. One old id anywhere in the sheet is enough, since the
+/// whole sheet is rewritten either way.
+let jsonCanvasHasOldIds ((comps, conns): JSONCanvasState) =
+    let isOld (id: string) = (tryIdInt id).IsNone
+
+    comps
+    |> List.exists (fun comp ->
+        isOld comp.Id
+        || (comp.InputPorts @ comp.OutputPorts |> List.exists (fun port -> isOld port.Id)))
+    || conns |> List.exists (fun conn -> isOld conn.Id)
 
 /// Convert one parsed sheet to in-memory form. The wave info needs no id mapping of its own: a
 /// saved selection is label paths (see WavePath.fs). The mapping passed to waveInfoOfJson is for

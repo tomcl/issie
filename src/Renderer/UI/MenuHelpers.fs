@@ -994,27 +994,68 @@ let private createEmptyDiagramFile projectPath name =
     }
 
 
-/// Write the sheets whose ids were corrected to disk and clear their needs-saving flags.
-/// The sheets are written from the corrected LoadedComponents captured when the project was read,
-/// not from the model, which is still being loaded when the popup offering this appears.
-let private saveCorrectedSheets (corrected: LoadedComponent list) (model: Model) (dispatch: Msg -> Unit) =
-    corrected
-    |> List.iter (fun ldc ->
-        let folder = dirName ldc.FilePath
-        let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description; ParameterDefinitions = ldc.LCParameterSlots; IsTopSheet = Some ldc.IsTopSheet}
-        saveStateToFile folder ldc.Name (ldc.CanvasState, ldc.WaveInfo, Some sheetInfo)
-        |> displayAlertOnError dispatch
-        removeFileWithExtn ".dgmauto" folder ldc.Name)
-    match model.CurrentProj with
-    | None -> ()
-    | Some project ->
-        let names = corrected |> List.map (fun ldc -> ldc.Name) |> Set.ofList
-        project.LoadedComponents
-        |> List.map (fun ldc ->
-            match Set.contains ldc.Name names with
-            | true -> {ldc with LoadedComponentIsOutOfDate = false; TimeStamp = DateTime.Now}
-            | false -> ldc)
-        |> fun ldcs -> dispatch <| SetProject {project with LoadedComponents = ldcs}
+/// Write one sheet back exactly as it was read, keeping the time it says it was last saved.
+///
+/// The ordinary save stamps the moment it is written, which is right for an edit and wrong for a
+/// rewrite the user did not ask for: the stamp is what says which sheet they were last working on,
+/// and stamping every sheet of a project at once would lose that (see chooseWhichToOpen).
+let private writeComponentKeepingTimeStamp (comp: LoadedComponent) =
+    let sheetInfo: SheetInfo =
+        { Form = comp.Form
+          Description = comp.Description
+          ParameterDefinitions = comp.LCParameterSlots
+          IsTopSheet = Some comp.IsTopSheet }
+
+    stateToJsonStringAt comp.TimeStamp (comp.CanvasState, comp.WaveInfo, Some sheetInfo)
+    |> Result.bind (writeFile comp.FilePath)
+
+/// Put a project's files into the current id form when they were read in the old one.
+///
+/// Ids became integers; a .dgm written before that holds uuids, and every load allocates integers
+/// for them afresh. The mapping is deterministic, so the design works either way - but nothing on
+/// disk ever changes, so the ids in the file match nothing anyone can see in the running app, and
+/// every open pays the conversion again. Opening the project is where it is settled, once.
+///
+/// The WHOLE project or none of it. Component ids are design-unique, and admitting the sheets
+/// re-mints any that collide - so a sheet whose own ids were already integers can still have come
+/// out of the load different from its file, and writing only the uuid ones would leave the design
+/// half-converted.
+///
+/// Not for a project Issie may only write nothing to - the shipped demos read from the read-only
+/// static directory, a folder on a read-only share. There is no asking in advance whether a
+/// directory can be written, so the first refusal is the answer: the write is attempted, and a
+/// project that refuses it simply keeps its old ids. Said in the log and nowhere else, because
+/// nothing about the design is wrong and there is nothing for the user to do.
+///
+/// A library sheet belongs to its library and is never written back, whatever asks.
+let convertProjectIdsOnDisk (ldcs: LoadedComponent list) : LoadedComponent list =
+    if not (ldcs |> List.exists (fun ldc -> ldc.LoadedComponentIsOutOfDate)) then
+        ldcs
+    else
+
+    let writable, refused =
+        ldcs
+        |> List.filter (fun ldc -> not (ComponentLibraries.isLibrarySheet ldc))
+        |> List.fold
+            (fun (written, refused) ldc ->
+                match refused with
+                // one refusal answers for the project: they are all in the same directory
+                | Some _ -> written, refused
+                | None ->
+                    match writeComponentKeepingTimeStamp ldc with
+                    | Ok() -> ldc.Name :: written, None
+                    | Error message -> written, Some message)
+            ([], None)
+
+    match refused with
+    | Some message -> Log.dbg Log.Files $"project ids left in their old form - it cannot be written: {message}"
+    | None -> Log.dbg Log.Files ("project ids written in their new form on: " + String.concat ", " (List.rev writable))
+
+    // Settled either way. A project that could not be written keeps its old ids, and saying so at
+    // every close - "these sheets have unsaved changes" - would be telling the user about something
+    // they did not do and cannot act on; the sheets themselves are exactly as they were read.
+    ldcs |> List.map (fun ldc -> { ldc with LoadedComponentIsOutOfDate = false })
+
 let rec resolveComponentOpenPopup
         (pPath:string)
         (components: LoadedComponent list)
@@ -1042,6 +1083,10 @@ let rec resolveComponentOpenPopup
         match corrected with
         | [] -> ()
         | names -> Log.dbg Log.Files ("project open renumbered ids on: " + String.concat ", " names)
+
+        // and where the files still hold the ids of before that move, they are written as they now
+        // are - so the conversion happens once rather than on every open
+        let ldcs = convertProjectIdsOnDisk ldcs
 
         setupProjectFromComponents false (chooseWhichToOpen ldcs) ldcs model dispatch
     | Resolve (ldComp,autoComp) :: rLst ->

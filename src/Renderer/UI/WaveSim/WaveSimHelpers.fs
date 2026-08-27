@@ -189,7 +189,7 @@ let connsOfWave (fs:FastSimulation) (wave:Wave) =
     |> waveToSheetPort fs
     |> allConnectedPorts fs
     |> List.collect (fun sp -> match Map.tryFind sp fs.ConnectionsByPort with | None -> [] | Some conns -> conns)
-    |> List.map (fun conn -> ConnectionId conn.Id)
+    |> List.map (fun conn -> conn.Id)
     |> List.distinct
 
 

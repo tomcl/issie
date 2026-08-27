@@ -1,4 +1,4 @@
-module BusWireUpdate
+﻿module BusWireUpdate
 
 open CommonTypes
 open Elmish
@@ -59,7 +59,7 @@ let dragSegment wire index (mMsg: MouseT) model =
             model
 
 let newWire inputId outputId model =
-    let wireId = ConnectionId(Helpers.IdAllocator.newConnectionId())
+    let wireId = Helpers.IdAllocator.newConnectionId()
     let nWire =
         {
             WId = wireId
@@ -365,7 +365,7 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
             |> List.map ( fun conn ->
                 let inputId = InputPortId conn.Target.Id
                 let outputId = OutputPortId conn.Source.Id
-                let connId = ConnectionId conn.Id
+                let connId = conn.Id
                 let getVertex (x,y,_) = (x,y)
                 let segments = issieVerticesToSegments connId conn.Vertices
                 let makeWirePosMatchSymbol inOut (wire:Wire) =
@@ -385,7 +385,7 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
                             updateWire model wire inOut)
                 connId,
                 { 
-                    WId = ConnectionId conn.Id
+                    WId = conn.Id
                     InputPort = inputId
                     OutputPort = outputId
                     Color = HighLightColor.DarkSlateGrey
@@ -404,7 +404,7 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
 
         let connIds =
             conns
-            |> List.map (fun conn -> ConnectionId conn.Id)
+            |> List.map (fun conn -> conn.Id)
 
         {issieModel with Sheet={ issieModel.Sheet with Wire={ model with Wires = newWires }}}
         |> withMsg (MakeJumps (false,connIds))
@@ -501,7 +501,7 @@ let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list
     let oldCompIds = getCopiedSymbols wModel.Symbol
     let pastedWires =
         let createNewWire (oldWire : Wire) : list<Wire> =
-            let newId = ConnectionId(Helpers.IdAllocator.newConnectionId())
+            let newId = Helpers.IdAllocator.newConnectionId()
             let oldPorts = (oldWire.InputPort, oldWire.OutputPort)
             match SymbolUpdate.getEquivalentCopiedPorts wModel.Symbol oldCompIds newCompIds  oldPorts with
             | Some (newInputPort, newOutputPort) ->

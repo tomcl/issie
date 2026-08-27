@@ -1,4 +1,4 @@
-(*
+﻿(*
     SimulationGraphAnalyser.fs
 
     This module collects functions to analyse a fully merged simulation graph.
@@ -91,7 +91,7 @@ let private calculateConnectionsAffected (connections: Connection list) (cycle: 
         | [] -> failwithf "what? Could not find connection among %A and %A" compIdFrom compIdTo
         | conn :: connections' ->
             match ComponentId conn.Source.HostId = compIdFrom, ComponentId conn.Target.HostId = compIdTo with
-            | true, true -> ConnectionId conn.Id
+            | true, true -> conn.Id
             | _ -> findConnection connections' (compIdFrom, compIdTo)
 
     if cycle.Length < 2 then

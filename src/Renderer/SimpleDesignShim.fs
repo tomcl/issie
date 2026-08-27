@@ -1,4 +1,4 @@
-/// SimpleDesign back to skeleton LoadedComponents that the existing simulation creation
+﻿/// SimpleDesign back to skeleton LoadedComponents that the existing simulation creation
 /// accepts - the bridge that lets the dotnet sidecar run today's simulator on a design that
 /// arrived over the wire, as a BASELINE against which rewrites (and the Electron simulator
 /// itself) can be checked.
@@ -58,7 +58,7 @@ let sheetToLoadedComponent (sheet: SimpleSheet) : LoadedComponent =
             let src = compById[sc.SrcComp]
             let tgt = compById[sc.DestComp]
 
-            { Id = sc.ConnId
+            { Id = ConnectionId sc.ConnId
               Source = { src.OutputPorts[sc.SrcPort] with PortNumber = None }
               Target = { tgt.InputPorts[sc.DestPort] with PortNumber = None }
               Vertices = [] })

@@ -1,4 +1,4 @@
-/// Holding a library component's sheet at what it loaded with.
+﻿/// Holding a library component's sheet at what it loaded with.
 ///
 /// The whole of read-only enforcement is ModelHelpers.pinSheet, which writes the saved half of the
 /// draw block back over the live one after every message. It restores rather than refuses because
@@ -38,7 +38,7 @@ let private loadedSheet () =
     let sheet, _ = SheetUpdate.init ()
     let symbols = SymbolUpdate.loadComponents [] sheet.Wire.Symbol comps
     let wireOf (conn: Connection) : BusWireT.Wire =
-        { WId = ConnectionId conn.Id
+        { WId = conn.Id
           InputPort = InputPortId conn.Target.Id
           OutputPort = OutputPortId conn.Source.Id
           Color = HighLightColor.Red
@@ -50,7 +50,7 @@ let private loadedSheet () =
         Wire =
             { sheet.Wire with
                 Symbol = symbols
-                Wires = conns |> List.map (fun c -> ConnectionId c.Id, wireOf c) |> Map.ofList } }
+                Wires = conns |> List.map (fun c -> c.Id, wireOf c) |> Map.ofList } }
 
 /// What this sheet would be written to its .dgm as: the one thing the pin exists to keep fixed.
 let private savedState (sheet: SheetT.Model) : CanvasState =

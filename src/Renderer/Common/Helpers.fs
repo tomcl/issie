@@ -520,11 +520,11 @@ module IdAllocator =
     let newPortId () = next ports
 
     /// A fresh connection id; as newPortId, over-unique by construction.
-    let newConnectionId () = next connections
+    let newConnectionId () = ConnectionId(next connections)
 
     let reserveComponentId (id: int) = reserve components id
     let reservePortId (id: int) = reserve ports id
-    let reserveConnectionId (id: int) = reserve connections id
+    let reserveConnectionId (ConnectionId id) = reserve connections id
     let componentIdUsed (id: int) = isUsed components id
 
 /// Rewriting the ids a sheet holds - when a sheet is copied into a project, and when a loaded
@@ -535,7 +535,7 @@ module RegenerateIds =
 
     /// Ids not in a map are left alone: saved sheets can reference ports that no longer exist,
     /// and waveform access paths reference components on other sheets.
-    let private sub (idMap: Map<int, int>) (id: int) =
+    let inline private sub (idMap: Map<'id, 'id>) (id: 'id) =
         Map.tryFind id idMap |> Option.defaultValue id
 
     let private remapPort compMap portMap (port: Port) =
@@ -632,11 +632,14 @@ module RegenerateIds =
 
         let connIds = conns |> List.map (fun conn -> conn.Id)
 
-        let broken ids =
-            List.exists (fun id -> id <= 0) ids
+        /// A sentinel or an internal duplicate. `value` reads the integer inside whichever
+        /// kind of id this is: the sentinel check is about the number, the duplicate check is
+        /// not.
+        let inline broken value ids =
+            List.exists (fun id -> value id <= 0) ids
             || List.length (List.distinct ids) <> List.length ids
 
-        if broken compIds || broken portIds || broken connIds then
+        if broken id compIds || broken id portIds || broken (fun (ConnectionId n) -> n) connIds then
             // a sentinel or an internal duplicate: a malformed sheet - renumber it wholesale
             regenerateSheetIds ldc, true
         else

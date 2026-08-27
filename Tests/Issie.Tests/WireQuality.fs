@@ -1,4 +1,4 @@
-/// What "the wiring looks good" means, as numbers.
+﻿/// What "the wiring looks good" means, as numbers.
 ///
 /// Wire routing and separation are heuristics tuned by eye, and every change to them is an
 /// argument until someone measures it. This module is the instrument: a handful of metrics over a
@@ -290,7 +290,7 @@ let private routedModel (canvas: CanvasState) =
     let wireModel, _ = BusWireUpdate.init ()
     let symbols = SymbolUpdate.loadComponents [] wireModel.Symbol comps
     let wireOf (conn: Connection) : Wire =
-        { WId = ConnectionId conn.Id
+        { WId = conn.Id
           InputPort = InputPortId conn.Target.Id
           OutputPort = OutputPortId conn.Source.Id
           Color = HighLightColor.Red
@@ -301,7 +301,7 @@ let private routedModel (canvas: CanvasState) =
     let model =
         { wireModel with
             Symbol = symbols
-            Wires = conns |> List.map (fun c -> ConnectionId c.Id, wireOf c) |> Map.ofList }
+            Wires = conns |> List.map (fun c -> c.Id, wireOf c) |> Map.ofList }
     // Routed one after another, each against a model holding the wires already done - which is
     // what the app does, and the only way a wire can see a routed wire of its own net. Shortest
     // first, as BusWireSeparate.redrawWires does: with wires able to branch off their own net the
@@ -344,19 +344,19 @@ let private loadedModel ((comps, conns): CanvasState) =
                 | false ->
                     matchesPort (Symbol.getOutputPortLocation None symbols outputId) (List.tryHead conn.Vertices)
             if matches then wire else BusWireRoute.updateWire empty wire inOut
-        { WId = ConnectionId conn.Id
+        { WId = conn.Id
           InputPort = inputId
           OutputPort = outputId
           Color = HighLightColor.DarkSlateGrey
           Width = 1
-          Segments = BusWire.issieVerticesToSegments (ConnectionId conn.Id) conn.Vertices
+          Segments = BusWire.issieVerticesToSegments (conn.Id) conn.Vertices
           StartPos = Symbol.getOutputPortLocation None symbols outputId
           InitialOrientation =
             getOutputPortOrientation symbols outputId |> BusWireUpdateHelpers.getOrientationOfEdge }
         |> matchEnd false
         |> matchEnd true
         |> fun wire -> { wire with Segments = BusWireUpdateHelpers.makeEndsDraggable wire.Segments }
-    { empty with Wires = conns |> List.map (fun c -> ConnectionId c.Id, wireOf c) |> Map.ofList }
+    { empty with Wires = conns |> List.map (fun c -> c.Id, wireOf c) |> Map.ofList }
 
 let private separate (model: Model) =
     BusWireSeparate.updateWireSegmentJumpsAndSeparations

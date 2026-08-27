@@ -1,4 +1,4 @@
-module CanvasStateAnalyser
+﻿module CanvasStateAnalyser
 
 (*
     CanvasStateAnalyser.fs
@@ -242,20 +242,20 @@ let private checkPortTypesAreConsistent (canvasState: CanvasState) : SimulationE
             | _, Some err -> Some err
             | None, None -> checkComponentsPorts components' // Check next.
 
-    let checkConnectionPort (port: Port) (correctType: PortType) (connId: int) =
+    let checkConnectionPort (port: Port) (correctType: PortType) (connId: ConnectionId) =
         match port.PortType = correctType, port.PortNumber with
         | false, _ ->
             Some
                 { ErrType = WrongPortType (correctType, port)
                   InDependency = None
                   ComponentsAffected = [ ComponentId port.HostId ]
-                  ConnectionsAffected = [ ConnectionId connId ] }
+                  ConnectionsAffected = [ connId ] }
         | _, Some portNumber ->
             Some
                 { ErrType = ConnTypeHasNum (correctType, portNumber)
                   InDependency = None
                   ComponentsAffected = [ ComponentId port.HostId ]
-                  ConnectionsAffected = [ ConnectionId connId ] }
+                  ConnectionsAffected = [ connId ] }
         | true, None -> None // All right.
 
     /// Check conditions 1, 2, 6
@@ -296,7 +296,7 @@ let private checkEvery
                 Some
                     ( idStr,
                       conns
-                        |> List.map (fun conn -> ConnectionId conn.Id),
+                        |> List.map (fun conn -> conn.Id),
                       count))
 
 /// Count the number of connections that target each port or group of label input ports
@@ -454,7 +454,7 @@ let private checkConns (conns: Connection list) (m: MapData) : SimulationError o
         {   ErrType = LabelConnect
             InDependency = None
             ComponentsAffected = [ ComponentId s.Id; ComponentId t.Id ]
-            ConnectionsAffected = [ ConnectionId conn.Id ] })
+            ConnectionsAffected = [ conn.Id ] })
 
 /// Check that:
 /// - any port has at least one connection,
@@ -686,7 +686,7 @@ let checkAdderUnnecessaryNC ((comps, conns): CanvasState) : SimulationError opti
                     affPorts
                     |> List.exists (fun port ->
                         port.Id = conn.Source.Id))
-                |> List.map (fun conn -> ConnectionId conn.Id)
+                |> List.map (fun conn -> conn.Id)
             Some {
                 ErrType = UnnecessaryNC
                 InDependency = None

@@ -81,7 +81,7 @@ let updateMergeSplitWireLabels (model: Model) dispatch =
 /// and target ports of Connection described by the Connection Id.
 let getPortIdsfromConnectionId (cid: ConnectionId) (conns: Connection list) =
     ([],conns)
-    ||> List.fold (fun pIds c -> if ConnectionId c.Id = cid then pIds @ [c.Source.Id;c.Target.Id] else pIds)
+    ||> List.fold (fun pIds c -> if c.Id = cid then pIds @ [c.Source.Id;c.Target.Id] else pIds)
 
 /// Returns true if the provided port is present in any of the connections in the
 /// Connection list.
@@ -356,7 +356,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         ErrType = WrongSelection "Selected logic includes a wire connected to no components."
                         InDependency = None
                         ComponentsAffected = []
-                        ConnectionsAffected = [ConnectionId(con.Id)]}
+                        ConnectionsAffected = [con.Id]}
                     Error error,acc
                 // Source port is not in components, so try add an Input Component
                 else if not (isPortInComponents con.Source comps) then
@@ -511,7 +511,7 @@ let makeSimDataSelected (model:Model) : (Result<SimulationData,SimulationError> 
     | [],_,_ -> 
         let affected =
             selConnections
-            |> List.map (fun c -> ConnectionId c.Id)
+            |> List.map (fun c -> c.Id)
         Some <| (Error { 
             ErrType = WrongSelection "Only connections selected. Please select a combination of connections and components."
             InDependency = None

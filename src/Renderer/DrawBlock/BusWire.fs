@@ -1,4 +1,4 @@
-(*
+﻿(*
 This module implements wires between symbol ports. Wires can be autorouted, or manually routed by dragging segments.
 Moving symbols causes the corresponding wires to move.
 Wires are read and written from Issie as lists of wire vertices, whatever teh internal representation is.
@@ -370,9 +370,9 @@ let issieVerticesToSegments
 /// between our implementation and Issie.
 let extractConnection (wModel : Model) (cId : ConnectionId) : Connection =
     let conn = wModel.Wires[cId]
-    let ConnectionId strId, InputPortId strInputPort, OutputPortId strOutputPort = conn.WId, conn.InputPort, conn.OutputPort
+    let InputPortId strInputPort, OutputPortId strOutputPort = conn.InputPort, conn.OutputPort
     {
-        Id = strId
+        Id = conn.WId
         Source = { getPort wModel.Symbol strOutputPort with PortNumber = None } // None for connections 
         Target = { getPort wModel.Symbol strInputPort with PortNumber = None } // None for connections 
         Vertices = segmentsToIssieVertices conn.Segments conn

@@ -1,4 +1,4 @@
-/// The Simple wire types (CommonTypes.SimpleDesign) are the contract for sending a design to
+﻿/// The Simple wire types (CommonTypes.SimpleDesign) are the contract for sending a design to
 /// the dotnet sidecar, and integer canvas ids are what make them a straight projection. Four
 /// things are pinned here:
 ///   - the exact JSON encoding the renderer sends (the vendored SimpleJson serializer, which
@@ -112,7 +112,8 @@ let tests =
                 let conns = connIds ldc
                 Expect.equal (List.length (List.distinct ports)) (List.length ports) $"{ldc.Name}: port ids collide"
                 Expect.equal (List.length (List.distinct conns)) (List.length conns) $"{ldc.Name}: connection ids collide"
-                (ports @ conns) |> List.iter (fun id -> Expect.isTrue (id > 0) $"{ldc.Name}: id {id} is not positive")
+                (ports @ List.map (fun (ConnectionId n) -> n) conns)
+                |> List.iter (fun id -> Expect.isTrue (id > 0) $"{ldc.Name}: id {id} is not positive")
         }
 
         test "admission is idempotent" {

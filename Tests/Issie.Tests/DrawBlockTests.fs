@@ -1,4 +1,4 @@
-/// The draw block, exercised with nothing running.
+﻿/// The draw block, exercised with nothing running.
 ///
 /// Symbol sizing measures text, and text used to be measured by creating a canvas as
 /// DrawHelpers loaded - which made every symbol, and so the whole draw block, unreachable
@@ -51,7 +51,7 @@ let private modelOf (canvas: CanvasState) =
     let wireModel, _ = BusWireUpdate.init ()
     let symbols = SymbolUpdate.loadComponents [] wireModel.Symbol comps
     let wireOf (conn: Connection) : BusWireT.Wire =
-        { WId = ConnectionId conn.Id
+        { WId = conn.Id
           InputPort = InputPortId conn.Target.Id
           OutputPort = OutputPortId conn.Source.Id
           Color = HighLightColor.Red
@@ -61,7 +61,7 @@ let private modelOf (canvas: CanvasState) =
           InitialOrientation = BusWireT.Horizontal }
     { wireModel with
         Symbol = symbols
-        Wires = conns |> List.map (fun c -> ConnectionId c.Id, wireOf c) |> Map.ofList }
+        Wires = conns |> List.map (fun c -> c.Id, wireOf c) |> Map.ofList }
 
 /// The DSL lays a sheet out for readability; a routing test needs the symbols somewhere chosen.
 let private movedTo (positions: (string * XYPos) list) ((comps, conns): CanvasState) : CanvasState =

@@ -1045,7 +1045,7 @@ let viewSimulationError
             let removeNCAndChangeAdderType() =
                 let NCsToDelete =
                     simError.ConnectionsAffected
-                    |> List.collect (fun (ConnectionId cid) -> getConnectionByIdLstOpt cid)
+                    |> List.collect getConnectionByIdLstOpt
                     |> List.map (fun conn ->
                         ComponentId conn.Target.HostId)
                 // delete NotConnected components

@@ -1,4 +1,4 @@
-module CanvasExtractor
+﻿module CanvasExtractor
 
 open CommonTypes
 open ParameterTypes
@@ -154,7 +154,7 @@ let compareConns tolerance conns1 conns2 =
         List.zip a b
         |> List.filter (fun (c1,c2) -> not <| verticesAreSame connFixedOffset tolerance c1.Vertices c2.Vertices)
         |> List.map fst
-        |> List.map (fun (badConn: Connection) -> ConnectionId badConn.Id)
+        |> List.map (fun (badConn: Connection) -> badConn.Id)
         |> (fun lst ->
             debugChangedConnections <- lst)
         false
@@ -554,7 +554,9 @@ let simpleSheetOfLoadedComponent (ldc: LoadedComponent) : SimpleSheet =
         let srcComp, srcPort = endpoint "source" conn.Source
         let destComp, destPort = endpoint "target" conn.Target
 
-        { ConnId = conn.Id
+        let (ConnectionId connId) = conn.Id
+
+        { ConnId = connId
           SrcComp = srcComp
           SrcPort = srcPort
           DestComp = destComp

@@ -844,7 +844,7 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
 
             Sheet SheetT.UpdateBoundingBoxes
 
-            Sheet (SheetT.Wire (BusWireT.MakeJumps (true, connections |> List.map (fun conn -> ConnectionId conn.Id ))))
+            Sheet (SheetT.Wire (BusWireT.MakeJumps (true, connections |> List.map (fun conn -> conn.Id ))))
 
             // set waveSim data
             AddWSModel (name, waveSim)

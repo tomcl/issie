@@ -1,4 +1,4 @@
-/// Programmatic construction of canvases and loaded components for tests.
+﻿/// Programmatic construction of canvases and loaded components for tests.
 /// Geometry fields are arbitrary: tests never render.
 module CanvasBuilder
 
@@ -31,7 +31,7 @@ let makeComp (id: int) (nInputs: int) (nOutputs: int) (compType: ComponentType) 
 /// Connection-end ports carry no port number, as in saved .dgm files. The id pairs the two
 /// port ids, so it is deterministic and unique for distinct endpoint pairs.
 let conn (src: Component) (srcPort: int) (tgt: Component) (tgtPort: int) : Connection =
-    { Id = src.OutputPorts[srcPort].Id * 1000 + tgt.InputPorts[tgtPort].Id % 1000
+    { Id = ConnectionId(src.OutputPorts[srcPort].Id * 1000 + tgt.InputPorts[tgtPort].Id % 1000)
       Source = { src.OutputPorts[srcPort] with PortNumber = None }
       Target = { tgt.InputPorts[tgtPort] with PortNumber = None }
       Vertices = [] }

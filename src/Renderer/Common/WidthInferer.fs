@@ -1,4 +1,4 @@
-(*
+﻿(*
    Function to perform bus width inference on a canvas
 *)
 
@@ -664,7 +664,7 @@ let private setConnectionsWidth
     (Ok (connectionsWidth, []), connections)
     ||> List.fold (fun res conn ->
         res |> Result.bind (fun (connectionsWidth, connectionsToReturn) ->
-            let connId = ConnectionId conn.Id
+            let connId = conn.Id
             match getConnectionWidth connectionsWidth connId with
             | None ->
                 // Width for the connection was never set. Set it and return
@@ -751,7 +751,7 @@ let rec private infer
 
 let private initialiseConnectionsWidth connections : ConnectionsWidth =
     connections
-    |> List.map (fun (conn:Connection) -> ConnectionId conn.Id, None)
+    |> List.map (fun (conn:Connection) -> conn.Id, None)
     |> Map.ofList
 
 let private getAllInputNodes components : Component list =
@@ -767,7 +767,7 @@ let private mapInputPortIdsToConnectionIds
     ||> List.fold (fun mapRes conn ->
         mapRes |> Result.bind (fun map ->
             let inputPortId = InputPortId conn.Target.Id
-            let connId = ConnectionId conn.Id
+            let connId = conn.Id
             match map.TryFind inputPortId with
             | None -> Ok <| map.Add (inputPortId, connId)
             | Some otherConnId -> Error {
@@ -810,7 +810,7 @@ let private mapInputPortIdsToVirtualConnectionIds (conns: Connection list) (comp
         
     let targetPortIdToConId =
         conns
-        |> List.map (fun conn -> InputPortId conn.Target.Id, ConnectionId conn.Id)
+        |> List.map (fun conn -> InputPortId conn.Target.Id, conn.Id)
         |> Map.ofList
     
     let getBusLabelConns (compLst: Component list)  =

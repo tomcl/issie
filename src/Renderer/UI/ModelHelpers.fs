@@ -388,8 +388,8 @@ let mapOverProject defaultValue (model: Model) transform =
     | Some p -> transform p
 
 let getComponentIds (model: Model) =
-    let extractIds ((comps,conns): Component list * Connection list) = 
-        conns
+    let extractIds ((comps, conns): Component list * Connection list) =
+        comps
         |> List.map (fun comp -> ComponentId comp.Id)
         
     model.Sheet.GetCanvasState()

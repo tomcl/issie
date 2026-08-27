@@ -1,4 +1,4 @@
-module SheetLayout
+﻿module SheetLayout
 
 (*
     SheetLayout.fs
@@ -150,7 +150,7 @@ let private resolvePort
 /// Connection ends carry no port number, as in a saved .dgm, and no vertices - Issie routes the
 /// wire when the sheet is loaded.
 let private buildConnection (index: int) (source: Port) (target: Port) : Connection =
-    { Id = index + 1
+    { Id = ConnectionId(index + 1)
       Source = { source with PortNumber = None }
       Target = { target with PortNumber = None }
       Vertices = [] }

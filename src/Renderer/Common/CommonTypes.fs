@@ -689,7 +689,7 @@ let slotInfo_ = Lens.create (fun c -> c.SlotInfo) (fun n c -> {c with SlotInfo =
 /// JSConnection mapped to F# record.
 /// Id uniquely identifies connection globally and is used by library.
 type Connection = {
-    Id : int
+    Id : ConnectionId
     Source : Port
     Target : Port
     Vertices : (float * float * bool) list
@@ -915,7 +915,7 @@ let convertFromJSONConnection
           PortType = port.PortType
           HostId = mapCompId port.HostId }
 
-    { Id = mapConnId conn.Id
+    { Id = ConnectionId(mapConnId conn.Id)
       Source = newPort conn.Source
       Target = newPort conn.Target
       Vertices = conn.Vertices }
@@ -1020,7 +1020,11 @@ let convertToJSONConnection (conn: Connection) : JSONComponent.Connection =
           PortType = port.PortType
           HostId = string port.HostId }
 
-    { Id = string conn.Id
+    // the INTEGER, written as a string: `string` of the id itself is the wrapper's name under
+    // .NET and the bare number under Fable, which would put two different things in the file
+    let (ConnectionId connId) = conn.Id
+
+    { Id = string connId
       Source = jsonPort conn.Source
       Target = jsonPort conn.Target
       Vertices = conn.Vertices }

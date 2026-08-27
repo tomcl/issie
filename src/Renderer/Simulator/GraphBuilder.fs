@@ -1,4 +1,4 @@
-module GraphBuilder
+﻿module GraphBuilder
 (*
     GraphBuilder.fs
 
@@ -242,7 +242,7 @@ let getLabelConnections (comps: Component list) (conns: Connection list) =
         // live only inside the simulation graph being built and are never saved
         { conn with
             Target = compTarget.InputPorts[0]
-            Id = -(conn.Id * 1000 + tagNum + 1) }
+            Id = (let (ConnectionId n) = conn.Id in ConnectionId(-(n * 1000 + tagNum + 1))) }
 
     let getDriverConnection (comps: Component list) =
         comps
@@ -303,7 +303,7 @@ let private findOutputWidths (canvasState: CanvasState) (connsWidth: Connections
     let connsWidth =
         connsWidth
         |> Map.toList
-        |> List.map (fun (ConnectionId k, w) -> k, (w |> Option.get))
+        |> List.map (fun (k, w) -> k, (w |> Option.get))
 
     let inline findComp (id: int) =
         comps

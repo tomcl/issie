@@ -184,6 +184,8 @@ let private nameOf (cmd: int) =
     | c when c = Constants.simSetInputsCmd -> "SimSetInputs"
     | c when c = Constants.simReadCmd -> "SimRead"
     | c when c = Constants.simReadRamCmd -> "SimReadRam"
+    | c when c = Constants.simPortsCmd -> "SimPorts"
+    | c when c = Constants.simReadDriversCmd -> "SimReadDrivers"
     | c -> $"command {c}"
 
 /// Say so about any request that has outstripped its command's budget.
@@ -212,6 +214,54 @@ let private reportOverdue () =
             $"sidecar {nameOf entry.Cmd} has not answered in %.0f{now - entry.SentAtMs}ms (invariant A6)"
 
         pending[corrId] <- { entry with Warned = true })
+
+/// Drop the socket, whoever asked. The next `request` makes a fresh one.
+let private dropSocket () =
+    socket |> Option.iter wsClose
+    socket <- None
+
+/// How far past its budget a request is allowed to go before it is FAILED rather than reported.
+///
+/// Ten times, because the two numbers answer different questions. The budget of `budgetMs` is the
+/// line past which a command is not slow but suspect, and it is drawn tight so that the warning is
+/// worth reading; this is the line past which it is not coming, and it has to be loose enough that
+/// no legitimate reply is ever killed by it - a run chunk asks for a second and may overshoot, and
+/// a chunk cut off would be a wrong answer rather than a slow one.
+let private stuckMultiple = 10.0
+
+/// Fail a request that has passed the point of being merely slow, and drop the socket under it.
+///
+/// **A6 says so; this is what makes saying so recoverable.** `reportOverdue` warns, and a warning
+/// is all there was: a reply that never arrives leaves its entry in `pending` for ever, which
+/// leaves the operation in `Model.SidecarInFlight` for ever, and one operation at a time is the
+/// rule the whole protocol is sequenced by - so nothing is ever issued on this wire again, with a
+/// console line as the only sign. That is the exact hang invariant A4 exists to forbid, arriving
+/// by the one route `onclose` does not cover: a socket that goes quiet without closing.
+///
+/// A timer per bounded request, armed when it goes out - not an application tick, which section F
+/// rejects for good reasons. It is not cancelled when the reply lands because it does not need to
+/// be: the entry it looks for is gone by then, so it finds nothing and does nothing. The two
+/// declared-long commands have no budget and so arm nothing.
+///
+/// The socket goes with the request. One that swallowed a message is not one to send the next on,
+/// and `request` reconnects, so the failure is a fault reported to this caller rather than the end
+/// of simulation for the session.
+let private failIfStuck (corrId: float) (budget: float) =
+    JS.setTimeout
+        (fun () ->
+            match pending.TryGetValue corrId with
+            | true, entry ->
+                pending.Remove corrId |> ignore
+
+                Log.error
+                    $"sidecar {nameOf entry.Cmd} never answered in %.0f{TimeHelpers.getTimeMs () - entry.SentAtMs}ms; failing it and dropping the connection (invariant A4)"
+
+                // before the socket goes, so the close handler does not report this one twice
+                entry.Fail (System.Exception $"the sidecar did not answer {nameOf entry.Cmd}")
+                dropSocket ()
+            | false, _ -> ())
+        (int (budget * stuckMultiple))
+    |> ignore
 
 /// How long to wait for the sidecar to start listening before deciding it is not going to.
 ///
@@ -341,33 +391,61 @@ let connect () : JS.Promise<unit> =
 
 /// One request, resolved with the whole response frame - header included, so a caller can size
 /// what came back. The payload is a Uint8Array from makeBytes.
+///
+/// **Connects if there is no socket**, rather than refusing. A closed connection is a normal
+/// event - the sidecar drops one when a handler faults, and the process behind it goes on holding
+/// the session - so "connect first" as a permanent answer was wrong in the way that matters: only
+/// a BUILD ever called `connect`, so after a drop every run and every read failed, the viewer
+/// retried on its backoff for ever, and the simulation stayed dead until the user happened to
+/// press Refresh. Reconnecting here costs nothing when a socket is open (one match) and is the
+/// whole of the recovery when there is not.
+///
+/// It cannot storm: `connect` is single-flight, so concurrent callers join one attempt, and it
+/// rejects rather than looping when the sidecar is genuinely gone.
 let request (cmd: int) (payload: obj) : JS.Promise<obj> =
-    Promise.create (fun resolve reject ->
-        match socket with
-        | None -> reject (System.Exception "sidecar is not connected - connect first")
-        | Some ws ->
+    /// Send on a socket known to be open, and resolve when the reply carrying this id arrives.
+    let sendOn (ws: obj) =
+        Promise.create (fun resolve reject ->
             nextCorrId <- nextCorrId + 1.0
+            let corrId = nextCorrId
 
-            if pending.ContainsKey nextCorrId then
+            if pending.ContainsKey corrId then
                 // ids only ever increase, and are floats, so this cannot happen in any real
                 // session - but reusing one in flight would deliver a reply to the wrong caller,
                 // which is the kind of wrong that looks like a simulation bug
-                Log.error $"sidecar: correlation id {nextCorrId} is already in flight"
+                Log.error $"sidecar: correlation id {corrId} is already in flight"
 
             let frame = makeBytes (Constants.headerSize + int (byteLength payload))
             setCommand frame cmd
-            writeUint32At frame 1 nextCorrId
+            writeUint32At frame 1 corrId
             blitPayload frame payload
 
-            pending[nextCorrId] <-
+            pending[corrId] <-
                 { Cmd = cmd
                   SentAtMs = TimeHelpers.getTimeMs ()
                   Warned = false
                   Resolve = resolve
                   Fail = reject }
 
+            // the deadline is armed with the request, so that a reply that never comes fails this
+            // caller instead of holding the wire for the rest of the session
+            budgetMs cmd |> Option.iter (failIfStuck corrId)
+
             reportOverdue ()
             wsSend ws frame)
+
+    match socket with
+    | Some ws -> sendOn ws
+    | None ->
+        connect ()
+        |> Promise.bind (fun () ->
+            match socket with
+            | Some ws -> sendOn ws
+            | None ->
+                // connect resolved without a socket, which it cannot do - said rather than left to
+                // become a promise that neither resolves nor rejects
+                Promise.create (fun _ reject ->
+                    reject (System.Exception "the sidecar connected without leaving a socket")))
 
 /// Whether a socket is open, and how many requests are waiting on the sidecar.
 ///
@@ -376,10 +454,8 @@ let request (cmd: int) (payload: obj) : JS.Promise<obj> =
 /// started the app to wait rather than to conclude the simulator is broken.
 let connectionState () = Option.isSome socket, pending.Count
 
-/// Drop the connection; the next connect () makes a fresh one.
-let disconnect () =
-    socket |> Option.iter wsClose
-    socket <- None
+/// Drop the connection; the next request makes a fresh one.
+let disconnect () = dropSocket ()
 
 // ---- text payloads: UTF-8 strings over the same binary frames ----
 

@@ -165,146 +165,174 @@ let private serve (ws: WebSocket) (ct: CancellationToken) =
                 do! ws.CloseAsync(WebSocketCloseStatus.ProtocolError, "short frame", ct)
                 running <- false
             | Some(_, header, body) ->
-                match header[0] with
-                | Protocol.Echo ->
-                    // header and payload as two frames of one message, rather than copied
-                    // into a single contiguous response
-                    let response = responseHeader header
+                // **A handler that throws must not take the connection with it.**
+                //
+                // The simulator below is full of `failwithf`s about states that are not supposed to
+                // arise - a memory component that is not a memory, a step outside an array, a state
+                // of the wrong shape - and every one of them is reachable from a request, because a
+                // request names a component and a cycle and this side did not choose either. Reaching
+                // one used to unwind out of this loop: the socket was dropped, every request in
+                // flight failed with it (invariant A4), and the renderer had no way back to a session
+                // this process was still holding perfectly well.
+                //
+                // So the fault is answered as what it is - an error reply to the one command that
+                // caused it - and the next command is served. The reply goes out here rather than in
+                // each handler because the point is to catch what no handler expected.
+                let mutable fault: string option = None
 
-                    if body.Length = 0 then
-                        do! send ws response ct
-                    else
-                        do! ws.SendAsync(ArraySegment response, WebSocketMessageType.Binary, false, ct)
-                        do! ws.SendAsync(ArraySegment body, WebSocketMessageType.Binary, true, ct)
-                | Protocol.Upload ->
-                    do! send ws (responseHeader header) ct
-                | Protocol.Download ->
-                    let requested = if body.Length >= 4 then BitConverter.ToInt32(body, 0) else 0
-                    let n = max 0 (min requested (Protocol.MaxMessage - Protocol.HeaderSize))
-                    let frame = Array.zeroCreate (Protocol.HeaderSize + n)
-                    Array.blit (responseHeader header) 0 frame 0 Protocol.HeaderSize
-                    Random.Shared.NextBytes(Span(frame, Protocol.HeaderSize, n))
-                    do! send ws frame ct
-                | Protocol.SendDesign ->
-                    // One sheet per message: the whole 18-sheet 3cpu design decodes in ~300ms and
-                    // its largest sheet in ~25ms, and a handler holds the serve loop for as long as
-                    // it runs - so the design is uploaded in pieces and assembled when the last one
-                    // lands. Per-sheet framing also means an unchanged sheet costs a string
-                    // comparison rather than a decode (DesignCache).
-                    let stopwatch = Diagnostics.Stopwatch.StartNew()
-                    let sheetIndex = argAt body 0
-                    let sheetCount = argAt body 4
+                try
+                    match header[0] with
+                    | Protocol.Echo ->
+                        // header and payload as two frames of one message, rather than copied
+                        // into a single contiguous response
+                        let response = responseHeader header
 
-                    let outcome =
-                        DesignCache.parsePayload body[8..]
-                        |> Result.bind (fun (topSheet, sheetJsons) ->
-                            match sheetJsons with
-                            | [ json ] -> Ok(topSheet, json)
-                            | other -> Error $"expected one sheet in a SendDesign message, got {other.Length}")
-                        |> Result.bind (fun (topSheet, json) ->
-                            DesignCache.decodeSheet sheetCache json
-                            |> Result.map (fun (sheet, wasDecoded, newCache) ->
-                                sheetCache <- newCache
+                        if body.Length = 0 then
+                            do! send ws response ct
+                        else
+                            do! ws.SendAsync(ArraySegment response, WebSocketMessageType.Binary, false, ct)
+                            do! ws.SendAsync(ArraySegment body, WebSocketMessageType.Binary, true, ct)
+                    | Protocol.Upload ->
+                        do! send ws (responseHeader header) ct
+                    | Protocol.Download ->
+                        let requested = if body.Length >= 4 then BitConverter.ToInt32(body, 0) else 0
+                        let n = max 0 (min requested (Protocol.MaxMessage - Protocol.HeaderSize))
+                        let frame = Array.zeroCreate (Protocol.HeaderSize + n)
+                        Array.blit (responseHeader header) 0 frame 0 Protocol.HeaderSize
+                        Random.Shared.NextBytes(Span(frame, Protocol.HeaderSize, n))
+                        do! send ws frame ct
+                    | Protocol.SendDesign ->
+                        // One sheet per message: the whole 18-sheet 3cpu design decodes in ~300ms and
+                        // its largest sheet in ~25ms, and a handler holds the serve loop for as long as
+                        // it runs - so the design is uploaded in pieces and assembled when the last one
+                        // lands. Per-sheet framing also means an unchanged sheet costs a string
+                        // comparison rather than a decode (DesignCache).
+                        let stopwatch = Diagnostics.Stopwatch.StartNew()
+                        let sheetIndex = argAt body 0
+                        let sheetCount = argAt body 4
 
-                                // The first sheet starts an upload, discarding any abandoned one -
-                                // and the session with it. A design only ever arrives with every
-                                // simulation closed, so nothing is taken away from a caller that is
-                                // using it; saying so here is what makes a command left over from
-                                // before the design changed name an epoch that no longer exists.
-                                let soFar =
-                                    match sheetIndex, staged with
-                                    | 0, _ ->
-                                        SimSession.discardForNewDesign ()
-                                        []
-                                    | _, Some(_, pairs) -> pairs
-                                    | _, None -> []
+                        let outcome =
+                            DesignCache.parsePayload body[8..]
+                            |> Result.bind (fun (topSheet, sheetJsons) ->
+                                match sheetJsons with
+                                | [ json ] -> Ok(topSheet, json)
+                                | other -> Error $"expected one sheet in a SendDesign message, got {other.Length}")
+                            |> Result.bind (fun (topSheet, json) ->
+                                DesignCache.decodeSheet sheetCache json
+                                |> Result.map (fun (sheet, wasDecoded, newCache) ->
+                                    sheetCache <- newCache
 
-                                let pairs = soFar @ [ json, sheet ]
-                                staged <- Some(topSheet, pairs)
-                                topSheet, pairs, wasDecoded))
+                                    // The first sheet starts an upload, discarding any abandoned one -
+                                    // and the session with it. A design only ever arrives with every
+                                    // simulation closed, so nothing is taken away from a caller that is
+                                    // using it; saying so here is what makes a command left over from
+                                    // before the design changed name an epoch that no longer exists.
+                                    let soFar =
+                                        match sheetIndex, staged with
+                                        | 0, _ ->
+                                            SimSession.discardForNewDesign ()
+                                            []
+                                        | _, Some(_, pairs) -> pairs
+                                        | _, None -> []
 
-                    stopwatch.Stop()
+                                    let pairs = soFar @ [ json, sheet ]
+                                    staged <- Some(topSheet, pairs)
+                                    topSheet, pairs, wasDecoded))
 
-                    let reply =
-                        match outcome with
-                        | Ok(topSheet, pairs, wasDecoded) ->
-                            let complete = List.length pairs = sheetCount
+                        stopwatch.Stop()
 
-                            if complete then
-                                let sheets = pairs |> List.map snd
+                        let reply =
+                            match outcome with
+                            | Ok(topSheet, pairs, wasDecoded) ->
+                                let complete = List.length pairs = sheetCount
 
-                                lastDesign <- Some { TopSheet = topSheet; Sheets = sheets }
-                                // the cache grew across the upload; keep exactly this design
-                                sheetCache <- DesignCache.keepOnly (pairs |> List.map fst) sheetCache
+                                if complete then
+                                    let sheets = pairs |> List.map snd
+
+                                    lastDesign <- Some { TopSheet = topSheet; Sheets = sheets }
+                                    // the cache grew across the upload; keep exactly this design
+                                    sheetCache <- DesignCache.keepOnly (pairs |> List.map fst) sheetCache
+                                    staged <- None
+
+                                sprintf
+                                    """{"sheet":%d,"of":%d,"decoded":%b,"complete":%b,"deserialiseMs":%.2f}"""
+                                    sheetIndex
+                                    sheetCount
+                                    wasDecoded
+                                    complete
+                                    stopwatch.Elapsed.TotalMilliseconds
+                            | Error e ->
                                 staged <- None
+                                let safe = e.Replace("\\", "/").Replace("\"", "'").Replace("\n", " ").Replace("\r", " ")
+                                sprintf """{"error":"%s"}""" safe
 
-                            sprintf
-                                """{"sheet":%d,"of":%d,"decoded":%b,"complete":%b,"deserialiseMs":%.2f}"""
-                                sheetIndex
-                                sheetCount
-                                wasDecoded
-                                complete
-                                stopwatch.Elapsed.TotalMilliseconds
-                        | Error e ->
-                            staged <- None
-                            let safe = e.Replace("\\", "/").Replace("\"", "'").Replace("\n", " ").Replace("\r", " ")
-                            sprintf """{"error":"%s"}""" safe
+                        do! send ws (textResponse header reply) ct
+                    | Protocol.SimBuild ->
+                        let reply =
+                            match lastDesign with
+                            | None -> """{"error":"no design received - send SendDesign first"}"""
+                            | Some design -> SimSession.build design (max 2 (argAt body 0))
 
-                    do! send ws (textResponse header reply) ct
-                | Protocol.SimBuild ->
-                    let reply =
-                        match lastDesign with
-                        | None -> """{"error":"no design received - send SendDesign first"}"""
-                        | Some design -> SimSession.build design (max 2 (argAt body 0))
+                        do! send ws (textResponse header reply) ct
+                    | Protocol.SimRun ->
+                        // epoch first, then target cycle and time budget - see Protocol.fs
+                        do! send ws (textResponse header (SimSession.run (argAt body 0) (argAt body 4) (argAt body 8))) ct
+                    | Protocol.SimDigest ->
+                        let reply =
+                            match lastDesign with
+                            | None -> """{"error":"no design received - send SendDesign first"}"""
+                            | Some design -> SimSession.digest design (max 1 (argAt body 0))
 
-                    do! send ws (textResponse header reply) ct
-                | Protocol.SimRun ->
-                    // epoch first, then target cycle and time budget - see Protocol.fs
-                    do! send ws (textResponse header (SimSession.run (argAt body 0) (argAt body 4) (argAt body 8))) ct
-                | Protocol.SimDigest ->
-                    let reply =
-                        match lastDesign with
-                        | None -> """{"error":"no design received - send SendDesign first"}"""
-                        | Some design -> SimSession.digest design (max 1 (argAt body 0))
+                        do! send ws (textResponse header reply) ct
+                    | Protocol.SimEnd ->
+                        do! send ws (textResponse header (SimSession.endSession (argAt body 0))) ct
+                    | Protocol.SimLog ->
+                        do! send ws (textResponse header (SimLog.recentJson ())) ct
+                    | Protocol.SimSetInputs ->
+                        do! send ws (textResponse header (SimSession.setInputs (argAt body 0) (body[4..]))) ct
+                    | Protocol.SimRead ->
+                        let frame =
+                            match SimSession.read (argAt body 0) (body[4..]) with
+                            | Ok payload -> bytesResponse header payload
+                            | Error e -> errorResponse header e
 
-                    do! send ws (textResponse header reply) ct
-                | Protocol.SimEnd ->
-                    do! send ws (textResponse header (SimSession.endSession (argAt body 0))) ct
-                | Protocol.SimLog ->
-                    do! send ws (textResponse header (SimLog.recentJson ())) ct
-                | Protocol.SimSetInputs ->
-                    do! send ws (textResponse header (SimSession.setInputs (argAt body 0) (body[4..]))) ct
-                | Protocol.SimRead ->
-                    let frame =
-                        match SimSession.read (argAt body 0) (body[4..]) with
-                        | Ok payload -> bytesResponse header payload
-                        | Error e -> errorResponse header e
+                        do! send ws frame ct
+                    | Protocol.SimReadDrivers ->
+                        let frame =
+                            match SimSession.readDrivers (argAt body 0) (body[4..]) with
+                            | Ok payload -> bytesResponse header payload
+                            | Error e -> errorResponse header e
 
-                    do! send ws frame ct
-                | Protocol.SimReadDrivers ->
-                    let frame =
-                        match SimSession.readDrivers (argAt body 0) (body[4..]) with
-                        | Ok payload -> bytesResponse header payload
-                        | Error e -> errorResponse header e
+                        do! send ws frame ct
+                    | Protocol.SimPorts ->
+                        let frame =
+                            match SimSession.ports (argAt body 0) (body[4..]) with
+                            | Ok payload -> bytesResponse header payload
+                            | Error e -> errorResponse header e
 
-                    do! send ws frame ct
-                | Protocol.SimPorts ->
-                    let frame =
-                        match SimSession.ports (argAt body 0) (body[4..]) with
-                        | Ok payload -> bytesResponse header payload
-                        | Error e -> errorResponse header e
+                        do! send ws frame ct
+                    | Protocol.SimReadRam ->
+                        let frame =
+                            match SimSession.readRam (argAt body 0) (body[4..]) with
+                            | Ok payload -> bytesResponse header payload
+                            | Error e -> errorResponse header e
 
-                    do! send ws frame ct
-                | Protocol.SimReadRam ->
-                    let frame =
-                        match SimSession.readRam (argAt body 0) (body[4..]) with
-                        | Ok payload -> bytesResponse header payload
-                        | Error e -> errorResponse header e
+                        do! send ws frame ct
+                    | other ->
+                        do! ws.CloseAsync(WebSocketCloseStatus.ProtocolError, $"unknown command {other}", ct)
+                        running <- false
+                with e ->
+                    // the whole exception to stderr, which main logs, because this is a fault in
+                    // the simulator and the stack is the only thing that says where
+                    Console.Error.WriteLine $"sidecar: command 0x%02x{header[0]} threw: {e}"
+                    fault <- Some e.Message
 
-                    do! send ws frame ct
-                | other ->
-                    do! ws.CloseAsync(WebSocketCloseStatus.ProtocolError, $"unknown command {other}", ct)
-                    running <- false
+                match fault with
+                | None -> ()
+                | Some message ->
+                    // A send that fails here means the socket really has gone, and letting that one
+                    // out is right: there is nothing left to answer on.
+                    do! send ws (errorResponse header $"the sidecar could not answer command {header[0]}: {message}") ct
     }
 
 /// Windows schedules a process it considers background onto efficiency cores, and applies EcoQoS

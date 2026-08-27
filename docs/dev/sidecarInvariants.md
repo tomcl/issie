@@ -60,26 +60,55 @@ WebSocket; the renderer connects directly and the main process is not in the dat
 
 | # | Invariant | Status |
 |---|---|---|
-| A1 | There is at most one socket. `connect` returns the existing one if open; `request` rejects when there is none. | **holds** |
+| A1 | There is at most one socket. `connect` returns the existing one if open, joins one being made, and `request` makes one when there is none. | **holds** |
 | A2 | A correlation id is unique among requests in flight. `nextCorrId` only increments, and it is a JS float, so it does not wrap in any realistic session. | **holds** — and is checked |
 | A3 | Every reply matches a request in flight. | **holds** — an unmatched reply is logged rather than ignored |
-| A4 | Every request eventually settles — resolves or rejects. | **holds** — failed, not forgotten, when the socket closes |
+| A4 | Every request eventually settles — resolves or rejects. | **holds** — failed on close, and failed on a deadline when there is no close |
+| A7 | A closed connection is recoverable without a rebuild. | **holds** — `request` connects when there is no socket |
 | A5 | Replies arrive in the order the requests were sent. | **holds**, and is deliberately *not* relied on: correlation ids mean it could stop being true without breaking anything |
 | A6 | Every request is answered within its command's budget, except the two declared long. | **holds** — checked, see F |
 
 ### A4 — requests that never settle
 
-`onclose` does `pending.Clear()`. The resolvers are dropped without being called, so a caller
-awaiting a request when the socket closes waits forever, and the promise chain it belongs to
-neither completes nor errors. Nothing above it can tell the difference between "still working" and
-"gone".
+`onclose` used to do `pending.Clear()`. The resolvers were dropped without being called, so a
+caller awaiting a request when the socket closed waited forever, and the promise chain it belonged
+to neither completed nor errored. Nothing above it could tell the difference between "still
+working" and "gone". They are rejected now, with the reason, and how many were dropped is logged.
 
-**Fix**: reject them, with the reason, and log how many were dropped. A closed socket is a normal
-event — the sidecar can be restarted — and every caller already handles an error.
+**A close is not the only way a reply fails to arrive.** A socket that goes quiet without closing
+produces the same hang by a route `onclose` cannot cover, and it is the worse one: the entry stays
+in `pending`, so the operation stays in `Model.SidecarInFlight`, so — one operation at a time being
+the rule everything is sequenced by (section J) — *nothing is ever issued on this wire again*. So
+every bounded request also carries a deadline, armed when it goes out, at ten times its section-E
+budget. Ten times because the two numbers answer different questions: the budget is the line past
+which a command is suspect and is drawn tight so the warning is worth reading, this is the line past
+which it is not coming and has to be loose enough never to kill a legitimate reply. Firing it fails
+that one caller and drops the socket, which A7 then makes recoverable.
+
+It is a timer per bounded request and not an application tick — section F's objection stands. It is
+armed with the request, needs no cancelling (the entry it looks for is gone by then, so it finds
+nothing), and the two declared-long commands, having no budget, arm nothing.
 
 ### A6 — the reply-time bound
 
 The bound is per command and stated in section E. The check is in section F.
+
+### A7 — a dropped connection is not the end of the session
+
+The sidecar drops a connection when a handler faults (section B) and keeps its session; the process
+is still there and the epoch it issued is still valid. But `connect` was called only by a BUILD, so
+after a drop every run and every read failed on "not connected", the viewer retried on its backoff
+for ever, and simulation stayed dead until the user happened to press Refresh.
+
+`request` connects when there is no socket, which costs one match when there is one. It cannot
+storm: `connect` is single-flight, so concurrent callers join one attempt rather than racing (which
+is its own failure — the sidecar serves one connection at a time, so a second handshake is not
+refused but sits unanswered in the listener's queue), and it rejects rather than looping when the
+sidecar is genuinely gone.
+
+What this does **not** recover is the sidecar process dying: main does not respawn it and reports no
+port, so `connect` waits out its startup budget and fails. That is a skeleton limitation and is
+named in `Main/Bridge.fs` rather than here.
 
 ---
 
@@ -92,6 +121,7 @@ The bound is per command and stated in section E. The check is in section F.
 | B3 | `SimSession.session` is written only from the serve loop. | **holds**, and follows from B1 |
 | B4 | `SimRun`, `SimRead` and `SimSetInputs` require a built session and error without one. | **holds** — checked, returns `{"error":...}` |
 | B5 | `sheetCache` and `lastDesign` are written only by `SendDesign`. | **holds** |
+| B6 | A handler that throws costs its own request and no other. | **holds** — the dispatch is wrapped; the fault is answered as an error reply |
 
 B1 is the load-bearing one. It is why the sidecar's module-level mutable state needs no locking and
 why its behaviour is worth reasoning about at all. **Anything that introduces a second thread
@@ -101,6 +131,21 @@ the clock itself rather than being interrupted by a timer thread.
 The consequence to keep in mind is that a long handler blocks *everything*, including the command
 that would cancel it. That is not a defect to be fixed with concurrency; it is the reason work per
 request is bounded instead (section E).
+
+### B6 — a fault is one request's, not the connection's
+
+The simulator this process runs is full of `failwithf`s about states that are not supposed to arise
+— a memory component that is not a memory, a step outside an array, a state of the wrong shape —
+and every one of them is reachable from a request, because a request names a component and a cycle
+and this side chose neither. Reaching one unwound out of the serve loop: the socket was dropped and
+every request in flight failed with it, for a fault that concerned one of them, leaving the renderer
+with no way back to a session this process was still holding perfectly well. It is not
+hypothetical — a RAM table asking for a cycle the step arrays had wrapped past did exactly this.
+
+The dispatch is wrapped, so the fault becomes an error reply to the command that caused it and the
+next command is served. It is caught around the whole dispatch rather than inside each handler
+precisely because what it is for is what no handler expected. A send that then fails is still let
+out, because at that point there is nothing left to answer on.
 
 ---
 
@@ -319,6 +364,8 @@ An invariant that cannot be checked is a comment. These can be, cheaply.
 | epoch mismatch | sidecar, per session-dependent command | C1, C2, C4 |
 | request outstanding, or answered, past its budget | `SidecarClient`, on send and on receive | A6, and every hang above it |
 | pending requests failed rather than dropped on close | `SidecarClient.onclose` | A4 |
+| a request unanswered past ten times its budget failed, and the socket dropped | `SidecarClient.request`, armed per request | A4, where there is no close to notice |
+| a handler that threw answered as an error rather than unwinding | the sidecar's serve loop | B6 |
 | data length = signals × samples × wordsPerSample | `WaveData.setFetched` | D3 |
 | the session that answered is the session that exists | `WaveProvider`, on receipt | D4 |
 | the viewport unserved for longer than a fetch takes, or an error latched | the viewer, per render | C3, D1 |
@@ -610,8 +657,18 @@ fast by construction, so it gets no progress display. Run chunks each go through
 is where the progress displays come from.
 
 **The memoisation obligation.** `FetchedData = snapshot` is a claim that the caches hold
-everything the snapshot needs, so every read's result must be memoised, keyed by state the
-viewport covers - and every cache EVICTION policy must be a function of that same state.
+everything the snapshot needs, so **every read in the bundle must reach the bundle's result**, and
+every read's result must be memoised, keyed by state the viewport covers - and every cache
+EVICTION policy must be a function of that same state.
+
+The first half is the one that was got wrong. A bundle is several reads - waves, each memory, the
+step panel, the port slices - and it answered with the WAVE read's result alone: the others logged
+a warning and were dropped, so a fetch that lost a memory reported `Ok`, the snapshot was recorded
+as served, and the comparison that decides fetches is against that record. Nothing asked again
+until the view moved for some other reason. Reporting them costs no retry storm, because
+`FailedFetch` latches the snapshot; what it buys is that the stale banner tells the truth. What DID
+arrive is still returned and still shown - a memory whose rows came back is worth drawing whether
+or not the one beside it failed.
 `WaveDrawn.keepOnly` on the selection is sound because the selection is in the viewport, so the
 eviction always coincides with an inequality that refetches. An eviction keyed on anything
 outside the viewport recreates silent staleness; that is the review rule for a new cache, and

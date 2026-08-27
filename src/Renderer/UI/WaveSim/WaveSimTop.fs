@@ -780,6 +780,21 @@ let private neededCycleOf (vp: DataViewport) : int =
 /// chained at wire speed with no Elmish round trip between them, under ONE in-flight entry and
 /// answered by ONE message. `panelSignals` is passed in because it is derived from the step
 /// simulation, which the caller has in hand.
+///
+/// **Every read's failure reaches the result.** The bundle used to answer with the WAVE read's
+/// result alone: a memory, the step panel and the port slices each logged a warning and were
+/// dropped, so a fetch whose RAM read failed reported `Ok`, which set `FetchedData` to the
+/// snapshot, which is the claim of section J that the caches now hold everything the snapshot
+/// needs. They did not, and the comparison that decides fetches is against that record - so
+/// nothing asked again until the view moved for some other reason, and a table stayed blank or a
+/// selector stayed empty with only a console line to say why.
+///
+/// Reporting them costs no retry storm: a failed fetch latches its snapshot in `Model.FailedFetch`,
+/// so an unchanged viewport is not asked again and any change to it is a different snapshot that
+/// is. What it buys is that the viewer's stale banner tells the truth.
+///
+/// What DID arrive is returned regardless. A memory whose rows came back is worth showing whether
+/// or not the one beside it failed.
 let private readBundle
     (epoch: int)
     (snapshot: FetchSnapshot)
@@ -794,7 +809,7 @@ let private readBundle
                 WaveProvider.fetchWavesFor epoch (Simulator.getFastSim ()) vp.VpWaves vp.VpWindow
             | _ -> Promise.lift (Ok())
 
-        let! rows =
+        let! ramReads =
             // Only the memories whose rows are not already held under exactly the key their table
             // is asking under - `ramsToRead`, worked out by the caller, which has the model the
             // rows live in. Reading the whole of `VpRams` meant a scroll, which changes the
@@ -804,14 +819,14 @@ let private readBundle
                 acc
                 |> Promise.bind (fun collected ->
                     RamData.fetch epoch ramId key WaveSimTypes.Constants.maxRamRowsDisplayed
-                    |> Promise.map (fun row -> Option.toList row @ collected)))
+                    |> Promise.map (fun read -> read :: collected)))
 
-        match snapshot.SnapData |> Option.bind (fun vp -> vp.VpPanelCycle) with
-        | Some cycle when not (List.isEmpty panelSignals) ->
-            match! StepPanelData.fill epoch cycle panelSignals with
-            | Error e -> Log.warn $"reading the step panel at cycle {cycle}: {e}"
-            | Ok() -> ()
-        | _ -> ()
+        let! panel =
+            match snapshot.SnapData |> Option.bind (fun vp -> vp.VpPanelCycle) with
+            | Some cycle when not (List.isEmpty panelSignals) ->
+                StepPanelData.fill epoch cycle panelSignals
+                |> Promise.map (Result.mapError (fun e -> $"reading the step panel at cycle {cycle}: {e}"))
+            | _ -> Promise.lift (Ok())
 
         let! probed =
             match snapshot.SnapData |> Option.bind (fun vp -> vp.VpProbe) with
@@ -820,19 +835,30 @@ let private readBundle
                 WaveProvider.fetchProbeValue epoch (Simulator.getFastSim ()) wi cycle
                 |> Promise.map (Option.map (fun value -> wi, cycle, value))
 
-        match snapshot.SnapStructure with
-        | Some sv ->
-            // Only the ones this build has not been asked about. A slice never goes stale within a
-            // build - PortData holds them BY the build and a new one starts an empty store - so
-            // re-describing an instance already held is a round trip that can only produce the
-            // answer already in hand. It costs nothing while the list barely moves, and the list
-            // now grows by an entry for every sheet the user visits.
-            match! PortData.fetch epoch (PortData.missingOf sv.SvInstances) with
-            | Error e -> Log.warn $"describing instances for the selector: {e}"
-            | Ok _ -> ()
-        | None -> ()
+        let! ports =
+            match snapshot.SnapStructure with
+            | Some sv ->
+                // Only the ones this build has not been asked about. A slice never goes stale
+                // within a build - PortData holds them BY the build and a new one starts an empty
+                // store - so re-describing an instance already held is a round trip that can only
+                // produce the answer already in hand. It costs nothing while the list barely
+                // moves, and the list now grows by an entry for every sheet the user visits.
+                PortData.fetch epoch (PortData.missingOf sv.SvInstances)
+                |> Promise.map (function
+                    | Ok _ -> Ok()
+                    | Error e -> Error $"describing instances for the selector: {e}")
+            | None -> Promise.lift (Ok())
 
-        return waves, rows, probed
+        let rows =
+            ramReads |> List.choose (function Ok row -> Some row | Error _ -> None)
+
+        /// Every read that failed, in one message. All of them, not the first: they are
+        /// independent reads and a fetch that lost two of them should say so.
+        let failures =
+            (ramReads |> List.choose (function Error e -> Some e | Ok _ -> None))
+            @ ([ waves; panel; ports ] |> List.choose (function Error e -> Some e | Ok() -> None))
+
+        return (if List.isEmpty failures then Ok() else Error(String.concat "; " failures)), rows, probed
     }
 
 /// The end-of-update checks that keep the .NET simulation serving the view. Decisions are STATE

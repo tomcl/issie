@@ -105,12 +105,18 @@ let notHeld (model: Model) (rams: (FComponentId * RamKey) list) =
 /// settled where the model is, when the completion message lands. A build since then means these
 /// rows describe a simulation that is no longer the one being drawn, and they would look exactly
 /// as trustworthy as ones that did.
+///
+/// **A failure is returned, not logged.** It used to answer `None` for both "no rows" and "the read
+/// failed", and the caller could then only drop it - which made the whole fetch report success,
+/// which recorded the viewport as served, which meant the memoisation claim of section J was false
+/// and nothing ever asked again. A table stayed empty or a cycle out of date for as long as the
+/// view did not move, with a console warning as the only sign.
 let fetch
     (epoch: int)
     (ram: FComponentId)
     (key: RamKey)
     (rows: int)
-    : JS.Promise<(FComponentId * (RamKey * RamView)) option> =
+    : JS.Promise<Result<FComponentId * (RamKey * RamView), string>> =
     let (ComponentId cid), path = ram
     let pathIds = path |> List.map (fun (ComponentId p) -> p)
 
@@ -118,8 +124,6 @@ let fetch
         let! reply = SidecarClient.simReadRam epoch key.Cycle cid pathIds key.SparseUpTo key.Start rows
 
         match reply with
-        | Error e ->
-            Log.warn $"reading a RAM from the .NET simulator: {e}"
-            return None
-        | Ok view -> return Some(ram, (key, view))
+        | Error e -> return Error $"reading memory {cid}: {e}"
+        | Ok view -> return Ok(ram, (key, view))
     }

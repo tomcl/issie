@@ -22,6 +22,12 @@ open ElectronAPI
 /// this file cannot see the model. See UpdateHelpers.getContextMenu.
 let addWavesItem = "Add waveforms to viewer"
 
+/// Item offered on a schematic wire while a wave simulation is running, which adds the signal on
+/// that wire to the viewer's selection. As with addWavesItem, the renderer decides whether it
+/// appears - a wire only carries ONE signal of the simulation when the sheet it is drawn on has
+/// exactly one instance in the simulated design, and only the renderer can ask that.
+let addWireWaveItem = "Add wave to viewer"
+
 /// Items offered on an instance of a library component, which take the place of "Go to sheet".
 /// A library component is meant to be one thing rather than a sheet with innards, so its sheet is
 /// normally unreachable; these open it read-only, and put it away again. Which of the two is
@@ -61,6 +67,7 @@ let contextMenus = [
         // hand - this file cannot see it, being compiled into the main process as well.
         "Canvas", ["Zoom-in (Ctrl+plus) and centre" ; "Zoom-out (Ctrl+minus)" ; "Fit to window (Ctrl+0)" ; "Paste (Ctrl+V)"; "Reroute all wires"; "Properties"]
         "Wire", ["Unfix Wire"]
+        "WireWaveSim", ["Unfix Wire"; addWireWaveItem]
         // Menus offered while a library component's sheet is being viewed. Every item that would
         // change the sheet is absent rather than disabled, because the sheet is held at what it
         // loaded with and the change would be silently undone. A wire and the scaling box have

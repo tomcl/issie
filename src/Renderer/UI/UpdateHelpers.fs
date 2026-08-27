@@ -508,9 +508,13 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
         else ifWavesToOffer sym "ComponentWaveSim" "Component"
     | DBCanvas _ ->
         if readOnly then "CanvasReadOnly" else "Canvas"
-    | DBWire _ ->
-        // its only item unfixes the wire's routing
-        if readOnly then "" else "Wire"
+    | DBWire(wire, _) ->
+        if readOnly then ""
+        // with a wave simulation running, and the wire carrying exactly one of its signals
+        // (the open sheet has one instance in the simulated design), the menu also offers
+        // adding that signal to the viewer
+        elif (WaveSimSelect.wireWaveToOffer model wire.WId).IsSome then "WireWaveSim"
+        else "Wire"
     | WaveSimHelp ->
         "WaveSimHelp"
     | _ ->
@@ -748,6 +752,23 @@ let processContextMenuClick
         model  
         |> withMsg (Sheet (SheetT.KeyPress SheetT.KeyboardMsg.CtrlC))
     
+    | DBWire(wire, _), "Add wave to viewer" ->
+        // Show the wave simulator, so the wave can be seen arriving - and add it as a TRANSFORM
+        // of the selection the message lands on, like every selection change.
+        match WaveSimSelect.wireWaveToOffer model wire.WId with
+        | None -> model |> withNoCmd
+        | Some wi ->
+            model
+            |> set rightPaneTabVisible_ Simulation
+            |> set simSubTabVisible_ WaveSim
+            |> withMsg (
+                GenerateWaveforms(fun ws ->
+                    if List.contains wi ws.SelectedWaves then
+                        ws
+                    else
+                        { ws with SelectedWaves = ws.SelectedWaves @ [ wi ] })
+            )
+
     | DBWire (wire, aSeg), "Unfix Wire" ->
         let changeManualSegToAuto : BusWireT.Segment -> BusWireT.Segment =
             map BusWireT.mode_ (function | BusWireT.Manual -> BusWireT.Auto | m -> m)

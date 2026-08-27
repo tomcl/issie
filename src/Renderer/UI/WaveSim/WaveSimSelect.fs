@@ -332,6 +332,17 @@ let waveIndexOfWire
                         wi.PortType = PortType.Output && wi.PortNumber = portNum)
                 | Error _ -> None
 
+/// The wave to offer on a wire's right-click menu: the signal the wire carries, when a wave
+/// simulation is running and the open sheet has exactly one instance in its design - the same
+/// rule compWavesToOffer applies to a component, answered by the same resolution the probe uses.
+let wireWaveToOffer (model: Model) (cid: ConnectionId) : WaveIndexT option =
+    let ws = ModelHelpers.getWSModel model
+
+    match model.WaveSimSheet, ws.State with
+    | Some sheet, Success when sheet <> "" ->
+        waveIndexOfWire (Simulator.getFastSim ()) model.Sheet.Wire cid
+    | _ -> None
+
 /// The value of one wave at one cycle, written as the waveform viewer's value column writes it.
 ///
 /// The step index wraps: the step simulator uses its data arrays as a circular buffer, so a long

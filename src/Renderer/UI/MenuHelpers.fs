@@ -1084,15 +1084,41 @@ let rec resolveComponentOpenPopup
     | OkComp comp ::rLst -> 
         resolveComponentOpenPopup pPath (comp::components) rLst model dispatch
 
-/// Hold a recent list to its limit. Applied on every read as well as on every write, since a
-/// longer list saved by an earlier version is still in IssieSettings.json and nothing else would
-/// ever shorten it.
+/// Put a recent list in the form it is held and compared in: every path written this platform's
+/// way, each project once, and no more of them than the limit. Applied on every read as well as on
+/// every write, since a list saved by an earlier version is still in IssieSettings.json and nothing
+/// else would ever tidy it.
+///
+/// The normalising is what makes the entries comparable at all. The same folder arrives written
+/// both ways - a dialog and the demo copier give backslashes on Windows, a path built by pathJoin
+/// or read back out of the settings file gives forward slashes - and a list that compared the
+/// strings therefore held one entry per SPELLING: the same project twice, taking two of the five
+/// places, and a cross that removed only the spelling that was clicked.
 let private trimRecents (recents: string list) =
-    List.truncate Constants.numberOfRecentProjects recents
+    recents
+    |> List.map normalisePath
+    // newest first, so the first of two spellings of one project is the one to keep
+    |> List.distinct
+    |> List.truncate Constants.numberOfRecentProjects
+
+/// A recent list as it came out of the settings file, in the form the rest of the code holds it in.
+/// Settings written before paths were normalised have the same project under two spellings, and one
+/// written by an older version can be longer than the limit; tidying on the way IN means the next
+/// write of the settings file heals it, rather than leaving that to the next project opened.
+let tidyRecents (recents: string list option) : string list option = recents |> Option.map trimRecents
+
+/// Take one project off a recent list, however its path is written.
+let private withoutRecent (path: string) (recents: string list option) =
+    // trimmed BEFORE the filter, not after: the filter is what has to see normalised paths, or a
+    // click on the list removes nothing and the entry comes back normalised
+    recents |> Option.map (trimRecents >> List.filter ((<>) (normalisePath path)))
 
 let addToRecents path recents =
+    let path = normalisePath path
+
     recents
     |> Option.defaultValue []
+    |> trimRecents
     |> List.filter ((<>) path)
     |> List.insertAt 0 path
     // trimmed after the insert, not before it: truncating first left room for the new entry to
@@ -1112,8 +1138,7 @@ let forgetRecentProject (path: string) (model: Model) dispatch =
     dispatch <| SetUserData {
         model.UserData with
             RecentProjects =
-                model.UserData.RecentProjects
-                |> Option.map (List.filter ((<>) path) >> trimRecents)
+                model.UserData.RecentProjects |> withoutRecent path
         }
 
 /// One row of a recent-projects list: the project, which opens on a click, and a cross that takes
@@ -1175,8 +1200,7 @@ let openProjectFromPath (path:string) model dispatch =
         | Error err ->
             Log.error err
             displayFileErrorNotification err dispatch
-            model.UserData.RecentProjects
-            |> Option.map (List.filter ((<>) path)) 
+            model.UserData.RecentProjects |> withoutRecent path
         | Ok (componentsToResolve: LoadStatus list) ->
             resolveComponentOpenPopup path [] componentsToResolve model dispatch
             Log.dbg Log.Files $"opened project {path}"

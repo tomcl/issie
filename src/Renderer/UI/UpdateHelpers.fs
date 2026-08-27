@@ -907,7 +907,8 @@ let readUserData (userAppDir: string) (model: Model) : Model * Cmd<Msg> =
             let jsonRes = tryReadFileSync <| pathJoin [|userAppDir;"IssieSettings.json"|]
             jsonRes
             |> Result.bind (fun json -> Json.tryParseNativeAs<UserData> json)
-            |> Result.bind (fun (data: UserData) -> Ok {model with UserData = data})
+            |> Result.bind (fun (data: UserData) ->
+                Ok { model with UserData = { data with RecentProjects = tidyRecents data.RecentProjects } })
             |> (function | Ok model -> model | Error _ -> Log.warn "could not read the saved user settings"; model)
             |> addAppDirToUserData 
             |> userDataToDrawBlockModel

@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <Compile Include="PathHelperTests.fs" />
+    <Compile Include="RecentProjects.fs" />
     <Compile Include="TestFixtures.fs" />
     <Compile Include="CanvasBuilder.fs" />
     <Compile Include="LookupArrayTests.fs" />

@@ -1,4 +1,4 @@
-(*
+﻿(*
     FilesIO.fs
 
     Utility functions to interact with files.
@@ -59,6 +59,12 @@ let pathJoin (args: string array) = PathHelpers.join args
 let baseName (filePath: string) = PathHelpers.basename filePath
 
 let dirName (filePath: string) = PathHelpers.dirname filePath
+
+/// The same path written this platform's way: one kind of separator, no repeats, `.` and `..`
+/// resolved. For comparing two paths that may have been written differently - a dialog and a
+/// bridge call hand back backslashes on Windows, a path built by pathJoin or read out of
+/// IssieSettings.json may have forward slashes, and as plain strings those are not equal.
+let normalisePath (filePath: string) = PathHelpers.normalise filePath
 
 let readFile (filePath: string) =
     #if FABLE_COMPILER

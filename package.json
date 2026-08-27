@@ -39,8 +39,16 @@
   "build": {
     "appId": "ISSIE",
     "npmRebuild": false,
+    "electronLanguages": [
+      "en-US",
+      "en-GB"
+    ],
     "files": [
-      "build/**/*"
+      "build/**/*",
+      "!node_modules/**/*",
+      "node_modules/usb/**/*",
+      "node_modules/@node-usb/**/*",
+      "node_modules/@types/w3c-web-usb/**/*"
     ],
     "extraResources": [
       {
@@ -111,7 +119,6 @@
     "electron": "43.3.0",
     "electron-builder": "^26.15.3",
     "electron-builder-notarize": "^1.5",
-    "file-loader": "^6",
     "fs-extra": "11.3.0",
     "html-webpack-plugin": "^5",
     "mini-css-extract-plugin": "^2",

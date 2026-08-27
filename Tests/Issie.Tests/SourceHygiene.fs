@@ -5,14 +5,21 @@
 /// alongside 297 commented-out ones whose presence is what made the live ones look normal. That
 /// was cleaned up once. Without something that fails, it comes back: there is no lint here, and
 /// the compiler is happy either way.
+///
+/// It also holds the one packaging invariant nothing else can state: which node_modules the
+/// packaged app carries. That is spread across a webpack config and package.json, in two
+/// different languages, and it only breaks in a packaged build.
 module SourceHygiene
 
 open Expecto
 open System.IO
 
-/// The repo's src directory, reached the way VerilogCompiler.fs reaches its grammar.
-let private srcDir =
-    Path.GetFullPath(Path.Combine(__SOURCE_DIRECTORY__, "..", "..", "src"))
+/// The repo root, and the src directory below it, reached the way VerilogCompiler.fs reaches its
+/// grammar.
+let private repoRoot =
+    Path.GetFullPath(Path.Combine(__SOURCE_DIRECTORY__, "..", ".."))
+
+let private srcDir = Path.Combine(repoRoot, "src")
 
 /// Files where printing IS the feature: they run only when a developer picks them from the
 /// Development menu, and their output is what was asked for. Everything else logs.
@@ -74,6 +81,65 @@ let private offenders (isOffending: string -> bool) =
         |> Array.map (fun (n, line) ->
             $"{Path.GetRelativePath(srcDir, path)}:{n}: {line.Trim()}"))
 
+// ---------------------------------------------------------------------------------------------
+// Packaging: what the main process requires at run time, against what the package ships.
+//
+// The main bundle is the only one with externals. A module named there is deliberately NOT
+// compiled in - it is `require`d from node_modules while the app runs, which is the only way to
+// load a native module. package.json's `build.files` excludes node_modules wholesale and
+// re-includes just those, because webpack has already bundled everything else and shipping it
+// again cost 1171 files.
+//
+// The trap is that the two halves disagree silently and asymmetrically: in dev the whole
+// node_modules tree is on disk, so a missing re-include changes nothing. It is absent only from a
+// packaged app, and only when someone reaches that code path. Neither compiler sees both files.
+
+/// The body of `externals: { ... }`, found by counting braces from the first one so that a nested
+/// object would not end the block early.
+let private externalsBlock (source: string) =
+    let opening = System.Text.RegularExpressions.Regex.Match(source, @"externals\s*:\s*\{")
+    if not opening.Success then
+        None
+    else
+        let start = opening.Index + opening.Length
+        let rec scan i depth =
+            if i >= source.Length then None
+            elif source[i] = '{' then scan (i + 1) (depth + 1)
+            elif source[i] = '}' then (if depth = 0 then Some i else scan (i + 1) (depth - 1))
+            else scan (i + 1) depth
+        scan start 0 |> Option.map (fun stop -> source[start .. stop - 1])
+
+/// The names in that block: the left of each `name:`, quoted or bare. Comments are dropped first,
+/// so the prose explaining why `usb` is there does not read as another external.
+let private externalNames (source: string) =
+    match externalsBlock source with
+    | None -> []
+    | Some block ->
+        block.Split '\n'
+        |> Array.choose (fun line ->
+            let m =
+                System.Text.RegularExpressions.Regex.Match(
+                    code line, @"^\s*[""']?([@\w./-]+)[""']?\s*:")
+            if m.Success then Some m.Groups[1].Value else None)
+        |> List.ofArray
+
+let private mainExternals () =
+    externalNames (File.ReadAllText(Path.Combine(repoRoot, "webpack.config.main.js")))
+
+let private packagedFiles () =
+    use doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(repoRoot, "package.json")))
+    doc.RootElement.GetProperty("build").GetProperty("files").EnumerateArray()
+    |> Seq.map (fun entry -> entry.GetString())
+    |> List.ofSeq
+
+/// Shipped if some include - not an exclusion - reaches into that package. Deliberately looser
+/// than one exact pattern: `node_modules/usb/**` and `node_modules/usb/**/*` both ship it, and a
+/// check that failed on the difference is one people would learn to override.
+let private shipped (files: string list) (name: string) =
+    files
+    |> List.exists (fun pattern ->
+        not (pattern.StartsWith "!") && pattern.StartsWith $"node_modules/{name}/")
+
 let tests =
     testList "SourceHygiene" [
 
@@ -100,5 +166,32 @@ let tests =
             let names = sourceFiles () |> Array.map Path.GetFileName |> Set.ofArray
             let missing = allowed |> List.filter (fun name -> not (Set.contains name names))
             Expect.isEmpty missing $"allowlisted files that are no longer in src: {missing}"
+        }
+
+        test "every main-process external is shipped in the package" {
+            let externals = mainExternals ()
+            // A regex that quietly stopped matching would leave nothing to check, and the
+            // assertion below would pass for the wrong reason for as long as anyone looked.
+            Expect.isNonEmpty externals
+                ("no externals found in webpack.config.main.js - if the block moved or changed "
+                 + "shape, this test is no longer reading it and is checking nothing")
+            let files = packagedFiles ()
+            let missing = externals |> List.filter (shipped files >> not)
+            Expect.isEmpty missing
+                ("webpack.config.main.js requires these from node_modules while the app runs, but "
+                 + "package.json's build.files does not ship them - so they are there in dev, "
+                 + "where the whole tree is on disk, and gone from a packaged app. Add "
+                 + "\"node_modules/<name>/**/*\" to build.files for each, and for any runtime "
+                 + "dependency of theirs, which this test cannot work out: "
+                 + String.concat ", " missing)
+        }
+
+        // Without the exclusion the includes beside it are decoration - electron-builder ships
+        // every production dependency anyway, the test above passes on a package that never
+        // needed it, and the only symptom is 13.6MB nobody looks at.
+        test "the package still excludes node_modules wholesale" {
+            Expect.contains (packagedFiles ()) "!node_modules/**/*"
+                ("build.files must keep excluding node_modules and re-include only what the main "
+                 + "process requires at run time; webpack bundles the rest")
         }
     ]

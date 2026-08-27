@@ -152,6 +152,7 @@
     <Compile Include="UI\ModelHelpers.fs" />
     <Compile Include="UI\Style.fs" />
     <Compile Include="UI\Notifications.fs" />
+    <Compile Include="UI\ErrorDisplay.fs" />
     <Compile Include="UI\UIPopups.fs" />
     <Compile Include="UI\MemoryEditorView.fs" />
     <Compile Include="UI\MenuHelpers.fs" />

@@ -683,7 +683,7 @@ let dialogPopupReductionBody inputs tableSD (dispatch: Msg -> unit) =
             | None -> div [] []
             | Some {ErrType = t;InDependency=(Some d);ComponentsAffected=_;ConnectionsAffected=_} ->
                 div [] [
-                    str (errMsg t)
+                    ErrorDisplay.errorMessage dispatch (errMsg t)
                     br []
                     str $"Component in question: {d}"
                 ]

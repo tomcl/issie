@@ -1001,7 +1001,7 @@ let viewSimulationError
             
 
             div [] [
-                str (errMsg simError.ErrType)
+                ErrorDisplay.errorMessage dispatch (errMsg simError.ErrType)
                 br []
                 br []
                 str (getCompAndPortAffectedMsg comp port)
@@ -1030,7 +1030,7 @@ let viewSimulationError
                 | Removable _ -> true
                 | Unremovable -> false
             div [] [
-                str (errMsg simError.ErrType)
+                ErrorDisplay.errorMessage dispatch (errMsg simError.ErrType)
                 br []
                 br []
                 str (getCompAndPortAffectedMsg comp port)
@@ -1066,7 +1066,7 @@ let viewSimulationError
                 dispatch (TryStartSimulationAfterErrorFix simType)
 
             div [] [
-                str (errMsg simError.ErrType)
+                ErrorDisplay.errorMessage dispatch (errMsg simError.ErrType)
                 br []
                 br []
                 ul [] reacListOfCompsAffected
@@ -1080,7 +1080,7 @@ let viewSimulationError
             match simError.InDependency with
             | None ->
                 div [] [
-                    str (errMsg simError.ErrType)
+                    ErrorDisplay.errorMessage dispatch (errMsg simError.ErrType)
                     br []
                     str <| "Please fix the error and retry."
                 ]
@@ -1088,7 +1088,7 @@ let viewSimulationError
                 div [] [
                     str <| "Error found in sheet '" + dep + "' which is a dependency:"
                     br []
-                    str (errMsg simError.ErrType)
+                    ErrorDisplay.errorMessage dispatch (errMsg simError.ErrType)
                     br []
                     str <| "Please fix the error in this sheet and retry."
                 ]

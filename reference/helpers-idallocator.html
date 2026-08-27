@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="Reducer (issie)" />
+    <meta property="og:title" content="IdAllocator (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="Reducer (issie)">
+    <meta name="twitter:title" content="IdAllocator (issie)">
     
-    <title>Reducer (issie) | issie</title>
+    <title>IdAllocator (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -124,6 +124,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -142,8 +148,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -156,6 +174,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -325,6 +349,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -343,8 +373,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -357,6 +399,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -424,7 +472,7 @@
     <div id="content">
         <div>
   <h2>
-    Reducer Type
+    IdAllocator Module
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
@@ -438,152 +486,74 @@
     </dt>
     <dt>
       Parent Module: 
-      <a href="/issie/reference/helpers-reducekeys.html">
-        ReduceKeys
+      <a href="/issie/reference/global-helpers.html">
+        Helpers
       </a>
-    </dt>
-    <dt>
-      Base Type: 
-      <code>obj</code>
-    </dt>
-    <dt>
-      All Interfaces: 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/helpers-reducekeys-reducer.html">Reducer</a>&gt;</span></code>
-      , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
-      , 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/helpers-reducekeys-reducer.html">Reducer</a>&gt;</span></code>
-      , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
-      , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralcomparable">IStructuralComparable</a></code>
     </dt>
   </dl>
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-        
+         The uuid generator's replacement: integer id allocation, lowest unallocated first.
       </p>
     </div>
   </div>
-  <div></div>
-  <div></div>
-  <div></div>
-  <div></div>
   <div>
     <h3>
-      Record fields
+      Types
     </h3>
-    <table class="table outer-list fsdocs-member-list">
+    <table class="table outer-list fsdocs-entity-list">
       <thead>
         <tr>
-          <td class="fsdocs-member-list-header">
-            Record Field
+          <td>
+            Type
           </td>
-          <td class="fsdocs-member-list-header">
+          <td>
             Description
           </td>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td class="fsdocs-member-usage">
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="Allocator">
+                <a href="/issie/reference/helpers-idallocator-allocator.html">
+                  Allocator
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
             <div>
-              <code onmouseout="hideTip(event, '4492', 4492)" onmouseover="showTip(event, '4492', 4492)">
-                <p>
-                  <a id="KeyMap">
-                    <a href="#KeyMap">
-                      <code>KeyMap</code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4492">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code>KeyMap</code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Field type: 
-                    <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
-                  </span>
-                  <br/>
-                  Modifiers: 
-                  mutable
-                  <br/>
-                </div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:Helpers.IdAllocator.Allocator`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
               </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Field type: 
-                </span>
-                <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4493', 4493)" onmouseover="showTip(event, '4493', 4493)">
-                <p>
-                  <a id="NextID">
-                    <a href="#NextID">
-                      <code>NextID</code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4493">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code>NextID</code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Field type: 
-                    <code>int</code>
-                  </span>
-                  <br/>
-                  Modifiers: 
-                  mutable
-                  <br/>
-                </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Helpers.IdAllocator.Allocator\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L460-460" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 Which integers are taken, one flag per value: assignment is a first-zero scan from a
+ cursor that only advances, so ids come out dense and seeding is one pass.
+              </p>
             </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Field type: 
-                </span>
-                <code>int</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
           </td>
         </tr>
       </tbody>
     </table>
   </div>
-  <div></div>
-  <div></div>
   <div>
     <h3>
-      Instance members
+      Functions and values
     </h3>
     <table class="table outer-list fsdocs-member-list">
       <thead>
         <tr>
           <td class="fsdocs-member-list-header">
-            Instance member
+            Function or value
           </td>
           <td class="fsdocs-member-list-header">
             Description
@@ -594,661 +564,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4494', 4494)" onmouseover="showTip(event, '4494', 4494)">
+              <code onmouseout="hideTip(event, '1212', 1212)" onmouseover="showTip(event, '1212', 1212)">
                 <p>
-                  <a id="Reduce">
-                    <a href="#Reduce">
-                      <code><span>this.Reduce</span></code>
+                  <a id="componentIdUsed">
+                    <a href="#componentIdUsed">
+                      <code><span>componentIdUsed&#32;<span>id</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4494">
+              <div class="fsdocs-tip" id="1212">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>this.Reduce</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        typ
-                      </b>
-                      :
-                      <code>string</code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        longId
-                      </b>
-                      :
-                      <code>string</code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>string</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  typ
-                </span>
-                :
-                <code>string</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  longId
-                </span>
-                :
-                <code>string</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>string</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4495', 4495)" onmouseover="showTip(event, '4495', 4495)">
-                <p>
-                  <a id="ReduceCanvasState">
-                    <a href="#ReduceCanvasState">
-                      <code><span>this.ReduceCanvasState</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4495">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.ReduceCanvasState</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        arg0
-                      </b>
-                      :
-                      <code><a href="/issie/reference/commontypes-canvasstate.html">CanvasState</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><span><span><a href="/issie/reference/commontypes-component.html">Component</a>&#32;list</span>&#32;*&#32;<span><a href="/issie/reference/commontypes-connection.html">Connection</a>&#32;list</span></span></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  arg0
-                </span>
-                :
-                <code><a href="/issie/reference/commontypes-canvasstate.html">CanvasState</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code><span><span><a href="/issie/reference/commontypes-component.html">Component</a>&#32;list</span>&#32;*&#32;<span><a href="/issie/reference/commontypes-connection.html">Connection</a>&#32;list</span></span></code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4496', 4496)" onmouseover="showTip(event, '4496', 4496)">
-                <p>
-                  <a id="ReduceComp">
-                    <a href="#ReduceComp">
-                      <code><span>this.ReduceComp</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4496">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.ReduceComp</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        comp
-                      </b>
-                      :
-                      <code><a href="/issie/reference/commontypes-component.html">Component</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><a href="/issie/reference/commontypes-component.html">Component</a></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  comp
-                </span>
-                :
-                <code><a href="/issie/reference/commontypes-component.html">Component</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code><a href="/issie/reference/commontypes-component.html">Component</a></code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4497', 4497)" onmouseover="showTip(event, '4497', 4497)">
-                <p>
-                  <a id="ReduceConn">
-                    <a href="#ReduceConn">
-                      <code><span>this.ReduceConn</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4497">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.ReduceConn</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        conn
-                      </b>
-                      :
-                      <code><a href="/issie/reference/commontypes-connection.html">Connection</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><a href="/issie/reference/commontypes-connection.html">Connection</a></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  conn
-                </span>
-                :
-                <code><a href="/issie/reference/commontypes-connection.html">Connection</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code><a href="/issie/reference/commontypes-connection.html">Connection</a></code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4498', 4498)" onmouseover="showTip(event, '4498', 4498)">
-                <p>
-                  <a id="ReduceID">
-                    <a href="#ReduceID">
-                      <code><span>this.ReduceID</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4498">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.ReduceID</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        typ
-                      </b>
-                      :
-                      <code>string</code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        longId
-                      </b>
-                      :
-                      <code>string</code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><span>string&#32;option</span></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  typ
-                </span>
-                :
-                <code>string</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  longId
-                </span>
-                :
-                <code>string</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code><span>string&#32;option</span></code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4499', 4499)" onmouseover="showTip(event, '4499', 4499)">
-                <p>
-                  <a id="ReduceLDC">
-                    <a href="#ReduceLDC">
-                      <code><span>this.ReduceLDC</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4499">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.ReduceLDC</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        ldc
-                      </b>
-                      :
-                      <code><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  ldc
-                </span>
-                :
-                <code><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a></code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4500', 4500)" onmouseover="showTip(event, '4500', 4500)">
-                <p>
-                  <a id="ReducePort">
-                    <a href="#ReducePort">
-                      <code><span>this.ReducePort</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4500">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.ReducePort</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        port
-                      </b>
-                      :
-                      <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  port
-                </span>
-                :
-                <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4501', 4501)" onmouseover="showTip(event, '4501', 4501)">
-                <p>
-                  <a id="ReducePortL">
-                    <a href="#ReducePortL">
-                      <code><span>this.ReducePortL</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4501">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.ReducePortL</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        portL
-                      </b>
-                      :
-                      <code><span><a href="/issie/reference/commontypes-port.html">Port</a>&#32;list</span></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><span>bool&#32;*&#32;<span><a href="/issie/reference/commontypes-port.html">Port</a>&#32;list</span></span></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  portL
-                </span>
-                :
-                <code><span><a href="/issie/reference/commontypes-port.html">Port</a>&#32;list</span></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code><span>bool&#32;*&#32;<span><a href="/issie/reference/commontypes-port.html">Port</a>&#32;list</span></span></code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4502', 4502)" onmouseover="showTip(event, '4502', 4502)">
-                <p>
-                  <a id="ReducePortOpt">
-                    <a href="#ReducePortOpt">
-                      <code><span>this.ReducePortOpt</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4502">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.ReducePortOpt</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        port
-                      </b>
-                      :
-                      <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><span><a href="/issie/reference/commontypes-port.html">Port</a>&#32;option</span></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  port
-                </span>
-                :
-                <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code><span><a href="/issie/reference/commontypes-port.html">Port</a>&#32;option</span></code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4503', 4503)" onmouseover="showTip(event, '4503', 4503)">
-                <p>
-                  <a id="ReduceSymInfo">
-                    <a href="#ReduceSymInfo">
-                      <code><span>this.ReduceSymInfo</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4503">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.ReduceSymInfo</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        si
-                      </b>
-                      :
-                      <code><a href="/issie/reference/commontypes-symbolinfo.html">SymbolInfo</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><a href="/issie/reference/commontypes-symbolinfo.html">SymbolInfo</a></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  si
-                </span>
-                :
-                <code><a href="/issie/reference/commontypes-symbolinfo.html">SymbolInfo</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code><a href="/issie/reference/commontypes-symbolinfo.html">SymbolInfo</a></code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4504', 4504)" onmouseover="showTip(event, '4504', 4504)">
-                <p>
-                  <a id="Scan">
-                    <a href="#Scan">
-                      <code><span>this.Scan</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4504">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.Scan</span></code>
+                  <code><span>componentIdUsed&#32;<span>id</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -1258,7 +586,622 @@
                         id
                       </b>
                       :
-                      <code>string</code>
+                      <code>int</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bool</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  id
+                </span>
+                :
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>bool</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1213', 1213)" onmouseover="showTip(event, '1213', 1213)">
+                <p>
+                  <a id="isUsed">
+                    <a href="#isUsed">
+                      <code><span>isUsed&#32;<span>alloc&#32;id</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1213">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>isUsed&#32;<span>alloc&#32;id</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        alloc
+                      </b>
+                      :
+                      <code><a href="/issie/reference/helpers-idallocator-allocator.html">Allocator</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        id
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bool</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  alloc
+                </span>
+                :
+                <code><a href="/issie/reference/helpers-idallocator-allocator.html">Allocator</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  id
+                </span>
+                :
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>bool</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1214', 1214)" onmouseover="showTip(event, '1214', 1214)">
+                <p>
+                  <a id="makeAllocator">
+                    <a href="#makeAllocator">
+                      <code><span>makeAllocator&#32;<span>initialSize</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1214">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>makeAllocator&#32;<span>initialSize</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        initialSize
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/helpers-idallocator-allocator.html">Allocator</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Helpers.IdAllocator.makeAllocator`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.IdAllocator.makeAllocator\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L463-463" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Allocators are cheap: sheet-scoped ones are made, seeded and dropped per operation.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    initialSize
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/helpers-idallocator-allocator.html">Allocator</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1215', 1215)" onmouseover="showTip(event, '1215', 1215)">
+                <p>
+                  <a id="newComponentId">
+                    <a href="#newComponentId">
+                      <code><span>newComponentId&#32;<span>()</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1215">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>newComponentId&#32;<span>()</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ()
+                      </b>
+                      :
+                      <code>unit</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Helpers.IdAllocator.newComponentId`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.IdAllocator.newComponentId\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L510-510" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     A fresh component id, unique across the open design.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ()
+                  </span>
+                  :
+                  <code>unit</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1216', 1216)" onmouseover="showTip(event, '1216', 1216)">
+                <p>
+                  <a id="newConnectionId">
+                    <a href="#newConnectionId">
+                      <code><span>newConnectionId&#32;<span>()</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1216">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>newConnectionId&#32;<span>()</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ()
+                      </b>
+                      :
+                      <code>unit</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Helpers.IdAllocator.newConnectionId`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.IdAllocator.newConnectionId\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L517-517" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     A fresh connection id; as newPortId, over-unique by construction.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ()
+                  </span>
+                  :
+                  <code>unit</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1217', 1217)" onmouseover="showTip(event, '1217', 1217)">
+                <p>
+                  <a id="newPortId">
+                    <a href="#newPortId">
+                      <code><span>newPortId&#32;<span>()</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1217">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>newPortId&#32;<span>()</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ()
+                      </b>
+                      :
+                      <code>unit</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Helpers.IdAllocator.newPortId`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.IdAllocator.newPortId\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L514-514" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     A fresh port id. Unique across the design in practice (one allocator serves every
+ sheet), though only uniqueness within a sheet is required of it.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ()
+                  </span>
+                  :
+                  <code>unit</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1218', 1218)" onmouseover="showTip(event, '1218', 1218)">
+                <p>
+                  <a id="next">
+                    <a href="#next">
+                      <code><span>next&#32;<span>alloc</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1218">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>next&#32;<span>alloc</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        alloc
+                      </b>
+                      :
+                      <code><a href="/issie/reference/helpers-idallocator-allocator.html">Allocator</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Helpers.IdAllocator.next`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.IdAllocator.next\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L482-482" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The smallest unused positive integer, marked taken as it is handed out.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    alloc
+                  </span>
+                  :
+                  <code><a href="/issie/reference/helpers-idallocator-allocator.html">Allocator</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1219', 1219)" onmouseover="showTip(event, '1219', 1219)">
+                <p>
+                  <a id="reserve">
+                    <a href="#reserve">
+                      <code><span>reserve&#32;<span>alloc&#32;id</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1219">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>reserve&#32;<span>alloc&#32;id</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        alloc
+                      </b>
+                      :
+                      <code><a href="/issie/reference/helpers-idallocator-allocator.html">Allocator</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        id
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Helpers.IdAllocator.reserve`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.IdAllocator.reserve\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L473-473" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Mark an id as taken. Sentinels (0 and below) are ignored.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    alloc
+                  </span>
+                  :
+                  <code><a href="/issie/reference/helpers-idallocator-allocator.html">Allocator</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    id
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1220', 1220)" onmouseover="showTip(event, '1220', 1220)">
+                <p>
+                  <a id="reserveComponentId">
+                    <a href="#reserveComponentId">
+                      <code><span>reserveComponentId&#32;<span>id</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1220">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>reserveComponentId&#32;<span>id</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        id
+                      </b>
+                      :
+                      <code>int</code>
                     </span>
                     <br/>
                   </ul>
@@ -1274,7 +1217,7 @@
                   id
                 </span>
                 :
-                <code>string</code>
+                <code>int</code>
               </dt>
               <dd class="fsdocs-param-docs"></dd>
             </dl>
@@ -1283,29 +1226,29 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4505', 4505)" onmouseover="showTip(event, '4505', 4505)">
+              <code onmouseout="hideTip(event, '1221', 1221)" onmouseover="showTip(event, '1221', 1221)">
                 <p>
-                  <a id="ScanCanvas">
-                    <a href="#ScanCanvas">
-                      <code><span>this.ScanCanvas</span></code>
+                  <a id="reserveConnectionId">
+                    <a href="#reserveConnectionId">
+                      <code><span>reserveConnectionId&#32;<span>id</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4505">
+              <div class="fsdocs-tip" id="1221">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>this.ScanCanvas</span></code>
+                  <code><span>reserveConnectionId&#32;<span>id</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        arg0
+                        id
                       </b>
                       :
-                      <code><a href="/issie/reference/commontypes-canvasstate.html">CanvasState</a></code>
+                      <code>int</code>
                     </span>
                     <br/>
                   </ul>
@@ -1318,10 +1261,10 @@
             <dl class="fsdocs-params">
               <dt class="fsdocs-param">
                 <span class="fsdocs-param-name">
-                  arg0
+                  id
                 </span>
                 :
-                <code><a href="/issie/reference/commontypes-canvasstate.html">CanvasState</a></code>
+                <code>int</code>
               </dt>
               <dd class="fsdocs-param-docs"></dd>
             </dl>
@@ -1330,29 +1273,29 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4506', 4506)" onmouseover="showTip(event, '4506', 4506)">
+              <code onmouseout="hideTip(event, '1222', 1222)" onmouseover="showTip(event, '1222', 1222)">
                 <p>
-                  <a id="ScanComp">
-                    <a href="#ScanComp">
-                      <code><span>this.ScanComp</span></code>
+                  <a id="reservePortId">
+                    <a href="#reservePortId">
+                      <code><span>reservePortId&#32;<span>id</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4506">
+              <div class="fsdocs-tip" id="1222">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>this.ScanComp</span></code>
+                  <code><span>reservePortId&#32;<span>id</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        comp
+                        id
                       </b>
                       :
-                      <code><a href="/issie/reference/commontypes-component.html">Component</a></code>
+                      <code>int</code>
                     </span>
                     <br/>
                   </ul>
@@ -1365,10 +1308,10 @@
             <dl class="fsdocs-params">
               <dt class="fsdocs-param">
                 <span class="fsdocs-param-name">
-                  comp
+                  id
                 </span>
                 :
-                <code><a href="/issie/reference/commontypes-component.html">Component</a></code>
+                <code>int</code>
               </dt>
               <dd class="fsdocs-param-docs"></dd>
             </dl>
@@ -1377,29 +1320,29 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4507', 4507)" onmouseover="showTip(event, '4507', 4507)">
+              <code onmouseout="hideTip(event, '1223', 1223)" onmouseover="showTip(event, '1223', 1223)">
                 <p>
-                  <a id="ScanConn">
-                    <a href="#ScanConn">
-                      <code><span>this.ScanConn</span></code>
+                  <a id="reset">
+                    <a href="#reset">
+                      <code><span>reset&#32;<span>alloc</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4507">
+              <div class="fsdocs-tip" id="1223">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>this.ScanConn</span></code>
+                  <code><span>reset&#32;<span>alloc</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        conn
+                        alloc
                       </b>
                       :
-                      <code><a href="/issie/reference/commontypes-connection.html">Connection</a></code>
+                      <code><a href="/issie/reference/helpers-idallocator-allocator.html">Allocator</a></code>
                     </span>
                     <br/>
                   </ul>
@@ -1412,10 +1355,10 @@
             <dl class="fsdocs-params">
               <dt class="fsdocs-param">
                 <span class="fsdocs-param-name">
-                  conn
+                  alloc
                 </span>
                 :
-                <code><a href="/issie/reference/commontypes-connection.html">Connection</a></code>
+                <code><a href="/issie/reference/helpers-idallocator-allocator.html">Allocator</a></code>
               </dt>
               <dd class="fsdocs-param-docs"></dd>
             </dl>
@@ -1424,29 +1367,29 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4508', 4508)" onmouseover="showTip(event, '4508', 4508)">
+              <code onmouseout="hideTip(event, '1224', 1224)" onmouseover="showTip(event, '1224', 1224)">
                 <p>
-                  <a id="ScanPort">
-                    <a href="#ScanPort">
-                      <code><span>this.ScanPort</span></code>
+                  <a id="resetAll">
+                    <a href="#resetAll">
+                      <code><span>resetAll&#32;<span>()</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4508">
+              <div class="fsdocs-tip" id="1224">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>this.ScanPort</span></code>
+                  <code><span>resetAll&#32;<span>()</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        p
+                        ()
                       </b>
                       :
-                      <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
+                      <code>unit</code>
                     </span>
                     <br/>
                   </ul>
@@ -1459,57 +1402,10 @@
             <dl class="fsdocs-params">
               <dt class="fsdocs-param">
                 <span class="fsdocs-param-name">
-                  p
+                  ()
                 </span>
                 :
-                <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4509', 4509)" onmouseover="showTip(event, '4509', 4509)">
-                <p>
-                  <a id="ScanProject">
-                    <a href="#ScanProject">
-                      <code><span>this.ScanProject</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4509">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.ScanProject</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        p
-                      </b>
-                      :
-                      <code><a href="/issie/reference/commontypes-project.html">Project</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  p
-                </span>
-                :
-                <code><a href="/issie/reference/commontypes-project.html">Project</a></code>
+                <code>unit</code>
               </dt>
               <dd class="fsdocs-param-docs"></dd>
             </dl>
@@ -1518,64 +1414,14 @@
       </tbody>
     </table>
   </div>
-  <div>
-    <h3>
-      Static members
-    </h3>
-    <table class="table outer-list fsdocs-member-list">
-      <thead>
-        <tr>
-          <td class="fsdocs-member-list-header">
-            Static member
-          </td>
-          <td class="fsdocs-member-list-header">
-            Description
-          </td>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4510', 4510)" onmouseover="showTip(event, '4510', 4510)">
-                <p>
-                  <a id="Init">
-                    <a href="#Init">
-                      <code><span>Reducer.Init<span>()</span></span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4510">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>Reducer.Init<span>()</span></span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><a href="/issie/reference/helpers-reducekeys-reducer.html">Reducer</a></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code><a href="/issie/reference/helpers-reducekeys-reducer.html">Reducer</a></code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
 </div>
         
     </div>

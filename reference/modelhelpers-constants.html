@@ -124,6 +124,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -142,8 +148,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -156,6 +174,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -325,6 +349,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -343,8 +373,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -357,6 +399,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -469,7 +517,69 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1454', 1454)" onmouseover="showTip(event, '1454', 1454)">
+              <code onmouseout="hideTip(event, '1510', 1510)" onmouseover="showTip(event, '1510', 1510)">
+                <p>
+                  <a id="advanceChunkMs">
+                    <a href="#advanceChunkMs">
+                      <code><span>advanceChunkMs&#32;<span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1510">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>advanceChunkMs&#32;<span></span></span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:P:ModelHelpers.Constants.advanceChunkMs`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:ModelHelpers.Constants.advanceChunkMs\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/ModelHelpers.fs#L59-59" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     How long one chunk of a step simulation's run may take, in ms.
+
+ The same second the .NET simulator's chunk takes, and for the same reasons: it is how often
+ a progress bar moves and how soon a cancellation is noticed. Applied to the renderer's own
+ simulator too, so that a run is the same sequence of chunks whichever is running and
+ nothing has to estimate how many clocks a chunk should be.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1511', 1511)" onmouseover="showTip(event, '1511', 1511)">
                 <p>
                   <a id="bigDesignHeapShare">
                     <a href="#bigDesignHeapShare">
@@ -478,7 +588,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1454">
+              <div class="fsdocs-tip" id="1511">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>bigDesignHeapShare&#32;<span></span></span></code>
@@ -503,7 +613,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:ModelHelpers.Constants.bigDesignHeapShare\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/ModelHelpers.fs#L57-57" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/ModelHelpers.fs#L71-71" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -527,7 +637,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1455', 1455)" onmouseover="showTip(event, '1455', 1455)">
+              <code onmouseout="hideTip(event, '1512', 1512)" onmouseover="showTip(event, '1512', 1512)">
                 <p>
                   <a id="circuitCheckDelayMs">
                     <a href="#circuitCheckDelayMs">
@@ -536,7 +646,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1455">
+              <div class="fsdocs-tip" id="1512">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>circuitCheckDelayMs&#32;<span></span></span></code>
@@ -588,7 +698,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1456', 1456)" onmouseover="showTip(event, '1456', 1456)">
+              <code onmouseout="hideTip(event, '1513', 1513)" onmouseover="showTip(event, '1513', 1513)">
                 <p>
                   <a id="defaultWSConfig">
                     <a href="#defaultWSConfig">
@@ -597,7 +707,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1456">
+              <div class="fsdocs-tip" id="1513">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>defaultWSConfig&#32;<span></span></span></code>
@@ -627,7 +737,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1457', 1457)" onmouseover="showTip(event, '1457', 1457)">
+              <code onmouseout="hideTip(event, '1514', 1514)" onmouseover="showTip(event, '1514', 1514)">
                 <p>
                   <a id="maxSimulationSize">
                     <a href="#maxSimulationSize">
@@ -636,7 +746,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1457">
+              <div class="fsdocs-tip" id="1514">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>maxSimulationSize&#32;<span></span></span></code>
@@ -661,7 +771,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:ModelHelpers.Constants.maxSimulationSize\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/ModelHelpers.fs#L67-67" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/ModelHelpers.fs#L113-113" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -685,7 +795,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1458', 1458)" onmouseover="showTip(event, '1458', 1458)">
+              <code onmouseout="hideTip(event, '1515', 1515)" onmouseover="showTip(event, '1515', 1515)">
                 <p>
                   <a id="maxStepsOverflow">
                     <a href="#maxStepsOverflow">
@@ -694,7 +804,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1458">
+              <div class="fsdocs-tip" id="1515">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>maxStepsOverflow&#32;<span></span></span></code>
@@ -724,7 +834,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1459', 1459)" onmouseover="showTip(event, '1459', 1459)">
+              <code onmouseout="hideTip(event, '1516', 1516)" onmouseover="showTip(event, '1516', 1516)">
                 <p>
                   <a id="maxWarnSimulationSize">
                     <a href="#maxWarnSimulationSize">
@@ -733,7 +843,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1459">
+              <div class="fsdocs-tip" id="1516">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>maxWarnSimulationSize&#32;<span></span></span></code>
@@ -763,7 +873,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1460', 1460)" onmouseover="showTip(event, '1460', 1460)">
+              <code onmouseout="hideTip(event, '1517', 1517)" onmouseover="showTip(event, '1517', 1517)">
                 <p>
                   <a id="minScrollingWindow">
                     <a href="#minScrollingWindow">
@@ -772,7 +882,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1460">
+              <div class="fsdocs-tip" id="1517">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>minScrollingWindow&#32;<span></span></span></code>
@@ -802,7 +912,66 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1461', 1461)" onmouseover="showTip(event, '1461', 1461)">
+              <code onmouseout="hideTip(event, '1518', 1518)" onmouseover="showTip(event, '1518', 1518)">
+                <p>
+                  <a id="minStepArraySize">
+                    <a href="#minStepArraySize">
+                      <code><span>minStepArraySize&#32;<span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1518">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>minStepArraySize&#32;<span></span></span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:P:ModelHelpers.Constants.minStepArraySize`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:ModelHelpers.Constants.minStepArraySize\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/ModelHelpers.fs#L64-64" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The fewest clock cycles of history the step simulator will build for. A design whose
+ per-cycle cost leaves room for fewer than this is refused rather than simulated: below it
+ there is not enough past to step back through, and every step would be a rebuild.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1519', 1519)" onmouseover="showTip(event, '1519', 1519)">
                 <p>
                   <a id="multipliers">
                     <a href="#multipliers">
@@ -811,7 +980,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1461">
+              <div class="fsdocs-tip" id="1519">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>multipliers&#32;<span></span></span></code>
@@ -861,7 +1030,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1462', 1462)" onmouseover="showTip(event, '1462', 1462)">
+              <code onmouseout="hideTip(event, '1520', 1520)" onmouseover="showTip(event, '1520', 1520)">
                 <p>
                   <a id="projectBrowserListHeight">
                     <a href="#projectBrowserListHeight">
@@ -870,7 +1039,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1462">
+              <div class="fsdocs-tip" id="1520">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>projectBrowserListHeight&#32;<span></span></span></code>
@@ -919,7 +1088,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1463', 1463)" onmouseover="showTip(event, '1463', 1463)">
+              <code onmouseout="hideTip(event, '1521', 1521)" onmouseover="showTip(event, '1521', 1521)">
                 <p>
                   <a id="projectBrowserRefreshMs">
                     <a href="#projectBrowserRefreshMs">
@@ -928,7 +1097,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1463">
+              <div class="fsdocs-tip" id="1521">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>projectBrowserRefreshMs&#32;<span></span></span></code>
@@ -979,7 +1148,92 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1464', 1464)" onmouseover="showTip(event, '1464', 1464)">
+              <code onmouseout="hideTip(event, '1522', 1522)" onmouseover="showTip(event, '1522', 1522)">
+                <p>
+                  <a id="rendererArraySizeWhenSidecarSimulates">
+                    <a href="#rendererArraySizeWhenSidecarSimulates">
+                      <code><span>rendererArraySizeWhenSidecarSimulates&#32;<span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1522">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>rendererArraySizeWhenSidecarSimulates&#32;<span></span></span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:P:ModelHelpers.Constants.rendererArraySizeWhenSidecarSimulates`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:ModelHelpers.Constants.rendererArraySizeWhenSidecarSimulates\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/ModelHelpers.fs#L102-102" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     How many clock cycles the RENDERER's own step arrays hold while the .NET simulator is the
+ one simulating: two, which is as close to none as a built simulation can get.
+
+ Enough to be a working simulation and no more. In that mode the renderer builds a
+ FastSimulation for its STRUCTURE - the wave index, the drivers, the names and widths the
+ selector and the viewer are built from - and reads none of its data: the waveforms come off
+ the wire, and what still reads the local arrays (the RAM tables, the schematic probe) is
+ reading a simulation that is never run whatever its size.
+
+ Sizing them for the configured run instead cost the whole run twice over. Four million
+ cycles of 3cpu is 9GB of typed arrays in the renderer, allocated to be left at zero, and
+ stopping and starting such a simulation asked for the second 9GB while the first was still
+ held - which fails, with `RangeError: Array buffer allocation failed` from inside the step
+ arena, on a machine that has the memory for either one alone.
+
+ The .NET side is unaffected: it is sized from the configuration, which is what it is
+ simulating.
+
+ Two rather than none because the build itself writes a step: ordering reduces every
+ component once at step 0, and a clocked component reads the step before the one it writes,
+ which needs the two to be different slots.
+
+ It was 1203 while things still read those arrays in this mode - the schematic probe, the
+ RAM tables, a ROM's hover comment, the step panel's inputs - and all of them read a
+ simulation that had never been run, so what they showed was an unrun array's zeros. Each
+ now either comes over the wire or says nothing, so the arrays hold nothing worth keeping.
+ Measured on a 120,000-component design, building the same sheet twice in one session: the
+ renderer's build allocates 241 MB where it allocated 821 MB, and takes 2.4s rather than
+ 2.8s. The 580 MB was step arrays that nothing read.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1523', 1523)" onmouseover="showTip(event, '1523', 1523)">
                 <p>
                   <a id="scrollbarBkgRepCyclesInit">
                     <a href="#scrollbarBkgRepCyclesInit">
@@ -988,7 +1242,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1464">
+              <div class="fsdocs-tip" id="1523">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>scrollbarBkgRepCyclesInit&#32;<span></span></span></code>
@@ -1013,7 +1267,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:ModelHelpers.Constants.scrollbarBkgRepCyclesInit\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/ModelHelpers.fs#L75-75" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/ModelHelpers.fs#L126-126" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1036,7 +1290,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1465', 1465)" onmouseover="showTip(event, '1465', 1465)">
+              <code onmouseout="hideTip(event, '1524', 1524)" onmouseover="showTip(event, '1524', 1524)">
                 <p>
                   <a id="shortStartClock">
                     <a href="#shortStartClock">
@@ -1045,7 +1299,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1465">
+              <div class="fsdocs-tip" id="1524">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>shortStartClock&#32;<span></span></span></code>
@@ -1070,7 +1324,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:ModelHelpers.Constants.shortStartClock\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/ModelHelpers.fs#L54-54" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/ModelHelpers.fs#L68-68" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1094,7 +1348,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1466', 1466)" onmouseover="showTip(event, '1466', 1466)">
+              <code onmouseout="hideTip(event, '1525', 1525)" onmouseover="showTip(event, '1525', 1525)">
                 <p>
                   <a id="waveSimRequiredArraySize">
                     <a href="#waveSimRequiredArraySize">
@@ -1103,7 +1357,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1466">
+              <div class="fsdocs-tip" id="1525">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>waveSimRequiredArraySize&#32;<span>wsModel</span></span></code>
@@ -1155,7 +1409,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1467', 1467)" onmouseover="showTip(event, '1467', 1467)">
+              <code onmouseout="hideTip(event, '1526', 1526)" onmouseover="showTip(event, '1526', 1526)">
                 <p>
                   <a id="waveSimZoomMargin">
                     <a href="#waveSimZoomMargin">
@@ -1164,7 +1418,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1467">
+              <div class="fsdocs-tip" id="1526">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>waveSimZoomMargin&#32;<span>wsModel</span></span></code>
@@ -1241,7 +1495,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1468', 1468)" onmouseover="showTip(event, '1468', 1468)">
+              <code onmouseout="hideTip(event, '1527', 1527)" onmouseover="showTip(event, '1527', 1527)">
                 <p>
                   <a id="wsButtonFontSize">
                     <a href="#wsButtonFontSize">
@@ -1250,7 +1504,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1468">
+              <div class="fsdocs-tip" id="1527">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>wsButtonFontSize&#32;<span></span></span></code>
@@ -1280,7 +1534,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1469', 1469)" onmouseover="showTip(event, '1469', 1469)">
+              <code onmouseout="hideTip(event, '1528', 1528)" onmouseover="showTip(event, '1528', 1528)">
                 <p>
                   <a id="wsButtonHeight">
                     <a href="#wsButtonHeight">
@@ -1289,7 +1543,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1469">
+              <div class="fsdocs-tip" id="1528">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>wsButtonHeight&#32;<span></span></span></code>
@@ -1319,7 +1573,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1470', 1470)" onmouseover="showTip(event, '1470', 1470)">
+              <code onmouseout="hideTip(event, '1529', 1529)" onmouseover="showTip(event, '1529', 1529)">
                 <p>
                   <a id="wsButtonWidth">
                     <a href="#wsButtonWidth">
@@ -1328,7 +1582,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1470">
+              <div class="fsdocs-tip" id="1529">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>wsButtonWidth&#32;<span></span></span></code>
@@ -1353,6 +1607,65 @@
               </dt>
               <dd class="fsdocs-return-docs"></dd>
             </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1530', 1530)" onmouseover="showTip(event, '1530', 1530)">
+                <p>
+                  <a id="wsButtonWidthDev">
+                    <a href="#wsButtonWidthDev">
+                      <code><span>wsButtonWidthDev&#32;<span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1530">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>wsButtonWidthDev&#32;<span></span></span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:P:ModelHelpers.Constants.wsButtonWidthDev`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:ModelHelpers.Constants.wsButtonWidthDev\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/ModelHelpers.fs#L122-122" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The width of the top-row buttons in a development build, where the one that starts a
+ simulation also says which simulator it will start. "Start Simulation (renderer)" does not
+ fit in the width the shipped label was measured for.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
           </td>
         </tr>
       </tbody>

@@ -127,6 +127,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -144,9 +150,21 @@
 
   </a>
 </li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
 <li class="nav-item active">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -159,6 +177,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -328,6 +352,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -345,9 +375,21 @@
 
   </a>
 </li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
 <li class="nav-item active">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -360,6 +402,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -660,8 +708,205 @@ one it does not read. An unread flag makes <code>installReducers</code> build ev
 a ROM means building and retaining two copies of its lookup table. If a reducer is added that
 genuinely depends on the pass (the hybrid asynchronous RAM is the only candidate), the flag comes
 back and the caller goes to two calls <em>for that component only</em>.</p>
+<h3><a name="Where-the-rest-of-it-goes" class="anchor" href="#Where-the-rest-of-it-goes">Where the rest of it goes</a></h3>
+<p>The <code>perf</code> phase table covers <code>buildFastSimulation</code>, and that is the smaller half of what a user
+waits for. On <code>3cpu</code> the build is 11 ms of a 54 ms <code>startCircuitSimulation</code>. Sampled in the
+renderer with <code>Profiler</code> over the CDP, per build:</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th align="right"><p>ms</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><code>runCanvasStateChecksAndBuildGraph</code></p></td>
+<td align="right"><p>31</p></td>
+</tr>
+<tr class="even">
+<td><p><code>buildFastSimulation</code> (what the phase table covers)</p></td>
+<td align="right"><p>15</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>saveStateInSimulation</code></p></td>
+<td align="right"><p>7</p></td>
+</tr>
+<tr class="even">
+<td><p><code>analyseSimulationGraph</code></p></td>
+<td align="right"><p>5</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>mergeDependencies</code></p></td>
+<td align="right"><p>2</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>So <strong>two thirds of starting a simulation happens before the fast simulator sees the design</strong>, in
+canvas checking, width inference and dependency merging. Its profile has the same shape as the
+first entry under Known debt below: <code>MapTreeModule_*</code>, <code>Compare</code> and <code>CompareTo</code> on
+structurally-keyed maps are about a quarter of it, and nothing has been done about that.</p>
+<p>The same profiling turned up dead work in <code>FastOrder</code>, since deleted: both ordering functions
+built an <code>orderedSet</code> of every ordered component's <code>FComponentId</code> and never read it - a
+<code>Set&lt;FComponentId&gt;</code> over the whole design, so <code>n log n</code> structural comparisons of a
+<code>(ComponentId, ComponentId list)</code> key, for nothing. On the 14,842-component design that took the
+<code>order</code> phase from 58 ms to 21 ms (medians of 19 builds; minima 42 ms to 10 ms). Beware reading
+too much into the absolute drop - the two runs are different app sessions, and see the warning
+about that below - but <code>SetTreeModule_add</code> and <code>SetTreeModule_rebalance</code> were 19 ms of self time
+between them in the profile, which is the part that is not in doubt.</p>
+<p><code>order</code> and <code>waves</code> are still the largest part of the fast build after <code>gather</code>.</p>
 <h2><a name="Known-debt" class="anchor" href="#Known-debt">Known debt</a></h2>
 <p>Roughly in order of how much it costs.</p>
+<p><strong>Every component lookup goes through a composite <code>Map</code> key, and that is the build's shape
+problem.</strong> <code>fs.FComps</code>, <code>fs.FCustomComps</code> and <code>fs.WaveComps</code> are all keyed by
+<code>FComponentId = ComponentId * ComponentId list</code>. Measured on .NET, 200,000 <code>containsKey</code> lookups
+into a 10,000-entry structure:</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>key shape</p></th>
+<th align="right"><p>time</p></th>
+<th align="right"><p>allocated</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><code>Map&lt;int,_&gt;</code></p></td>
+<td align="right"><p>8.4 ms</p></td>
+<td align="right"><p>0 MB</p></td>
+</tr>
+<tr class="even">
+<td><p><code>Map&lt;ComponentId,_&gt;</code> (a reference DU over int)</p></td>
+<td align="right"><p>60.6 ms</p></td>
+<td align="right"><p>0 MB</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>Map&lt;int * int list,_&gt;</code></p></td>
+<td align="right"><p>93.7 ms</p></td>
+<td align="right"><p>122 MB</p></td>
+</tr>
+<tr class="even">
+<td><p><code>Map&lt;ComponentId * ComponentId list,_&gt;</code> — what is used</p></td>
+<td align="right"><p>77.2 ms</p></td>
+<td align="right"><p>0 MB</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>Dictionary&lt;int,_&gt;</code></p></td>
+<td align="right"><p>0.4 ms</p></td>
+<td align="right"><p>0 MB</p></td>
+</tr>
+<tr class="even">
+<td><p>array index</p></td>
+<td align="right"><p>0.2 ms</p></td>
+<td align="right"><p>0 MB</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>So a dense integer into an array is around <strong>two hundred times</strong> faster than the lookup a build
+does constantly, and this is the first place to look when .NET simulation startup is the thing
+being made fast. Two traps the table also records. Structural comparison of a composite key
+compares its elements as <code>obj</code>, so any VALUE-type element is boxed on every comparison - which is
+why the raw-int tuple both allocates and loses, and why the reference wrapper that looks wasteful
+is in fact the best of those three. And <code>[&lt;Struct&gt;]</code> on an id makes it a value type, so it hits
+exactly that trap: see the note above the id types in <code>CommonTypes.fs</code>, where the same effect is
+measured end to end as +1.9% allocation across a whole 3cpu build.</p>
+<p><strong>The gather phase has been done, and it is the worked example of what the rest would look like.</strong>
+<code>GatherData</code> was four such maps; it is now <code>LookupArray&lt;FastComponent&gt;</code> plus a <code>string array</code> of
+labels indexed by design <code>ComponentId</code> (<code>Common/LookupArray.fs</code>, <code>FastCreate.flattenLevel</code>). The
+flatten creates each <code>FastComponent</code> as it meets it, <code>LookupArray.addItem</code> stamps it with its
+position, and every link the walk can see - sibling outputs, custom component ports - is resolved
+into those positions on the spot, so <code>getLinks</code> and <code>linkFastComponents</code> read arrays where they
+used to walk maps. <code>linkFastComponents</code>'s duplicate-driver check went the same way, from a
+structural map through a <code>Dictionary&lt;int,_&gt;</code> to a plain <code>int array</code> indexed by step-array index.</p>
+<p>What that bought, in the app, as the median of ~19 builds (<code>benchmark</code> from the DevHarness, <code>perf</code>
+log category on). Two designs: <code>3cpu/eep1</code>, 378 components, and a generated six-level hierarchy
+expanding to 14,842 - built with the sheet DSL, which is what it is for.</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>phase</p></th>
+<th align="right"><p>378 before</p></th>
+<th align="right"><p>378 after</p></th>
+<th align="right"><p>14,842 before</p></th>
+<th align="right"><p>14,842 after</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><code>gather</code></p></td>
+<td align="right"><p>2 ms</p></td>
+<td align="right"><p>5 ms</p></td>
+<td align="right"><p>115 ms</p></td>
+<td align="right"><p>175 ms</p></td>
+</tr>
+<tr class="even">
+<td><p><code>createInit</code></p></td>
+<td align="right"><p>5 ms</p></td>
+<td align="right"><p>1 ms</p></td>
+<td align="right"><p>206 ms</p></td>
+<td align="right"><p>57 ms</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>link</code></p></td>
+<td align="right"><p>3 ms</p></td>
+<td align="right"><p>1 ms</p></td>
+<td align="right"><p>119 ms</p></td>
+<td align="right"><p>18 ms</p></td>
+</tr>
+<tr class="even">
+<td><p>everything else</p></td>
+<td align="right"><p>4 ms</p></td>
+<td align="right"><p>3.5 ms</p></td>
+<td align="right"><p>96 ms</p></td>
+<td align="right"><p>136 ms</p></td>
+</tr>
+<tr class="odd">
+<td><p><strong>whole build</strong></p></td>
+<td align="right"><p><strong>14 ms</strong></p></td>
+<td align="right"><p><strong>10.5 ms</strong></p></td>
+<td align="right"><p><strong>536 ms</strong></p></td>
+<td align="right"><p><strong>386 ms</strong></p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Both columns of the larger design were measured before <code>FastOrder</code>'s dead <code>orderedSet</code> was
+deleted, so <code>order</code> - and with it the "everything else" row and the totals - is now about 35 ms
+lower than either column says. <code>gather</code> grew because it now creates the FastComponents and their
+step arrays, which is the second traversal <code>createInit</code> no longer makes. The three phases together went 366 ms → 250 ms on the
+larger design, and <code>link</code> - which is nothing but the lookups this removed - fell by a factor of
+six. Allocation fell too: <code>SimLog</code>'s <code>AllocMb</code> for a <code>3cpu</code> build under .NET went 29.12 MB → 27.97
+MB (medians of three, each repeating to about 1%), and the renderer's own per-phase heap deltas
+put the whole 14,842-component build at 131 MB against 144 MB.</p>
+<p><strong>Measure this the way those numbers were measured, or not at all.</strong> Build time varies by 15-20%
+between two runs of <em>identical</em> code in different app sessions - enough that a single before/after
+pair reversed the sign of this change when it was first measured. Take at least fifteen builds of
+each, quote the median and the minimum, and treat anything under about 20% as unproven.</p>
+<p>Three things that made it possible, worth knowing before the same is done to the tables above.
+The store is <strong>build-scoped</strong>, so <code>docs/mutableState.md</code>'s condition is met by construction rather
+than argued: nothing outside the build can reach it. The budget check had to move ahead of the
+flatten, since the flatten now allocates - which is why <code>stepCostOfGraph</code>/<code>costAndSizeOfGraph</code>
+price the design off its merged <code>SimulationGraph</code> rather than off the flattened one, and that in
+turn is what lets <code>ModelHelpers.waveSimStepCost</code> price a design without flattening it at all.
+And <strong>one store, one index space</strong>: custom against ordinary is a predicate over it, never a second
+store, or the same integer would mean two different things.</p>
+<p><strong>A component is now allocated in gather order, so walk it in gather order.</strong> Everything the build
+makes is created by one traversal, in one contiguous run of allocations; <code>fs.FComps</code> is keyed by
+<code>(ComponentId, access path)</code>, so iterating it visits those same objects in an order unrelated to
+where they sit in memory. <code>createFastArrays</code>, <code>determineBigIntState</code> and <code>addWavesToFastSimulation</code>
+therefore take the gather's array rather than the maps - which also stops <code>createFastArrays</code>
+building three throwaway <code>Map</code>s just to filter them.</p>
+<p>What is left of the original problem is the tables the built simulation offers everything else -
+<code>FComps</code>, <code>FCustomComps</code>, <code>WaveComps</code>, <code>FCustomOutputCompLookup</code> - which are still
+<code>Map&lt;FComponentId, _&gt;</code>, built once at the end of the gather from the store. They are the door, and
+the ~85 call sites behind it in the waveform simulator, Verilog output, extraction and the tests
+were untouched by any of the above; building them is what <code>createInit</code> still costs. Deleting them
+means <code>WaveIndexT.Id</code> carrying an index rather than a structured name, which is a change with a
+much larger blast radius and should be its own piece of work. Note the condition that still
+applies: a build-scoped index must not be persisted, so anything saved or compared across builds
+stays a structured name.</p>
 <p>*<em><code>EvalAlgebraic</code> duplicates <code>EvalReference</code>.*</em> ~2,500 lines expressing one set of component
 semantics twice, kept in step only by discipline. The build path duplicates with it:
 <code>orderCombinationalComponents</code>/<code>…FData</code>, <code>checkAndValidate</code>/<code>…FData</code>,
@@ -669,11 +914,17 @@ semantics twice, kept in step only by discipline. The build path duplicates with
 initialised. Parameterising the build path on a small <code>Evaluator</code> record would delete the twins;
 the indirect call would land on the build path only, and the run loop must keep calling
 <code>fc.ReduceComb</code> directly or the dispatch this design removes comes straight back.</p>
-<p>*<em><code>FastComponent</code> carries five unrelated concerns*</em>: step data, the reducers, ordering scratch
-(<code>Touched</code>, <code>NumMissingInputValues</code>, <code>DrivenComponents</code>), naming (<code>FullName</code>, <code>SimSheetName</code>,
+<p>*<em><code>FastComponent</code> carries six unrelated concerns*</em>: step data, the reducers, ordering scratch
+(<code>Touched</code>, <code>NumMissingInputValues</code>, <code>DrivenComponents</code>), link scratch (<code>OutLinks</code>,
+<code>CustomInLinks</code>, <code>CustomOutIndex</code>, <code>CustomOutPort</code>), naming (<code>FullName</code>, <code>SimSheetName</code>,
 <code>SimSheetNamePath</code>, <code>SheetName</code>, <code>FLabel</code>) and Verilog output names. Only the first two are needed
-once the build is over. The ordering scratch is the easy one — it is build-only state on a hot
-record and could live in a table inside <code>FastOrder</code>.</p>
+once the build is over. The link scratch is the newest and the least bad of them: it is what the
+gather resolves and <code>linkFastComponents</code> consumes, and that function empties the two array fields
+when it is finished so a built simulation does not carry a link table per component. It is on the
+record because a link is an index into the store the record itself lives in, and putting it in a
+parallel table indexed the same way would be a second thing to keep in step for no gain. The
+ordering scratch is the one actually worth moving — build-only state on a hot record, which could
+live in a table inside <code>FastOrder</code>.</p>
 <p><strong>The façade is notional.</strong> <code>Simulator.fs</code> is nominally the entry point, but twelve modules
 outside <code>Simulator/</code> reach into <code>FastRun</code>, <code>FastExtract</code>, <code>FastCreate</code> and the evaluators. Some of
 that is legitimate: the waveform viewer needs bulk access to step arrays and routing it through a
@@ -749,6 +1000,11 @@ decided as part of a rewrite of the execution layer than retrofitted.</p>
   <li class="level-2">
     <a href="#What-building-a-simulation-costs">
       What building a simulation costs
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Where-the-rest-of-it-goes">
+      Where the rest of it goes
     </a>
   </li>
   <li class="level-2">

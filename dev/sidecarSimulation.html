@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Main" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="Simulation and waveform generation in a .NET sidecar
+" />
+    <meta property="og:url" content="/issie/dev/sidecarSimulation.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="Simulation and waveform generation in a .NET sidecar
+">
+    
+    <title>Simulation and waveform generation in a .NET sidecar
+ | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="content">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/drivingTheApp.html">
+    Driving Issie from outside it
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/wireRouting.html">
+    How a wire gets its shape
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/wiki">Developers Wiki
+                </a></li>
+    
+        <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/drivingTheApp.html">
+    Driving Issie from outside it
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/wireRouting.html">
+    How a wire gets its shape
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        <h1><a name="Simulation-and-waveform-generation-in-a-NET-sidecar" class="anchor" href="#Simulation-and-waveform-generation-in-a-NET-sidecar">Simulation and waveform generation in a .NET sidecar</a></h1>
+<p>The sidecar skeleton (<code>src/Sidecar</code>, <code>src/Renderer/Interface/SidecarClient.fs</code>, spawn logic in
+<code>src/Main/Bridge.fs</code>) exists to answer one question: is a loopback WebSocket between the
+renderer and a .NET process fast enough to move Issie's simulation out of JavaScript? The
+numbers below were measured with it — Development &gt; Play &gt; Test Sidecar Latency runs the same
+measurements in any debug build. The answer is yes, comfortably, and this note records the
+strategy options and their rough costs.</p>
+<p>All numbers are from one Windows development machine and are order-of-magnitude guides, not
+promises.</p>
+<p>What must be TRUE for the two sides to agree about a simulation - as opposed to how fast they can
+talk - is <a href="sidecarInvariants.html">sidecarInvariants.md</a>, which also says which of those things a
+running Issie can check for itself.</p>
+<h2><a name="What-the-channel-measures-as" class="anchor" href="#What-the-channel-measures-as">What the channel measures as</a></h2>
+<table>
+<thead>
+<tr class="header">
+<th><p>Property</p></th>
+<th><p>Measured</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>Round trip, small message</p></td>
+<td><p>~0.3–0.6 ms</p></td>
+</tr>
+<tr class="even">
+<td><p>Renderer → .NET (upload)</p></td>
+<td><p>~150 MB/s typical, 70–360 MB/s run-to-run spread</p></td>
+</tr>
+<tr class="odd">
+<td><p>.NET → renderer (download)</p></td>
+<td><p>~350–800 MB/s, steady</p></td>
+</tr>
+<tr class="even">
+<td><p><code>ws.send</code> behaviour</p></td>
+<td><p>never blocks the page; whole message buffered instantly, drains at the above rate</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>The asymmetry is structural, not fixable here: a WebSocket client must XOR-mask every byte it
+sends (RFC 6455) and feed it through Chromium's renderer→network-service pipe, while the server
+sends unmasked bytes straight to the socket. The .NET side consumes uploads in real time (its
+reply arrives the same millisecond the client's buffer drains), so the client send pipeline is
+the limit. The upload spread is exposure, not throttling: a 16MB send occupies the pipeline for
+50–200 ms and anything landing in that window (GC, rendering, scheduling) stretches it; per-byte
+cost does not rise with size.</p>
+<p>Frames are binary end to end — <code>binaryType = "arraybuffer"</code>, <code>WebSocketMessageType.Binary</code> — so
+payloads cross with no encoding, no JSON, no copies beyond the transport's own. The transport is
+message-oriented: a "stream" is a sequence of binary messages, which also gives backpressure for
+free (<code>SendAsync</code> awaits on the .NET side; <code>bufferedAmount</code> is the renderer's signal). For
+happy-path traffic (commands up, results down) the fast direction carries the weight, which is
+the right way round.</p>
+<p>The frame header is 8 bytes (command, uint32 correlation id, 3 bytes of padding), so a binary
+response payload starts 8-aligned and the renderer overlays <code>Uint32Array</code>/<code>Float64Array</code> views
+on the received buffer directly — zero parse, zero copy. <code>SimRead</code> is the first user.</p>
+<h2><a name="Getting-the-design-across" class="anchor" href="#Getting-the-design-across">Getting the design across</a></h2>
+<p>Measured on the 3cpu demo project (18 sheets, 378 components, 528 connections):</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>Form</p></th>
+<th><p>Size</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>Raw <code>.dgm</code> JSON, whole project</p></td>
+<td><p>712 KB</p></td>
+</tr>
+<tr class="even">
+<td><p>Stripped: no <code>SymbolInfo</code>, no wire <code>Vertices</code>, uuids → small ints</p></td>
+<td><p>186 KB</p></td>
+</tr>
+<tr class="odd">
+<td><p>Also dropping component positions</p></td>
+<td><p>171 KB</p></td>
+</tr>
+<tr class="even">
+<td><p>Feasible floor (ports derived from <code>Type</code>, connections as 4 ints)</p></td>
+<td><p>~40–60 KB</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Even unstripped, the whole project is single-digit milliseconds in either direction, and JSON is
+fine — no binary design format is warranted. Transfer is not the cost that matters, though:
+JSON <em>decode</em> on the .NET side is. The compatibility decoder (<code>SimpleJsonDotNet</code>, a reflection
+walker) measures ~300 ms warm for the whole design as <code>SimpleDesign</code> JSON (72 KB — the Simple
+wire types beat every stripped-<code>.dgm</code> estimate above), ~25 ms for the largest single sheet, and
+core type is irrelevant (P-cores vs E-cores measured within ~10%).</p>
+<p>(Since these measurements, canvas ids became native integers throughout Issie -
+<code>Helpers.IdAllocator</code> mints them, <code>RegenerateIds.admitDesign</code> keeps component ids design-unique
+and dense at project open - so the "reduce before send" step has dissolved: SimpleDesign
+conversion is now a straight projection costing ~3 ms for the whole 3cpu design.)</p>
+<p>This is why the sidecar protocol sends a design as <strong>one JSON string per sheet</strong> and the sidecar
+caches decoded sheets keyed by the exact JSON string (<code>src/Sidecar/DesignCache.fs</code>): an
+unchanged sheet serialises to the identical string and costs a string comparison instead of a
+decode. Measured in the app on 3cpu: first send 18 sheets decoded, ~1.3 s (cold JIT included);
+every send after it 0 decoded, <strong>0.26 ms</strong> on the .NET side, ~77 ms total — nearly all of which
+is now renderer-side conversion and serialisation. An edit re-decodes exactly the touched sheet.
+A hand-written decoder for the Simple types (no reflection) is the known next step if the cold
+first send ever matters.</p>
+<h2><a name="Simulation-under-NET" class="anchor" href="#Simulation-under-NET">Simulation under .NET</a></h2>
+<p><code>Renderer.fsproj</code> already compiles under plain .NET — <code>Tests/Issie.Tests</code> references it and
+exercises the simulator that way daily. So the sidecar can reference it the same way and run the
+existing FastSim, <code>CanvasExtractor</code>, and parameter resolution unchanged; the design-JSON decoder
+already exists on that side. From there the options widen in a way Fable never allowed:</p>
+<ul>
+<li>the existing three-evaluator FastSim, as is, JIT-compiled;</li>
+<li>
+.NET-only algorithm work — real threads (<code>Parallel</code>, <code>Task</code>), structs and spans, native-sized
+integer arrays — none of which exist under Fable;
+</li>
+<li>
+entirely different engines (event-driven, compiled-to-IL) checked against <code>EvalReference</code>
+exactly as the current evaluators are.
+</li>
+</ul>
+<p>The standing caveat from the simulator docs applies in reverse: .NET and JS performance differ
+per algorithm, so measure candidates under .NET rather than assuming the app numbers carry over.</p>
+<h2><a name="Getting-results-back-three-options" class="anchor" href="#Getting-results-back-three-options">Getting results back — three options</a></h2>
+<p>Per view change (scroll, zoom, radix, run), for a worst-ish case of 50 visible waveforms and the
+~340 cycles a wide monitor shows at minimum zoom:</p>
+<p><strong>A. Ship step values, render as today.</strong> The sidecar sends the visible window of driver data as
+binary typed arrays (~50 × 340 × 4 B ≈ 70 KB, sub-millisecond); the renderer's existing
+<code>generateWaveform</code> builds the SVG from local arrays as it does now. Smallest change, smallest
+payload; the renderer keeps all waveform CPU work.</p>
+<p><strong>B. Ship finished SVG.</strong> The sidecar generates per-wave SVG markup strings — the transition and
+point maths in <code>WaveSimSVGs.fs</code> is dual-compiled already, only an element→string serialiser is
+new — and the renderer injects them with <code>dangerouslySetInnerHTML</code>, so React diffs nothing
+inside. Estimated 0.5–1.5 MB typical, ~4.5 MB pathological for 50 waves: 2–13 ms transfer, plus
+a comparable browser parse on injection. Moves all waveform CPU to .NET; biggest payload.</p>
+<p><strong>C. Ship polyline points as binary.</strong> <code>Float32</code> point arrays (~3× smaller than markup, no parse)
+plus a two-line VDOM wrapper per wave in the renderer. The middle ground: .NET does the maths,
+the payload stays tens-of-KB, and the renderer work is trivial.</p>
+<p><strong>Tooltips go lazy in every option.</strong> <code>getWaveToolTip</code> already reads the simulator at hover
+time; only the hatched-gap test (<code>EvilHoverCache</code>) is precomputed, and the sidecar computes gaps
+during waveform generation anyway. So hover becomes a request — <code>(wave, cycle, radix)</code> → tooltip
+string — at ~0.3–0.6 ms, imperceptible against a human hover. No <code>GapStore</code> ships, and the
+renderer-side mutable cache disappears. The lookup turns asynchronous: discard stale replies
+(the protocol's correlation ids do this) and hide on mouse-out without waiting.</p>
+<h2><a name="Rough-interaction-budget" class="anchor" href="#Rough-interaction-budget">Rough interaction budget</a></h2>
+<table>
+<thead>
+<tr class="header">
+<th><p>Interaction</p></th>
+<th><p>Cost over the channel</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>Project open: full design sync</p></td>
+<td><p>1–10 ms, hidden behind project load</p></td>
+</tr>
+<tr class="even">
+<td><p>Edit: one sheet delta</p></td>
+<td>< 1 ms</td>
+</tr>
+<tr class="odd">
+<td><p>Run N cycles</p></td>
+<td><p>command is tens of bytes; simulation time dominates</p></td>
+</tr>
+<tr class="even">
+<td><p>Scroll / zoom refresh, 50 waves</p></td>
+<td><p>A: ~1 ms · B: ~5–20 ms incl. parse · C: ~2–5 ms</p></td>
+</tr>
+<tr class="odd">
+<td><p>Hover tooltip</p></td>
+<td><p>~1 ms</p></td>
+</tr>
+<tr class="even">
+<td><p>Cursor column (50 values at one cycle)</p></td>
+<td><p>tens of bytes, &lt; 1 ms</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Per-message round-trip latency, not bandwidth, is the number that shapes a design here: anything
+chatty should batch, and anything bulky is cheap if it flows .NET → renderer.</p>
+<h2><a name="The-baseline-today-s-simulator-under-NET-implemented" class="anchor" href="#The-baseline-today-s-simulator-under-NET-implemented">The baseline: today's simulator under .NET (implemented)</a></h2>
+<p>The existing simulator now runs in the sidecar, unchanged, as the BASELINE that rewrites - and
+the Electron simulator itself - are checked against:</p>
+<ul>
+<li>
+<code>SimpleDesignShim</code> rebuilds skeleton LoadedComponents from the wire-form design (ports
+synthesized from component arity; port ids never cross the wire), and
+<code>Simulator.startCircuitSimulation</code> takes it from there - the whole of FastSim, untouched.
+</li>
+<li>
+Protocol commands <code>SimBuild</code> / <code>SimRun</code> / <code>SimDigest</code> / <code>SimEnd</code> / <code>SimLog</code> drive a session
+on the last-sent design. <code>SimRun</code> takes a target cycle and a millisecond budget and reports
+where the clock got to - the same contract the renderer's own progress loop uses, so the
+client chunks, shows progress from replies, and cancels by not sending the next chunk.
+</li>
+<li>
+<strong>Correctness</strong>: <code>SimDigest.render</code> (the golden-model text, moved into the app so both
+runtimes produce it) rendered by each side and diffed by the DevHarness <code>simCompare</code> command.
+Measured on 3cpu: <strong>byte-identical over 50 cycles</strong> (30,821 chars of digest), electron vs
+dotnet, via <code>node scripts/drive.js send simCompare 50</code>.
+</li>
+<li>
+<strong>Cost</strong>: <code>SimLog</code> records every simulation invocation identically in both runtimes - one
+record per build, one per run chunk, which in the app means one per progress-bar update - so
+ANY user-driven session yields directly comparable per-chunk numbers, pulled with
+<code>drive.js send simLog</code> (electron) and <code>drive.js send sidecarSimLog</code> (dotnet). First numbers:
+3cpu digest runs at ~0.05 ms/cycle under Electron and ~0.02 ms/cycle under .NET in
+single-cycle chunks, both dominated by per-chunk fixed cost - the log exists precisely so
+that real workloads can be compared instead of extrapolating from this.
+</li>
+</ul>
+<p><code>SimSetInputs</code> sets top-level input values at a cycle (component id + 64-bit value pairs), and
+<code>SimRead</code> is THE waveform-data interface: for each signal — component id, output port, access
+path — it returns <code>samples</code> values taken every <code>rep</code> cycles from <code>start</code>, as binary the
+renderer views zero-copy (<code>SidecarClient.viewSimReadData</code>). Those are the same (StartCycle,
+SamplingZoom, ShownCycles) parameters the waveform viewer's own generation runs on, so a view
+at any zoom is one request, and a tooltip is the degenerate one-signal one-sample case
+(<code>SidecarClient.simReadPoint</code>). Both are pinned by a wire-payload parity test against a locally
+driven simulation — dense, strided (rep 3) and single-sample — and live by the DevHarness
+<code>sidecarProbe</code> command (measured word-identical on 3cpu). Any width: <code>wordsPerSample</code> is
+computed from the widest signal asked for, laid out least-significant word first. The waveform
+generation code itself is unchanged: the interface delivers the data it already consumes.</p>
+<p>The app's own progress bar drives chunked sidecar runs: <code>DevHarness.runOnSidecarWithProgress</code>
+(Development &gt; Play &gt; Run Design On Sidecar, or <code>drive.js send sidecarRun &lt;cycles&gt;</code>) loops
+100 ms <code>SimRun</code> chunks, updating <code>Model.SpinnerPayload</code> after each - the same popup, and the
+same Cancel button, as a local long run. Cancellation is exactly the designed contract: Cancel
+clears the payload, the loop notices on its next reply and simply sends no more chunks (then
+frees the sidecar session). Measured: 3M cycles of 3cpu in 6.4 s over 52 chunks (~470
+cycles/ms continuous - the first real sustained .NET rate); a 60M-cycle run cancelled within
+one chunk of the click.</p>
+<p>The algebraic (FData) path stays Electron-only, as agreed. Not yet done: wide-bus <code>SimRead</code>.</p>
+<h2><a name="Measured-the-wave-sim-workload-Electron-against-NET" class="anchor" href="#Measured-the-wave-sim-workload-Electron-against-NET">Measured: the wave-sim workload, Electron against .NET</a></h2>
+<p>The comparison the backend switch waits on. <code>drive.js send localRun "&lt;cycles&gt; &lt;arraySize&gt;"</code> and
+<code>sidecarRun</code> with the same arguments run the identical chunked workload - build at that array
+size, then 100 ms <code>runFastSimulation</code> chunks to the target - on 3cpu (378 components,
+1908 B/cycle). <code>arraySize = cycles + 1200</code> is the waveform simulator's non-circular shape;
+<code>arraySize = 250</code> is the step simulator's circular one. Rates below are cycles/ms of pure
+simulation time (SimLog chunk sums, excluding build); each backend was run cold and again warm
+in the same process, several sessions apart.</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>workload</p></th>
+<th><p>Electron</p></th>
+<th><p>.NET, workstation GC</p></th>
+<th><p>.NET, server GC</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>1.1M cycles, full arrays (~2 GB)</p></td>
+<td><p>113-163</p></td>
+<td><p>64-83, decaying as arrays fill</p></td>
+<td><p>109-153</p></td>
+</tr>
+<tr class="even">
+<td><p>1.1M cycles, 250-entry circular</p></td>
+<td><p>~90</p></td>
+<td><p>~253</p></td>
+<td><p>~400</p></td>
+</tr>
+<tr class="odd">
+<td><p>4M cycles, full arrays (~6.6 GB)</p></td>
+<td><p>cannot build (over budget)</p></td>
+<td><p>-</p></td>
+<td><p>153, flat 146-161 across the whole run</p></td>
+</tr>
+<tr class="even">
+<td><p>build, full arrays</p></td>
+<td><p>~0.4 s</p></td>
+<td><p>~1.7-2.2 s</p></td>
+<td><p>~1.7-2.7 s</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>What the numbers say:</p>
+<ul>
+<li>
+<strong>The GC strategy was the bottleneck, not the simulator - but WHY is not yet established.</strong>
+Under the default workstation collector the big-array rate decayed from ~160 to ~55 cycles/ms
+as the arrays filled and a warm repeat started degraded; server GC
+(<code>Issie.Sidecar.fsproj</code>, <code>&lt;ServerGarbageCollection&gt;</code>) removes the decay entirely - the 4M run
+holds 146-161 cycles/ms from first decile to last with ~6.6 GB live, so the cost was never
+proportional to heap size as such. What it WAS proportional to is not yet measured. Note the
+step data is mostly not GC-visible by design: DFFs and registers keep no <code>State</code> at all
+(previous-cycle output IS their state - EvalReference's <code>putState</code> comment), and a RAM's
+store is <code>RamStore</code> - one mutable CSR structure shared by every step slot, allocating nothing
+per step (docs/dev/ramRepresentation.md). What the collector does have to look at: the
+per-RAM <code>State</code> reference array (MaxArraySize pointers, all to that one store), any
+<code>BigIntStep</code> arrays (<code>bigint</code> is a struct with a reference field, so the array is scanned),
+and whatever transient garbage the run loop makes. Which of those - or something else, such
+as card-table scanning of the big reference arrays - actually cost the workstation collector
+its throughput needs the GC counters below before it is believed.
+</li>
+<li>
+<strong>Per-cycle compute is decisively faster under .NET.</strong> Cache-resident (circular 250) it
+sustains 250-400 cycles/ms against Electron's ~90 - the earlier 470 cycles/ms measurement was
+this shape. The big-array workloads converge because both runtimes are then paying memory
+costs, not compute.
+</li>
+<li>
+<strong>On the wave-sim shape the two are within each other's variance</strong> (Electron 113-163, .NET
+109-153). Session-to-session swings of ~1.4x appear on BOTH sides across app/sidecar restarts
+<ul>
+<li>
+consistent with P/E-core scheduling on this machine - so single runs cannot rank them;
+overlapping ranges from repeated fresh-process runs is the honest result.
+</li>
+</ul>
+</li>
+<li>
+<strong>Only .NET reaches past Electron's budget.</strong> 4M cycles is unbuildable in the renderer
+(V8-cage heap share refuses it); the sidecar builds it against machine RAM - it sizes both
+simulation budgets from <code>GC.GetGCMemoryInfo().TotalAvailableMemoryBytes</code> at startup, there
+being no V8 cage on that side - and runs it at full rate, undecayed. Capacity, not speed, is
+currently the .NET side's measurable win; the rewrite (flat word storage instead of per-step
+objects) is where the speed win is expected, and the baseline's GC profile above says exactly
+why.
+</li>
+</ul>
+<p><strong>Step-slab layout (measured after the table above).</strong> Flattening every uint32/bigint step
+array into a few large shared slabs - IOArray regions named by <code>StepBase</code>/<code>StepLength</code> integer
+offsets, the FastCreate arena made cross-runtime instead of Fable-only - moved the numbers
+decisively. Pure-simulation rates (SimLog chunk sums, build excluded), same 3cpu workloads:</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>workload</p></th>
+<th><p>Electron</p></th>
+<th><p>.NET, server GC</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>1.1M cycles, full arrays</p></td>
+<td><p>102-131</p></td>
+<td><p>181-206</p></td>
+</tr>
+<tr class="even">
+<td><p>1.1M cycles, 250-entry circular</p></td>
+<td><p>116</p></td>
+<td><p>321</p></td>
+</tr>
+<tr class="odd">
+<td><p>4M cycles, full arrays, fresh process</p></td>
+<td><p>-</p></td>
+<td><p><strong>303, flat 250-327 across the run, 6.6 GB live</strong></p></td>
+</tr>
+</tbody>
+</table>
+
+<p>.NET's big-array rate doubled (the ~150 ceiling was substantially the runtime's own array
+bookkeeping, not memory latency as first guessed); Electron stayed inside its usual range, as
+the arena note predicted ("measured simulation speed unchanged") since under Fable the layout
+was already slab-backed views. The .NET build also got cheaper (0.6-0.9s against 1.6-2.7s for
+the 2 GB build). With the slabs, the wave-sim workload verdict flips: .NET is ~2x Electron at
+1.1M and holds ~300 cycles/ms to 4M cycles, which Electron cannot build at all. One trap found
+and shimmed on the way: reads inside the new IOArray members compiled to fable-library's
+bounds-checked item() (the EvalCompiled getA/setA story again - <code>SimTypes.stepGet/stepSet</code> is
+the same shim one layer down), which had silently tripled Electron's whole-simulation cost
+until the emitted JS was checked. Correctness pinned by the full suite (652 tests, golden +
+reducers-agree) and by SimDigest byte-identity between the runtimes in the app.</p>
+<h2><a name="The-variance-was-the-scheduler-and-the-answer-is-one-call" class="anchor" href="#The-variance-was-the-scheduler-and-the-answer-is-one-call">The variance was the scheduler, and the answer is one call</a></h2>
+<p>The run-to-run spread that made every rate above a range rather than a number - the same 1.1M
+workload measuring 154 and 293 cycles/ms in one process - is now measured rather than guessed,
+and it was neither GC nor heap debris. SimLog gained three things to settle it: the percentage
+of a run's clock cycles executed on a <strong>performance core</strong> (sampled from the run loop's existing
+time-check point, every hundred steps, through GetCurrentProcessorNumber and the efficiency
+classes GetSystemCpuSetInformation reports), the <strong>GC collections and pause milliseconds</strong> during
+each invocation, and the heap in use. Windows and .NET only: Fable can ask for none of them, so
+an Electron record carries -1 for P% and zeros for the GC fields.</p>
+<p>The first run of that instrumentation answered it outright. Four consecutive 1.1M runs on 3cpu,
+on an i7-1265U with 2 performance cores (4 threads) and 8 efficiency cores:</p>
+<table>
+<thead>
+<tr class="header">
+<th align="right"><p>P-core residency</p></th>
+<th align="right"><p>rate</p></th>
+<th align="center"><p>GC collections</p></th>
+<th align="right"><p>GC pause</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right"><p>56.8%</p></td>
+<td align="right"><p>154 c/ms</p></td>
+<td align="center"><p>0/0/0</p></td>
+<td align="right"><p>0.0 ms</p></td>
+</tr>
+<tr class="even">
+<td align="right"><p>69.5%</p></td>
+<td align="right"><p>229 c/ms</p></td>
+<td align="center"><p>0/0/0</p></td>
+<td align="right"><p>1.2 ms</p></td>
+</tr>
+<tr class="odd">
+<td align="right"><p>74.9%</p></td>
+<td align="right"><p>273 c/ms</p></td>
+<td align="center"><p>0/0/0</p></td>
+<td align="right"><p>0.0 ms</p></td>
+</tr>
+<tr class="even">
+<td align="right"><p>80.5%</p></td>
+<td align="right"><p>293 c/ms</p></td>
+<td align="center"><p>0/0/0</p></td>
+<td align="right"><p>9.9 ms</p></td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Garbage collection is not involved at all</strong> - zero collections of any generation across a
+1.1M-cycle run, which the step-slab layout makes sense of: the slabs are a handful of large
+long-lived arrays and the run loop allocates about a byte a cycle. The rate tracks P-core
+residency monotonically, and tracks it decile by decile <em>within</em> a run too, rate rising and
+falling with the percentage as Windows moves the thread.</p>
+<p>The cause is that Windows treats a windowless console process as background work, parks it on
+efficiency cores and applies EcoQoS power throttling. The sidecar now asks not to be
+power-throttled at startup (<code>CpuQos</code> in Program.fs, one SetProcessInformation call), which is
+the right default for a process that sits blocked on a socket using nothing until the app asks
+it to simulate - no idle battery is traded away. <code>ISSIE_SIDECAR_CPU=eco</code> restores the old
+behaviour and <code>=pin</code> confines the process to performance cores, both for measurement.</p>
+<p>With the default in place the same four runs sit at <strong>97-99.7% P-core residency and 390-529
+cycles/ms</strong>, and the spread that motivated all of this is gone.</p>
+<p>This also retired the sidecar's <code>ServerGarbageCollection</code> setting, which was added earlier on
+the strength of numbers that had not controlled for any of the above. Measured again with the
+scheduler settled and the step slabs in place, the default workstation collector gives 411, 490
+and 488 cycles/ms against server GC's 405, 529 and 511 - the same, which is what zero
+collections predicts. The override is gone rather than kept as a talisman; it costs per-core
+heaps for no measured benefit, and it is one line to restore if a future execution layer
+allocates in the run loop.</p>
+<h3><a name="What-was-left-after-that-tiered-compilation" class="anchor" href="#What-was-left-after-that-tiered-compilation">What was left after that: tiered compilation</a></h3>
+<p>Removing the scheduler left a smaller spread - 405, 529, 511 over three runs - which the
+per-chunk records placed exactly. The first run in a process spent its first several hundred
+milliseconds at 57-87 cycles/ms <em>while at 94-99% P-core residency</em>, then jumped abruptly to
+450+. Not scheduling, not GC (still zero collections), and not a gradual ramp: a step change.</p>
+<p>That is tiered compilation. A method starts in unoptimised tier-0 code and is promoted once it
+has been called enough times, but the call counting is delayed - by default 100ms, and the
+delay RESTARTS whenever more new code is being compiled. Building a simulation compiles a great
+deal of new code, so the hot reducers stayed in tier-0 until the build's compilation activity
+finally stopped, and everything got promoted at once. Later runs in the same process pay none
+of it, which is why only the first run looked slow.</p>
+<p><code>DOTNET_TC_CallCountingDelayMs=0</code>, set on the sidecar's environment where main spawns it
+(Bridge.fs), promotes them as soon as they are hot. Zero rather than turning tiering off
+altogether: tier 0 still gives the process a quick start, and dynamic PGO - which rides on
+tiering - still gets to specialise the reducers. Three consecutive 1.1M-cycle runs through the
+real spawn path then give <strong>495, 500, 497 cycles/ms</strong>, and the first run is no longer the slow
+one. For comparison, turning tiering off entirely gave 527, 488, 486 - no better, and it costs
+startup and PGO.</p>
+<p>So the variance decomposes, in the order it was found and each measured rather than argued:</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th><p>three-run spread</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>as first measured</p></td>
+<td><p>154 - 293 c/ms</p></td>
+</tr>
+<tr class="even">
+<td><p>EcoQoS off (scheduler)</p></td>
+<td><p>405 - 529</p></td>
+</tr>
+<tr class="odd">
+<td><p>plus call-counting delay 0 (JIT)</p></td>
+<td><p>495 - 500</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>What remains is chunk-to-chunk noise of about 5% around a settled ~505 cycles/ms, which is
+where measurement of this workload should now start.</p>
+<p><strong>Electron is subject to the same thing</strong>, which matters because it means earlier comparisons
+were between two throttled processes rather than two fair ones. The renderer cannot sample its
+own core, so it was tested from outside: pinning the Electron processes to performance cores
+took 1.1M-cycle runs from 101-182 cycles/ms (nine runs, no pattern) to <strong>205, 214, 215</strong> - a
+tight cluster. Making the window foreground, by contrast, changed nothing measurable, so this
+is the OS scheduler placing a long-running compute thread rather than Chromium's own
+backgrounding. Issie does not currently opt its renderer out of throttling; that is a real
+improvement available to the Electron simulator, and a separate change from this branch.</p>
+<p>So the honest head-to-head, both runtimes on performance cores, 1.1M cycles of 3cpu on full
+(wave-sim shaped) arrays, pure simulation time:</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th align="right"><p>Electron</p></th>
+<th align="right"><p>.NET sidecar</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>pure simulation</p></td>
+<td align="right"><p>205-215 c/ms</p></td>
+<td align="right"><p>390-529 c/ms</p></td>
+</tr>
+<tr class="even">
+<td><p>build (2 GB of arrays)</p></td>
+<td align="right"><p>~0.4 s</p></td>
+<td align="right"><p>~0.4-0.6 s</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>*<em>.NET is about 2.2x faster*</em>, on top of reaching cycle counts Electron cannot build at all.
+That is the number the backend switch should be judged on; every earlier figure in this document
+was taken before the scheduler was understood and should be read as a lower bound on both sides.</p>
+<h3><a name="The-comparison-with-core-occupancy-controlled" class="anchor" href="#The-comparison-with-core-occupancy-controlled">The comparison, with core occupancy controlled</a></h3>
+<p>Every figure above this point was taken before the scheduler was understood, so the head-to-head
+was redone with both runtimes held on performance cores - the sidecar by its own QoS request
+(SimLog confirms 99-100%), Electron by pinning its processes, since it cannot report or control
+its own placement. Two further things had to be handled. Runs are <strong>interleaved</strong>, Electron and
+sidecar alternating on the same workload, because the machine drifts: on this 15W laptop part a
+long benchmarking session sees both runtimes fall by a third or more, so only pairwise ratios
+taken minutes apart mean anything. And <strong>pure simulation time</strong> is used throughout - SimLog
+chunk sums - since the wall-clock line a run prints includes build and transport.</p>
+<p>1.1M cycles of 3cpu, four interleaved pairs, wave-sim shaped (full) arrays:</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th align="right"><p>Electron</p></th>
+<th align="right"><p>.NET</p></th>
+<th align="right"><p>ratio</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td align="right"><p>217</p></td>
+<td align="right"><p>709</p></td>
+<td align="right"><p>3.26</p></td>
+</tr>
+<tr class="even">
+<td></td>
+<td align="right"><p>211</p></td>
+<td align="right"><p>620</p></td>
+<td align="right"><p>2.95</p></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td align="right"><p>227</p></td>
+<td align="right"><p>665</p></td>
+<td align="right"><p>2.93</p></td>
+</tr>
+<tr class="even">
+<td></td>
+<td align="right"><p>202</p></td>
+<td align="right"><p>594</p></td>
+<td align="right"><p>2.94</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>*<em>.NET is 2.9x Electron*</em> on the workload the waveform simulator actually runs. On the
+cache-resident 250-entry circular workload, three interleaved pairs give 4.4-4.7x. Both are
+larger than the 2.2x recorded further up this document, which was measured before the JIT delay
+was found.</p>
+<p><strong>The slab change did not cost Electron anything measurable.</strong> The pre-slab simulator - where a
+step array was its own Uint32Array view rather than a slab plus an integer offset - was rebuilt
+and measured under the same pinning. On full arrays it went 247 against the new 242 in one
+block and 190 against 214 in another: the direction reverses, so the difference is drift rather
+than the change. On the circular workload the old form was ahead in both blocks it was measured
+(269 vs 251, then 247 vs 238), which is a plausible ~5% for the extra add per access showing up
+where the work is compute-bound and cache-resident - but it was never measured interleaved, so
+treat it as a hint rather than a result. Either way the "old simulator was faster" impression
+came from unpinned runs, where scheduling noise is larger than any of this.</p>
+<h3><a name="The-large-designs" class="anchor" href="#The-large-designs">The large designs</a></h3>
+<p>3cpu is 378 components. The designs that decide whether this is worth doing are the ones a
+student's project actually reaches, and <code>largeTest</code> is the stress case: <code>main1</code>..<code>main6</code>, each
+sheet instantiating several of the one below, so tiny files expand enormously - <strong>main5 to
+120,084 components and main6 to 480,342</strong>, the design the step-array arena was built for. Both
+cost megabytes of step storage per clock, so they are measured at few cycles and the interesting
+numbers are the build and the per-cycle rate rather than any total.</p>
+<p>Measured as shipped - the sidecar with its QoS request and server GC, Electron as it runs today:</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>design</p></th>
+<th align="right"><p>components</p></th>
+<th></th>
+<th align="right"><p>Electron</p></th>
+<th align="right"><p>.NET</p></th>
+<th align="right"><p>.NET is</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>main5</p></td>
+<td align="right"><p>120,084</p></td>
+<td><p>build</p></td>
+<td align="right"><p>5.1 s</p></td>
+<td align="right"><p>3.4 s</p></td>
+<td align="right"><p>1.5x faster</p></td>
+</tr>
+<tr class="even">
+<td></td>
+<td align="right"></td>
+<td><p>simulation</p></td>
+<td align="right"><p>105 cycles/s</p></td>
+<td align="right"><p>218 cycles/s</p></td>
+<td align="right"><p><strong>2.1x</strong></p></td>
+</tr>
+<tr class="odd">
+<td><p>main6</p></td>
+<td align="right"><p>480,342</p></td>
+<td><p>build</p></td>
+<td align="right"><p>21.6 s</p></td>
+<td align="right"><p>15.6 s</p></td>
+<td align="right"><p>1.4x faster</p></td>
+</tr>
+<tr class="even">
+<td></td>
+<td align="right"></td>
+<td><p>simulation</p></td>
+<td align="right"><p>22.4 cycles/s</p></td>
+<td align="right"><p>54.5 cycles/s</p></td>
+<td align="right"><p><strong>2.4x</strong></p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Three things to take from this beyond the ratios.</p>
+<p><strong>The advantage narrows as the design grows</strong> - 2.9x on 3cpu, 2.4x on main6 - because a cycle of
+main6 touches 480,000 components' worth of step storage and the work becomes memory-bound, where
+neither runtime can do much. It does not disappear, and the build advantage appears only at this
+scale.</p>
+<p><strong>Pinning Electron is the wrong control here.</strong> On 3cpu it was the fix; on these designs it makes
+Electron <em>slower</em> (main5 105 -&gt; 64 cycles/s, main6 22.4 -&gt; 15.8), because confining every Electron
+process to two physical cores starves V8's parallel GC threads, which have real work at a 5.6 GB
+heap. The as-shipped comparison above is the meaningful one; the pinned-core methodology used
+earlier does not transfer to workloads where the collector is busy.</p>
+<p><strong>GC is a build cost, not a run cost, and only at scale.</strong> The run loop still collects nothing -
+0/0/0 over 400 cycles of a 480,000-component design, which is the slab layout doing its job. The
+build is the opposite: 1,232 gen0 collections and 7.0 s of pause in a 22.8 s build under the
+default collector. That is why <code>ServerGarbageCollection</code> is back in the sidecar's fsproj after
+being removed a few commits ago: it was removed on evidence from 3cpu's run loop, where GC does
+nothing and it made no difference, and that evidence simply did not cover the case where it
+earns its place.</p>
+<p><strong>Cycle count does not change the rate.</strong> 800K against 1.1M, interleaved three times each to
+cancel drift, gave medians of 116 and 139 cycles/ms - the larger workload nominally faster, and
+both well inside the 96-180 spread of unpinned runs. A wider sweep (500K, 800K, 1.1M, 1.4M) put
+1.4M between 800K and 1.1M rather than last. There is no size cliff between those working sets;
+what looked like one was the scheduler.</p>
+<p>Benchmark hygiene, learned the hard way: <code>sidecarRun</code> sends whatever design is open, so an
+<code>openProject</code> must have finished before it fires - a 0-component build (visible in the SimLog
+record) means it did not; and the wall-clock line the command logs includes build and transport,
+so per-chunk SimLog sums are what to compare.</p>
+<h2><a name="What-the-skeleton-does-not-yet-do" class="anchor" href="#What-the-skeleton-does-not-yet-do">What the skeleton does not yet do</a></h2>
+<p>Single client, and no respawn after a crash: <code>SidecarClient</code> waits for the sidecar to START
+listening (a startup budget, so first contact after spawn is a wait rather than an error), but a
+process that dies mid-session stays dead until the app restarts - the failure is bounded by the
+paced-retry latching of sidecarInvariants.md section J and surfaced by the viewer's banner. The
+8-byte header padding is in place; macOS signing of the published binary is expected to work
+(the entitlements already allow JIT) but has not been exercised. Dev runs
+require a dotnet SDK (<code>dotnet run</code> spawns it); production ships a self-contained binary under
+<code>resources/sidecar/</code> via <code>scripts/publish-sidecar.js</code>.</p>
+
+        
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <ul>
+  <li class="level-1">
+    <a href="#Simulation-and-waveform-generation-in-a-NET-sidecar">
+      Simulation and waveform generation in a .NET sidecar
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-the-channel-measures-as">
+      What the channel measures as
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Getting-the-design-across">
+      Getting the design across
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Simulation-under-NET">
+      Simulation under .NET
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Getting-results-back-three-options">
+      Getting results back — three options
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Rough-interaction-budget">
+      Rough interaction budget
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#The-baseline-today-s-simulator-under-NET-implemented">
+      The baseline: today's simulator under .NET (implemented)
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Measured-the-wave-sim-workload-Electron-against-NET">
+      Measured: the wave-sim workload, Electron against .NET
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#The-variance-was-the-scheduler-and-the-answer-is-one-call">
+      The variance was the scheduler, and the answer is one call
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#What-was-left-after-that-tiered-compilation">
+      What was left after that: tiered compilation
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#The-comparison-with-core-occupancy-controlled">
+      The comparison, with core occupancy controlled
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#The-large-designs">
+      The large designs
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-the-skeleton-does-not-yet-do">
+      What the skeleton does not yet do
+    </a>
+  </li>
+</ul>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-details-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

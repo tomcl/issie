@@ -124,6 +124,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -142,8 +148,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -156,6 +174,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -325,6 +349,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -343,8 +373,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -357,6 +399,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -462,7 +510,14 @@
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-        
+         A saved sheet with its wave info left UNREAD: 'T is instantiated at obj, which parses
+ anything. This is the last resort of jsonStringToState, and it is what lets the saved
+ selection change shape without a legacy reader - a selection this version cannot
+ understand costs the selection, never the sheet.
+
+ Every variant that can carry wave info is mirrored, because any of them can be the one
+ that fails. Only the newest was, which meant an older save holding an unreadable
+ selection failed to load at all rather than losing it.
       </p>
     </div>
   </div>
@@ -488,19 +543,177 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4477', 4477)" onmouseover="showTip(event, '4477', 4477)">
+              <code onmouseout="hideTip(event, '4762', 4762)" onmouseover="showTip(event, '4762', 4762)">
                 <p>
-                  <a id="NewCanvasWithFileWaveSheetInfoAndNewConns">
-                    <a href="#NewCanvasWithFileWaveSheetInfoAndNewConns">
-                      <code><span>NewCanvasWithFileWaveSheetInfoAndNewConns(<span><a href="/issie/reference/helpers-jsonhelpers-jsoncanvasstate.html">JSONCanvasState</a>,&#32;<span>'T&#32;option</span>,&#32;<span><a href="/issie/reference/commontypes-sheetinfo.html">SheetInfo</a>&#32;option</span>,&#32;<a href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></span>)</span></code>
+                  <a id="CanvasWithFileWaveInfo">
+                    <a href="#CanvasWithFileWaveInfo">
+                      <code><span>CanvasWithFileWaveInfo(<span><a href="/issie/reference/commontypes-legacycanvas-legacycanvasstate.html">LegacyCanvasState</a>,&#32;<span>'T&#32;option</span>,&#32;<a href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></span>)</span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4477">
+              <div class="fsdocs-tip" id="4762">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>NewCanvasWithFileWaveSheetInfoAndNewConns(<span><a href="/issie/reference/helpers-jsonhelpers-jsoncanvasstate.html">JSONCanvasState</a>,&#32;<span>'T&#32;option</span>,&#32;<span><a href="/issie/reference/commontypes-sheetinfo.html">SheetInfo</a>&#32;option</span>,&#32;<a href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></span>)</span></code>
+                  <code><span>CanvasWithFileWaveInfo(<span><a href="/issie/reference/commontypes-legacycanvas-legacycanvasstate.html">LegacyCanvasState</a>,&#32;<span>'T&#32;option</span>,&#32;<a href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></span>)</span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        Item1
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-legacycanvas-legacycanvasstate.html">LegacyCanvasState</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        Item2
+                      </b>
+                      :
+                      <code><span>'T&#32;option</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        Item3
+                      </b>
+                      :
+                      <code><a href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  Item1
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-legacycanvas-legacycanvasstate.html">LegacyCanvasState</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  Item2
+                </span>
+                :
+                <code><span>'T&#32;option</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  Item3
+                </span>
+                :
+                <code><a href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '4763', 4763)" onmouseover="showTip(event, '4763', 4763)">
+                <p>
+                  <a id="CanvasWithFileWaveInfoAndNewConns">
+                    <a href="#CanvasWithFileWaveInfoAndNewConns">
+                      <code><span>CanvasWithFileWaveInfoAndNewConns(<span><a href="/issie/reference/commontypes-legacycanvas-legacycanvasstate.html">LegacyCanvasState</a>,&#32;<span>'T&#32;option</span>,&#32;<a href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></span>)</span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="4763">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>CanvasWithFileWaveInfoAndNewConns(<span><a href="/issie/reference/commontypes-legacycanvas-legacycanvasstate.html">LegacyCanvasState</a>,&#32;<span>'T&#32;option</span>,&#32;<a href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></span>)</span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        Item1
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-legacycanvas-legacycanvasstate.html">LegacyCanvasState</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        Item2
+                      </b>
+                      :
+                      <code><span>'T&#32;option</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        Item3
+                      </b>
+                      :
+                      <code><a href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  Item1
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-legacycanvas-legacycanvasstate.html">LegacyCanvasState</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  Item2
+                </span>
+                :
+                <code><span>'T&#32;option</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  Item3
+                </span>
+                :
+                <code><a href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '4764', 4764)" onmouseover="showTip(event, '4764', 4764)">
+                <p>
+                  <a id="NewCanvasWithFileWaveInfoAndNewConns">
+                    <a href="#NewCanvasWithFileWaveInfoAndNewConns">
+                      <code><span>NewCanvasWithFileWaveInfoAndNewConns(<span><a href="/issie/reference/helpers-jsonhelpers-jsoncanvasstate.html">JSONCanvasState</a>,&#32;<span>'T&#32;option</span>,&#32;<a href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></span>)</span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="4764">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>NewCanvasWithFileWaveInfoAndNewConns(<span><a href="/issie/reference/helpers-jsonhelpers-jsoncanvasstate.html">JSONCanvasState</a>,&#32;<span>'T&#32;option</span>,&#32;<a href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></span>)</span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -526,7 +739,86 @@
                         Item3
                       </b>
                       :
-                      <code><span><a href="/issie/reference/commontypes-sheetinfo.html">SheetInfo</a>&#32;option</span></code>
+                      <code><a href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  Item1
+                </span>
+                :
+                <code><a href="/issie/reference/helpers-jsonhelpers-jsoncanvasstate.html">JSONCanvasState</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  Item2
+                </span>
+                :
+                <code><span>'T&#32;option</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  Item3
+                </span>
+                :
+                <code><a href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '4765', 4765)" onmouseover="showTip(event, '4765', 4765)">
+                <p>
+                  <a id="NewCanvasWithFileWaveSheetInfoAndNewConns">
+                    <a href="#NewCanvasWithFileWaveSheetInfoAndNewConns">
+                      <code><span>NewCanvasWithFileWaveSheetInfoAndNewConns(<span><a href="/issie/reference/helpers-jsonhelpers-jsoncanvasstate.html">JSONCanvasState</a>,&#32;<span>'T&#32;option</span>,&#32;<span><a href="/issie/reference/commontypes-jsonwave-sheetinfo.html">SheetInfo</a>&#32;option</span>,&#32;<a href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></span>)</span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="4765">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>NewCanvasWithFileWaveSheetInfoAndNewConns(<span><a href="/issie/reference/helpers-jsonhelpers-jsoncanvasstate.html">JSONCanvasState</a>,&#32;<span>'T&#32;option</span>,&#32;<span><a href="/issie/reference/commontypes-jsonwave-sheetinfo.html">SheetInfo</a>&#32;option</span>,&#32;<a href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></span>)</span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        Item1
+                      </b>
+                      :
+                      <code><a href="/issie/reference/helpers-jsonhelpers-jsoncanvasstate.html">JSONCanvasState</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        Item2
+                      </b>
+                      :
+                      <code><span>'T&#32;option</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        Item3
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-jsonwave-sheetinfo.html">SheetInfo</a>&#32;option</span></code>
                     </span>
                     <br/>
                     <span>
@@ -566,7 +858,7 @@
                   Item3
                 </span>
                 :
-                <code><span><a href="/issie/reference/commontypes-sheetinfo.html">SheetInfo</a>&#32;option</span></code>
+                <code><span><a href="/issie/reference/commontypes-jsonwave-sheetinfo.html">SheetInfo</a>&#32;option</span></code>
               </dt>
               <dd class="fsdocs-param-docs"></dd>
               <dt class="fsdocs-param">
@@ -586,7 +878,181 @@
   <div></div>
   <div></div>
   <div></div>
-  <div></div>
+  <div>
+    <h3>
+      Instance members
+    </h3>
+    <table class="table outer-list fsdocs-member-list">
+      <thead>
+        <tr>
+          <td class="fsdocs-member-list-header">
+            Instance member
+          </td>
+          <td class="fsdocs-member-list-header">
+            Description
+          </td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '4766', 4766)" onmouseover="showTip(event, '4766', 4766)">
+                <p>
+                  <a id="IsCanvasWithFileWaveInfo">
+                    <a href="#IsCanvasWithFileWaveInfo">
+                      <code><span>this.IsCanvasWithFileWaveInfo</span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="4766">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>this.IsCanvasWithFileWaveInfo</span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bool</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>bool</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '4767', 4767)" onmouseover="showTip(event, '4767', 4767)">
+                <p>
+                  <a id="IsCanvasWithFileWaveInfoAndNewConns">
+                    <a href="#IsCanvasWithFileWaveInfoAndNewConns">
+                      <code><span>this.IsCanvasWithFileWaveInfoAndNewConns</span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="4767">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>this.IsCanvasWithFileWaveInfoAndNewConns</span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bool</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>bool</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '4768', 4768)" onmouseover="showTip(event, '4768', 4768)">
+                <p>
+                  <a id="IsNewCanvasWithFileWaveInfoAndNewConns">
+                    <a href="#IsNewCanvasWithFileWaveInfoAndNewConns">
+                      <code><span>this.IsNewCanvasWithFileWaveInfoAndNewConns</span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="4768">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>this.IsNewCanvasWithFileWaveInfoAndNewConns</span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bool</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>bool</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '4769', 4769)" onmouseover="showTip(event, '4769', 4769)">
+                <p>
+                  <a id="IsNewCanvasWithFileWaveSheetInfoAndNewConns">
+                    <a href="#IsNewCanvasWithFileWaveSheetInfoAndNewConns">
+                      <code><span>this.IsNewCanvasWithFileWaveSheetInfoAndNewConns</span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="4769">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>this.IsNewCanvasWithFileWaveSheetInfoAndNewConns</span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bool</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>bool</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
   <div></div>
 </div>
         

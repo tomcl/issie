@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Main" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="Run the step simulator under .NET
+" />
+    <meta property="og:url" content="/issie/dev/stepSimOnDotnet.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="Run the step simulator under .NET
+">
+    
+    <title>Run the step simulator under .NET
+ | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="content">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/drivingTheApp.html">
+    Driving Issie from outside it
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/wireRouting.html">
+    How a wire gets its shape
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/wiki">Developers Wiki
+                </a></li>
+    
+        <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/drivingTheApp.html">
+    Driving Issie from outside it
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/wireRouting.html">
+    How a wire gets its shape
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        <h1><a name="Run-the-step-simulator-under-NET" class="anchor" href="#Run-the-step-simulator-under-NET">Run the step simulator under .NET</a></h1>
+<p>Done, RAM contents included (docs/dev/ramOverTheWire.md). Kept because it records why each
+piece is where it is; where later work changed a mechanism, the entry says so in place.</p>
+<h2><a name="Why" class="anchor" href="#Why">Why</a></h2>
+<p>The waveform simulator can be run by the .NET sidecar; the step simulator cannot, and nothing in
+its path consults <code>Model.SimulateInRenderer</code>. <code>SimulationView.simulateWithProgressBar</code> calls
+<code>FastRun.runFastSimulation</code> on the renderer's own <code>FastSimulation</code>, so "Run to clock N" is always
+V8 — including the components/ms the progress bar quotes, which is why that number can move
+against a change measured under .NET and disagree with it in sign.</p>
+<p>On <code>largeTest/main5</code> (120,084 components, step-simulator array size 550) one clock of every
+component costs, per <code>runFastSimulation</code>:</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th align="right"><p>comp-steps/ms</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>.NET</p></td>
+<td align="right"><p>27,000</p></td>
+</tr>
+<tr class="even">
+<td><p>V8</p></td>
+<td align="right"><p>measured 1.8-2.2x worse on the same builds</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>So the step simulator on a large design is the one place left where the runtime that is being
+retired is the one doing the work.</p>
+<h2><a name="What-already-exists" class="anchor" href="#What-already-exists">What already exists</a></h2>
+<p>Most of it. Nothing below needs a protocol change.</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><code>SimBuild</code>, <code>SimRun</code>, <code>SimEnd</code></p></td>
+<td><p>build, chunked run towards a target cycle with a time budget, teardown - the same contract the renderer's own progress loop uses</p></td>
+</tr>
+<tr class="even">
+<td><p><code>SimSetInputs</code></p></td>
+<td><p>set top-level input values at a cycle</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>SimRead</code></p></td>
+<td><p>sampled values for any list of (component id, access path, output port) at any cycle. <strong>Any width</strong>: it computes <code>wordsPerSample</code> from the simulation and lays the reply out least-significant word first. The note in <code>Protocol.fs</code> saying signals wider than 32 bits are refused is stale and should go with this work</p></td>
+</tr>
+<tr class="even">
+<td><p><code>SidecarClient.fs</code></p></td>
+<td><p>the renderer half of all of the above</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>SimSession.firstValidCycle</code></p></td>
+<td><p>the earliest cycle still in the circular buffer - written for this case: "the waveform simulator sizes its array for the whole configured run and never reaches that; the step simulator is sized short and does"</p></td>
+</tr>
+<tr class="even">
+<td><p><code>ModelHelpers.Constants.rendererArraySizeWhenSidecarSimulates</code></p></td>
+<td><p>the renderer already builds a SHORT local simulation when the sidecar is simulating, for structure only</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>SimInterface.ISimulator</code></p></td>
+<td><p>already declares <code>SetInput</code> and <code>ReadStepPanel</code>, and <code>StepPanelSnapshot</code> already has the four sections below. Declared, not implemented</p></td>
+</tr>
+</tbody>
+</table>
+
+<h2><a name="Where-each-part-of-the-panel-comes-from" class="anchor" href="#Where-each-part-of-the-panel-comes-from">Where each part of the panel comes from</a></h2>
+<p><code>SimulationView.viewSimulationData</code> reads the simulation in exactly four places, and they map onto
+<code>StepPanelSnapshot</code>:</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>panel section</p></th>
+<th><p>today</p></th>
+<th><p>over the wire</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>top-level inputs</p></td>
+<td><p><code>FastExtract.extractFastSimulationIOs simData.Inputs</code></p></td>
+<td><p><code>SimRead</code> — <code>(cid, [], port 0)</code></p></td>
+</tr>
+<tr class="even">
+<td><p>top-level outputs</p></td>
+<td><p><code>FastExtract.extractFastSimulationIOs simData.Outputs</code></p></td>
+<td><p><code>SimRead</code></p></td>
+</tr>
+<tr class="odd">
+<td><p>viewers, anywhere in the hierarchy</p></td>
+<td><p><code>FastExtract.extractViewers</code></p></td>
+<td><p><code>SimRead</code>, with the access path</p></td>
+</tr>
+<tr class="even">
+<td><p>stateful components</p></td>
+<td><p><code>FastExtract.extractStatefulComponents</code></p></td>
+<td><p>see below</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>The stateful section splits three ways, and only one of them is missing:</p>
+<ul>
+<li>
+<strong>Register, RegisterE, Counter*, DFF, DFFE</strong> — <code>extractStatefulComponents</code> reads these from
+<code>fc.Outputs[0]</code>, so they are ordinary signals and <code>SimRead</code> already covers them.
+</li>
+<li>
+<strong>ROM1</strong> — contents are part of the component's type and never change
+(<code>RamStore.fixedOf</code>), so they need no simulation at all.
+</li>
+<li>
+<strong>RAM1, AsyncRAM1</strong> — the memory store, which is the one thing not readable over the wire.
+<code>SimInterface</code> says so deliberately ("reading a RAM's contents, which needs a row type that is
+declared in the waveform UI and has to move first"), and the waveform simulator already has the
+answer: <code>WaveSimRams.fs</code> shows the memory's contents only when the renderer is simulating, and
+otherwise says plainly that they are not available rather than showing a memory as it was before
+the first clock edge. <strong>Say the same thing here.</strong> Wrong contents look exactly like right ones.
+</li>
+</ul>
+<h2><a name="What-was-done" class="anchor" href="#What-was-done">What was done</a></h2>
+<p><code>SimulationView</code> gained one section - "the step panel, from whichever simulator is running" - and
+every site that ran or read the simulation goes through it:</p>
+<ul>
+<li>
+<code>advanceTo</code> replaces the five <code>FastRun.runFastSimulation</code> calls. Local: runs and calls back
+at once, as before. Sidecar: one budgeted run chunk, and nothing else - it does NOT build (the
+start paths issue builds; docs/dev/sidecarInvariants.md section J) and it does not read the
+panel (the panel's cycle is part of the fetch viewport, so the read rides the ordinary
+convergence). A goto is not this at all: it is the <code>StartStepRun</code> cascade in <code>Update</code>, chunks
+continued from reply handlers, cancelled by closing the bar.
+</li>
+<li>
+<code>StepPanelData</code> is the cache, in the shape of <code>WaveData</code>'s: one snapshot, of one cycle of one
+session, so a value can only ever be read back for the cycle and epoch it was fetched for.
+</li>
+<li><code>ioValues</code>, <code>viewerValues</code> and <code>statefulValues</code> replace the four <code>FastExtract</code> calls.</li>
+<li>
+<code>setInput</code> replaces <code>changeInput</code>: <code>SimSetInputs</code> and then a re-read, because the values on
+screen were computed from the input that just changed.
+</li>
+<li>
+<code>clockNow</code> is the clock a run advances from. Locally the <code>FastSimulation</code>'s own tick; in sidecar
+mode the model's, because the local simulation is never run and the sidecar's clock only ever
+goes forwards while the panel can be stepped back.
+</li>
+<li>
+The session itself moved to <code>Interface/SidecarSession</code>, out of <code>WaveProvider</code>, which compiles
+after <code>SimulationView</code>. The sidecar holds one session and now one module knows what it is.
+</li>
+</ul>
+<p>The sidecar's session is shared with the waveform simulator. That is mostly a saving - a session
+built for a long waveform run is reused rather than rebuilt - but the two are stepping the same
+simulation, so setting an input here moves what a waveform simulation of the same design would
+show. They are different tabs and starting a waveform simulation runs it again from its own
+inputs, so nothing stale is drawn.</p>
+<h2><a name="How-big-a-design-it-will-take" class="anchor" href="#How-big-a-design-it-will-take">How big a design it will take</a></h2>
+<p>The waveform simulator has a configuration dialog that prices the design and refuses a last clock
+that will not fit (<code>FastCreate.maxLastClockFor</code>, <code>UIPopups</code>). The step simulator has no dialog: it
+picks one number, how many cycles of history to keep, and used to take <code>Constants.maxArraySize</code>
+whatever the design cost - so a design too big for it was refused by the build's own memory check,
+in words about a waveform configuration the user was not looking at.</p>
+<p><code>ModelHelpers.stepSimCycles</code> binds the same budget to that one number:</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>the design can afford</p></th>
+<th><p>what happens</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>the full 550 cycles</p></td>
+<td><p>it gets them</p></td>
+</tr>
+<tr class="even">
+<td><p>fewer, but at least <code>minStepArraySize</code> (20)</p></td>
+<td><p>shortened to what it can afford, logged under <code>sim</code></p></td>
+</tr>
+<tr class="odd">
+<td><p>fewer than 20</p></td>
+<td><p>refused, in words about the design</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Measured against <code>maxCyclesFor</code>, which is the budget WITHOUT the runtime headroom
+<code>checkSimulationFits</code> allows itself - deliberately the stricter of the two, so a size chosen here
+is certain to pass the build's own check and the refusal happens where it can be explained.</p>
+<p>Nothing real is shortened: every sheet of <code>largeTest</code> fits at 550, main6 included, at 2.4 MB a
+cycle against the 968 cycles its budget allows. A generated hierarchy of 2048-bit buses is
+shortened (4 MB a cycle, 250 cycles); one of 65536-bit buses is refused (116 MB a cycle, 8).</p>
+<h2><a name="What-it-measured" class="anchor" href="#What-it-measured">What it measured</a></h2>
+<p><code>largeTest/main5</code>, 120,084 components, step simulator, Run to clock 1000, read off the progress
+bar - the same thing, on the same design, as the number that started this:</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th align="right"><p>component-clocks/ms</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>renderer</p></td>
+<td align="right"><p>~6,000</p></td>
+</tr>
+<tr class="even">
+<td><p>.NET</p></td>
+<td align="right"><p><strong>25,900</strong></p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Values agree: <code>3cpu/eep1</code> stepped to clock 5 gives <code>NZCV=8, PCV=x0002, R0=x0002</code> in both modes.</p>
+<h2><a name="Still-to-do" class="anchor" href="#Still-to-do">Still to do</a></h2>
+<ul>
+<li>
+<strong>Input values above 2^53.</strong> <code>SimSetInputs</code> carries a value as two 32-bit words. A wider input
+is refused by name rather than sent truncated.
+</li>
+<li>
+*<em><code>ISimulator</code> is still not implemented.*</em> <code>advanceTo</code> and the three value functions are the
+same shape as <code>RunTo</code>, <code>SetInput</code> and <code>ReadStepPanel</code>, and should become them - along with the
+waveform simulator's own path - rather than a second way of saying it.
+</li>
+</ul>
+<h2><a name="The-one-real-difficulty" class="anchor" href="#The-one-real-difficulty">The one real difficulty</a></h2>
+<p>The step simulator's update path is synchronous today: a click runs the simulation and the next
+render shows the result. Over the wire it cannot be. Resolved as
+<code>docs/dev/sidecarInvariants.md</code> sections C and J describe: view code reads caches
+synchronously, the update function is the one sequencer, in-flight operations live in the
+model's table, and a reply carries the epoch it belongs to so a superseded answer is discarded
+rather than shown. The goto's first wire implementation violated it - a chunk loop of its own
+whose busy path re-dispatched synchronously - and froze the renderer at 10M cycles; the
+StartStepRun cascade is the conforming replacement, kept in section J as the worked example.</p>
+<h2><a name="Verification" class="anchor" href="#Verification">Verification</a></h2>
+<ul>
+<li><code>CI=true npm run test</code> for the suite, and <code>Issie.GoldenModel</code> in particular.</li>
+<li>
+Drive it: <code>node scripts/drive.js</code> with <code>simulateIn sidecar</code>, then the step simulator on
+<code>largeTest/main5</code> run to clock 1000, and the same in renderer mode - the values shown must agree
+and only the speed differ.
+</li>
+<li>
+The progress bar's components/ms on that run is the number this exists to change. Measure it in
+both modes and record both here.
+</li>
+</ul>
+
+        
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <ul>
+  <li class="level-1">
+    <a href="#Run-the-step-simulator-under-NET">
+      Run the step simulator under .NET
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Why">
+      Why
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-already-exists">
+      What already exists
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Where-each-part-of-the-panel-comes-from">
+      Where each part of the panel comes from
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-was-done">
+      What was done
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#How-big-a-design-it-will-take">
+      How big a design it will take
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-it-measured">
+      What it measured
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Still-to-do">
+      Still to do
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#The-one-real-difficulty">
+      The one real difficulty
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Verification">
+      Verification
+    </a>
+  </li>
+</ul>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-details-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

@@ -124,6 +124,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -142,8 +148,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -156,6 +174,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -325,6 +349,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -343,8 +373,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -357,6 +399,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -463,7 +511,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '990', 990)" onmouseover="showTip(event, '990', 990)">
+              <code onmouseout="hideTip(event, '1013', 1013)" onmouseover="showTip(event, '1013', 1013)">
                 <p>
                   <a id="addComponentWaveDrivers">
                     <a href="#addComponentWaveDrivers">
@@ -472,7 +520,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="990">
+              <div class="fsdocs-tip" id="1013">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>addComponentWaveDrivers&#32;<span>f&#32;fc&#32;pType</span></span></code>
@@ -516,90 +564,69 @@
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:FastCreate.addComponentWaveDrivers`')">
-                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
-                  </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:FastCreate.addComponentWaveDrivers\'/>')">
-                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
-                  </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L638-638" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     Add one driver changing the fs.Driver array reference.
- Return a WaveIndex reference.
- WaveIndex refrences are bound to specific component ports
- and not unique per driver.
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-params">
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    f
-                  </span>
-                  :
-                  <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    fc
-                  </span>
-                  :
-                  <code><a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    pType
-                  </span>
-                  :
-                  <code><a href="/issie/reference/commontypes-porttype.html">PortType</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-              </dl>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Returns: 
-                  </span>
-                  <code><span><span><a href="/issie/reference/commontypes-waveindext.html">WaveIndexT</a>[]</span>&#32;array</span></code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  f
+                </span>
+                :
+                <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  fc
+                </span>
+                :
+                <code><a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  pType
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-porttype.html">PortType</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><span><span><a href="/issie/reference/commontypes-waveindext.html">WaveIndexT</a>[]</span>&#32;array</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
           </td>
         </tr>
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '991', 991)" onmouseover="showTip(event, '991', 991)">
+              <code onmouseout="hideTip(event, '1014', 1014)" onmouseover="showTip(event, '1014', 1014)">
                 <p>
                   <a id="addWaveIndexAndDrivers">
                     <a href="#addWaveIndexAndDrivers">
-                      <code><span>addWaveIndexAndDrivers&#32;<span>waveComps&#32;f</span></span></code>
+                      <code><span>addWaveIndexAndDrivers&#32;<span>comps&#32;f</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="991">
+              <div class="fsdocs-tip" id="1014">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>addWaveIndexAndDrivers&#32;<span>waveComps&#32;f</span></span></code>
+                  <code><span>addWaveIndexAndDrivers&#32;<span>comps&#32;f</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        waveComps
+                        comps
                       </b>
                       :
-                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-fcomponentid.html">FComponentId</a>,&#32;<a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a></span>&gt;</span></code>
+                      <code><span><a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a>&#32;array</span></code>
                     </span>
                     <br/>
                     <span>
@@ -631,7 +658,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:FastCreate.addWaveIndexAndDrivers\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L699-699" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L889-889" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -648,10 +675,10 @@
               <dl class="fsdocs-params">
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
-                    waveComps
+                    comps
                   </span>
                   :
-                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-fcomponentid.html">FComponentId</a>,&#32;<a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a></span>&gt;</span></code>
+                  <code><span><a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a>&#32;array</span></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
@@ -678,23 +705,31 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '992', 992)" onmouseover="showTip(event, '992', 992)">
+              <code onmouseout="hideTip(event, '1015', 1015)" onmouseover="showTip(event, '1015', 1015)">
                 <p>
                   <a id="addWavesToFastSimulation">
                     <a href="#addWavesToFastSimulation">
-                      <code><span>addWavesToFastSimulation&#32;<span>fs</span></span></code>
+                      <code><span>addWavesToFastSimulation&#32;<span>comps&#32;fs</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="992">
+              <div class="fsdocs-tip" id="1015">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>addWavesToFastSimulation&#32;<span>fs</span></span></code>
+                  <code><span>addWavesToFastSimulation&#32;<span>comps&#32;fs</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
+                    <span>
+                      <b>
+                        comps
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a>&#32;array</span></code>
+                    </span>
+                    <br/>
                     <span>
                       <b>
                         fs
@@ -724,17 +759,30 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:FastCreate.addWavesToFastSimulation\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L750-750" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L961-961" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     Adds WaveComps, Drivers and WaveIndex fields to a fast simulation.
+                     Adds the Drivers and WaveIndex fields to a fast simulation.
  For use by waveform Simulator.
  Needs to be run after widths are calculated.
+
+ **What a simulation needs only in order to be DRAWN**, and all of it sized by the expansion:
+ a map of every component of every instance, an entry per step array, and an entry per
+ wave-carrying port. `WaveTables` is what decides whether a build pays for them; a simulator
+ that runs and answers reads by name does not.
                   </p>
                 </div>
               </summary>
               <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    comps
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a>&#32;array</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
                     fs
@@ -759,7 +807,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '993', 993)" onmouseover="showTip(event, '993', 993)">
+              <code onmouseout="hideTip(event, '1016', 1016)" onmouseover="showTip(event, '1016', 1016)">
                 <p>
                   <a id="assertThat">
                     <a href="#assertThat">
@@ -768,7 +816,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="993">
+              <div class="fsdocs-tip" id="1016">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>assertThat&#32;<span>cond&#32;msg</span></span></code>
@@ -825,7 +873,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '994', 994)" onmouseover="showTip(event, '994', 994)">
+              <code onmouseout="hideTip(event, '1017', 1017)" onmouseover="showTip(event, '1017', 1017)">
                 <p>
                   <a id="checkSimulationFits">
                     <a href="#checkSimulationFits">
@@ -834,7 +882,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="994">
+              <div class="fsdocs-tip" id="1017">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>checkSimulationFits&#32;<span>arraySize&#32;cost</span></span></code>
@@ -879,7 +927,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:FastCreate.checkSimulationFits\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L323-323" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L343-343" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -936,7 +984,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '995', 995)" onmouseover="showTip(event, '995', 995)">
+              <code onmouseout="hideTip(event, '1018', 1018)" onmouseover="showTip(event, '1018', 1018)">
                 <p>
                   <a id="compType">
                     <a href="#compType">
@@ -945,7 +993,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="995">
+              <div class="fsdocs-tip" id="1018">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>compType&#32;<span>t</span></span></code>
@@ -997,19 +1045,123 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '996', 996)" onmouseover="showTip(event, '996', 996)">
+              <code onmouseout="hideTip(event, '1019', 1019)" onmouseover="showTip(event, '1019', 1019)">
                 <p>
-                  <a id="createFastComponent">
-                    <a href="#createFastComponent">
-                      <code><span>createFastComponent&#32;<span>maxArraySize&#32;sComp&#32;accessPath</span></span></code>
+                  <a id="costAndSizeOfGraph">
+                    <a href="#costAndSizeOfGraph">
+                      <code><span>costAndSizeOfGraph&#32;<span>graph</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="996">
+              <div class="fsdocs-tip" id="1019">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>createFastComponent&#32;<span>maxArraySize&#32;sComp&#32;accessPath</span></span></code>
+                  <code><span>costAndSizeOfGraph&#32;<span>graph</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        graph
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="/issie/reference/simtypes-stepcost.html">StepCost</a>&#32;*&#32;int</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:FastCreate.costAndSizeOfGraph`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:FastCreate.costAndSizeOfGraph\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L282-282" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     What one clock cycle of this design will cost, read straight off the merged SimulationGraph -
+ before it is flattened, before a FastComponent exists, and allocating nothing itself.
+
+ One step array is allocated per output port of every component of every INSTANCE, so that is
+ what is counted: the graph is walked the way the flatten walks it, descending into each custom
+ component's own graph, so a sheet used ten times is charged ten times.
+
+ It is deliberately taken from the graph and not from the flattened design. The flatten now
+ creates the step arrays as it goes, so a cost worked out from its output would be worked out
+ after the memory it is meant to refuse had been taken - see checkSimulationFits below, whose
+ whole point is to come first. Reading the graph keeps the check where it belongs and, as a
+ bonus, is what lets the waveform simulator's configuration dialog price a design
+ (ModelHelpers.waveSimStepCost) without building any of it.
+
+ Custom components are counted, not skipped: their output arrays are allocated and then
+ replaced by links to the arrays inside them (linkFastCustomComponentsToDriverArrays), and the
+ replaced ones stay in the step-array arena for the simulation's whole life. So this count is
+ exactly what a built simulation occupies, the replaced quarter included, not an estimate of it.
+
+ The per-step State array is counted too. Only RAMs ever write it, but createFastComponent
+ allocates one for every component that could be synchronous - customs included - so on a
+ register-heavy design it is real memory, and the estimate that omitted it said a design was
+ smaller than it is.
+ The count comes back alongside the cost because both are wanted at the same moment, by the
+ same caller, from the same walk: the build sizes its component store from the count so that
+ the store never has to grow, and refuses the design outright on the cost.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    graph
+                  </span>
+                  :
+                  <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span><a href="/issie/reference/simtypes-stepcost.html">StepCost</a>&#32;*&#32;int</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1020', 1020)" onmouseover="showTip(event, '1020', 1020)">
+                <p>
+                  <a id="createFastComponent">
+                    <a href="#createFastComponent">
+                      <code><span>createFastComponent&#32;<span>maxArraySize&#32;sComp&#32;accessPath&#32;fullName&#32;sheetName</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1020">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>createFastComponent&#32;<span>maxArraySize&#32;sComp&#32;accessPath&#32;fullName&#32;sheetName</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -1038,6 +1190,22 @@
                       <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
                     </span>
                     <br/>
+                    <span>
+                      <b>
+                        fullName
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        sheetName
+                      </b>
+                      :
+                      <code><span>string&#32;list</span></code>
+                    </span>
+                    <br/>
                   </ul>
                   <br/>
                   <span>
@@ -1059,12 +1227,17 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:FastCreate.createFastComponent\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L456-456" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L536-536" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
                      create a FastComponent data structure with data arrays from a SimulationComponent.
  numSteps is the number of past clocks data kept - arrays are managed as circular buffers.
+
+ fullName and sheetName are given rather than filled in afterwards: the flatten stores this
+ object in its index space, and `{ fc with FullName = ... }` afterwards would put a DIFFERENT
+ object there than the one the caller kept - a copy of a 24-field record per component, and a
+ reference-equal identity broken, for two strings that are known when it is made.
                   </p>
                 </div>
               </summary>
@@ -1093,6 +1266,22 @@
                   <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    fullName
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    sheetName
+                  </span>
+                  :
+                  <code><span>string&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
               </dl>
               <dl class="fsdocs-returns">
                 <dt>
@@ -1109,7 +1298,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '997', 997)" onmouseover="showTip(event, '997', 997)">
+              <code onmouseout="hideTip(event, '1021', 1021)" onmouseover="showTip(event, '1021', 1021)">
                 <p>
                   <a id="createInitFastCompPhase">
                     <a href="#createInitFastCompPhase">
@@ -1118,7 +1307,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="997">
+              <div class="fsdocs-tip" id="1021">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>createInitFastCompPhase&#32;<span>simulationArraySize&#32;g&#32;f</span></span></code>
@@ -1171,12 +1360,22 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:FastCreate.createInitFastCompPhase\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L771-771" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L985-985" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     This function will create the initial FastSimulation data structure.
- It may not complete this. In which case fields NumCreateSteps and NumCreateStepsDone will not be equal.
+                     The door between the build's index space and the rest of the program.
+
+ It used to create the FastComponents as well; the flatten does that now, so what is left of it
+ is the boundary. FComps, FCustomComps and FCustomOutputCompLookup stay maps keyed by
+ FComponentId, which is what the ~85 call sites in the waveform simulator, Verilog output,
+ extraction and the tests ask a FastSimulation with - every one of them unchanged. Building
+ them costs O(n log n) once, against the millions of lookups the index space saves, and they
+ are the thing a later stage deletes when WaveIndexT.Id carries an index instead.
+
+ Custom against ordinary is decided here, by a predicate over the one store. It is not a second
+ index space and must not become one: the links the flatten resolved are positions in this
+ store, and splitting it would make the same integer mean two different things.
                   </p>
                 </div>
               </summary>
@@ -1221,23 +1420,31 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '998', 998)" onmouseover="showTip(event, '998', 998)">
+              <code onmouseout="hideTip(event, '1022', 1022)" onmouseover="showTip(event, '1022', 1022)">
                 <p>
                   <a id="determineBigIntState">
                     <a href="#determineBigIntState">
-                      <code><span>determineBigIntState&#32;<span>f</span></span></code>
+                      <code><span>determineBigIntState&#32;<span>comps&#32;f</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="998">
+              <div class="fsdocs-tip" id="1022">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>determineBigIntState&#32;<span>f</span></span></code>
+                  <code><span>determineBigIntState&#32;<span>comps&#32;f</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
+                    <span>
+                      <b>
+                        comps
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a>&#32;array</span></code>
+                    </span>
+                    <br/>
                     <span>
                       <b>
                         f
@@ -1261,6 +1468,14 @@
             <dl class="fsdocs-params">
               <dt class="fsdocs-param">
                 <span class="fsdocs-param-name">
+                  comps
+                </span>
+                :
+                <code><span><a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a>&#32;array</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
                   f
                 </span>
                 :
@@ -1282,7 +1497,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '999', 999)" onmouseover="showTip(event, '999', 999)">
+              <code onmouseout="hideTip(event, '1023', 1023)" onmouseover="showTip(event, '1023', 1023)">
                 <p>
                   <a id="emptyFastSimulation">
                     <a href="#emptyFastSimulation">
@@ -1291,7 +1506,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="999">
+              <div class="fsdocs-tip" id="1023">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>emptyFastSimulation&#32;<span>diagramName</span></span></code>
@@ -1343,7 +1558,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1000', 1000)" onmouseover="showTip(event, '1000', 1000)">
+              <code onmouseout="hideTip(event, '1024', 1024)" onmouseover="showTip(event, '1024', 1024)">
                 <p>
                   <a id="findBigIntState">
                     <a href="#findBigIntState">
@@ -1352,7 +1567,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1000">
+              <div class="fsdocs-tip" id="1024">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>findBigIntState&#32;<span>fc</span></span></code>
@@ -1404,7 +1619,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1001', 1001)" onmouseover="showTip(event, '1001', 1001)">
+              <code onmouseout="hideTip(event, '1025', 1025)" onmouseover="showTip(event, '1025', 1025)">
                 <p>
                   <a id="finishStepArena">
                     <a href="#finishStepArena">
@@ -1413,7 +1628,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1001">
+              <div class="fsdocs-tip" id="1025">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>finishStepArena&#32;<span>()</span></span></code>
@@ -1451,23 +1666,39 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1002', 1002)" onmouseover="showTip(event, '1002', 1002)">
+              <code onmouseout="hideTip(event, '1026', 1026)" onmouseover="showTip(event, '1026', 1026)">
                 <p>
                   <a id="gatherSimulation">
                     <a href="#gatherSimulation">
-                      <code><span>gatherSimulation&#32;<span>graph</span></span></code>
+                      <code><span>gatherSimulation&#32;<span>maxArraySize&#32;size&#32;graph</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1002">
+              <div class="fsdocs-tip" id="1026">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>gatherSimulation&#32;<span>graph</span></span></code>
+                  <code><span>gatherSimulation&#32;<span>maxArraySize&#32;size&#32;graph</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
+                    <span>
+                      <b>
+                        maxArraySize
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        size
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
                     <span>
                       <b>
                         graph
@@ -1497,17 +1728,37 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:FastCreate.gatherSimulation\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L623-623" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L771-771" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     Convert the data in the a SimulationGraph, created from the circuit
- into a final GatherData structure suitable for simulation stored as a set of maps
- Calls createFlattenedSimulation as first step.
+                     Flatten the SimulationGraph into the one index space the rest of the build works in, creating
+ every FastComponent - and so every step array - as it goes.
+
+ size is how many components the expanded design has, from costAndSizeOfGraph, so the store is
+ made at exactly the right size and never grows. That same walk is what priced the design and
+ refused it if it would not fit, which is why this may allocate at all: by the time it runs the
+ budget has been checked and the step-array arena opened for what it said.
                   </p>
                 </div>
               </summary>
               <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    maxArraySize
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    size
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
                     graph
@@ -1532,7 +1783,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1003', 1003)" onmouseover="showTip(event, '1003', 1003)">
+              <code onmouseout="hideTip(event, '1027', 1027)" onmouseover="showTip(event, '1027', 1027)">
                 <p>
                   <a id="getFid">
                     <a href="#getFid">
@@ -1541,7 +1792,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1003">
+              <div class="fsdocs-tip" id="1027">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getFid&#32;<span>cid&#32;ap</span></span></code>
@@ -1609,7 +1860,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1004', 1004)" onmouseover="showTip(event, '1004', 1004)">
+              <code onmouseout="hideTip(event, '1028', 1028)" onmouseover="showTip(event, '1028', 1028)">
                 <p>
                   <a id="getPortNumbers">
                     <a href="#getPortNumbers">
@@ -1618,7 +1869,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1004">
+              <div class="fsdocs-tip" id="1028">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getPortNumbers&#32;<span>sc</span></span></code>
@@ -1670,7 +1921,113 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1005', 1005)" onmouseover="showTip(event, '1005', 1005)">
+              <code onmouseout="hideTip(event, '1029', 1029)" onmouseover="showTip(event, '1029', 1029)">
+                <p>
+                  <a id="linkCustomComponentPorts">
+                    <a href="#linkCustomComponentPorts">
+                      <code><span>linkCustomComponentPorts&#32;<span>comps&#32;fs</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1029">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>linkCustomComponentPorts&#32;<span>comps&#32;fs</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        comps
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a>&#32;array</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        fs
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:FastCreate.linkCustomComponentPorts`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:FastCreate.linkCustomComponentPorts\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L947-947" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Point every custom component's ports at the arrays of the Input and Output components inside
+ it, so that reading a custom component's port reads the signal it actually carries.
+
+ Not optional, and not part of the wave tables below even though it used to be in the same
+ phase: a port that points at the dummy array it was created with reads as nothing. Cheap - one
+ re-pointing per port of each custom component, and there are far fewer of those than of
+ ordinary ones.
+
+ `comps` is every component of the build in creation order - the array the gather filled, not
+ the maps. See the note on createFastArrays: walking the maps here means walking the components
+ in a different order from the one they were allocated in, and on a design of any size that is
+ most of what this phase costs.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    comps
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a>&#32;array</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    fs
+                  </span>
+                  :
+                  <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1030', 1030)" onmouseover="showTip(event, '1030', 1030)">
                 <p>
                   <a id="linkFastComponents">
                     <a href="#linkFastComponents">
@@ -1679,7 +2036,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1005">
+              <div class="fsdocs-tip" id="1030">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>linkFastComponents&#32;<span>g&#32;f</span></span></code>
@@ -1724,19 +2081,24 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:FastCreate.linkFastComponents\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L914-914" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L1054-1054" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     Use the Outputs links from the original SimulationComponents in gather to link together the data arrays
- of the FastComponents.
- InputLinks[i] array is set equal to the correct driving Outputs array so that Input i reads the data reduced by the
- correct output of the component that drives it.
- The main work is dealing with custom components which represent whole design sheets with recursively defined component graphs
- The custom component itself is not linked, and does not exist as a simulatable FastComponent.
- Note: custom components are linked in later as unsimulatable placeholders to allow wave simulation to access ports
- Instead its CustomSimulationGraph Input and Output components
- are linked to the components that connect the corresponding inputs and outputs of the custom component.
+                     Use the links the flatten resolved to tie the FastComponents' data arrays together.
+ InputLinks[i] is set equal to the driving Outputs array, so that input i reads the data
+ reduced by the correct output of the component that drives it.
+ The main work is dealing with custom components, which represent whole design sheets with
+ recursively defined component graphs. The custom component itself is not linked and does not
+ exist as a simulatable FastComponent - instead its graph's Input and Output components are
+ linked to whatever connects to the corresponding ports of the custom component.
+ Note: custom components are linked in later as unsimulatable placeholders, to let the wave
+ simulation reach their ports.
+
+ Everything here works in store indices. It used to work in (ComponentId, access path) pairs
+ against four maps, and that was the build's shape problem: a structural key costs a boxed
+ comparison of a GUID-like id and a list per tree level, and this function does one per link of
+ every component of the expanded design.
                   </p>
                 </div>
               </summary>
@@ -1773,7 +2135,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1006', 1006)" onmouseover="showTip(event, '1006', 1006)">
+              <code onmouseout="hideTip(event, '1031', 1031)" onmouseover="showTip(event, '1031', 1031)">
                 <p>
                   <a id="linkFastCustomComponentsToDriverArrays">
                     <a href="#linkFastCustomComponentsToDriverArrays">
@@ -1782,7 +2144,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1006">
+              <div class="fsdocs-tip" id="1031">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>linkFastCustomComponentsToDriverArrays&#32;<span>fs&#32;<span>(<span>arg2,&#32;arg3</span>)</span>&#32;fc</span></span></code>
@@ -1843,7 +2205,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:FastCreate.linkFastCustomComponentsToDriverArrays\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L712-712" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L900-900" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1902,7 +2264,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1007', 1007)" onmouseover="showTip(event, '1007', 1007)">
+              <code onmouseout="hideTip(event, '1032', 1032)" onmouseover="showTip(event, '1032', 1032)">
                 <p>
                   <a id="makeIOArray">
                     <a href="#makeIOArray">
@@ -1911,7 +2273,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1007">
+              <div class="fsdocs-tip" id="1032">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>makeIOArray&#32;<span>size</span></span></code>
@@ -1963,7 +2325,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1008', 1008)" onmouseover="showTip(event, '1008', 1008)">
+              <code onmouseout="hideTip(event, '1033', 1033)" onmouseover="showTip(event, '1033', 1033)">
                 <p>
                   <a id="makeIOArrayW">
                     <a href="#makeIOArrayW">
@@ -1972,7 +2334,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1008">
+              <div class="fsdocs-tip" id="1033">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>makeIOArrayW&#32;<span>w&#32;size</span></span></code>
@@ -2040,7 +2402,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1009', 1009)" onmouseover="showTip(event, '1009', 1009)">
+              <code onmouseout="hideTip(event, '1034', 1034)" onmouseover="showTip(event, '1034', 1034)">
                 <p>
                   <a id="makeStepArray">
                     <a href="#makeStepArray">
@@ -2049,7 +2411,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1009">
+              <div class="fsdocs-tip" id="1034">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>makeStepArray&#32;<span>arr</span></span></code>
@@ -2101,7 +2463,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1010', 1010)" onmouseover="showTip(event, '1010', 1010)">
+              <code onmouseout="hideTip(event, '1035', 1035)" onmouseover="showTip(event, '1035', 1035)">
                 <p>
                   <a id="maxCyclesFor">
                     <a href="#maxCyclesFor">
@@ -2110,7 +2472,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1010">
+              <div class="fsdocs-tip" id="1035">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>maxCyclesFor&#32;<span>cost</span></span></code>
@@ -2147,7 +2509,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:FastCreate.maxCyclesFor\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L287-287" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L307-307" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2182,7 +2544,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1011', 1011)" onmouseover="showTip(event, '1011', 1011)">
+              <code onmouseout="hideTip(event, '1036', 1036)" onmouseover="showTip(event, '1036', 1036)">
                 <p>
                   <a id="maxLastClockFor">
                     <a href="#maxLastClockFor">
@@ -2191,7 +2553,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1011">
+              <div class="fsdocs-tip" id="1036">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>maxLastClockFor&#32;<span>cost</span></span></code>
@@ -2228,7 +2590,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:FastCreate.maxLastClockFor\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L303-303" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L323-323" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2265,7 +2627,135 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1012', 1012)" onmouseover="showTip(event, '1012', 1012)">
+              <code onmouseout="hideTip(event, '1037', 1037)" onmouseover="showTip(event, '1037', 1037)">
+                <p>
+                  <a id="portCarriesWave">
+                    <a href="#portCarriesWave">
+                      <code><span>portCarriesWave&#32;<span>f&#32;fc&#32;pType</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1037">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>portCarriesWave&#32;<span>f&#32;fc&#32;pType</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        f
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        fc
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        pType
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-porttype.html">PortType</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bool</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:FastCreate.portCarriesWave`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:FastCreate.portCarriesWave\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L811-811" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Add one driver changing the fs.Driver array reference.
+ Return a WaveIndex reference.
+ WaveIndex refrences are bound to specific component ports
+ and not unique per driver.
+ Whether a port of a component carries a waveform the user can watch.
+
+ The rules the wave index is built from, said once. They used to live only inside
+ addComponentWaveDrivers, which walks every port of every component of the whole expanded
+ simulation; anything wanting to know which ports one INSTANCE offers - without walking the
+ expansion to find out - has to decide it the same way, and two copies of a rule like this
+ drift. The builder below now asks this, so there is one answer.
+
+ What is excluded, and why each: the input side of components whose input is not a signal of
+ its own (an IOLabel, an Input1, a Viewer, a NotConnected, an Output); a Constant1, whose
+ output drives but is not worth watching; every IOLabel of a same-named group except the one
+ elected to drive it, since they are all one net; the wiring components, which carry no signal
+ distinct from what they are wired to; and the Input1 and Output components INSIDE a subsheet,
+ whose signal is the enclosing custom component's port and is offered there instead.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    f
+                  </span>
+                  :
+                  <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    fc
+                  </span>
+                  :
+                  <code><a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    pType
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-porttype.html">PortType</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>bool</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1038', 1038)" onmouseover="showTip(event, '1038', 1038)">
                 <p>
                   <a id="simulationPlaceholder">
                     <a href="#simulationPlaceholder">
@@ -2274,7 +2764,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1012">
+              <div class="fsdocs-tip" id="1038">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>simulationPlaceholder&#32;<span></span></span></code>
@@ -2304,29 +2794,37 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1013', 1013)" onmouseover="showTip(event, '1013', 1013)">
+              <code onmouseout="hideTip(event, '1039', 1039)" onmouseover="showTip(event, '1039', 1039)">
                 <p>
                   <a id="startStepArena">
                     <a href="#startStepArena">
-                      <code><span>startStepArena&#32;<span>()</span></span></code>
+                      <code><span>startStepArena&#32;<span>cost&#32;steps</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1013">
+              <div class="fsdocs-tip" id="1039">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>startStepArena&#32;<span>()</span></span></code>
+                  <code><span>startStepArena&#32;<span>cost&#32;steps</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        ()
+                        cost
                       </b>
                       :
-                      <code>unit</code>
+                      <code><a href="/issie/reference/simtypes-stepcost.html">StepCost</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        steps
+                      </b>
+                      :
+                      <code>int</code>
                     </span>
                     <br/>
                   </ul>
@@ -2345,23 +2843,43 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:FastCreate.startStepArena\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L409-409" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L459-459" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     Start drawing ≤32-bit step arrays from arena slabs. Callers must pair this with
- finishStepArena however the build ends, or the next truth-table build would draw from a slab
- nobody meant it to share.
+                     Start drawing step regions from arena slabs, sized for what this build is about to need.
+
+ The size matters more than it looks. A slab used to be a fixed 256MB whatever was being built,
+ so EVERY simulation - a three-component test circuit as much as a CPU - allocated and zeroed
+ 256MB before it could hold its first cycle. Under .NET that is a large-object allocation per
+ build, and a test suite that builds a few thousand small simulations spent eight minutes of its
+ twelve doing nothing else. The cost of a build is now the cost of what it holds.
+
+ The numbers come from `stepCostOfGraph`, which is computed for the memory budget before the
+ arrays are allocated and charges for exactly what the arena keeps - so the first slab is the
+ whole of an ordinary build. A build that needs more than a slab, or more than was planned for,
+ simply takes another; nothing depends on the estimate being right.
+
+ Callers must pair this with finishStepArena however the build ends, or the next truth-table
+ build would draw from a slab nobody meant it to share.
                   </p>
                 </div>
               </summary>
               <dl class="fsdocs-params">
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
-                    ()
+                    cost
                   </span>
                   :
-                  <code>unit</code>
+                  <code><a href="/issie/reference/simtypes-stepcost.html">StepCost</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    steps
+                  </span>
+                  :
+                  <code>int</code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
               </dl>
@@ -2371,7 +2889,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1014', 1014)" onmouseover="showTip(event, '1014', 1014)">
+              <code onmouseout="hideTip(event, '1040', 1040)" onmouseover="showTip(event, '1040', 1040)">
                 <p>
                   <a id="stepArrayIndex">
                     <a href="#stepArrayIndex">
@@ -2380,7 +2898,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1014">
+              <div class="fsdocs-tip" id="1040">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>stepArrayIndex&#32;<span></span></span></code>
@@ -2410,7 +2928,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1015', 1015)" onmouseover="showTip(event, '1015', 1015)">
+              <code onmouseout="hideTip(event, '1041', 1041)" onmouseover="showTip(event, '1041', 1041)">
                 <p>
                   <a id="stepBytesForWidth">
                     <a href="#stepBytesForWidth">
@@ -2419,7 +2937,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1015">
+              <div class="fsdocs-tip" id="1041">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>stepBytesForWidth&#32;<span>w</span></span></code>
@@ -2456,7 +2974,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:FastCreate.stepBytesForWidth\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L250-250" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L248-248" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2490,29 +3008,29 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1016', 1016)" onmouseover="showTip(event, '1016', 1016)">
+              <code onmouseout="hideTip(event, '1042', 1042)" onmouseover="showTip(event, '1042', 1042)">
                 <p>
-                  <a id="stepCostOfDesign">
-                    <a href="#stepCostOfDesign">
-                      <code><span>stepCostOfDesign&#32;<span>g</span></span></code>
+                  <a id="stepCostOfGraph">
+                    <a href="#stepCostOfGraph">
+                      <code><span>stepCostOfGraph&#32;<span>graph</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1016">
+              <div class="fsdocs-tip" id="1042">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>stepCostOfDesign&#32;<span>g</span></span></code>
+                  <code><span>stepCostOfGraph&#32;<span>graph</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        g
+                        graph
                       </b>
                       :
-                      <code><a href="/issie/reference/simtypes-gatherdata.html">GatherData</a></code>
+                      <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
                     </span>
                     <br/>
                   </ul>
@@ -2527,56 +3045,25 @@
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:FastCreate.stepCostOfDesign`')">
-                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
-                  </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:FastCreate.stepCostOfDesign\'/>')">
-                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
-                  </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastCreate.fs#L272-272" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     What one clock cycle of this design will cost, worked out from the flattened design before the
- arrays exist. createInitFastCompPhase allocates exactly one step array per output port of every
- component in AllComps, so that is what is counted here.
-
- AllComps includes the custom components, whose output arrays are allocated and then replaced
- by links to the arrays inside them (linkFastCustomComponentsToDriverArrays). Those arrays come
- out of the step-array arena along with everything else, and arena space is not reclaimed until
- the whole simulation goes - so this count is exactly what a built simulation occupies, the
- replaced quarter included, not an estimate of it.
-
- The per-step State array is counted too. Only RAMs ever write it, but createFastComponent
- allocates one for every component that could be synchronous - customs included - so on a
- register-heavy design it is real memory, and the estimate that omitted it said a design was
- smaller than it is.
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-params">
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    g
-                  </span>
-                  :
-                  <code><a href="/issie/reference/simtypes-gatherdata.html">GatherData</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-              </dl>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Returns: 
-                  </span>
-                  <code><a href="/issie/reference/simtypes-stepcost.html">StepCost</a></code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  graph
+                </span>
+                :
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/simtypes-stepcost.html">StepCost</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
           </td>
         </tr>
       </tbody>

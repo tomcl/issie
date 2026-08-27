@@ -124,6 +124,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -142,8 +148,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -156,6 +174,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -325,6 +349,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -343,8 +373,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -357,6 +399,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -444,7 +492,7 @@
     </dt>
     <dt>
       Abbreviation For: 
-      <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;*&#32;<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></span></code>
+      <code><a href="/issie/reference/commontypes-simcomponentid.html">SimComponentId</a></code>
     </dt>
     <dt>
       Base Type: 
@@ -464,9 +512,20 @@
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         Unique identifier for a fast component.
- The list is the access path, a list of all the containing custom components 
- from the top sheet of the simulation (root first)
+         The old name for SimComponentId, kept while the ~70 sites that destructure it as a bare tuple
+ are still doing so.
+
+ Both are abbreviations of the same tuple today, so this costs nothing and changes nothing.
+ Making the identity a tagged type is one line here - `[<Erase>] type SimComponentId =
+ SimComponentId of ComponentId * ComponentId list` - and it was measured, on this branch, to
+ break 71 sites, 38 of them in FastCreate and FastExtract. THAT is the reason to wait: it is
+ worth doing with the change that needs it (the per-instance port enumeration, which factors a
+ predicate out of FastCreate anyway) rather than as a sweep of the simulator core which buys
+ nothing on its own.
+
+ When it is done, tag it [<Erase>] and NOT [<Struct>]: this is the key type of fs.FComps and
+ the note above the id types prices what a struct key costs in an F# Map. A plain reference
+ wrapper is what the rest of them are and what this should be.
       </p>
     </div>
   </div>
@@ -496,7 +555,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3415', 3415)" onmouseover="showTip(event, '3415', 3415)">
+              <code onmouseout="hideTip(event, '3640', 3640)" onmouseover="showTip(event, '3640', 3640)">
                 <p>
                   <a id="Item1">
                     <a href="#Item1">
@@ -505,7 +564,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3415">
+              <div class="fsdocs-tip" id="3640">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.Item1</span></code>
@@ -535,7 +594,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3416', 3416)" onmouseover="showTip(event, '3416', 3416)">
+              <code onmouseout="hideTip(event, '3641', 3641)" onmouseover="showTip(event, '3641', 3641)">
                 <p>
                   <a id="Item2">
                     <a href="#Item2">
@@ -544,7 +603,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3416">
+              <div class="fsdocs-tip" id="3641">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.Item2</span></code>

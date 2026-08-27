@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="GatherTemp (issie)" />
+    <meta property="og:title" content="SimEpoch (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="GatherTemp (issie)">
+    <meta name="twitter:title" content="SimEpoch (issie)">
     
-    <title>GatherTemp (issie) | issie</title>
+    <title>SimEpoch (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -124,6 +124,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -142,8 +148,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -156,6 +174,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -325,6 +349,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -343,8 +373,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -357,6 +399,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -424,7 +472,7 @@
     <div id="content">
         <div>
   <h2>
-    GatherTemp Type
+    SimEpoch Type
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
@@ -438,8 +486,8 @@
     </dt>
     <dt>
       Parent Module: 
-      <a href="/issie/reference/global-simtypes.html">
-        SimTypes
+      <a href="/issie/reference/global-commontypes.html">
+        CommonTypes
       </a>
     </dt>
     <dt>
@@ -448,11 +496,11 @@
     </dt>
     <dt>
       All Interfaces: 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/simtypes-gathertemp.html">GatherTemp</a>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/commontypes-simepoch.html">SimEpoch</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
       , 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/simtypes-gathertemp.html">GatherTemp</a>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/commontypes-simepoch.html">SimEpoch</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
       , 
@@ -462,26 +510,23 @@
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         GatherTemp is the output type used to accumulate lists of data links when recursively exploring SimulationGraph
- as first step in flattening it.
- Each list of pairs is converted into a map at the end in the final GatherData structure
- The cost of creating maps makes it important to use lists here as the intermediate structures
+         Bumped by every simulation build. Every cached entry and every reply in flight carries the
+ epoch it belongs to, so an answer from a superseded build is discarded rather than displayed.
       </p>
     </div>
   </div>
   <div></div>
   <div></div>
   <div></div>
-  <div></div>
   <div>
     <h3>
-      Record fields
+      Union cases
     </h3>
     <table class="table outer-list fsdocs-member-list">
       <thead>
         <tr>
           <td class="fsdocs-member-list-header">
-            Record Field
+            Union case
           </td>
           <td class="fsdocs-member-list-header">
             Description
@@ -492,162 +537,54 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '6059', 6059)" onmouseover="showTip(event, '6059', 6059)">
+              <code onmouseout="hideTip(event, '3798', 3798)" onmouseover="showTip(event, '3798', 3798)">
                 <p>
-                  <a id="AllCompsT">
-                    <a href="#AllCompsT">
-                      <code>AllCompsT</code>
+                  <a id="SimEpoch">
+                    <a href="#SimEpoch">
+                      <code><span>SimEpoch&#32;int</span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="6059">
+              <div class="fsdocs-tip" id="3798">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code>AllCompsT</code>
+                  <code><span>SimEpoch&#32;int</span></code>
                   <br/>
                   <br/>
-                  <span>
-                    Field type: 
-                    <code><span><span>(<span><span>(<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;*&#32;<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></span>)</span>&#32;*&#32;<span>(<span><a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;*&#32;<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></span>)</span></span>)</span>&#32;list</span></code>
-                  </span>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        Item
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                  </ul>
                   <br/>
                 </div>
               </div>
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Field type: 
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  Item
                 </span>
-                <code><span><span>(<span><span>(<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;*&#32;<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></span>)</span>&#32;*&#32;<span>(<span><a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;*&#32;<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></span>)</span></span>)</span>&#32;list</span></code>
+                :
+                <code>int</code>
               </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '6060', 6060)" onmouseover="showTip(event, '6060', 6060)">
-                <p>
-                  <a id="CustomInputCompLinksT">
-                    <a href="#CustomInputCompLinksT">
-                      <code>CustomInputCompLinksT</code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="6060">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code>CustomInputCompLinksT</code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Field type: 
-                    <code><span><span>(<span><span>(<span><a href="/issie/reference/commontypes-fcomponentid.html">FComponentId</a>&#32;*&#32;<a href="/issie/reference/commontypes-inputportnumber.html">InputPortNumber</a></span>)</span>&#32;*&#32;<a href="/issie/reference/commontypes-fcomponentid.html">FComponentId</a></span>)</span>&#32;list</span></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Field type: 
-                </span>
-                <code><span><span>(<span><span>(<span><a href="/issie/reference/commontypes-fcomponentid.html">FComponentId</a>&#32;*&#32;<a href="/issie/reference/commontypes-inputportnumber.html">InputPortNumber</a></span>)</span>&#32;*&#32;<a href="/issie/reference/commontypes-fcomponentid.html">FComponentId</a></span>)</span>&#32;list</span></code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '6061', 6061)" onmouseover="showTip(event, '6061', 6061)">
-                <p>
-                  <a id="CustomOutputCompLinksT">
-                    <a href="#CustomOutputCompLinksT">
-                      <code>CustomOutputCompLinksT</code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="6061">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code>CustomOutputCompLinksT</code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Field type: 
-                    <code><span><span>(<span><a href="/issie/reference/commontypes-fcomponentid.html">FComponentId</a>&#32;*&#32;<span>(<span><a href="/issie/reference/commontypes-fcomponentid.html">FComponentId</a>&#32;*&#32;<a href="/issie/reference/commontypes-outputportnumber.html">OutputPortNumber</a></span>)</span></span>)</span>&#32;list</span></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Field type: 
-                </span>
-                <code><span><span>(<span><a href="/issie/reference/commontypes-fcomponentid.html">FComponentId</a>&#32;*&#32;<span>(<span><a href="/issie/reference/commontypes-fcomponentid.html">FComponentId</a>&#32;*&#32;<a href="/issie/reference/commontypes-outputportnumber.html">OutputPortNumber</a></span>)</span></span>)</span>&#32;list</span></code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '6062', 6062)" onmouseover="showTip(event, '6062', 6062)">
-                <p>
-                  <a id="Labels">
-                    <a href="#Labels">
-                      <code>Labels</code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="6062">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code>Labels</code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Field type: 
-                    <code><span><span>(<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;*&#32;string</span>)</span>&#32;list</span></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Field type: 
-                </span>
-                <code><span><span>(<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;*&#32;string</span>)</span>&#32;list</span></code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
+              <dd class="fsdocs-param-docs"></dd>
             </dl>
           </td>
         </tr>
       </tbody>
     </table>
   </div>
+  <div></div>
   <div></div>
   <div></div>
   <div></div>

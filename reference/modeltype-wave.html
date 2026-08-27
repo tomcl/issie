@@ -124,6 +124,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -142,8 +148,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -156,6 +174,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -325,6 +349,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -343,8 +373,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -357,6 +399,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -451,12 +499,18 @@
       <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/modeltype-wave.html">Wave</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
+      , 
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/modeltype-wave.html">Wave</a>&gt;</span></code>
+      , 
+      <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
+      , 
+      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralcomparable">IStructuralComparable</a></code>
     </dt>
   </dl>
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         Information required to display a waveform.
+        
       </p>
     </div>
   </div>
@@ -483,7 +537,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5359', 5359)" onmouseover="showTip(event, '5359', 5359)">
+              <code onmouseout="hideTip(event, '5696', 5696)" onmouseover="showTip(event, '5696', 5696)">
                 <p>
                   <a id="CompLabel">
                     <a href="#CompLabel">
@@ -492,7 +546,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5359">
+              <div class="fsdocs-tip" id="5696">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>CompLabel</code>
@@ -511,7 +565,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L284-284" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L427-427" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -534,58 +588,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5360', 5360)" onmouseover="showTip(event, '5360', 5360)">
-                <p>
-                  <a id="CycleWidth">
-                    <a href="#CycleWidth">
-                      <code>CycleWidth</code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5360">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code>CycleWidth</code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Field type: 
-                    <code>float</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L270-270" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     width of one cycle: TODO - remove this and stretch SVGs to fit
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Field type: 
-                  </span>
-                  <code>float</code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5361', 5361)" onmouseover="showTip(event, '5361', 5361)">
+              <code onmouseout="hideTip(event, '5697', 5697)" onmouseover="showTip(event, '5697', 5697)">
                 <p>
                   <a id="DisplayName">
                     <a href="#DisplayName">
@@ -594,7 +597,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5361">
+              <div class="fsdocs-tip" id="5697">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>DisplayName</code>
@@ -624,7 +627,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5362', 5362)" onmouseover="showTip(event, '5362', 5362)">
+              <code onmouseout="hideTip(event, '5698', 5698)" onmouseover="showTip(event, '5698', 5698)">
                 <p>
                   <a id="DriverIndex">
                     <a href="#DriverIndex">
@@ -633,7 +636,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5362">
+              <div class="fsdocs-tip" id="5698">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>DriverIndex</code>
@@ -652,7 +655,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L290-290" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L433-433" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -675,109 +678,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5363', 5363)" onmouseover="showTip(event, '5363', 5363)">
-                <p>
-                  <a id="HatchedCycles">
-                    <a href="#HatchedCycles">
-                      <code>HatchedCycles</code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5363">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code>HatchedCycles</code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Field type: 
-                    <code><a href="/issie/reference/modeltype-gapstore.html">GapStore</a></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L294-294" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     Hatched (greyed out) Gaps in waveform
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Field type: 
-                  </span>
-                  <code><a href="/issie/reference/modeltype-gapstore.html">GapStore</a></code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5364', 5364)" onmouseover="showTip(event, '5364', 5364)">
-                <p>
-                  <a id="Multiplier">
-                    <a href="#Multiplier">
-                      <code>Multiplier</code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5364">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code>Multiplier</code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Field type: 
-                    <code>int</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L268-268" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     rate at which the simulated waveforms are sampled to achive very high zooms
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Field type: 
-                  </span>
-                  <code>int</code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5365', 5365)" onmouseover="showTip(event, '5365', 5365)">
+              <code onmouseout="hideTip(event, '5699', 5699)" onmouseover="showTip(event, '5699', 5699)">
                 <p>
                   <a id="PortLabel">
                     <a href="#PortLabel">
@@ -786,7 +687,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5365">
+              <div class="fsdocs-tip" id="5699">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>PortLabel</code>
@@ -805,7 +706,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L286-286" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L429-429" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -828,109 +729,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5366', 5366)" onmouseover="showTip(event, '5366', 5366)">
-                <p>
-                  <a id="Radix">
-                    <a href="#Radix">
-                      <code>Radix</code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5366">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code>Radix</code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Field type: 
-                    <code><a href="/issie/reference/commontypes-numberbase.html">NumberBase</a></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L272-272" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     radix of waveform numbers
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Field type: 
-                  </span>
-                  <code><a href="/issie/reference/commontypes-numberbase.html">NumberBase</a></code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5367', 5367)" onmouseover="showTip(event, '5367', 5367)">
-                <p>
-                  <a id="SVG">
-                    <a href="#SVG">
-                      <code>SVG</code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5367">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code>SVG</code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Field type: 
-                    <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.react.reactelement">ReactElement</a>&#32;option</span></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L292-292" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     SVG of waveform
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Field type: 
-                  </span>
-                  <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.react.reactelement">ReactElement</a>&#32;option</span></code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5368', 5368)" onmouseover="showTip(event, '5368', 5368)">
+              <code onmouseout="hideTip(event, '5700', 5700)" onmouseover="showTip(event, '5700', 5700)">
                 <p>
                   <a id="SheetId">
                     <a href="#SheetId">
@@ -939,7 +738,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5368">
+              <div class="fsdocs-tip" id="5700">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>SheetId</code>
@@ -947,7 +746,7 @@
                   <br/>
                   <span>
                     Field type: 
-                    <code>string</code>
+                    <code><a href="/issie/reference/commontypes-instancepath.html">InstancePath</a></code>
                   </span>
                   <br/>
                 </div>
@@ -958,12 +757,12 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L276-276" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L419-419" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
                      Which INSTANCE of a sheet the waveform is in, as the path of custom component labels down to
- it - the FastComponent's SimSheetName, which is unique across the simulation. Not something
+ it - the path of custom components down to it, which is unique by construction. Not something
  to show anyone: for the sheet's own name use FastSimulation.getSheetNameOfInstance.
                   </p>
                 </div>
@@ -973,7 +772,7 @@
                   <span class="fsdocs-return-name">
                     Field type: 
                   </span>
-                  <code>string</code>
+                  <code><a href="/issie/reference/commontypes-instancepath.html">InstancePath</a></code>
                 </dt>
                 <dd class="fsdocs-return-docs"></dd>
               </dl>
@@ -983,109 +782,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5369', 5369)" onmouseover="showTip(event, '5369', 5369)">
-                <p>
-                  <a id="ShownCycles">
-                    <a href="#ShownCycles">
-                      <code>ShownCycles</code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5369">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code>ShownCycles</code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Field type: 
-                    <code>int</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L266-266" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     Number of cycles displayed
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Field type: 
-                  </span>
-                  <code>int</code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5370', 5370)" onmouseover="showTip(event, '5370', 5370)">
-                <p>
-                  <a id="StartCycle">
-                    <a href="#StartCycle">
-                      <code>StartCycle</code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5370">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code>StartCycle</code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Field type: 
-                    <code>int</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L264-264" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     First cycle displayed
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Field type: 
-                  </span>
-                  <code>int</code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5371', 5371)" onmouseover="showTip(event, '5371', 5371)">
+              <code onmouseout="hideTip(event, '5701', 5701)" onmouseover="showTip(event, '5701', 5701)">
                 <p>
                   <a id="SubSheet">
                     <a href="#SubSheet">
@@ -1094,7 +791,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5371">
+              <div class="fsdocs-tip" id="5701">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>SubSheet</code>
@@ -1113,7 +810,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L279-279" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L422-422" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1137,7 +834,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5372', 5372)" onmouseover="showTip(event, '5372', 5372)">
+              <code onmouseout="hideTip(event, '5702', 5702)" onmouseover="showTip(event, '5702', 5702)">
                 <p>
                   <a id="ViewerDisplayName">
                     <a href="#ViewerDisplayName">
@@ -1146,7 +843,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5372">
+              <div class="fsdocs-tip" id="5702">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>ViewerDisplayName</code>
@@ -1165,7 +862,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L282-282" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L425-425" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1188,7 +885,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5373', 5373)" onmouseover="showTip(event, '5373', 5373)">
+              <code onmouseout="hideTip(event, '5703', 5703)" onmouseover="showTip(event, '5703', 5703)">
                 <p>
                   <a id="WaveId">
                     <a href="#WaveId">
@@ -1197,7 +894,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5373">
+              <div class="fsdocs-tip" id="5703">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>WaveId</code>
@@ -1216,7 +913,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L262-262" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L415-415" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1239,7 +936,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5374', 5374)" onmouseover="showTip(event, '5374', 5374)">
+              <code onmouseout="hideTip(event, '5704', 5704)" onmouseover="showTip(event, '5704', 5704)">
                 <p>
                   <a id="Width">
                     <a href="#Width">
@@ -1248,7 +945,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5374">
+              <div class="fsdocs-tip" id="5704">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>Width</code>
@@ -1267,7 +964,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L288-288" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L431-431" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

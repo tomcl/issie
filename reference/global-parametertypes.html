@@ -124,6 +124,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -142,8 +148,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -156,6 +174,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -325,6 +349,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -343,8 +373,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -357,6 +399,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -490,6 +538,37 @@
         <tr>
           <td class="fsdocs-entity-name">
             <p>
+              <a name="JSONParams">
+                <a href="/issie/reference/parametertypes-jsonparams.html">
+                  JSONParams
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:ParameterTypes.JSONParams`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ParameterTypes.JSONParams\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L340-340" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 JSON twins of the slot types, for .dgm files - which store component ids as STRINGS (old
+ files hold uuids, new files hold integers written as strings), while the in-memory types
+ above hold integers. Field names match the in-memory types exactly so the on-disk JSON is
+ unchanged. Conversion is by the id-mapping functions the loader supplies: the loader decides
+ what an id string becomes (parse, or allocate a fresh integer for a uuid).
+              </p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
               <a name="CompSlotName">
                 <a href="/issie/reference/parametertypes-compslotname.html">
                   CompSlotName
@@ -536,7 +615,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ParameterTypes.ComponentSlotExpr\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L302-302" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L299-299" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -565,7 +644,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ParameterTypes.ConstrainedExpr\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L218-218" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L214-214" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -592,7 +671,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ParameterTypes.NewParamCompSpec\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L228-228" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L224-224" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -649,7 +728,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ParameterTypes.ParamBindings\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L275-275" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L272-272" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -678,7 +757,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ParameterTypes.ParamBoxDialogState\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L266-266" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L262-262" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -689,7 +768,7 @@
  Slot names are shared by construction - every component with a width has `Buswidth`, every
  instance of one sheet has `CustomCompParam "w"` - so keying on the name alone meant one
  component's box read another's entry, and selecting a second component showed the first's error
- on it in red. A popup has no component and uses an empty CompId; its entries are cleared
+ on it in red. A popup has no component and uses CompId 0; its entries are cleared
  wholesale when the popup closes.
               </p>
             </div>
@@ -713,7 +792,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ParameterTypes.ParamBoxState\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L252-252" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L248-248" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -779,7 +858,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ParameterTypes.ParamDefinition\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L281-281" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L278-278" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -809,7 +888,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ParameterTypes.ParamDefinitions\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L291-291" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L288-288" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -964,17 +1043,13 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ParameterTypes.ParamSlot\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L193-193" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L189-189" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
-                 A slot in a component instance that can be bound to a parameter expression
- CompId should be a ComponentId but then we would need these types to be defined after CommonTypes.
- That is not possible, because we will wnat to modify CommonTypes types to use these!
- eventually these types can be folded into CommonTypes, and that could if need be be made recursive so
- solving the problem.
- In practice this is OK because ParamSlot is strongly typed and we will not be likely to confused CompID with any
- other string.
+                 A slot in a component instance that can be bound to a parameter expression.
+ CompId is the integer id of the component (it would be a ComponentId, but these types compile
+ before CommonTypes); 0 is the sentinel for "no component" - a popup's dialog box.
               </p>
             </div>
           </td>
@@ -997,7 +1072,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ParameterTypes.ParameterDefs\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L329-329" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L326-326" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -1031,7 +1106,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1688', 1688)" onmouseover="showTip(event, '1688', 1688)">
+              <code onmouseout="hideTip(event, '1762', 1762)" onmouseover="showTip(event, '1762', 1762)">
                 <p>
                   <a id="addSlot">
                     <a href="#addSlot">
@@ -1040,7 +1115,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1688">
+              <div class="fsdocs-tip" id="1762">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>addSlot&#32;<span>slot&#32;exprSpec&#32;slots</span></span></code>
@@ -1093,7 +1168,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterTypes.addSlot\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L318-318" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L315-315" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1142,7 +1217,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1689', 1689)" onmouseover="showTip(event, '1689', 1689)">
+              <code onmouseout="hideTip(event, '1763', 1763)" onmouseover="showTip(event, '1763', 1763)">
                 <p>
                   <a id="binFuncName">
                     <a href="#binFuncName">
@@ -1151,7 +1226,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1689">
+              <div class="fsdocs-tip" id="1763">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>binFuncName&#32;<span>func</span></span></code>
@@ -1222,7 +1297,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1690', 1690)" onmouseover="showTip(event, '1690', 1690)">
+              <code onmouseout="hideTip(event, '1764', 1764)" onmouseover="showTip(event, '1764', 1764)">
                 <p>
                   <a id="bindingsOf">
                     <a href="#bindingsOf">
@@ -1231,7 +1306,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1690">
+              <div class="fsdocs-tip" id="1764">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>bindingsOf&#32;<span>defs</span></span></code>
@@ -1268,7 +1343,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterTypes.bindingsOf\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L295-295" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L292-292" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1302,7 +1377,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1691', 1691)" onmouseover="showTip(event, '1691', 1691)">
+              <code onmouseout="hideTip(event, '1765', 1765)" onmouseover="showTip(event, '1765', 1765)">
                 <p>
                   <a id="cLog2Name">
                     <a href="#cLog2Name">
@@ -1311,7 +1386,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1691">
+              <div class="fsdocs-tip" id="1765">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>cLog2Name&#32;<span></span></span></code>
@@ -1359,7 +1434,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1692', 1692)" onmouseover="showTip(event, '1692', 1692)">
+              <code onmouseout="hideTip(event, '1766', 1766)" onmouseover="showTip(event, '1766', 1766)">
                 <p>
                   <a id="clog2">
                     <a href="#clog2">
@@ -1368,7 +1443,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1692">
+              <div class="fsdocs-tip" id="1766">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>clog2&#32;<span>n</span></span></code>
@@ -1446,7 +1521,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1693', 1693)" onmouseover="showTip(event, '1693', 1693)">
+              <code onmouseout="hideTip(event, '1767', 1767)" onmouseover="showTip(event, '1767', 1767)">
                 <p>
                   <a id="compId_">
                     <a href="#compId_">
@@ -1455,7 +1530,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1693">
+              <div class="fsdocs-tip" id="1767">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>compId_&#32;<span></span></span></code>
@@ -1463,7 +1538,7 @@
                   <br/>
                   <span>
                     Returns: 
-                    <code><span><a href="/issie/reference/optics-lens-2.html">Lens</a>&lt;<span><a href="/issie/reference/parametertypes-paramslot.html">ParamSlot</a>,&#32;string</span>&gt;</span></code>
+                    <code><span><a href="/issie/reference/optics-lens-2.html">Lens</a>&lt;<span><a href="/issie/reference/parametertypes-paramslot.html">ParamSlot</a>,&#32;int</span>&gt;</span></code>
                   </span>
                   <br/>
                 </div>
@@ -1480,7 +1555,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:ParameterTypes.compId_\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L196-196" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L192-192" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1493,7 +1568,7 @@
                   <span class="fsdocs-return-name">
                     Returns: 
                   </span>
-                  <code><span><a href="/issie/reference/optics-lens-2.html">Lens</a>&lt;<span><a href="/issie/reference/parametertypes-paramslot.html">ParamSlot</a>,&#32;string</span>&gt;</span></code>
+                  <code><span><a href="/issie/reference/optics-lens-2.html">Lens</a>&lt;<span><a href="/issie/reference/parametertypes-paramslot.html">ParamSlot</a>,&#32;int</span>&gt;</span></code>
                 </dt>
                 <dd class="fsdocs-return-docs"></dd>
               </dl>
@@ -1503,7 +1578,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1694', 1694)" onmouseover="showTip(event, '1694', 1694)">
+              <code onmouseout="hideTip(event, '1768', 1768)" onmouseover="showTip(event, '1768', 1768)">
                 <p>
                   <a id="compSlot_">
                     <a href="#compSlot_">
@@ -1512,7 +1587,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1694">
+              <div class="fsdocs-tip" id="1768">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>compSlot_&#32;<span></span></span></code>
@@ -1542,7 +1617,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1695', 1695)" onmouseover="showTip(event, '1695', 1695)">
+              <code onmouseout="hideTip(event, '1769', 1769)" onmouseover="showTip(event, '1769', 1769)">
                 <p>
                   <a id="constraints_">
                     <a href="#constraints_">
@@ -1551,7 +1626,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1695">
+              <div class="fsdocs-tip" id="1769">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>constraints_&#32;<span></span></span></code>
@@ -1581,7 +1656,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1696', 1696)" onmouseover="showTip(event, '1696', 1696)">
+              <code onmouseout="hideTip(event, '1770', 1770)" onmouseover="showTip(event, '1770', 1770)">
                 <p>
                   <a id="defaultBindings_">
                     <a href="#defaultBindings_">
@@ -1590,7 +1665,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1696">
+              <div class="fsdocs-tip" id="1770">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>defaultBindings_&#32;<span></span></span></code>
@@ -1615,7 +1690,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:ParameterTypes.defaultBindings_\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L335-335" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L332-332" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1638,7 +1713,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1697', 1697)" onmouseover="showTip(event, '1697', 1697)">
+              <code onmouseout="hideTip(event, '1771', 1771)" onmouseover="showTip(event, '1771', 1771)">
                 <p>
                   <a id="evaluateParamExpression">
                     <a href="#evaluateParamExpression">
@@ -1647,7 +1722,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1697">
+              <div class="fsdocs-tip" id="1771">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>evaluateParamExpression&#32;<span>paramBindings&#32;paramExpr</span></span></code>
@@ -1700,7 +1775,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterTypes.evaluateParamExpression\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L353-353" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L388-388" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1766,7 +1841,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1698', 1698)" onmouseover="showTip(event, '1698', 1698)">
+              <code onmouseout="hideTip(event, '1772', 1772)" onmouseover="showTip(event, '1772', 1772)">
                 <p>
                   <a id="exprContainsParams">
                     <a href="#exprContainsParams">
@@ -1775,7 +1850,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1698">
+              <div class="fsdocs-tip" id="1772">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>exprContainsParams&#32;<span>expression</span></span></code>
@@ -1815,7 +1890,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterTypes.exprContainsParams\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L752-752" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L787-787" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1864,7 +1939,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1699', 1699)" onmouseover="showTip(event, '1699', 1699)">
+              <code onmouseout="hideTip(event, '1773', 1773)" onmouseover="showTip(event, '1773', 1773)">
                 <p>
                   <a id="expression_">
                     <a href="#expression_">
@@ -1873,7 +1948,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1699">
+              <div class="fsdocs-tip" id="1773">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>expression_&#32;<span></span></span></code>
@@ -1898,7 +1973,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:ParameterTypes.expression_\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L224-224" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L220-220" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1921,7 +1996,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1700', 1700)" onmouseover="showTip(event, '1700', 1700)">
+              <code onmouseout="hideTip(event, '1774', 1774)" onmouseover="showTip(event, '1774', 1774)">
                 <p>
                   <a id="intOfParamInt">
                     <a href="#intOfParamInt">
@@ -1930,7 +2005,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1700">
+              <div class="fsdocs-tip" id="1774">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>intOfParamInt&#32;<span>ifTooLarge&#32;value</span></span></code>
@@ -2021,7 +2096,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1701', 1701)" onmouseover="showTip(event, '1701', 1701)">
+              <code onmouseout="hideTip(event, '1775', 1775)" onmouseover="showTip(event, '1775', 1775)">
                 <p>
                   <a id="isBuiltinFuncName">
                     <a href="#isBuiltinFuncName">
@@ -2030,7 +2105,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1701">
+              <div class="fsdocs-tip" id="1775">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>isBuiltinFuncName&#32;<span>name</span></span></code>
@@ -2101,7 +2176,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1702', 1702)" onmouseover="showTip(event, '1702', 1702)">
+              <code onmouseout="hideTip(event, '1776', 1776)" onmouseover="showTip(event, '1776', 1776)">
                 <p>
                   <a id="isReservedParamName">
                     <a href="#isReservedParamName">
@@ -2110,7 +2185,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1702">
+              <div class="fsdocs-tip" id="1776">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>isReservedParamName&#32;<span>name</span></span></code>
@@ -2147,7 +2222,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterTypes.isReservedParamName\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L508-508" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L543-543" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2182,7 +2257,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1703', 1703)" onmouseover="showTip(event, '1703', 1703)">
+              <code onmouseout="hideTip(event, '1777', 1777)" onmouseover="showTip(event, '1777', 1777)">
                 <p>
                   <a id="isValidParamName">
                     <a href="#isValidParamName">
@@ -2191,7 +2266,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1703">
+              <div class="fsdocs-tip" id="1777">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>isValidParamName&#32;<span>name</span></span></code>
@@ -2228,7 +2303,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterTypes.isValidParamName\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L526-526" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L561-561" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2268,7 +2343,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1704', 1704)" onmouseover="showTip(event, '1704', 1704)">
+              <code onmouseout="hideTip(event, '1778', 1778)" onmouseover="showTip(event, '1778', 1778)">
                 <p>
                   <a id="newParamCompSlot_">
                     <a href="#newParamCompSlot_">
@@ -2277,7 +2352,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1704">
+              <div class="fsdocs-tip" id="1778">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>newParamCompSlot_&#32;<span></span></span></code>
@@ -2302,7 +2377,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:ParameterTypes.newParamCompSlot_\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L236-236" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L232-232" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2325,7 +2400,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1705', 1705)" onmouseover="showTip(event, '1705', 1705)">
+              <code onmouseout="hideTip(event, '1779', 1779)" onmouseover="showTip(event, '1779', 1779)">
                 <p>
                   <a id="newParamConstraints_">
                     <a href="#newParamConstraints_">
@@ -2334,7 +2409,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1705">
+              <div class="fsdocs-tip" id="1779">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>newParamConstraints_&#32;<span></span></span></code>
@@ -2364,7 +2439,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1706', 1706)" onmouseover="showTip(event, '1706', 1706)">
+              <code onmouseout="hideTip(event, '1780', 1780)" onmouseover="showTip(event, '1780', 1780)">
                 <p>
                   <a id="newParamExpression_">
                     <a href="#newParamExpression_">
@@ -2373,7 +2448,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1706">
+              <div class="fsdocs-tip" id="1780">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>newParamExpression_&#32;<span></span></span></code>
@@ -2403,7 +2478,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1707', 1707)" onmouseover="showTip(event, '1707', 1707)">
+              <code onmouseout="hideTip(event, '1781', 1781)" onmouseover="showTip(event, '1781', 1781)">
                 <p>
                   <a id="newParamValue_">
                     <a href="#newParamValue_">
@@ -2412,7 +2487,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1707">
+              <div class="fsdocs-tip" id="1781">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>newParamValue_&#32;<span></span></span></code>
@@ -2442,7 +2517,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1708', 1708)" onmouseover="showTip(event, '1708', 1708)">
+              <code onmouseout="hideTip(event, '1782', 1782)" onmouseover="showTip(event, '1782', 1782)">
                 <p>
                   <a id="paramBoxKey">
                     <a href="#paramBoxKey">
@@ -2451,7 +2526,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1708">
+              <div class="fsdocs-tip" id="1782">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>paramBoxKey&#32;<span>compId&#32;slot</span></span></code>
@@ -2464,7 +2539,7 @@
                         compId
                       </b>
                       :
-                      <code><span>string&#32;option</span></code>
+                      <code><span>int&#32;option</span></code>
                     </span>
                     <br/>
                     <span>
@@ -2496,11 +2571,12 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterTypes.paramBoxKey\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L269-269" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L266-266" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
                      The dialog-state key for a box belonging to a component, or to a popup where there is none.
+ 0 is never a real component id - the allocator hands out ids from 1 - so it means "popup".
                   </p>
                 </div>
               </summary>
@@ -2510,7 +2586,7 @@
                     compId
                   </span>
                   :
-                  <code><span>string&#32;option</span></code>
+                  <code><span>int&#32;option</span></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
@@ -2537,7 +2613,145 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1709', 1709)" onmouseover="showTip(event, '1709', 1709)">
+              <code onmouseout="hideTip(event, '1783', 1783)" onmouseover="showTip(event, '1783', 1783)">
+                <p>
+                  <a id="paramDefsOfJson">
+                    <a href="#paramDefsOfJson">
+                      <code><span>paramDefsOfJson&#32;<span>mapCompId&#32;defs</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1783">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>paramDefsOfJson&#32;<span>mapCompId&#32;defs</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        mapCompId
+                      </b>
+                      :
+                      <code><span>string&#32;->&#32;int</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        defs
+                      </b>
+                      :
+                      <code><a href="/issie/reference/parametertypes-jsonparams-parameterdefs.html">ParameterDefs</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/parametertypes-parameterdefs.html">ParameterDefs</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  mapCompId
+                </span>
+                :
+                <code><span>string&#32;->&#32;int</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  defs
+                </span>
+                :
+                <code><a href="/issie/reference/parametertypes-jsonparams-parameterdefs.html">ParameterDefs</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/parametertypes-parameterdefs.html">ParameterDefs</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1784', 1784)" onmouseover="showTip(event, '1784', 1784)">
+                <p>
+                  <a id="paramDefsToJson">
+                    <a href="#paramDefsToJson">
+                      <code><span>paramDefsToJson&#32;<span>defs</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1784">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>paramDefsToJson&#32;<span>defs</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        defs
+                      </b>
+                      :
+                      <code><a href="/issie/reference/parametertypes-parameterdefs.html">ParameterDefs</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/parametertypes-jsonparams-parameterdefs.html">ParameterDefs</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  defs
+                </span>
+                :
+                <code><a href="/issie/reference/parametertypes-parameterdefs.html">ParameterDefs</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/parametertypes-jsonparams-parameterdefs.html">ParameterDefs</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1785', 1785)" onmouseover="showTip(event, '1785', 1785)">
                 <p>
                   <a id="paramDescription_">
                     <a href="#paramDescription_">
@@ -2546,7 +2760,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1709">
+              <div class="fsdocs-tip" id="1785">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>paramDescription_&#32;<span></span></span></code>
@@ -2576,7 +2790,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1710', 1710)" onmouseover="showTip(event, '1710', 1710)">
+              <code onmouseout="hideTip(event, '1786', 1786)" onmouseover="showTip(event, '1786', 1786)">
                 <p>
                   <a id="paramExpression_">
                     <a href="#paramExpression_">
@@ -2585,7 +2799,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1710">
+              <div class="fsdocs-tip" id="1786">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>paramExpression_&#32;<span></span></span></code>
@@ -2610,7 +2824,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:ParameterTypes.paramExpression_\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L287-287" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L284-284" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2633,7 +2847,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1711', 1711)" onmouseover="showTip(event, '1711', 1711)">
+              <code onmouseout="hideTip(event, '1787', 1787)" onmouseover="showTip(event, '1787', 1787)">
                 <p>
                   <a id="paramNamesOfExpr">
                     <a href="#paramNamesOfExpr">
@@ -2642,7 +2856,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1711">
+              <div class="fsdocs-tip" id="1787">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>paramNamesOfExpr&#32;<span>expression</span></span></code>
@@ -2679,7 +2893,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterTypes.paramNamesOfExpr\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L769-769" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L804-804" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2713,7 +2927,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1712', 1712)" onmouseover="showTip(event, '1712', 1712)">
+              <code onmouseout="hideTip(event, '1788', 1788)" onmouseover="showTip(event, '1788', 1788)">
                 <p>
                   <a id="paramNamesOfSlot">
                     <a href="#paramNamesOfSlot">
@@ -2722,7 +2936,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1712">
+              <div class="fsdocs-tip" id="1788">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>paramNamesOfSlot&#32;<span>exprSpec</span></span></code>
@@ -2759,7 +2973,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterTypes.paramNamesOfSlot\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L788-788" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L823-823" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2792,7 +3006,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1713', 1713)" onmouseover="showTip(event, '1713', 1713)">
+              <code onmouseout="hideTip(event, '1789', 1789)" onmouseover="showTip(event, '1789', 1789)">
                 <p>
                   <a id="paramSlots_">
                     <a href="#paramSlots_">
@@ -2801,7 +3015,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1713">
+              <div class="fsdocs-tip" id="1789">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>paramSlots_&#32;<span></span></span></code>
@@ -2831,7 +3045,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1714', 1714)" onmouseover="showTip(event, '1714', 1714)">
+              <code onmouseout="hideTip(event, '1790', 1790)" onmouseover="showTip(event, '1790', 1790)">
                 <p>
                   <a id="parseExpression">
                     <a href="#parseExpression">
@@ -2840,7 +3054,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1714">
+              <div class="fsdocs-tip" id="1790">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>parseExpression&#32;<span>text</span></span></code>
@@ -2883,7 +3097,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterTypes.parseExpression\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L555-555" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L590-590" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2949,7 +3163,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1715', 1715)" onmouseover="showTip(event, '1715', 1715)">
+              <code onmouseout="hideTip(event, '1791', 1791)" onmouseover="showTip(event, '1791', 1791)">
                 <p>
                   <a id="removeSlot">
                     <a href="#removeSlot">
@@ -2958,7 +3172,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1715">
+              <div class="fsdocs-tip" id="1791">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>removeSlot&#32;<span>slot&#32;slots</span></span></code>
@@ -3003,7 +3217,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterTypes.removeSlot\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L322-322" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L319-319" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3044,7 +3258,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1716', 1716)" onmouseover="showTip(event, '1716', 1716)">
+              <code onmouseout="hideTip(event, '1792', 1792)" onmouseover="showTip(event, '1792', 1792)">
                 <p>
                   <a id="renderParamExpression">
                     <a href="#renderParamExpression">
@@ -3053,7 +3267,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1716">
+              <div class="fsdocs-tip" id="1792">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>renderParamExpression&#32;<span>expr&#32;precedence</span></span></code>
@@ -3103,7 +3317,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterTypes.renderParamExpression\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L453-453" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L488-488" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3168,7 +3382,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1717', 1717)" onmouseover="showTip(event, '1717', 1717)">
+              <code onmouseout="hideTip(event, '1793', 1793)" onmouseover="showTip(event, '1793', 1793)">
                 <p>
                   <a id="sameSlot">
                     <a href="#sameSlot">
@@ -3177,7 +3391,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1717">
+              <div class="fsdocs-tip" id="1793">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sameSlot&#32;<span>a&#32;b</span></span></code>
@@ -3222,7 +3436,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterTypes.sameSlot\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L214-214" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L210-210" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3263,7 +3477,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1718', 1718)" onmouseover="showTip(event, '1718', 1718)">
+              <code onmouseout="hideTip(event, '1794', 1794)" onmouseover="showTip(event, '1794', 1794)">
                 <p>
                   <a id="sameSlotName">
                     <a href="#sameSlotName">
@@ -3272,7 +3486,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1718">
+              <div class="fsdocs-tip" id="1794">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sameSlotName&#32;<span>a&#32;b</span></span></code>
@@ -3317,7 +3531,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterTypes.sameSlotName\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L208-208" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L204-204" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3366,7 +3580,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1719', 1719)" onmouseover="showTip(event, '1719', 1719)">
+              <code onmouseout="hideTip(event, '1795', 1795)" onmouseover="showTip(event, '1795', 1795)">
                 <p>
                   <a id="shiftLeftBy">
                     <a href="#shiftLeftBy">
@@ -3375,7 +3589,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1719">
+              <div class="fsdocs-tip" id="1795">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>shiftLeftBy&#32;<span>places&#32;value</span></span></code>
@@ -3467,7 +3681,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1720', 1720)" onmouseover="showTip(event, '1720', 1720)">
+              <code onmouseout="hideTip(event, '1796', 1796)" onmouseover="showTip(event, '1796', 1796)">
                 <p>
                   <a id="shiftRightBy">
                     <a href="#shiftRightBy">
@@ -3476,7 +3690,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1720">
+              <div class="fsdocs-tip" id="1796">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>shiftRightBy&#32;<span>places&#32;value</span></span></code>
@@ -3567,7 +3781,181 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1721', 1721)" onmouseover="showTip(event, '1721', 1721)">
+              <code onmouseout="hideTip(event, '1797', 1797)" onmouseover="showTip(event, '1797', 1797)">
+                <p>
+                  <a id="slotsOfJson">
+                    <a href="#slotsOfJson">
+                      <code><span>slotsOfJson&#32;<span>mapCompId&#32;slots</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1797">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>slotsOfJson&#32;<span>mapCompId&#32;slots</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        mapCompId
+                      </b>
+                      :
+                      <code><span>string&#32;->&#32;int</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        slots
+                      </b>
+                      :
+                      <code><a href="/issie/reference/parametertypes-jsonparams-componentslotexpr.html">ComponentSlotExpr</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/parametertypes-componentslotexpr.html">ComponentSlotExpr</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ParameterTypes.slotsOfJson`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterTypes.slotsOfJson\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L359-359" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     A saved slot map read back, id strings mapped by the loader's rule.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    mapCompId
+                  </span>
+                  :
+                  <code><span>string&#32;->&#32;int</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    slots
+                  </span>
+                  :
+                  <code><a href="/issie/reference/parametertypes-jsonparams-componentslotexpr.html">ComponentSlotExpr</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/parametertypes-componentslotexpr.html">ComponentSlotExpr</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1798', 1798)" onmouseover="showTip(event, '1798', 1798)">
+                <p>
+                  <a id="slotsToJson">
+                    <a href="#slotsToJson">
+                      <code><span>slotsToJson&#32;<span>slots</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1798">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>slotsToJson&#32;<span>slots</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        slots
+                      </b>
+                      :
+                      <code><a href="/issie/reference/parametertypes-componentslotexpr.html">ComponentSlotExpr</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/parametertypes-jsonparams-componentslotexpr.html">ComponentSlotExpr</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ParameterTypes.slotsToJson`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterTypes.slotsToJson\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L352-352" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The saved form of a slot map, component ids written as decimal strings.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    slots
+                  </span>
+                  :
+                  <code><a href="/issie/reference/parametertypes-componentslotexpr.html">ComponentSlotExpr</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/parametertypes-jsonparams-componentslotexpr.html">ComponentSlotExpr</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1799', 1799)" onmouseover="showTip(event, '1799', 1799)">
                 <p>
                   <a id="slotsUsingParam">
                     <a href="#slotsUsingParam">
@@ -3576,7 +3964,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1721">
+              <div class="fsdocs-tip" id="1799">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>slotsUsingParam&#32;<span>name&#32;slots</span></span></code>
@@ -3621,7 +4009,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterTypes.slotsUsingParam\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L797-797" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L832-832" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3664,7 +4052,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1722', 1722)" onmouseover="showTip(event, '1722', 1722)">
+              <code onmouseout="hideTip(event, '1800', 1800)" onmouseover="showTip(event, '1800', 1800)">
                 <p>
                   <a id="tryBuiltinBinFunc">
                     <a href="#tryBuiltinBinFunc">
@@ -3673,7 +4061,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1722">
+              <div class="fsdocs-tip" id="1800">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>tryBuiltinBinFunc&#32;<span>name</span></span></code>
@@ -3743,7 +4131,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1723', 1723)" onmouseover="showTip(event, '1723', 1723)">
+              <code onmouseout="hideTip(event, '1801', 1801)" onmouseover="showTip(event, '1801', 1801)">
                 <p>
                   <a id="tryFindSlot">
                     <a href="#tryFindSlot">
@@ -3752,7 +4140,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1723">
+              <div class="fsdocs-tip" id="1801">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>tryFindSlot&#32;<span>slot&#32;slots</span></span></code>
@@ -3797,7 +4185,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterTypes.tryFindSlot\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L306-306" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L303-303" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3839,7 +4227,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1724', 1724)" onmouseover="showTip(event, '1724', 1724)">
+              <code onmouseout="hideTip(event, '1802', 1802)" onmouseover="showTip(event, '1802', 1802)">
                 <p>
                   <a id="tryIntOfParamInt">
                     <a href="#tryIntOfParamInt">
@@ -3848,7 +4236,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1724">
+              <div class="fsdocs-tip" id="1802">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>tryIntOfParamInt&#32;<span>value</span></span></code>

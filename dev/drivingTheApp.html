@@ -127,6 +127,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -145,8 +151,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -159,6 +177,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -328,6 +352,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -346,8 +376,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -360,6 +402,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -430,6 +478,8 @@
 Issie messages, asking what state it is in, and knowing when it has finished responding.</p>
 <table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="bash">node scripts/drive.js state                 # what the app currently is, as JSON
 node scripts/drive.js refs                  # what is holding a simulation, and heap use
+node scripts/drive.js waves                 # what the waveform viewer shows, holds and awaits
+node scripts/drive.js wait &lt;expr&gt; [secs]    # block until a condition of the app holds
 node scripts/drive.js commands              # the commands send accepts
 node scripts/drive.js send &lt;name&gt; [arg]     # send one, and wait for the render it causes
 node scripts/drive.js script &lt;file.txt&gt;     # a command per line, each awaiting its render
@@ -455,6 +505,55 @@ open over the canvas, a button whose text is <code>See Problems</code> because t
 This is the one that causes wrong conclusions rather than slow ones.
 </li>
 </ul>
+<h2><a name="What-is-for" class="anchor" href="#What-is-for">What <code>waves</code> is for</a></h2>
+<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="json">{ "open_": true, "startCycle": 0, "shownCycles": 66, "samplingZoom": 1, "cursor": 0,
+  "selected": 8, "detailed": 8, "missing": 0, "drawn": 8, "drawnStart": 0, "stale": 0,
+  "fetchInProgress": false }
+</code></pre></td></tr></table>
+<p>Three separate questions the viewer's bugs live between: what the controls ask for (<code>startCycle</code>,
+<code>shownCycles</code>, <code>samplingZoom</code>), what the cache holds for the waves being drawn (<code>missing</code> is how
+many of them have not got that window), and whether a fetch is on its way to close the gap
+(<code>fetchInProgress</code>). <code>drawn</code> counts the waves with an SVG on screen, which may have been made for
+an older window - that is the deliberate fallback, not a fault.</p>
+<p>At rest, <code>missing</code> is 0 and <code>fetchInProgress</code> is false. <code>missing &gt; 0</code> with no fetch in progress and
+no update running is the fault the stale-waveform banner exists to make visible.</p>
+<p><code>drawnStart</code> is where the first drawn waveform actually starts. Under a fast scroll it runs behind
+<code>startCycle</code> and should be seen to FOLLOW it: a picture that sticks while <code>startCycle</code> moves is data
+arriving and not being drawn.</p>
+<p>Driving it: <code>startWaveSim</code> (the viewer's own Start button - <code>startSimulation</code> is the STEP
+simulator's), then <code>waveSelect &lt;n&gt;</code>, <code>ramSelect &lt;n&gt;</code>, <code>waveView "&lt;start&gt; [shown] [zoom]"</code>,
+<code>waveCursor &lt;n&gt;</code> and <code>waveConfig &lt;lastClock&gt;</code> (the Configure dialog's cycle count, which takes
+effect on the next start).</p>
+<p><code>sidecar.connected</code> says whether a socket is open, which it is once anything has fetched. Nothing
+needs to wait for the sidecar to start any more - the transport does that - so a script can ask for
+data as soon as the viewer is running and simply wait for it to arrive:
+<code>wait "waves.missing === 0" 90</code>.</p>
+<h2><a name="Waiting-for-a-condition-rather-than-for-a-duration" class="anchor" href="#Waiting-for-a-condition-rather-than-for-a-duration">Waiting for a condition rather than for a duration</a></h2>
+<p><code>send</code> waits for the render its message causes, which settles most things. What it does not settle
+is anything that continues afterwards: a build that runs on after the message that started it, a
+fetch answered by another process, a sidecar that is still starting up. For those, <code>wait</code> blocks on
+what is actually being waited for.</p>
+<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="bash">node scripts/drive.js wait "sidecar.connected"
+node scripts/drive.js wait "waves.state === 'Success'"
+node scripts/drive.js wait "waves.missing === 0 &amp;&amp; !waves.fetchInProgress" 300
+</code></pre></td></tr></table>
+<p>The expression is JavaScript with <code>state</code>, <code>waves</code>, <code>refs</code> and <code>sidecar</code> in scope - the four
+reporters - and the optional last argument is a timeout in seconds (60 by default). A wait that
+times out prints what the app actually was, which is the thing worth knowing when a sequence has
+gone wrong. <code>wait</code> works as a line in a script too, so a whole setup runs with no sleeps in it:</p>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">openProject</span> <span class="id">C</span><span class="pn">:</span><span class="o">/</span><span class="id">Users</span><span class="o">/</span><span class="id">me</span><span class="o">/</span><span class="id">Desktop</span><span class="o">/</span><span class="id">myProject</span>
+<span class="id">wait</span> <span class="id">state</span><span class="pn">.</span><span class="id">openSheet</span> <span class="o">===</span> <span class="id">&#39;</span><span class="id">eep1&#39;</span>
+<span class="id">simulateIn</span> <span class="id">sidecar</span>
+<span class="id">rightTab</span> <span class="id">Simulation</span>
+<span class="id">simSubTab</span> <span class="id">WaveSim</span>
+<span class="id">startWaveSim</span>
+<span class="id">wait</span> <span class="id">waves</span><span class="pn">.</span><span class="id">state</span> <span class="o">===</span> <span class="id">&#39;</span><span class="id">Success&#39;</span>
+<span class="id">waveSelect</span> <span class="n">8</span>
+<span class="id">wait</span> <span class="id">sidecar</span><span class="pn">.</span><span class="id">connected</span>
+<span class="id">wait</span> <span class="id">waves</span><span class="pn">.</span><span class="id">missing</span> <span class="o">===</span> <span class="n">0</span>
+</code></pre>
+<p>That sequence takes about two seconds. Written with sleeps long enough to be safe it took thirty,
+and still needed a second <code>startWaveSim</code> when the first one raced the canvas.</p>
 <h2><a name="A-script" class="anchor" href="#A-script">A script</a></h2>
 <p>One <code>&lt;name&gt; [arg]</code> per line; <code>#</code> comments and blank lines ignored. Each line waits for the render
 its message caused before the next is sent, so no sleeps are needed anywhere.</p>
@@ -464,15 +563,15 @@ its message caused before the next is sent, so no sleeps are needed anywhere.</p
 <span class="id">simSubTab</span> <span class="id">StepSim</span>
 <span class="id">startSimulation</span>
 </code></pre>
-<h2><a name="What-is-for" class="anchor" href="#What-is-for">What <code>refs</code> is for</a></h2>
-<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="json">{ "inModel": 120084, "stepCache": 120084, "waveCache": 0, "truthTable": 0,
+<h2><a name="What-is-for-1" class="anchor" href="#What-is-for-1">What <code>refs</code> is for</a></h2>
+<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="json">{ "inModel": 120084, "cached": 120084, "truthTable": 0,
   "waveSimSheets": ["main5"], "usedHeapMB": 450, "heapLimitMB": 4192 }
 </code></pre></td></tr></table>
 <p>A <code>FastSimulation</code> is reachable from several places and only one of them is the model, so "is it
 still in memory" cannot be answered from the model alone. It also cannot reliably be answered from
 the heap: <code>usedJSHeapSize</code> counts typed arrays, does not shrink until a collection runs, and says
 nothing about <em>which</em> reference is keeping something alive. Ending a simulation shows
-<code>inModel</code> and <code>stepCache</code> drop to 0 immediately, while <code>usedHeapMB</code> stays where it was until the
+<code>inModel</code> and <code>cached</code> drop to 0 immediately, while <code>usedHeapMB</code> stays where it was until the
 next GC — the counts are the truthful signal.</p>
 <p>This was added because finding one retained simulation took a heap snapshot with a retainer path
 and an A/B build. <code>refs</code> answers the same question in one call.</p>
@@ -556,6 +655,11 @@ in that state is worthless.</p>
   <li class="level-2">
     <a href="#Why-it-exists">
       Why it exists
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Waiting-for-a-condition-rather-than-for-a-duration">
+      Waiting for a condition rather than for a duration
     </a>
   </li>
   <li class="level-2">

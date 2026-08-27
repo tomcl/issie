@@ -127,6 +127,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -145,8 +151,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -159,6 +177,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -328,6 +352,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -346,8 +376,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -360,6 +402,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -524,6 +572,18 @@ project sheet and never sees a later version of the library component. This is p
 wanted, but it is nowhere stated to the user.
 </li>
 </ul>
+<h2><a name="Simulation" class="anchor" href="#Simulation">Simulation</a></h2>
+<ul>
+<li>
+<strong>The memory guard that bounds how many cycles a simulation may run is now too conservative.</strong>
+<code>SimTypes.Constants.heapBytesPerComponent</code> is <code>1000 + 350 * ports</code>, measured when the waveform
+simulator described every wave the simulation offered and kept the lot in its model. It no longer
+does - it keeps records only for the waves selected - so roughly 260 of those 350 bytes per port
+is a cost that has gone, and designs are being refused that there is memory for. The number was
+measured and its replacement has not been; the comment beside it says how to remeasure (build
+phase deltas under <code>--log=perf</code>, and <code>window.issieDev.simStats()</code> for the counts to divide by).
+</li>
+</ul>
 <h2><a name="Refactoring-worth-doing" class="anchor" href="#Refactoring-worth-doing">Refactoring worth doing</a></h2>
 <ul>
 <li>
@@ -590,6 +650,11 @@ so a refresh can be scripted rather than done by hand.
   <li class="level-2">
     <a href="#Component-libraries">
       Component libraries
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Simulation">
+      Simulation
     </a>
   </li>
   <li class="level-2">

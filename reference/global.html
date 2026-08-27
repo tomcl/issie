@@ -124,6 +124,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -142,8 +148,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -156,6 +174,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -325,6 +349,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -343,8 +373,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -357,6 +399,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -2008,6 +2056,45 @@
       <tr>
         <td class="fsdocs-entity-name">
           <p>
+            <a name="LookupArray">
+              <a href="/issie/reference/global-lookuparray.html">
+                LookupArray
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:LookupArray`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:LookupArray\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/LookupArray.fs#L14-14" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               A growable, index-addressed store: items are added in creation order, each one stamped with
+ the index it was stored at, and read back by that index.
+
+ It exists because the simulator's build phase was indexing its own components by structural
+ keys. A `Map<ComponentId * ComponentId list, _>` costs a boxed comparison of a GUID-like id
+ and a list per tree level of every lookup - 200,000 lookups into a 10,000-entry map measured
+ 77.2 ms as such a Map and 0.2 ms as an array index - and the build does millions of them.
+ The fix is not a faster map but an index: the thing being looked up is created by the same
+ walk that later reads it, so it can be given its position as it is made.
+
+ Nothing past `Count` is ever read, which is what lets the backing array be oversized without
+ an `option` per slot - the codebase forbids nulls, and `Array.zeroCreate` on a reference type
+ yields them. `Count` is the whole of the contract that keeps them out of sight.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
             <a name="Main">
               <a href="/issie/reference/global-main.html">
                 Main
@@ -2535,6 +2622,91 @@
       <tr>
         <td class="fsdocs-entity-name">
           <p>
+            <a name="PortData">
+              <a href="/issie/reference/global-portdata.html">
+                PortData
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:PortData`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:PortData\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/PortData.fs#L16-16" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               The port slices of one sidecar build, held for the renderer to derive instance views from.
+
+ The same shape as `WaveData` and `StepPanelData` and for the same reason: view code reads
+ synchronously, on every render, and a separate process cannot be asked synchronously - so the
+ update function fills this and the views read it (the diagram at the top of SimInterface.fs).
+
+ What is held is small and immutable by construction. For one simulation the circuit is frozen:
+ the design the sidecar simulates is exactly the design the renderer holds, and draw-block edits
+ touch neither until a refresh builds anew. So a slice is fetched once per (build, instance),
+ never invalidated, never re-fetched - the whole store simply dies with its build. And the
+ instances held are the ones the UI references - the selection's, the top sheet, the ones the
+ selector shows - bounded by what is on screen, never by the expansion.
+
+ Held rather than modelled for the reason docs/mutableState.md allows: a read-through memo of
+ another process's answers, written from inside the promise that fetched them.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="PortView">
+              <a href="/issie/reference/global-portview.html">
+                PortView
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:PortView`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:PortView\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/PortView.fs#L21-21" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <pre> The ports of one elaborated sheet instance that a waveform can be taken of.
+
+ **This is the narrow question the renderer should be asking a simulator**, and the one
+ `SimInterface` describes: not "give me every wave in the design" - which is proportional to the
+ expansion and is what a remote simulator exists to keep out of the renderer - but "which ports
+ does THIS instance offer", asked of the handful of instances on screen.
+
+ Everything here that a design could answer is answered from the design instead; what is left is
+ what only an elaborated simulation knows. That is two things, and they are the reason this
+ cannot be a design-time query:
+
+   the WIDTH of a port, because parameters are resolved when a design is elaborated, so two
+   instances of one sheet are meant to differ;
+
+   where the port's data LIES - its driver and its step array - which is a fact about one build
+   and is invalidated by the next.
+
+ Below the UI for the same reason `RamView` and `WaveNames` are: the .NET sidecar has a
+ FastSimulation of its own and must answer this from exactly this code, or the two agree until
+ they do not.</pre>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
             <a name="PropertiesHelp">
               <a href="/issie/reference/global-propertieshelp.html">
                 PropertiesHelp
@@ -2566,6 +2738,46 @@
  explained the same way in both. A label with no entry here renders exactly as it did before.
 
  Keep each entry to what the field does and, where there is one, the thing people get wrong.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="RamData">
+              <a href="/issie/reference/global-ramdata.html">
+                RamData
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:RamData`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:RamData\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/RamData.fs#L15-15" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               Asking the .NET simulator for what a RAM table draws.
+
+ **There is no cache here, and there does not need to be.** The rows are small - at most a
+ hundred a table - so they live in the model, in `WaveSimModel.RamRows`, and the view reads them
+ the way it reads everything else. That is not a stylistic preference: the waveform pane is
+ memoised on the model, so a reply landing in a module of its own changes nothing the renderer
+ can see, and the table stays empty until something unrelated happens to redraw it. Held in the
+ model, arriving IS a redraw.
+
+ The waveform data proper is the case that genuinely cannot do this and lives outside
+ (`WaveData`): megabytes of typed arrays, read per render, per wave.
+
+ What is left here is the asking - which belongs in the update function and not in a render, so
+ that a request is made when the question changes rather than on every frame.
             </p>
           </div>
         </td>
@@ -2621,6 +2833,45 @@
  [docs/mutableState.md] allows it for a measured performance reason - the whole point here is
  to stop allocating. Nothing mutable escapes: `Memory1` remains the immutable type everywhere
  outside the running simulation, and `toMemory` builds one on demand.</pre>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="RamView">
+              <a href="/issie/reference/global-ramview.html">
+                RamView
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:RamView`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:RamView\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/RamView.fs#L14-14" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               The rows a RAM table shows at one clock, worked out from a simulation that holds the memory.
+
+ Below the UI because two simulators produce it: the renderer's own, and the .NET sidecar,
+ which has a `FastSimulation` of its own and answers `SimReadRam` from exactly this code. That
+ is the point of the module - the alternative is the sidecar reimplementing which row counts as
+ read and which as written, and two answers that agree until they do not.
+
+ `SimInterface` named the obstacle: reading a RAM "needs a row type that is declared in the
+ waveform UI and has to move first". This is that move. `WaveSimStyle` keeps the styling.
+
+ What is NOT here is display: the radix, the padding, the comment column, and the collapsing of
+ a run of zero locations into one "0x0100 ... 0x01FF" row. Those are the table's own business
+ and stay in `WaveSimRams`, which is why this returns locations and values rather than strings.
+            </p>
           </div>
         </td>
       </tr>
@@ -2924,6 +3175,124 @@
       <tr>
         <td class="fsdocs-entity-name">
           <p>
+            <a name="SidecarClient">
+              <a href="/issie/reference/global-sidecarclient.html">
+                SidecarClient
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:SidecarClient`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SidecarClient\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L19-19" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <pre> The renderer's half of the sidecar transport: connect, then correlated request -> response.
+
+ Wire protocol, shared with src/Sidecar/Protocol.fs - the two files change together:
+
+     byte 0        command; a response carries the request's command with bit 7 set, and bit 6
+                   as well when its payload is an error message rather than the answer
+     bytes 1..4    correlation id, uint32 little-endian, echoed back by the sidecar
+     bytes 5..7    padding, always zero: an 8-byte header means a binary response payload
+                   starts 8-aligned, so Uint32Array/Float64Array views need no copy
+     bytes 8..     payload
+
+ The socket is the browser WebSocket global: the renderer is sandboxed and a browser API is
+ what it has - which is also why no npm package is involved. Where the socket points comes
+ from Bridge.sidecarEndpoint, polled at the moment of connecting.
+
+ Frames are Uint8Array over ArrayBuffer, reached only through the Emit helpers below: sizes
+ and correlation ids stay as plain floats (JS numbers), and nothing indexes a typed array
+ through an F# array type.</pre>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="SidecarSession">
+              <a href="/issie/reference/global-sidecarsession.html">
+                SidecarSession
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:SidecarSession`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SidecarSession\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarSession.fs#L16-16" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               The one simulation session the sidecar holds, and the renderer's picture of it.
+
+ The sidecar simulates one design at a time - `SimSession` keeps a single session and every
+ build replaces it - so there is one place here that knows what it is holding, rather than one
+ per feature. The waveform simulator and the step simulator both draw on this, and because they
+ share it neither can build over the other's session without the other finding out: a command
+ naming a session the sidecar no longer holds is refused by name.
+
+ This module is deliberately below the UI. It was extracted from `WaveProvider` when the step
+ simulator needed the same two operations, and `SimulationView` compiles long before that.
+
+ **None of this is model state.** It is what a separate process is believed to hold, which the
+ model cannot know and has no better place for (docs/mutableState.md). WHICH simulator is
+ running IS a model fact - `Model.SimulateInRenderer` - and is passed to the callers rather
+ than mirrored here, because a second copy of a model fact is a thing that can disagree with it.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="SimDigest">
+              <a href="/issie/reference/global-simdigest.html">
+                SimDigest
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:SimDigest`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimDigest\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimDigest.fs#L10-10" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               A deterministic text rendering of a design's observable simulation behaviour, shared by both
+ runtimes so they can be compared byte for byte.
+
+ This is the golden-model render, moved here from the test suite unchanged so that the dotnet
+ sidecar can produce the SAME text the tests pin in their .golden files: every top-level input
+ driven by the deterministic stimulus, every output, viewer and clocked component printed per
+ cycle, RAM contents at the end. Electron computes it locally and the sidecar answers the
+ SimDigest protocol command with its own; any difference is a real cross-runtime divergence,
+ located by the first differing line.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
             <a name="SimGraphTypes">
               <a href="/issie/reference/global-simgraphtypes.html">
                 SimGraphTypes
@@ -2944,6 +3313,195 @@
             </a>
             <p class="fsdocs-summary">
               
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="SimInterface">
+              <a href="/issie/reference/global-siminterface.html">
+                SimInterface
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:SimInterface`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimInterface\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimInterface.fs#L88-88" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <pre> What the waveform viewer and the step simulator ask of a simulator, and what a simulator
+ promises them - whichever process it runs in.
+
+ **Make more of the system synchronous rather than accept asynchrony and manage it.** Effort
+ spent moving work to where it can be answered at once is repaid; complexity taken on to
+ tolerate an answer that is not there yet never goes away. This is the Elmish discipline, and it
+ holds up surprisingly well in Issie - with memoisation where recomputing would be too slow, and
+ a few deliberate breaks in places where it does not matter. A simulator in another process is
+ the hardest thing to hold to it, and it can still be held: what is genuinely slow becomes a
+ message to start and a message on completion, with a state in the model between the two, and
+ everything else stays a question with an answer. That takes care and judgement rather than a
+ blanket rule, which is why it is written down here rather than assumed.
+
+ **Interrogating a simulator is synchronous, and there is no cache between.**
+
+ Almost everything the UI asks a simulator is a small question about structure - which instances
+ are inside this one, which ports does this instance offer, what is this port called and how
+ wide is it - and the answer is wanted from inside `view`, where nothing can await.
+
+ Only three things take long enough that they cannot be answered while a frame is being drawn,
+ and none of them is a question:
+
+   PRE-BUILD, where there is no simulation yet to ask;
+   BUILD, which elaborates the design;
+   RUN, which simulates it.
+
+ All three are commands, the renderer issues them, and so the renderer knows perfectly well when
+ it is in one. That is the whole of the problem: every synchronous interrogation answers
+ immediately in those three states - nothing yet - and the UI draws what it has, which is what
+ it must do anyway while a build is running. Everywhere else the answer is there to be given.
+
+ So there is no read-through cache, no per-question "not yet", and no await in view code. An
+ earlier design here had all three, on the assumption that talking to another process must make
+ every question asynchronous. It does not: what makes a question asynchronous is being unable to
+ answer it, and the three states above are exactly the ones where that is true and are known in
+ advance.
+
+ **What makes that possible is WHERE the answers live.** A question the renderer answers from
+ what it holds is synchronous by construction. It holds two things:
+
+   the DESIGN (`SimTypes.SimulatedDesign`), which settles every question about structure - which
+   sheet an instance is a copy of, what it is labelled, what is inside it, how many of it there
+   are - all by walking the design, none by expanding it;
+
+   and what the last BUILD produced about ports: which of them carry a waveform, what each is
+   called, and how wide it is. Widths are why this cannot come from the design alone - a
+   parameterised sheet resolves them per instance - but they are settled by the build, so they
+   are known before the first frame that asks.
+
+ **Nothing displayed yet is a fine answer**, because it becomes a displayed one. A waveform with
+ no data draws nothing and is drawn again when its data lands; where the sidecar simulates that
+ is every view until the first fetch returns. WaveSimSVGs goes further and draws the last window
+ that ARRIVED rather than freezing on the last one that matched, so a fast scroll keeps moving.
+
+ The one place a lot of asking could collide is the waveform data itself, and it does not: every
+ wave a refresh is missing goes in ONE command, with at most one RAM behind it, sequentially in
+ one promise, under the one FetchInProgress bit that stops the next message asking again
+ (WaveSimTop.fetchWhatIsMissing). So the number of things in flight is one, whatever the number
+ of waveforms - which is what keeps the reads above answerable without arbitration.
+
+ The one thing that is genuinely per-instance AND per-build is where a port's data LIES. That is
+ only ever needed twice: to issue a fetch, which happens in the update function where an await
+ is already happening, and thereafter as a KEY into what the fetch returned - `Wave.DriverIndex`
+ indexing `WaveData` and `WaveDrawn`, both of which are renderer-side stores of data already in
+ hand. Neither is a question put to a simulator during a render.
+
+ **Why this interface is narrow and the old one was not.** What the renderer uses today is not
+ an interface at all: it is field access into a `FastSimulation` - `FComps`, `Drivers`,
+ `WaveIndex`, `WaveComps`. Every one of those is proportional to the
+ EXPANDED simulation, so promoting them to an interface would oblige a remote simulator to
+ rebuild all of it renderer-side, which is the cost this exists to remove. So the interface
+ asks small questions - which instances are inside this one, which ports does this instance
+ offer, read me this window - and a `FastSimulation` becomes the private business of the
+ implementation that has one.
+
+ **Widths come from here and nowhere else.** Parameters are resolved when a design is
+ elaborated and can change widths, so a width is a fact about the elaborated INSTANCE, not
+ about the sheet it instantiates. The renderer must never infer one from a design.
+
+ **Truth tables are not one of the two, and never will be.** They always use the renderer's own
+ simulator, whatever `Model.SimulateInRenderer` says. A truth table is combinational: it builds
+ one sheet with an array of two cycles (`TruthTableView`, which already asks for exactly the
+ two `ModelHelpers.Constants.rendererArraySizeWhenSidecarSimulates` allows), then drives the
+ inputs and reads the outputs once per ROW. That is thousands of round trips for a simulation
+ small enough to have been built in the renderer anyway - the expansion the sidecar exists to
+ keep out of this process is not what a truth table has. So the mutual exclusion between the
+ waveform and step simulators does not extend to truth tables, and neither does this interface.</pre>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="SimLog">
+              <a href="/issie/reference/global-simlog.html">
+                SimLog
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:SimLog`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimLog\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimLog.fs#L16-16" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               Every simulation invocation, logged the same way in both runtimes.
+
+ The hooks live inside the shared simulator code - one record per startCircuitSimulation
+ (kind "build") and one per runFastSimulation invocation that advances the clock (kind
+ "run") - so Electron and the dotnet sidecar cannot instrument differently. Because the
+ renderer's progress bar works by calling runFastSimulation repeatedly with a timeout, each
+ progress-bar update is exactly one record here, and the sidecar's chunked runs produce the
+ same shape: any user-driven session yields directly comparable per-chunk numbers from both
+ runtimes, pulled as JSON by the DevHarness `simLog` command on the Electron side and the
+ SimLog protocol command on the sidecar side.
+
+ A bounded ring of records rather than prints: process state, not model state
+ (docs/mutableState.md) - written from inside the simulator, which has no dispatch, at the
+ write frequency of a progress tick. A live line per record goes to Log.dbg Log.Sim, so the
+ usual category switches make it visible without a rebuild.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="SimpleDesignShim">
+              <a href="/issie/reference/global-simpledesignshim.html">
+                SimpleDesignShim
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:SimpleDesignShim`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimpleDesignShim\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/SimpleDesignShim.fs#L12-12" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               SimpleDesign back to skeleton LoadedComponents that the existing simulation creation
+ accepts - the bridge that lets the dotnet sidecar run today's simulator on a design that
+ arrived over the wire, as a BASELINE against which rewrites (and the Electron simulator
+ itself) can be checked.
+
+ Deliberately not part of the wire contract: the Simple types stay minimal, and a future
+ .NET simulator consumes them directly with its own structures. This shim reconstructs only
+ what the current pipeline demands - components with port lists (ports synthesized from the
+ component type's arity; port ids never crossed the wire), connections resolved back from
+ (component, port number) endpoints, and sheet IO signatures recomputed by the same function
+ the loader uses. Geometry stays zeroed: the simulator never reads it.
             </p>
           </div>
         </td>
@@ -3092,6 +3650,47 @@
             </a>
             <p class="fsdocs-summary">
               
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="StepPanelData">
+              <a href="/issie/reference/global-steppaneldata.html">
+                StepPanelData
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:StepPanelData`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:StepPanelData\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/StepPanelData.fs#L16-16" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               What the step simulator's panel shows, when the .NET sidecar is the one simulating.
+
+ The same shape as the waveform viewer's cache and for the same reason: view code must read
+ values synchronously, on every render, and a separate process cannot be asked synchronously.
+ So the update function fills this and the view reads it (see the diagram at the top of
+ `SimInterface.fs`).
+
+ One snapshot, not a history. The panel shows one clock cycle - whichever the user has stepped
+ to - so a fetch replaces what was here rather than adding to it, and everything in it is of
+ one cycle of one session. That is what makes staleness impossible to show: a value is only
+ ever read back for the cycle and epoch it was fetched for, and there is nothing else in here
+ to read by mistake.
+
+ A `ComponentId` IS an integer here - the whole design is reduced to integer ids when a project
+ is opened (`Helpers.RegenerateIds`), which is what lets the sidecar name components at all.
             </p>
           </div>
         </td>
@@ -3774,6 +4373,239 @@
       <tr>
         <td class="fsdocs-entity-name">
           <p>
+            <a name="WaveData">
+              <a href="/issie/reference/global-wavedata.html">
+                WaveData
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:WaveData`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:WaveData\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveData.fs#L22-22" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               Where the waveform viewer gets its data, whichever simulator produced it.
+
+ Two sources answer the same two questions. `Local` reads the renderer's own
+ `FastSimulation` step arrays in place, which is what the viewer has always done. `Fetched`
+ answers from the window most recently pulled off the .NET sidecar, which holds only the
+ samples the current view draws - that being the whole point, since a sidecar simulation is
+ sized for the machine's memory rather than a browser heap and its step arrays are far too
+ large to ship.
+
+ **Both questions are answered with a slice**, even the point reads: a cursor column is one
+ sample of every selected wave, which is a window of one. That keeps one shape on the wire,
+ one shape in the cache and one shape for the drawing code - and it is the shape that will
+ carry run-length encoded waveforms when they arrive (see WaveSlice).
+
+ **Why the source is module state.** The functions here are called from view code -
+ `getWaveValue` while laying out the value column, the hover cache while building a tooltip -
+ which has no model to thread a flag through, and reaching for a global is what that code
+ already does for the simulation itself (`Simulator.simCache`). This mirrors it
+ deliberately rather than inventing a second convention: set when the waveform simulator
+ refreshes, cleared when it ends, and read from view code. See docs/mutableState.md - this is
+ a cache of what the app is displaying, not model state.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="WaveDrawn">
+              <a href="/issie/reference/global-wavedrawn.html">
+                WaveDrawn
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:WaveDrawn`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:WaveDrawn\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveDrawn.fs#L26-26" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               What each waveform on screen is, and what it was drawn from.
+
+ A drawn waveform is a pure function of the data for one signal over one window and a handful of
+ display settings - so it does not belong in the model, and the model no longer holds it. What is
+ kept here is the memo of that function: the SVG last made for each waveform, with the exact
+ inputs it was made from. The view asks for the waveform it wants and gets it back without making
+ it twice, and NOTHING here is consulted to decide what should happen next.
+
+ Two things make the memo more than an optimisation.
+
+ The first is the fallback. Where a signal's data has not arrived - the window moved and the
+ answer is still on the wire - what is kept is what is on screen, and keeping it is better than
+ emptying the row: waveforms a moment out of date are what a viewer over a wire looks like, a
+ viewer that blanks itself on every scroll is what a broken one looks like. The stored Spec says
+ which view the row is actually showing, which is how anything that has to agree with the screen
+ - the hover tooltip - can be made to agree with it rather than with the controls.
+
+ The second is that a render costs nothing when nothing changed. Issie renders the whole app on
+ every message and does not memoise components, so this function is called for every waveform on
+ every keystroke; without the memo each of those would rebuild a hundred SVGs.
+
+ Module state, in the sense docs/mutableState.md allows: it is not model state written somewhere
+ else, and no decision reads it. Discard it whenever the simulation it was drawn from is
+ replaced - a driver index means something different in the next build, and a stale hit would
+ draw the old design's signal under the new design's name.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="WaveNames">
+              <a href="/issie/reference/global-wavenames.html">
+                WaveNames
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:WaveNames`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:WaveNames\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/WaveNames.fs#L12-12" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               The name a waveform is called, worked out from the component and port it is a wave of.
+
+ Below the UI because both simulators produce it. A name carries the port's BIT WIDTH, and a
+ width is a fact about the elaborated instance rather than about the sheet it instantiates -
+ parameters see to that - so nothing above can work one out from a design. The alternative is
+ the sidecar reimplementing which port of a Mux is called SEL and how an adder's carry in is
+ written, and two answers that agree until they do not.
+
+ Moved out of `WaveSimHelpers`, which is where it was and which now opens it. What stayed there
+ is everything that needs a WaveSimModel: `makeWave` builds a Wave, and a Wave is a thing the
+ selector holds.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="WavePath">
+              <a href="/issie/reference/global-wavepath.html">
+                WavePath
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:WavePath`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:WavePath\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/WavePath.fs#L28-28" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               Naming a saved selection in a way that survives being saved.
+
+ A `WaveIndexT` names a signal by component id and access path. Those are facts about one loaded
+ design: ids are reallocated when a project is opened (`Helpers.remapLoadedComponent`), and a
+ saved path's ids belong to OTHER sheets, which the loader's per-sheet mapping cannot see - so
+ what it cannot place became the 0 sentinel (`Helpers.sheetOfJson`). A saved selection named that
+ way was only as durable as the id scheme it was written under, which is why `3cpu/eep1`'s
+ selection came back as component 0 and was dropped.
+
+ What a person would use instead is what this uses: the LABELS of the custom component instances
+ entered from the sheet being simulated, then the component's own label. That survives ids being
+ reallocated, survives the file being written by a different version, and best-effort survives
+ edits elsewhere in the design - which is what a saved selection is for, since it is a
+ convenience rather than a record of anything.
+
+ **A label path names exactly one wave-carrying component.** Labels are unique per sheet and
+ enforced: `CanvasStateAnalyser.checkComponentNamesAreOk` refuses to simulate a sheet with
+ duplicates. The types it exempts - `MergeWires`, `SplitWire`, `BusSelection`, `NotConnected` -
+ carry no waveform at all, and the fifth, `IOLabel`, shares a label deliberately: a labelled net
+ has one driver and every member reads it, so naming the group is naming the signal.
+
+ Compared exactly, not case-insensitively. Issie's duplicate check groups on the label as
+ written, so `abc` and `ABC` are two components and matching them loosely would make a path
+ ambiguous where the design is not.
+
+ Nothing here knows about a simulation: it walks the design's sheets, so it works before one is
+ built - which is when the selection is loaded.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="WaveProvider">
+              <a href="/issie/reference/global-waveprovider.html">
+                WaveProvider
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:WaveProvider`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:WaveProvider\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveProvider.fs#L20-20" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               Which simulator answers the waveform viewer, and - when it is the .NET sidecar - fetching
+ what the view draws.
+
+ The shape of it: the sidecar builds and runs the simulation, and the renderer asks it for one
+ window - the samples the current view shows, for the waves it is showing - every time that
+ view changes. `SidecarClient.simRead` takes exactly the viewer's own (StartCycle, SamplingZoom,
+ ShownCycles) triple, so a view at any zoom is ONE request rather than one per wave, and the
+ reply is read with no copy. What comes back becomes a `WaveData.Fetched` source, and the
+ drawing code is none the wiser (see WaveSlice).
+
+ Two requests, not one, and for a reason: the drawn window holds a sample every SamplingZoom
+ cycles, but the cursor sits on an exact cycle which at any zoom above 1 falls between those
+ samples. So the cursor column - every shown wave at that one cycle - is fetched alongside it.
+ Both are sub-millisecond: the measured round trip is 0.3-0.6 ms and a typical window is a few
+ hundred kB at 350-800 MB/s, against waveform generation that is budgeted at 50 ms a slice.
+
+ **Not yet here**: buses wider than 32 bits, which `simRead` refuses, so their waves come back
+ with no data and are drawn empty. That is the next thing to add, along with the RAM tables,
+ which need a command of their own.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
             <a name="WaveSimHelpers">
               <a href="/issie/reference/global-wavesimhelpers.html">
                 WaveSimHelpers
@@ -4077,6 +4909,57 @@
             <p class="fsdocs-summary">
                showWaveforms and subfunctions to display in DOM the waveforms
  Waveform SVGs themselves are generated from simulation in WaveSimWaves module
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="WaveSlice">
+              <a href="/issie/reference/global-waveslice.html">
+                WaveSlice
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:WaveSlice`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:WaveSlice\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSlice.fs#L26-26" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               One waveform over one view window: what the waveform viewer asks for, draws from, and - when
+ the simulator is the .NET sidecar - fetches across the wire.
+
+ **Why a slice rather than an array.** The viewer never wants a whole waveform. It wants
+ `ShownCycles` samples taken every `SamplingZoom` cycles from `StartCycle`, which is exactly
+ what `SidecarClient.simRead` asks the sidecar for and exactly what the local step arrays can
+ be read as. Making that window a value with a name gives the two simulators one shape to
+ meet in: a slice from the local `FastSimulation` and a slice fetched from the sidecar are
+ the same thing to everything downstream, so the drawing code neither knows nor cares which
+ simulator ran.
+
+ **Why the drawing code goes through the operations here and not the array.** What a waveform
+ actually needs is its *transitions* - where the value changes - which is a run-length
+ encoding of the samples in all but name. Today a slice holds dense samples and the
+ operations below compute runs from them; the intended next step is for the sidecar to send
+ runs, for a slice to hold runs, and for these same operations to return them with no work at
+ all. That change should not reach the SVG code, so the SVG code must not index samples
+ itself. Point access (a cursor value, a hover tooltip) is a handful of calls per render and
+ can afford to go through a function; the drawing path asks for transitions once per
+ waveform.
+
+ **Reading costs nothing extra.** A slice does not copy: it names the array its samples
+ already live in, where sample 0 starts, and how far apart samples are. Local step arrays are
+ read with a stride of the sampling multiplier; a sidecar response is already sampled, so its
+ stride is one and its base is the start of that signal's row in the reply.
             </p>
           </div>
         </td>

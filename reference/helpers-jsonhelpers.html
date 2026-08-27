@@ -124,6 +124,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -142,8 +148,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -156,6 +174,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -325,6 +349,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -343,8 +373,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -357,6 +399,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -511,11 +559,18 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Helpers.JsonHelpers.SavedCanvasUnknownWaveInfo`1\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L23-23" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L31-31" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
-                
+                 A saved sheet with its wave info left UNREAD: 'T is instantiated at obj, which parses
+ anything. This is the last resort of jsonStringToState, and it is what lets the saved
+ selection change shape without a legacy reader - a selection this version cannot
+ understand costs the selection, never the sheet.
+
+ Every variant that can carry wave info is mirrored, because any of them can be the one
+ that fails. Only the newest was, which meant an older save holding an unreadable
+ selection failed to load at all rather than losing it.
               </p>
             </div>
           </td>
@@ -538,7 +593,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Helpers.JsonHelpers.SavedInfo\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L25-25" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L40-40" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -569,7 +624,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1182', 1182)" onmouseover="showTip(event, '1182', 1182)">
+              <code onmouseout="hideTip(event, '1225', 1225)" onmouseover="showTip(event, '1225', 1225)">
                 <p>
                   <a id="convStateToJC">
                     <a href="#convStateToJC">
@@ -578,7 +633,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1182">
+              <div class="fsdocs-tip" id="1225">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>convStateToJC&#32;<span><span>(<span>compL,&#32;connL</span>)</span></span></span></code>
@@ -599,14 +654,14 @@
                         connL
                       </b>
                       :
-                      <code>'a</code>
+                      <code><span><a href="/issie/reference/commontypes-connection.html">Connection</a>&#32;list</span></code>
                     </span>
                     <br/>
                   </ul>
                   <br/>
                   <span>
                     Returns: 
-                    <code><span><span><a href="/issie/reference/commontypes-jsoncomponent-component.html">Component</a>&#32;list</span>&#32;*&#32;'a</span></code>
+                    <code><a href="/issie/reference/helpers-jsonhelpers-jsoncanvasstate.html">JSONCanvasState</a></code>
                   </span>
                   <br/>
                 </div>
@@ -617,18 +672,18 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('```cref:M:Helpers.JsonHelpers.convStateToJC``1```')">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Helpers.JsonHelpers.convStateToJC`')">
                     <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
                   </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.JsonHelpers.convStateToJC``1\'/>')">
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.JsonHelpers.convStateToJC\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L73-73" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L101-101" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     converts Component to JSONComponent.Component for saving as JSON.
- this conversion does not affect the JSON generated.
+                     converts a live CanvasState to its file form: legacy-compatible component types, and
+ every integer id written as a decimal string.
                   </p>
                 </div>
               </summary>
@@ -646,7 +701,7 @@
                     connL
                   </span>
                   :
-                  <code>'a</code>
+                  <code><span><a href="/issie/reference/commontypes-connection.html">Connection</a>&#32;list</span></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
               </dl>
@@ -655,7 +710,7 @@
                   <span class="fsdocs-return-name">
                     Returns: 
                   </span>
-                  <code><span><span><a href="/issie/reference/commontypes-jsoncomponent-component.html">Component</a>&#32;list</span>&#32;*&#32;'a</span></code>
+                  <code><a href="/issie/reference/helpers-jsonhelpers-jsoncanvasstate.html">JSONCanvasState</a></code>
                 </dt>
                 <dd class="fsdocs-return-docs"></dd>
               </dl>
@@ -665,7 +720,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1183', 1183)" onmouseover="showTip(event, '1183', 1183)">
+              <code onmouseout="hideTip(event, '1226', 1226)" onmouseover="showTip(event, '1226', 1226)">
                 <p>
                   <a id="extraCoder">
                     <a href="#extraCoder">
@@ -674,7 +729,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1183">
+              <div class="fsdocs-tip" id="1226">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>extraCoder&#32;<span></span></span></code>
@@ -704,7 +759,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1184', 1184)" onmouseover="showTip(event, '1184', 1184)">
+              <code onmouseout="hideTip(event, '1227', 1227)" onmouseover="showTip(event, '1227', 1227)">
                 <p>
                   <a id="jsonStringToState">
                     <a href="#jsonStringToState">
@@ -713,7 +768,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1184">
+              <div class="fsdocs-tip" id="1227">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>jsonStringToState&#32;<span>jsonString</span></span></code>
@@ -750,7 +805,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.JsonHelpers.jsonStringToState\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L123-123" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L157-157" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -788,7 +843,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1185', 1185)" onmouseover="showTip(event, '1185', 1185)">
+              <code onmouseout="hideTip(event, '1228', 1228)" onmouseover="showTip(event, '1228', 1228)">
                 <p>
                   <a id="stateToJsonString">
                     <a href="#stateToJsonString">
@@ -797,7 +852,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1185">
+              <div class="fsdocs-tip" id="1228">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>stateToJsonString&#32;<span><span>(<span>cState,&#32;waveInfo,&#32;sheetInfo</span>)</span></span></span></code>
@@ -850,7 +905,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.JsonHelpers.stateToJsonString\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L78-78" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L107-107" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -901,7 +956,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1186', 1186)" onmouseover="showTip(event, '1186', 1186)">
+              <code onmouseout="hideTip(event, '1229', 1229)" onmouseover="showTip(event, '1229', 1229)">
                 <p>
                   <a id="stateToJsonStringExperimental">
                     <a href="#stateToJsonStringExperimental">
@@ -910,7 +965,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1186">
+              <div class="fsdocs-tip" id="1229">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>stateToJsonStringExperimental&#32;<span><span>(<span>cState,&#32;waveInfo,&#32;sheetInfo</span>)</span></span></span></code>
@@ -963,7 +1018,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Helpers.JsonHelpers.stateToJsonStringExperimental\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L94-94" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Helpers.fs#L128-128" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

@@ -124,6 +124,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -142,8 +148,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -156,6 +174,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -325,6 +349,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -343,8 +373,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -357,6 +399,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -469,7 +517,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1875', 1875)" onmouseover="showTip(event, '1875', 1875)">
+              <code onmouseout="hideTip(event, '1978', 1978)" onmouseover="showTip(event, '1978', 1978)">
                 <p>
                   <a id="maxDenseAddressWidth">
                     <a href="#maxDenseAddressWidth">
@@ -478,7 +526,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1875">
+              <div class="fsdocs-tip" id="1978">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>maxDenseAddressWidth&#32;<span></span></span></code>
@@ -528,7 +576,74 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1876', 1876)" onmouseover="showTip(event, '1876', 1876)">
+              <code onmouseout="hideTip(event, '1979', 1979)" onmouseover="showTip(event, '1979', 1979)">
+                <p>
+                  <a id="maxSlotsForWholeRead">
+                    <a href="#maxSlotsForWholeRead">
+                      <code><span>maxSlotsForWholeRead&#32;<span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1979">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>maxSlotsForWholeRead&#32;<span></span></span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:P:RamStore.Constants.maxSlotsForWholeRead`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:RamStore.Constants.maxSlotsForWholeRead\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L58-58" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The most addresses ever written that a whole-memory read will be attempted for.
+
+ Reading a memory means one search of each slot's own writes, so it is linear in the
+ addresses ever written - measured at 1.3 ms for a thousand, 13.6 ms for ten thousand and
+ 80.3 ms for a full 64K (docs/dev/ramOverTheWire.md). Four thousand is where that passes
+ 5 ms, which is as long as a per-render read may take.
+
+ Past it a caller is told no rather than made to wait: a RAM table shows a window instead
+ of listing every location, and the step simulator's memory diff is not offered. This is
+ the bound that makes those paths cost the same whatever the memory holds - the count of
+ non-zero words cannot be it, because finding that out is the walk being avoided.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1980', 1980)" onmouseover="showTip(event, '1980', 1980)">
                 <p>
                   <a id="maxTrieAddressWidth">
                     <a href="#maxTrieAddressWidth">
@@ -537,7 +652,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1876">
+              <div class="fsdocs-tip" id="1980">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>maxTrieAddressWidth&#32;<span></span></span></code>
@@ -588,7 +703,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1877', 1877)" onmouseover="showTip(event, '1877', 1877)">
+              <code onmouseout="hideTip(event, '1981', 1981)" onmouseover="showTip(event, '1981', 1981)">
                 <p>
                   <a id="minTailBeforeCompact">
                     <a href="#minTailBeforeCompact">
@@ -597,7 +712,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1877">
+              <div class="fsdocs-tip" id="1981">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>minTailBeforeCompact&#32;<span></span></span></code>
@@ -622,7 +737,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:RamStore.Constants.minTailBeforeCompact\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L57-57" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L70-70" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -651,7 +766,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1878', 1878)" onmouseover="showTip(event, '1878', 1878)">
+              <code onmouseout="hideTip(event, '1982', 1982)" onmouseover="showTip(event, '1982', 1982)">
                 <p>
                   <a id="trieBranch">
                     <a href="#trieBranch">
@@ -660,7 +775,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1878">
+              <div class="fsdocs-tip" id="1982">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>trieBranch&#32;<span></span></span></code>
@@ -685,7 +800,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:RamStore.Constants.trieBranch\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L48-48" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L61-61" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

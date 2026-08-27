@@ -124,6 +124,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -142,8 +148,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -156,6 +174,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -325,6 +349,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/ramRepresentation.html">
     How a RAM is represented in the fast simulator
 
@@ -343,8 +373,20 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/simulatorStructure.html">
     How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
 
   </a>
 </li>             
@@ -357,6 +399,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
 
   </a>
 </li>             
@@ -462,7 +510,15 @@
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         Waveforms can be either binary or non-binary; these have different properties.
+         create a new array which samples the old one every mult cycles.
+ start: index of first cycle.
+ count: number of samples.
+ Determines whether a clock cycle is generated with a vertical bar at the beginning,
+ denoting that a waveform changes value at the start of that clock cycle. NB this
+ does not determine whether a waveform changes value at the end of that clock cycle.
+ TODO: Remove this since it is unnecessary. Can use WaveValues instead.
+ Determines whether a non-binary waveform changes value at the beginning of that clock cycle.
+ Waveforms can be either binary or non-binary; these have different properties.
       </p>
     </div>
   </div>
@@ -488,19 +544,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '6759', 6759)" onmouseover="showTip(event, '6759', 6759)">
+              <code onmouseout="hideTip(event, '7251', 7251)" onmouseover="showTip(event, '7251', 7251)">
                 <p>
                   <a id="BinaryTransition">
                     <a href="#BinaryTransition">
-                      <code><span>BinaryTransition&#32;<a href="/issie/reference/wavesimsvgs-binarytransition.html">BinaryTransition</a></span></code>
+                      <code><span>BinaryTransition&#32;<a href="/issie/reference/waveslice-binarytransition.html">BinaryTransition</a></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="6759">
+              <div class="fsdocs-tip" id="7251">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>BinaryTransition&#32;<a href="/issie/reference/wavesimsvgs-binarytransition.html">BinaryTransition</a></span></code>
+                  <code><span>BinaryTransition&#32;<a href="/issie/reference/waveslice-binarytransition.html">BinaryTransition</a></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -510,7 +566,7 @@
                         Item
                       </b>
                       :
-                      <code><a href="/issie/reference/wavesimsvgs-binarytransition.html">BinaryTransition</a></code>
+                      <code><a href="/issie/reference/waveslice-binarytransition.html">BinaryTransition</a></code>
                     </span>
                     <br/>
                   </ul>
@@ -526,7 +582,7 @@
                   Item
                 </span>
                 :
-                <code><a href="/issie/reference/wavesimsvgs-binarytransition.html">BinaryTransition</a></code>
+                <code><a href="/issie/reference/waveslice-binarytransition.html">BinaryTransition</a></code>
               </dt>
               <dd class="fsdocs-param-docs"></dd>
             </dl>
@@ -535,19 +591,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '6760', 6760)" onmouseover="showTip(event, '6760', 6760)">
+              <code onmouseout="hideTip(event, '7252', 7252)" onmouseover="showTip(event, '7252', 7252)">
                 <p>
                   <a id="NonBinaryTransition">
                     <a href="#NonBinaryTransition">
-                      <code><span>NonBinaryTransition&#32;<a href="/issie/reference/wavesimsvgs-nonbinarytransition.html">NonBinaryTransition</a></span></code>
+                      <code><span>NonBinaryTransition&#32;<a href="/issie/reference/waveslice-nonbinarytransition.html">NonBinaryTransition</a></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="6760">
+              <div class="fsdocs-tip" id="7252">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>NonBinaryTransition&#32;<a href="/issie/reference/wavesimsvgs-nonbinarytransition.html">NonBinaryTransition</a></span></code>
+                  <code><span>NonBinaryTransition&#32;<a href="/issie/reference/waveslice-nonbinarytransition.html">NonBinaryTransition</a></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -557,7 +613,7 @@
                         Item
                       </b>
                       :
-                      <code><a href="/issie/reference/wavesimsvgs-nonbinarytransition.html">NonBinaryTransition</a></code>
+                      <code><a href="/issie/reference/waveslice-nonbinarytransition.html">NonBinaryTransition</a></code>
                     </span>
                     <br/>
                   </ul>
@@ -573,7 +629,7 @@
                   Item
                 </span>
                 :
-                <code><a href="/issie/reference/wavesimsvgs-nonbinarytransition.html">NonBinaryTransition</a></code>
+                <code><a href="/issie/reference/waveslice-nonbinarytransition.html">NonBinaryTransition</a></code>
               </dt>
               <dd class="fsdocs-param-docs"></dd>
             </dl>
@@ -604,7 +660,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '6761', 6761)" onmouseover="showTip(event, '6761', 6761)">
+              <code onmouseout="hideTip(event, '7253', 7253)" onmouseover="showTip(event, '7253', 7253)">
                 <p>
                   <a id="IsBinaryTransition">
                     <a href="#IsBinaryTransition">
@@ -613,7 +669,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="6761">
+              <div class="fsdocs-tip" id="7253">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.IsBinaryTransition</span></code>
@@ -643,7 +699,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '6762', 6762)" onmouseover="showTip(event, '6762', 6762)">
+              <code onmouseout="hideTip(event, '7254', 7254)" onmouseover="showTip(event, '7254', 7254)">
                 <p>
                   <a id="IsNonBinaryTransition">
                     <a href="#IsNonBinaryTransition">
@@ -652,7 +708,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="6762">
+              <div class="fsdocs-tip" id="7254">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.IsNonBinaryTransition</span></code>

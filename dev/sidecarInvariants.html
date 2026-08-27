@@ -1,0 +1,1717 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Main" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="Invariants of the .NET simulator and its protocol
+" />
+    <meta property="og:url" content="/issie/dev/sidecarInvariants.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="Invariants of the .NET simulator and its protocol
+">
+    
+    <title>Invariants of the .NET simulator and its protocol
+ | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="content">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/drivingTheApp.html">
+    Driving Issie from outside it
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/wireRouting.html">
+    How a wire gets its shape
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/wiki">Developers Wiki
+                </a></li>
+    
+        <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/drivingTheApp.html">
+    Driving Issie from outside it
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/wireRouting.html">
+    How a wire gets its shape
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        <h1><a name="Invariants-of-the-NET-simulator-and-its-protocol" class="anchor" href="#Invariants-of-the-NET-simulator-and-its-protocol">Invariants of the .NET simulator and its protocol</a></h1>
+<p>What must be true for the sidecar and the renderer to agree about a simulation, why each thing is
+true, and which of them a running Issie can check for itself.</p>
+<p>This is not a description of the protocol — that is
+<a href="sidecarSimulation.html">sidecarSimulation.md</a> and the two <code>Protocol.fs</code>/<code>SidecarClient.fs</code> headers,
+which are the wire format's own documentation. This is the shorter and harder list: the properties
+the code relies on without saying so.</p>
+<p>An entry earns its place here only if breaking it produces a <strong>wrong answer or a hang</strong> rather than
+a slow one. Performance is elsewhere. Each is marked:</p>
+<ul>
+<li><strong>holds</strong> — true today, by construction or by a check that exists</li>
+<li><strong>violated</strong> — not true today, with what goes wrong</li>
+<li><strong>to build</strong> — the code is being changed to make it true</li>
+</ul>
+<hr />
+<h2><a name="The-fact-everything-else-rests-on" class="anchor" href="#The-fact-everything-else-rests-on">The fact everything else rests on</a></h2>
+<p><strong>At most one simulation exists at a time.</strong> Starting a step simulation, a truth table or a
+waveform simulation calls <code>removeAllSimulationsFromModel</code>, which drops the other two. The three are
+mutually exclusive, and <code>ModelHelpers.simulationIsOpen</code> is the predicate that already says so.</p>
+<p>That is why the sidecar needs <strong>one session slot</strong> and not one per simulator, why the epoch of
+section C is a counter rather than an identifier, and why "requests do not overlap" is a question
+about one caller at a time rather than about several callers agreeing.</p>
+<hr />
+<h2><a name="0-What-wall-clock-time-may-decide" class="anchor" href="#0-What-wall-clock-time-may-decide">0. What wall-clock time may decide</a></h2>
+<p>Several invariants below depend on getting this line in the right place, so it comes first.</p>
+<blockquote>
+<p><strong>Wall time may decide what is DISPLAYED and when work is INTERRUPTED. It may never decide what
+an answer IS.</strong></p>
+</blockquote>
+<p>The licence for the second half is that every reply is <strong>self-describing</strong>. <code>SimRun</code> answers
+<code>{clockTick, done}</code>: the caller learns exactly how far the simulation got, whatever caused the
+chunk to end. A clock that jumps — a laptop resuming from sleep, mid-chunk — cuts the chunk short
+and costs one extra round trip. It cannot produce a wrong number, because no number is inferred
+from the timing.</p>
+<p>What is forbidden is the inverse: <strong>inferring elapsed time from work done</strong>. That is what
+<code>runFastSimulationCore</code> does today when it returns cycles-per-millisecond for the renderer to
+divide by, and it is brittle in exactly the way the rule describes — after a resume the rate
+collapses towards zero and the caller concludes that instant work will take minutes.</p>
+<p>Display uses of time are safe almost by construction. If a machine sleeps for eight hours with a
+fetch outstanding, an indicator saying "waiting eight hours" is <em>correct</em>: the data really is that
+stale.</p>
+<hr />
+<h2><a name="A-Transport" class="anchor" href="#A-Transport">A. Transport</a></h2>
+<p><code>SidecarClient.fs</code> on one side, the <code>serve</code> loop in <code>Program.fs</code> on the other. One loopback
+WebSocket; the renderer connects directly and the main process is not in the data path.</p>
+<table>
+<thead>
+<tr class="header">
+<th><h1><a name="header" class="anchor" href="#header"></a></h1></th>
+<th><p>Invariant</p></th>
+<th><p>Status</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>A1</p></td>
+<td><p>There is at most one socket. <code>connect</code> returns the existing one if open, joins one being made, and <code>request</code> makes one when there is none.</p></td>
+<td><p><strong>holds</strong></p></td>
+</tr>
+<tr class="even">
+<td><p>A2</p></td>
+<td><p>A correlation id is unique among requests in flight. <code>nextCorrId</code> only increments, and it is a JS float, so it does not wrap in any realistic session.</p></td>
+<td><p><strong>holds</strong> — and is checked</p></td>
+</tr>
+<tr class="odd">
+<td><p>A3</p></td>
+<td><p>Every reply matches a request in flight.</p></td>
+<td><p><strong>holds</strong> — an unmatched reply is logged rather than ignored</p></td>
+</tr>
+<tr class="even">
+<td><p>A4</p></td>
+<td><p>Every request eventually settles — resolves or rejects.</p></td>
+<td><p><strong>holds</strong> — failed on close, and failed on a deadline when there is no close</p></td>
+</tr>
+<tr class="odd">
+<td><p>A7</p></td>
+<td><p>A closed connection is recoverable without a rebuild.</p></td>
+<td><p><strong>holds</strong> — <code>request</code> connects when there is no socket</p></td>
+</tr>
+<tr class="even">
+<td><p>A8</p></td>
+<td><p>A sidecar that dies is started again, and a simulation is not silently rebuilt on top of it.</p></td>
+<td><p><strong>holds</strong> — main restarts it; the epoch refuses commands naming the session it lost</p></td>
+</tr>
+<tr class="odd">
+<td><p>A5</p></td>
+<td><p>Replies arrive in the order the requests were sent.</p></td>
+<td><p><strong>holds</strong>, and is deliberately <em>not</em> relied on: correlation ids mean it could stop being true without breaking anything</p></td>
+</tr>
+<tr class="even">
+<td><p>A6</p></td>
+<td><p>Every request is answered within its command's budget, except the two declared long.</p></td>
+<td><p><strong>holds</strong> — checked, see F</p></td>
+</tr>
+</tbody>
+</table>
+
+<h3><a name="A4-requests-that-never-settle" class="anchor" href="#A4-requests-that-never-settle">A4 — requests that never settle</a></h3>
+<p><code>onclose</code> used to do <code>pending.Clear()</code>. The resolvers were dropped without being called, so a
+caller awaiting a request when the socket closed waited forever, and the promise chain it belonged
+to neither completed nor errored. Nothing above it could tell the difference between "still
+working" and "gone". They are rejected now, with the reason, and how many were dropped is logged.</p>
+<p><strong>A close is not the only way a reply fails to arrive.</strong> A socket that goes quiet without closing
+produces the same hang by a route <code>onclose</code> cannot cover, and it is the worse one: the entry stays
+in <code>pending</code>, so the operation stays in <code>Model.SidecarInFlight</code>, so — one operation at a time being
+the rule everything is sequenced by (section J) — <em>nothing is ever issued on this wire again</em>. So
+every bounded request also carries a deadline, armed when it goes out, at ten times its section-E
+budget. Ten times because the two numbers answer different questions: the budget is the line past
+which a command is suspect and is drawn tight so the warning is worth reading, this is the line past
+which it is not coming and has to be loose enough never to kill a legitimate reply. Firing it fails
+that one caller and drops the socket, which A7 then makes recoverable.</p>
+<p>It is a timer per bounded request and not an application tick — section F's objection stands. It is
+armed with the request, needs no cancelling (the entry it looks for is gone by then, so it finds
+nothing), and the two declared-long commands, having no budget, arm nothing.</p>
+<h3><a name="A6-the-reply-time-bound" class="anchor" href="#A6-the-reply-time-bound">A6 — the reply-time bound</a></h3>
+<p>The bound is per command and stated in section E. The check is in section F.</p>
+<h3><a name="A7-a-dropped-connection-is-not-the-end-of-the-session" class="anchor" href="#A7-a-dropped-connection-is-not-the-end-of-the-session">A7 — a dropped connection is not the end of the session</a></h3>
+<p>The sidecar drops a connection when a handler faults (section B) and keeps its session; the process
+is still there and the epoch it issued is still valid. But <code>connect</code> was called only by a BUILD, so
+after a drop every run and every read failed on "not connected", the viewer retried on its backoff
+for ever, and simulation stayed dead until the user happened to press Refresh.</p>
+<p><code>request</code> connects when there is no socket, which costs one match when there is one. It cannot
+storm: <code>connect</code> is single-flight, so concurrent callers join one attempt rather than racing (which
+is its own failure — the sidecar serves one connection at a time, so a second handshake is not
+refused but sits unanswered in the listener's queue), and it rejects rather than looping when the
+sidecar is genuinely gone.</p>
+<p>The sidecar process dying is recovered the same way, one layer down. Main starts it again — after a
+second, and only while a start that reaches the handshake keeps resetting the count, so a sidecar
+that worked and then died comes back however often it happens while one that cannot start at all
+gives up rather than spinning. The port channel then answers the new port, <code>connect</code> reads it at the
+moment of connecting, and the request that was waiting goes to the new process. Nothing above the
+transport is told, because nothing above it has to be.</p>
+<p>What is NOT recovered is the <strong>simulation</strong>, and deliberately. The new process holds no design and
+no session, so every command naming the old epoch is refused by name — which is the case section C
+introduced the epoch for, and it arrives as an error the viewer's banner shows rather than as data
+from a simulation that no longer exists. The user's next Start or Refresh builds again and works.
+Rebuilding from main would mean this side deciding to simulate: it breaks "nothing but a start path
+builds" (section J), the rule that deleted the build-retry storm, and it would be a simulation
+nobody asked for, of whatever design happened to be open.</p>
+<hr />
+<h2><a name="B-Inside-the-sidecar" class="anchor" href="#B-Inside-the-sidecar">B. Inside the sidecar</a></h2>
+<table>
+<thead>
+<tr class="header">
+<th><h1><a name="header-1" class="anchor" href="#header-1"></a></h1></th>
+<th><p>Invariant</p></th>
+<th><p>Status</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>B1</p></td>
+<td><p>One message is handled at a time; no handler runs concurrently with another.</p></td>
+<td><p><strong>holds</strong> — <code>serve</code> is a sequential <code>while</code> loop, <code>receive → handle → reply</code></p></td>
+</tr>
+<tr class="even">
+<td><p>B2</p></td>
+<td><p>One connection is served at a time.</p></td>
+<td><p><strong>holds</strong> — the accept loop blocks inside <code>serve</code></p></td>
+</tr>
+<tr class="odd">
+<td><p>B3</p></td>
+<td><p><code>SimSession.session</code> is written only from the serve loop.</p></td>
+<td><p><strong>holds</strong>, and follows from B1</p></td>
+</tr>
+<tr class="even">
+<td><p>B4</p></td>
+<td><p><code>SimRun</code>, <code>SimRead</code> and <code>SimSetInputs</code> require a built session and error without one.</p></td>
+<td><p><strong>holds</strong> — checked, returns <code>{"error":...}</code></p></td>
+</tr>
+<tr class="odd">
+<td><p>B5</p></td>
+<td><p><code>sheetCache</code> and <code>lastDesign</code> are written only by <code>SendDesign</code>.</p></td>
+<td><p><strong>holds</strong></p></td>
+</tr>
+<tr class="even">
+<td><p>B6</p></td>
+<td><p>A handler that throws costs its own request and no other.</p></td>
+<td><p><strong>holds</strong> — the dispatch is wrapped; the fault is answered as an error reply</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>B1 is the load-bearing one. It is why the sidecar's module-level mutable state needs no locking and
+why its behaviour is worth reasoning about at all. <strong>Anything that introduces a second thread
+touching session state destroys every invariant in this section</strong>, which is why the run loop polls
+the clock itself rather than being interrupted by a timer thread.</p>
+<p>The consequence to keep in mind is that a long handler blocks <em>everything</em>, including the command
+that would cancel it. That is not a defect to be fixed with concurrency; it is the reason work per
+request is bounded instead (section E).</p>
+<h3><a name="B6-a-fault-is-one-request-s-not-the-connection-s" class="anchor" href="#B6-a-fault-is-one-request-s-not-the-connection-s">B6 — a fault is one request's, not the connection's</a></h3>
+<p>The simulator this process runs is full of <code>failwithf</code>s about states that are not supposed to arise
+— a memory component that is not a memory, a step outside an array, a state of the wrong shape —
+and every one of them is reachable from a request, because a request names a component and a cycle
+and this side chose neither. Reaching one unwound out of the serve loop: the socket was dropped and
+every request in flight failed with it, for a fault that concerned one of them, leaving the renderer
+with no way back to a session this process was still holding perfectly well. It is not
+hypothetical — a RAM table asking for a cycle the step arrays had wrapped past did exactly this.</p>
+<p>The dispatch is wrapped, so the fault becomes an error reply to the command that caused it and the
+next command is served. It is caught around the whole dispatch rather than inside each handler
+precisely because what it is for is what no handler expected. A send that then fails is still let
+out, because at that point there is nothing left to answer on.</p>
+<hr />
+<h2><a name="C-Agreement-between-renderer-and-sidecar" class="anchor" href="#C-Agreement-between-renderer-and-sidecar">C. Agreement between renderer and sidecar</a></h2>
+<p>These are the ones that matter. The renderer holds beliefs about a process it cannot see inside,
+and nothing currently checks that the beliefs are true.</p>
+<table>
+<thead>
+<tr class="header">
+<th><h1><a name="header-2" class="anchor" href="#header-2"></a></h1></th>
+<th><p>Invariant</p></th>
+<th><p>Status</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>C1</p></td>
+<td><p><code>Model.SidecarSession</code> describes the session the sidecar actually holds.</p></td>
+<td><p><strong>holds</strong> — the epoch is checked on every session-dependent command</p></td>
+</tr>
+<tr class="even">
+<td><p>C2</p></td>
+<td><p>The session's recorded clock equals the sidecar's.</p></td>
+<td><p><strong>holds</strong> — it is written only from replies the epoch has already vouched for</p></td>
+</tr>
+<tr class="odd">
+<td><p>C3</p></td>
+<td><p>At most one fetch chain runs against a session at a time.</p></td>
+<td><p><strong>holds</strong> — enforced by single-flight, not merely checked</p></td>
+</tr>
+<tr class="even">
+<td><p>C4</p></td>
+<td><p>A reply is applied only to the simulation it was asked of.</p></td>
+<td><p><strong>holds</strong> — a superseded epoch is refused</p></td>
+</tr>
+</tbody>
+</table>
+
+<h3><a name="C1-C2-and-C4-one-mechanism-the-session-epoch" class="anchor" href="#C1-C2-and-C4-one-mechanism-the-session-epoch">C1, C2 and C4 — one mechanism: the session epoch</a></h3>
+<p><code>Model.SidecarSession</code> becomes <code>Session(top, size, epoch, clock)</code> when <code>AnsBuilt(Ok epoch)</code>
+lands and <code>NoSession</code> when a simulation ends. Nothing else keeps the two sides in step, so they
+would diverge whenever something happens the renderer does not see: the sidecar process
+restarting, a build failing after the session was recorded, a second Issie window building over
+the top.</p>
+<p>The session's clock has the same shape — it is written from run-chunk replies (<code>AnsRan</code>,
+<code>AnsSteppedTo</code>) as the value the sidecar REPORTED, never incremented towards, and is right only
+because nothing else advances it.</p>
+<p>C4 is the timing version of the same problem. Ending a simulation empties the caches and the
+in-flight table, but a <code>SimRead</code> already in flight resolves afterwards - finding its number gone
+from the table is what discards it, and the epoch check is the second lock on the same door.</p>
+<p><strong>Fix</strong>: the sidecar issues a <strong>session epoch</strong> — an integer, bumped on every successful
+<code>SimBuild</code>. It is returned by the build reply, and every session-dependent request (<code>SimRun</code>,
+<code>SimRead</code>, <code>SimSetInputs</code>, <code>SimEnd</code>) carries the epoch it believes it is talking to. A mismatch is
+an explicit error reply, not silence and not wrong data.</p>
+<p>That single number converts three unverifiable beliefs into one runtime check, and the check is
+exact rather than heuristic: there is no case where the epochs agree and the sides do not.</p>
+<h3><a name="C3-one-fetch-at-a-time" class="anchor" href="#C3-one-fetch-at-a-time">C3 — one fetch at a time</a></h3>
+<p>A fetch is asked for whenever a wave being drawn has not got the window it is drawn over, and that
+is every checkbox tick and scroll step. Nothing in the protocol prevents a second chain starting
+before the first has finished. Two chains then interleave against one session, and the sidecar —
+being strictly serial — will happily serve them in whatever order they arrive:</p>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">chain</span> <span class="id">A</span><span class="pn">:</span>  <span class="id">ensureBuilt</span> 
+<span class="id">chain</span> <span class="id">B</span><span class="pn">:</span>            <span class="id">ensureBuilt</span> 
+                          
+                          
+                             <span class="id">simulation</span> <span class="id">that</span> <span class="id">no</span> <span class="id">longer</span> <span class="id">exists</span> <span class="id">at</span> <span class="id">the</span> <span class="id">cycle</span> <span class="id">it</span> <span class="id">wants</span>
+</code></pre>
+<p><strong>Holds, by the in-flight table in the model.</strong> <code>Model.SidecarInFlight</code> maps an operation number
+to what was asked (<code>SidecarOp</code>); every issuer - the fetch checks, the run chunks, the builds the
+start paths issue, the step-run cascade - adds its entry there, every reply
+(<code>SidecarReply(seq, answer)</code>) removes it, and nothing is issued while the table is non-empty.
+Emptying the table when a simulation ends is also what discards stale replies: an answer whose
+number is no longer there belonged to a simulation that has gone. What to issue is decided by
+viewport equality at the end of update - section J - so a check that finds the wire held does
+nothing at all, and is re-entered by the completion that frees it.</p>
+<p>The table is in the model because whether a request is in the air is a fact about the outside
+world that cannot be derived - and because the UI draws from it (the run-progress strip, the
+Start button's spinner while a build is in flight).</p>
+<p>The other piece is <code>FetchFailedAtMs</code>, and it is there because deriving the ask makes failure
+self-perpetuating: a fetch that fails leaves exactly the state that asks for another, and the two
+spin as fast as the message queue will carry them. It paces failed RUN chunks for the same reason
+- an errored chunk frees the wire, and an unpaced re-issue against a dead sidecar was measured as
+thousands of identical errors inside one drain. The same asks are not made again for a couple of
+seconds, and a failed fetch also latches its snapshot (<code>Model.FailedFetch</code>) so an UNCHANGED
+viewport does not retry at all - any change to it is a different snapshot and tries again. It is a timestamp and not a flag because the fetch must be tried again
+eventually - the commonest failure is asking while the sidecar is still starting, which fixes itself
+a moment later, and a user action after that is what picks it up.</p>
+<p>A wave the simulation cannot name is recorded as such - <code>NoDriver</code>, against the window it was asked
+over - rather than left missing, for the same reason: a missing wave is what asks for a fetch, so
+one that can never be fetched would be asked for by every update for as long as it stayed selected.
+It draws blank and says so once. The rest of the view is fetched as usual; refusing the whole
+request over it left the viewer white.</p>
+<p>With the epoch in place, a superseded chain's replies are rejected anyway, which makes the bit an
+optimisation of a correctness property rather than the correctness property itself. Both are worth
+having: the epoch stops wrong data, the bit stops wasted work.</p>
+<hr />
+<h2><a name="D-The-waveform-cache" class="anchor" href="#D-The-waveform-cache">D. The waveform cache</a></h2>
+<p><code>WaveData.fs</code>. Module state, deliberately: it is read synchronously from <code>view</code> on every render,
+per wave, and is megabytes in size.</p>
+<p><strong>Keyed by wave, not by view - for READS.</strong> Drawing asks "has this wave got the cycles it is
+drawn over", per wave, per render, and one entry per wave answers it without a special case.
+What the keying no longer serves is the fetch DECISION: that is viewport equality (section J),
+which deliberately refetches the whole snapshot when anything in it changes - a lying cache then
+costs a redundant read instead of a silently starved view, and the caches are pure memoisation
+the decision never consults.</p>
+<table>
+<thead>
+<tr class="header">
+<th><h1><a name="header-3" class="anchor" href="#header-3"></a></h1></th>
+<th><p>Invariant</p></th>
+<th><p>Status</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>D1</p></td>
+<td><p>A wave answers only for the exact window it was fetched for.</p></td>
+<td><p><strong>holds</strong> — an equality test, deliberately not a containment test</p></td>
+</tr>
+<tr class="even">
+<td><p>D2</p></td>
+<td><p>A wave is in the cache only if its data is.</p></td>
+<td><p><strong>holds</strong> — by construction: the entry and the data are put there together</p></td>
+</tr>
+<tr class="odd">
+<td><p>D3</p></td>
+<td><p>The data received is <code>signals × samples × wordsPerSample</code> values long.</p></td>
+<td><p><strong>holds</strong> — and is checked, because a short reply is silent</p></td>
+</tr>
+<tr class="even">
+<td><p>D5</p></td>
+<td><p>A wave asked for over a window holds an answer for it - samples, or "no driver".</p></td>
+<td><p><strong>holds</strong> — by construction, and it is what stops an unfetchable wave being asked for for ever</p></td>
+</tr>
+<tr class="odd">
+<td><p>D4</p></td>
+<td><p>Nothing fetched under a session that has ended is ever written.</p></td>
+<td><p><strong>holds</strong> — the cache carries the session it is of, and a write naming another is refused</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>D1 is stricter than it needs to be and that is intentional: a containment test would let the viewer
+draw a sub-window of stale data without anything noticing. The cost is a refetch when the view
+changes, which is what the fetch is for.</p>
+<p>D3 is worth checking on receipt because the failure is silent — a short reply gives every wave after
+the truncation point somebody else's data, drawn confidently.</p>
+<p>D4 matters because the cache is emptied when the design changes but a fetch already in the air is
+not: without the check its reply would land beside waves of the design that replaced it, each
+looking exactly as trustworthy as the other. Worse than beside — a driver index names a different
+signal in the next build, so the old samples land <em>under the new signal's name</em>.</p>
+<p><strong>It is checked where the writing happens, and it has to be.</strong> This was written unconditionally for
+a while, on the argument that which session is live is a fact about the model and so the question
+belongs where the model is, when the completion message lands. That is a real principle and it is
+the wrong one here: a promise finishes <em>before</em> its completion message is handled, and view code
+reads this cache on every render in between. There was no later that came before the next render,
+and the check the code named had never been written. So <code>Source.Fetched</code> carries the epoch it is of
+and a write naming another is dropped.</p>
+<p>The same number is what empties the cache: <code>selectSimulator</code> compares the session on the model with
+the session the cache holds, so a build empties it on the next refresh. It used to take a
+<code>newSimulation</code> flag from the caller saying the same thing less reliably.</p>
+<h3><a name="What-is-drawn-and-what-that-means-for-the-tooltip" class="anchor" href="#What-is-drawn-and-what-that-means-for-the-tooltip">What is drawn, and what that means for the tooltip</a></h3>
+<p>A wave whose data has not arrived keeps the waveform it has. That is deliberate — waveforms a moment
+out of date are what a viewer over a wire looks like, a viewer that blanks itself on every scroll is
+what a broken one looks like — and it is why <code>WaveDrawn</code> remembers, beside each drawn waveform, the
+exact view it is of.</p>
+<p>The consequence to hold onto: <strong>everything that describes what is on screen must be answered from
+the window that waveform was drawn from, not from the window the controls ask for.</strong> The value
+column and the hover tooltip both do — <code>valueAt</code> reads the window the wave holds, and the tooltip is
+given the gaps of the waveform it is over — so neither can disagree with the picture beside it.</p>
+<p>There is no separate fetch for the cursor. The cursor is always on a drawn sample
+(<code>CursorExactClkCycle = CursorDisplayCycle × SamplingZoom</code>), so the samples the waveform is drawn
+from already contain it.</p>
+<hr />
+<h2><a name="E-Bounded-work-per-request" class="anchor" href="#E-Bounded-work-per-request">E. Bounded work per request</a></h2>
+<p>This is what makes A6 achievable. Each command is either <strong>bounded</strong> — its work limited by a count
+the caller sets — or <strong>declared long</strong>, and the declared-long list has one entry.</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>Command</p></th>
+<th><p>Bound</p></th>
+<th><p>Status</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><code>Echo</code>, <code>Upload</code>, <code>Download</code></p></td>
+<td><p>payload size</p></td>
+<td><p><strong>holds</strong></p></td>
+</tr>
+<tr class="even">
+<td><p><code>SendDesign</code></p></td>
+<td><p>one sheet per message</p></td>
+<td><p><strong>holds</strong></p></td>
+</tr>
+<tr class="odd">
+<td><p><code>SimBuild</code></p></td>
+<td><p><strong>declared long</strong></p></td>
+<td><p>see below</p></td>
+</tr>
+<tr class="even">
+<td><p><code>SimRun</code></p></td>
+<td><p>one polling interval of wall time</p></td>
+<td><p><strong>holds</strong></p></td>
+</tr>
+<tr class="odd">
+<td><p><code>SimDigest</code></p></td>
+<td><p><strong>declared long</strong></p></td>
+<td><p>see below</p></td>
+</tr>
+<tr class="even">
+<td><p><code>SimRam</code></p></td>
+<td><p>the mode: a count that short-circuits, a sparse limit, or a window length</p></td>
+<td><p><strong>to build</strong></p></td>
+</tr>
+<tr class="odd">
+<td><p><code>SimSetInputs</code>, <code>SimRead</code>, <code>SimLog</code>, <code>SimEnd</code></p></td>
+<td><p>payload size</p></td>
+<td><p><strong>holds</strong></p></td>
+</tr>
+</tbody>
+</table>
+
+<h3><a name="the-chunk-boundary" class="anchor" href="#the-chunk-boundary"><code>SimRun</code> — the chunk boundary</a></h3>
+<p>The run loop polls the clock every <strong>N cycles, with N chosen from the component count</strong> so that a
+roughly constant amount of <em>work</em> passes between polls — on the order of a thousand component
+evaluations.</p>
+<p>That single rule bounds both things that matter:</p>
+<ul>
+<li><strong>overhead</strong>: a clock read is tens of nanoseconds against microseconds of work, so well under 1%;</li>
+<li>
+<strong>overshoot</strong>: because N is chosen by work rather than by cycles, the time between polls is
+roughly constant whatever the design's size, so a chunk overruns its budget by a bounded amount
+of <em>wall time</em>.
+</li>
+</ul>
+<p>The existing <code>let stepsBeforeCheck = 100</code> bounds neither. On a two-component sheet it reads the
+clock far too often; on a 480,000-component design a hundred cycles is on the order of a hundred
+milliseconds, so a hundred-millisecond budget overshoots by about double. That one constant is most
+of why the current chunking behaves badly at both ends of the size range — and it appears twice,
+because the loop it guards is written out twice.</p>
+<p><code>runFastSimulation</code> is shared code: the sidecar's <code>SimSession.run</code> and the renderer's own simulator
+call the same function. Its return type stops being <code>float option</code>, whose <code>None</code> means both
+"nothing to do" and "finished" and whose <code>Some</code> is a rate nobody should be inferring anything from.</p>
+<h3><a name="one-sheet-per-message-and-what-that-settles" class="anchor" href="#one-sheet-per-message-and-what-that-settles"><code>SendDesign</code> — one sheet per message, and what that settles</a></h3>
+<p>Decoding is the cost - the whole 18-sheet 3cpu design takes ~300ms, its largest single sheet ~25ms
+- and it happens on the serve loop, which handles one message at a time. One message per sheet
+makes each handler bounded by the largest sheet rather than by the largest design.</p>
+<p>The sheets become a design only when the last of them has arrived, so the sidecar stages them and
+<code>lastDesign</code> is replaced in one step. That is not defensive: <strong>a design is only ever sent with every
+simulation closed</strong> - Start and Refresh both do it on a closed simulation, Refresh by stopping
+first - so an upload never races a session, and nothing can observe a half-built design. The
+staging exists because an upload is several messages, not because something might look at it in the
+middle.</p>
+<p>The first sheet of an upload therefore also <strong>drops the session</strong>. Nothing is taken from a caller
+that is using it, and afterwards a command left over from before the design changed names an epoch
+that no longer exists and is refused - rather than being answered from a simulation of a design
+that has been replaced.</p>
+<h3><a name="and-why-they-are-carved-out" class="anchor" href="#and-why-they-are-carved-out"><code>SimBuild</code> and <code>SimDigest</code> — why they are carved out</a></h3>
+<p>A build has no cycle loop to poll in; it is a sequence of phases. Bounding it means either yielding
+mid-phase, which needs partial construction state, or moving it off the serve loop, which needs a
+thread and costs every invariant in section B. Neither is worth it before the build itself is made
+faster, so it is <strong>declared long</strong> and the reply-time check exempts it by name — an exemption that
+is visible in the code rather than an unexplained outlier in a log.</p>
+<p><code>SimDigest</code> is declared long for a different reason, and permanently. It renders a design's whole
+observable behaviour as text for the two runtimes to be compared byte for byte, which means
+building and running a simulation of its own. It is a <strong>development and test command</strong> - <code>simCompare</code>
+and the golden-model tests are its only callers - and bounding it would refuse exactly the large
+designs a divergence hunt most wants to check. It touches no session, so however long it runs it
+can only occupy the serve loop, never disturb a simulation.</p>
+<hr />
+<h2><a name="F-What-a-running-Issie-can-check-for-itself" class="anchor" href="#F-What-a-running-Issie-can-check-for-itself">F. What a running Issie can check for itself</a></h2>
+<p>An invariant that cannot be checked is a comment. These can be, cheaply.</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>Check</p></th>
+<th><p>Where</p></th>
+<th><p>Catches</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>epoch mismatch</p></td>
+<td><p>sidecar, per session-dependent command</p></td>
+<td><p>C1, C2, C4</p></td>
+</tr>
+<tr class="even">
+<td><p>request outstanding, or answered, past its budget</p></td>
+<td><p><code>SidecarClient</code>, on send and on receive</p></td>
+<td><p>A6, and every hang above it</p></td>
+</tr>
+<tr class="odd">
+<td><p>pending requests failed rather than dropped on close</p></td>
+<td><p><code>SidecarClient.onclose</code></p></td>
+<td><p>A4</p></td>
+</tr>
+<tr class="even">
+<td><p>a request unanswered past ten times its budget failed, and the socket dropped</p></td>
+<td><p><code>SidecarClient.request</code>, armed per request</p></td>
+<td><p>A4, where there is no close to notice</p></td>
+</tr>
+<tr class="odd">
+<td><p>a handler that threw answered as an error rather than unwinding</p></td>
+<td><p>the sidecar's serve loop</p></td>
+<td><p>B6</p></td>
+</tr>
+<tr class="even">
+<td><p>data length = signals × samples × wordsPerSample</p></td>
+<td><p><code>WaveData.setFetched</code></p></td>
+<td><p>D3</p></td>
+</tr>
+<tr class="odd">
+<td><p>the session that answered is the session the cache is of</p></td>
+<td><p><code>WaveData.setFetched</code>, at the write</p></td>
+<td><p>D4</p></td>
+</tr>
+<tr class="even">
+<td><p>the viewport unserved for longer than a fetch takes, or an error latched</p></td>
+<td><p>the viewer, per render</p></td>
+<td><p>C3, D1</p></td>
+</tr>
+<tr class="odd">
+<td><p>correlation id already in <code>pending</code></p></td>
+<td><p><code>SidecarClient.request</code></p></td>
+<td><p>A2</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>C3 has no check because it is <strong>enforced</strong>: nothing issues while <code>SidecarInFlight</code> is
+non-empty. An invariant that cannot be broken needs no detector - what the viewer's banner
+catches is the other half, a view that stays unserved.</p>
+<h3><a name="Timestamps-not-a-tick" class="anchor" href="#Timestamps-not-a-tick">Timestamps, not a tick</a></h3>
+<p>Every check here is a timestamp compared against the clock, or a comparison over data already in
+hand. Nothing is scheduled, nothing is counted, and no check holds state beyond what the thing being
+checked already carries.</p>
+<p>For A6 that means a pending request records when it was sent and which command it was. Anything past
+its budget is reported, and so is a reply that arrives late - both when something HAPPENS, a request
+going out or a reply coming in, rather than on a timer. That is enough: an application with nothing
+happening reports nothing, and has nobody being misled by it either.</p>
+<p>A continuous application tick was considered for this and rejected. It would have to run always,
+costing a render of the whole application each time, to serve a check that a timestamp answers for
+free - and "has the tick been started" is itself a piece of state that can be wrong, in the one
+mechanism whose job is to notice when something is.</p>
+<p>The budget is one number, two seconds, and it is deliberately not a latency budget: a round trip is
+under a millisecond and a run chunk a tenth of a second, so this is the line past which a command is
+not slow but stuck. The interesting part is the exemptions - the two declared-long commands, and the
+three that measure the channel and can be asked for 64MB.</p>
+<p>Each warning is said once per request, by a flag inside the pending entry, which disappears when the
+request does.</p>
+<h3><a name="What-is-displayed" class="anchor" href="#What-is-displayed">What is displayed</a></h3>
+<p>Progress and staleness are the same condition seen at different lengths: <em>what you are looking at
+is not what you asked for</em>.</p>
+<ul>
+<li>
+<strong>Progress bar</strong> — driven by <code>SimRun</code> replies, not by the tick. Issue a chunk; if the first reply
+comes back <code>done</code>, no bar ever appears; if it comes back not done, show a bar and keep chunking.
+The chunk interval <em>is</em> the delay before a bar appears, so "start a bar a fixed time after
+pressing run if it has not finished" is not a rule anyone implements — it is what the protocol
+already does. The level is <code>clockTick / target</code>, where the target is <strong>this run's</strong> last needed
+cycle and not the configured last clock: the waveform simulator runs lazily, so a bar measured
+against a four-million-cycle configuration would sit at zero forever.
+</li>
+<li>
+<strong>The stale screen</strong> — one visual form of an invariant violation, and nothing more. It should
+never appear in normal operation, and it comes up when there is an error. Behind is the SAME
+comparison that starts a fetch - the current viewport differs from the one the last completed
+fetch was for, an error reply counting as still outstanding since it never updates that record
+<ul>
+<li>
+and the age is measured from when THIS viewport appeared (<code>ViewportChangedAtMs</code>, stamped by
+the checks when the derived viewport changes) or a build or run last finished. Starting a
+fetch resets the clock, so the in-flight frames of a scroll or a hover can never flash it; a
+latched error shows at once and steadily, with no seconds figure that paced retries would
+falsify.
+</li>
+</ul>
+</li>
+</ul>
+<h3><a name="What-cannot-be-checked" class="anchor" href="#What-cannot-be-checked">What cannot be checked</a></h3>
+<ul>
+<li>
+<strong>A hung renderer.</strong> Every check here runs in the renderer, so a renderer blocked inside its own
+simulation reports nothing. That is not a gap to be closed here; it is the reason the renderer no
+longer runs a simulation the sidecar has already run.
+</li>
+<li>
+<strong>The sidecar being wrong rather than absent.</strong> The epoch catches a session that is not the one
+the renderer thinks. It does not catch a session that is the right one and has computed the wrong
+answer — that is what the cross-runtime digest comparison (<code>simCompare</code>) is for, and it belongs in
+the test suite rather than in a check on every request.
+</li>
+</ul>
+<hr />
+<h2><a name="G-The-step-simulator" class="anchor" href="#G-The-step-simulator">G. The step simulator</a></h2>
+<p>The step simulator should use the sidecar too, and sections A, B and C then apply to it. But it is
+<strong>command-response, not cached</strong>, and that is a difference in kind rather than of degree.</p>
+<p>The cache exists to mediate what the WAVEFORM simulator needs: a window of many cycles, for a
+subset of signals the user chose, fetched ahead of being drawn and then read synchronously from
+<code>view</code> on every render. None of those three properties is true of the step simulator:</p>
+<ul>
+<li>
+it shows <strong>all</strong> top-level outputs, viewers and state of <strong>one sheet</strong>, so there is nothing to
+select and the payload cannot be large;
+</li>
+<li>it only ever asks about <strong>the current cycle</strong>;</li>
+<li>it <strong>writes</strong>.</li>
+</ul>
+<p>So it needs no window, no handles, no coverage test and no prefetch - and putting it behind a cache
+designed for those would be machinery in the way of four round trips.</p>
+<table>
+<thead>
+<tr class="header">
+<th><h1><a name="header-4" class="anchor" href="#header-4"></a></h1></th>
+<th><p>Invariant</p></th>
+<th><p>Status</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>G1</p></td>
+<td><p>The panel shows values for the inputs the user set.</p></td>
+<td><p><strong>violated</strong> - a restart replaces them with the design's defaults</p></td>
+</tr>
+<tr class="even">
+<td><p>G2</p></td>
+<td><p>A step backwards inside the live range costs no re-run.</p></td>
+<td><p><strong>holds</strong> - it is a read of cycles already computed</p></td>
+</tr>
+<tr class="odd">
+<td><p>G3</p></td>
+<td><p>A RAM is read at one cycle, in a shape bounded by how much it holds.</p></td>
+<td><p><strong>holds</strong> - <code>ReadRam</code> with a sparse/window reply, see docs/dev/ramOverTheWire.md</p></td>
+</tr>
+</tbody>
+</table>
+
+<h3><a name="The-commands-it-needs" class="anchor" href="#The-commands-it-needs">The commands it needs</a></h3>
+<table>
+<thead>
+<tr class="header">
+<th><p>purpose</p></th>
+<th><p>payload</p></th>
+<th><p>reply</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>build</p></td>
+<td><p>design, array size</p></td>
+<td><p>ok, or an error message</p></td>
+</tr>
+<tr class="even">
+<td><p>set inputs</p></td>
+<td><p>a subset of top-level inputs</p></td>
+<td><p>the panel at the current cycle</p></td>
+</tr>
+<tr class="odd">
+<td><p>advance clock</p></td>
+<td><p>target cycle <code>n</code></p></td>
+<td><p>the panel at cycle <code>n</code></p></td>
+</tr>
+<tr class="even">
+<td><p>RAM contents</p></td>
+<td><p>see below</p></td>
+<td><p>see below</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>"The panel" is one value: all top-level outputs, all viewers, and the state of every clocked
+component, at one cycle. It is one reply because it is one screen - the panel currently re-reads
+inputs, outputs, viewers and state separately on every render, which over a wire would be four
+round trips per repaint.</p>
+<p>Making the reply to a <strong>write</strong> be the panel is what keeps the step simulator to one round trip per
+user action: setting an input is not a write followed by a read, and neither is stepping.</p>
+<h3><a name="G1-inputs-are-sticky-and-the-history-is-not-remembered" class="anchor" href="#G1-inputs-are-sticky-and-the-history-is-not-remembered">G1 - inputs are sticky, and the history is not remembered</a></h3>
+<p>An input set on the sidecar <strong>stays set</strong>. It is state of the session, not a value written into a
+step array at a cycle. That is right because inputs generally do not change; the step simulator is
+the one place a user may change them on any clock tick, and a changed value affects how the
+simulation evolves <strong>from there onwards</strong>.</p>
+<p>Two things follow.</p>
+<p><strong>A write is cheap and local.</strong> Setting an input redoes only the combinational part of the
+simulation at the current cycle. The clocked history is untouched, so a write costs one cycle's
+combinational evaluation, not a re-run.</p>
+<p><strong>Going back does not restore the inputs that were in force then.</strong> Past inputs are not remembered.
+What is seen when stepping back is the data still held in the buffer, which <em>was</em> computed under
+those inputs - so their effect is visible for as long as the cycles they produced are still alive,
+and not afterwards.</p>
+<p><strong>This is not entirely consistent, and that is accepted.</strong> Stepping back inside the live buffer
+shows the real history; stepping back beyond it re-runs from zero under the inputs as they are now,
+which is a different history reaching the same cycle. Recording and replaying every input change
+would make the two agree, and would be more machinery than the inconsistency costs. It is written
+down here so that the next person to notice it finds a decision rather than a bug.</p>
+<h3><a name="G2-what-the-step-simulator-has-to-know-about-its-own-arrays" class="anchor" href="#G2-what-the-step-simulator-has-to-know-about-its-own-arrays">G2 - what the step simulator has to know about its own arrays</a></h3>
+<p>Three numbers, not one:</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>the circular array's <strong>size</strong></p></td>
+<td><p>fixed at build</p></td>
+</tr>
+<tr class="even">
+<td><p>the <strong>current clock tick</strong></p></td>
+<td><p>where the panel is looking</p></td>
+</tr>
+<tr class="odd">
+<td><p>the cycle <strong>after which the data is correct</strong>, up to the current tick</p></td>
+<td><p>a low-water mark</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Stepping forwards and backwards moves the last two. The live range is not simply
+<code>(ClockTick - size, ClockTick]</code>: going back and then forward again with a changed input overwrites
+what follows, so how far back the data can be trusted is its own quantity and has to be carried
+rather than computed from the other two.</p>
+<p><code>stepIndexOf</code> is <code>numStep % maxArraySize</code>, so <strong>both</strong> simulators index a circular buffer. The
+waveform simulator never reaches the wrap, because its array is sized for the whole configured run;
+the step simulator does, because it is sized short and stepping never has to stop.</p>
+<p>Stepping backwards inside the live range is ordinary and cheap - those cycles have been computed,
+so showing one is a read. Only a step past the low-water mark re-runs.</p>
+<p>All three numbers belong in the replies that change them, because over a wire "that cycle has been
+overwritten", "that cycle has not been reached" and "that cycle was never correct" would otherwise
+arrive as the same silence.</p>
+<h3><a name="G3-RAM-contents-for-both-simulators" class="anchor" href="#G3-RAM-contents-for-both-simulators">G3 - RAM contents, for both simulators</a></h3>
+<p>A RAM is interrogated at one cycle - the current one for the step simulator, the cursor's for the
+waveform viewer - and the question is the same in both cases, so it is one set of commands used by
+both:</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>command</p></th>
+<th><p>answer</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>count</p></td>
+<td><p>how many locations the store actually holds</p></td>
+</tr>
+<tr class="even">
+<td><p>sparse <em>N</em></p></td>
+<td><p>every live location, as (address, value) pairs, when the count is below <em>N</em></p></td>
+</tr>
+<tr class="odd">
+<td><p>window (start, n)</p></td>
+<td><p><em>n</em> contiguous locations from <code>start</code></p></td>
+</tr>
+</tbody>
+</table>
+
+<p>The renderer chooses between the last two using the count. That is the decision
+<code>RamStore.liveCountExceeds</code> makes locally today, and it has to move because it needs the store: a
+64K RAM displayed densely means materialising 65,536 words to show fifty.</p>
+<h3><a name="As-implemented" class="anchor" href="#As-implemented">As implemented</a></h3>
+<p>The section above is the design; what shipped differs in one respect worth naming. The panel's
+values are not the reply to a write or a step - they ride the SAME fetch mechanism as everything
+else: the panel's cycle is part of the data viewport, so a step or a goto changes the viewport
+and the next bundle reads the panel's signals along with whatever else changed. A poke
+(<code>SimSetInputs</code>) bumps <code>Model.StimulusGeneration</code>, which is in the viewport, so everything
+computed under the old stimulus refetches - G1's stickiness is unchanged, but the re-read is the
+ordinary convergence rather than a special reply shape. A single step (+1/-1) issues one
+budgeted run chunk through <code>SimulationView.advanceTo</code>; a goto is the <code>StartStepRun</code> cascade.</p>
+<h3><a name="What-this-leaves-the-cache-doing" class="anchor" href="#What-this-leaves-the-cache-doing">What this leaves the cache doing</a></h3>
+<p>Mediating the waveform simulator's reads, and nothing else. The step simulator's commands are
+command-response sequences - read the panel, advance, step back, restart, stop - and the invariants
+that apply to them are those in sections A, B and C, unchanged.</p>
+<p>Because the two simulators are mutually exclusive, one session slot serves both and section C3 is
+unaffected: there is never a second caller, only a second <em>kind</em> of caller, one at a time.</p>
+<hr />
+<h2><a name="H-Tooltips-two-of-them-and-only-one-is-a-cache-read" class="anchor" href="#H-Tooltips-two-of-them-and-only-one-is-a-cache-read">H. Tooltips - two of them, and only one is a cache read</a></h2>
+<p>They are easy to conflate and have different answers.</p>
+<h3><a name="The-waveform-tooltip" class="anchor" href="#The-waveform-tooltip">The waveform tooltip</a></h3>
+<p>Hovering a drawn waveform shows the value at that point. The signal is one the user selected, and
+the cycle is inside the window that waveform was drawn from - both by construction, since the thing
+under the pointer is a waveform made from data that had to be there for it to exist.</p>
+<p><strong>So the cache already holds it, and there is no command and no new invariant.</strong> The window it
+answers for is the window that was drawn, which where data is still on its way is an older one than
+the controls show - and that is right: the tooltip describes what is under the pointer. A row with
+nothing drawn has no tooltip at all, so there is never a "waiting for data" to display.</p>
+<h3><a name="The-schematic-tooltip" class="anchor" href="#The-schematic-tooltip">The schematic tooltip</a></h3>
+<p>Resting the mouse on a wire in the draw block shows the value on it. This is a different question
+with the same shape as the step simulator's reads:</p>
+<ul>
+<li><strong>one signal, the current cycle</strong> - the step simulator's tick, or the waveform simulator's cursor;</li>
+<li>
+<strong>any signal on the sheet.</strong> The wire under the pointer is whatever the user is pointing at, so
+it may well be one the cache does not track - nobody selected it as a wave;
+</li>
+<li><strong>under either simulator.</strong></li>
+</ul>
+<p><strong>So it is a point read and not a cache read</strong>, and it must not be written as one that happens to
+work when the signal is selected. Component, port, cycle: the degenerate <code>SimRead</code> of one signal
+and one sample, which the cursor column already sends.</p>
+<p>Caching it would be wrong as well as useless - a value under a moving mouse, wanted once, keyed by
+a signal that changes with every wire the pointer crosses.</p>
+<table>
+<thead>
+<tr class="header">
+<th><h1><a name="header-5" class="anchor" href="#header-5"></a></h1></th>
+<th><p>Invariant</p></th>
+<th><p>Status</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>H1</p></td>
+<td><p>A schematic tooltip is offered only for a design-time component with exactly ONE runtime instance.</p></td>
+<td><p><strong>holds</strong> - <code>copiesOfCanvasComp</code> returns a single id, or nothing is shown</p></td>
+</tr>
+<tr class="even">
+<td><p>H2</p></td>
+<td><p>The value shown is from the simulator that is running.</p></td>
+<td><p><strong>violated in .NET mode</strong></p></td>
+</tr>
+</tbody>
+</table>
+
+<p>H1 is what makes the read expressible: a component on a sheet instantiated twice has two runtime
+signals and no answer to "the value on this wire", so the tooltip declines rather than choosing
+one. Worth noticing that this is a <strong>design-time</strong> question - how many times a sheet is
+instantiated - so the renderer answers it from the design alone, with no simulation and nothing
+asked of the sidecar.</p>
+<p>H2 is a consequence of the renderer no longer running a simulation the sidecar has already run. The
+probe read step arrays that are never written, so it showed what an unrun simulation holds; it has
+been made to show nothing instead, which is honest but is not the requirement.</p>
+<hr />
+<h2><a name="J-Who-may-ask-and-how-asking-is-decided" class="anchor" href="#J-Who-may-ask-and-how-asking-is-decided">J. Who may ask, and how asking is decided</a></h2>
+<p>The renderer's side of every operation obeys one sequencing model, stated here because the code
+that obeys it is spread over three files (<code>WaveSimTop.sidecarChecks</code>,
+<code>SimulationView.continueStepRun</code> and the start paths) and because its one recorded violation - a
+goto loop whose busy path re-dispatched itself synchronously, freezing the renderer inside a
+single Elmish drain - looked innocent at every call site.</p>
+<p><strong>The issuers are enumerable.</strong> Exactly these put an operation on the wire:</p>
+<ul>
+<li>
+the start paths - <code>StartWaveSimulation</code> and <code>StartSimulation</code>/<code>StartStepRun</code> issue <code>SimBuild</code>,
+and nothing else ever builds. A missing session anywhere else is a stopped simulation, not a
+build somebody forgot;
+</li>
+<li>
+<code>WaveSimTop.sidecarChecks</code>, the end-of-update checks: one run chunk when the viewport needs a
+cycle the session has not reached, else one read bundle when a viewport differs from what the
+last completed fetch was for;
+</li>
+<li>
+the step-run cascade: <code>StartStepRun</code> and the reply handlers (<code>AnsSteppedTo</code>, <code>AnsBuilt</code>,
+<code>AnsFetched</code>) that continue it;
+</li>
+<li>
+a single step of the step simulator (<code>SimulationView.advanceTo</code>): one budgeted run chunk per
+click, gated on the same table, its panel read riding the ordinary fetch.
+</li>
+</ul>
+<p><strong>One operation in flight.</strong> <code>SidecarInFlight</code> is the record and every issuer's gate. Whoever
+finds the wire held does NOTHING - no retry, no delay, no self-dispatch - because the held
+operation's completion is a message, every check runs after every message, and so the waiter is
+resumed the moment the wire is free. A loop that re-dispatches itself against a busy wire is the
+forbidden shape: it spins the drain that the freeing reply needs to end.</p>
+<p><strong>Decisions are state comparisons, never event tracking and never cache interrogation.</strong> What
+the view needs from the simulation is derived as one pure function of the model - the
+<code>DataViewport</code> and <code>StructureViewport</code> records; their field lists are the enumeration that has
+to be right, in one reviewable place. The fetch decision is <code>current viewport &lt;&gt; the viewport
+the last COMPLETED fetch was for</code> (<code>FetchedData</code>/<code>FetchedStructure</code>, recorded from the snapshot
+the operation carried, never from what is current when it lands). Nothing is cleared on rebuild:
+the epoch inside each viewport makes a rebuild an inequality. The stimulus is in the viewport as
+a poke counter (<code>StimulusGeneration</code>), because the poked values live in the simulator, which the
+model cannot hold - the count is model state, and bumping it is what refetches everything
+computed under the old stimulus.</p>
+<p><strong>The MVU reading.</strong> The built simulation is an implicit, immutable-for-its-lifetime component
+of the model, named by its epoch. The only places the implicit part lags the explicit part are
+the two bounded gaps - needs-running and needs-fetching - each visible as in-flight state, each
+converging by construction. A fetch is a sequence of reads chained inside one promise (wire
+speed, no Elmish round trip between reads) under one in-flight entry, answered by one message:
+fast by construction, so it gets no progress display. Run chunks each go through Elmish, which
+is where the progress displays come from.</p>
+<p><strong>The memoisation obligation.</strong> <code>FetchedData = snapshot</code> is a claim that the caches hold
+everything the snapshot needs, so <strong>every read in the bundle must reach the bundle's result</strong>, and
+every read's result must be memoised, keyed by state the viewport covers - and every cache
+EVICTION policy must be a function of that same state.</p>
+<p>The first half is the one that was got wrong. A bundle is several reads - waves, each memory, the
+step panel, the port slices - and it answered with the WAVE read's result alone: the others logged
+a warning and were dropped, so a fetch that lost a memory reported <code>Ok</code>, the snapshot was recorded
+as served, and the comparison that decides fetches is against that record. Nothing asked again
+until the view moved for some other reason. Reporting them costs no retry storm, because
+<code>FailedFetch</code> latches the snapshot; what it buys is that the stale banner tells the truth. What DID
+arrive is still returned and still shown - a memory whose rows came back is worth drawing whether
+or not the one beside it failed.
+<code>WaveDrawn.keepOnly</code> on the selection is sound because the selection is in the viewport, so the
+eviction always coincides with an inequality that refetches. An eviction keyed on anything
+outside the viewport recreates silent staleness; that is the review rule for a new cache, and
+the viewport field lists are the thing to extend when a new kind of simulation-derived display
+is added.</p>
+<p><strong>Failure is latched by state too.</strong> A failed fetch leaves the fetched-records alone and stores
+its snapshot in <code>FailedFetch</code>; the fetch check requires the current snapshot to differ from it,
+so an unchanged viewport does not retry at wire speed and any change tries again. The old shape
+- the fetch itself issuing <code>SimBuild</code> when it found no session - is what once turned one refused
+build into a retry storm; it is deleted by construction now, since nothing but a start builds.</p>
+<hr />
+<h2><a name="I-The-whole-command-set" class="anchor" href="#I-The-whole-command-set">I. The whole command set</a></h2>
+<p>Everything above asks for seven commands. Nothing needs an eighth, and each of the collapses below
+is worth stating because the obvious design has more.</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>command</p></th>
+<th><p>payload</p></th>
+<th><p>reply</p></th>
+<th><p>used by</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><code>SendDesign</code></p></td>
+<td><p>sheet index, sheet count, top sheet name, one sheet's JSON</p></td>
+<td><p>which sheet, whether it decoded, whether the design is complete</p></td>
+<td><p>both</p></td>
+</tr>
+<tr class="even">
+<td><p><code>SimBuild</code></p></td>
+<td><p>top sheet, array size</p></td>
+<td><p>epoch, array size, ok or error</p></td>
+<td><p>both</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>SimRun</code></p></td>
+<td><p>target cycle, time budget</p></td>
+<td><p>epoch, clock tick, done, first valid cycle, <strong>and the panel when done</strong></p></td>
+<td><p>both</p></td>
+</tr>
+<tr class="even">
+<td><p><code>SimRead</code></p></td>
+<td><p>start, rep, samples, signals</p></td>
+<td><p>values, signal-major</p></td>
+<td><p>both</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>SimSetInputs</code></p></td>
+<td><p>inputs</p></td>
+<td><p>epoch, <strong>the panel</strong></p></td>
+<td><p>step</p></td>
+</tr>
+<tr class="even">
+<td><p><code>SimRam</code></p></td>
+<td><p>component, cycle, mode</p></td>
+<td><p>count, or sparse pairs, or a window</p></td>
+<td><p>both</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>SimEnd</code></p></td>
+<td><p>-</p></td>
+<td><p>ok</p></td>
+<td><p>both</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Plus <code>Echo</code>/<code>Upload</code>/<code>Download</code>, which measure the channel, and <code>SimDigest</code>/<code>SimLog</code>, which exist
+for development. None of the five participates in a simulation, and they are outside these
+invariants.</p>
+<h3><a name="Why-there-is-no-separate-read-the-panel-command" class="anchor" href="#Why-there-is-no-separate-read-the-panel-command">Why there is no separate "read the panel" command</a></h3>
+<p><code>SimRun</code> to the tick it is already on completes immediately and answers with the panel. So the
+first display after a build, a step forwards, a step backwards and a jump are one command, and the
+step simulator needs one round trip per user action rather than a move followed by four reads.</p>
+<p>The panel rides on the reply only <strong>when the run is done</strong>, so a chunked waveform run does not carry
+one per chunk. It is bounded by the top sheet - all top-level outputs, all top-level viewers, and
+the clocked state the panel shows - which is one sheet's worth however large the design.</p>
+<h3><a name="Why-there-is-no-separate-point-read-command" class="anchor" href="#Why-there-is-no-separate-point-read-command">Why there is no separate point-read command</a></h3>
+<p>A schematic tooltip is <code>SimRead</code> with one signal and one sample. So is the waveform viewer's cursor
+column. The window read, the cursor column and the tooltip are one command at three sizes.</p>
+<h3><a name="Why-RAM-is-one-command-and-not-three" class="anchor" href="#Why-RAM-is-one-command-and-not-three">Why RAM is one command and not three</a></h3>
+<p>Count, sparse and window differ in what comes back, not in what is being asked - the contents of one
+RAM at one cycle. One command with a mode keeps the two sides in step where three would drift, and
+the caller still chooses: ask the count, then ask for whichever shape fits it.</p>
+<h3><a name="What-the-cache-must-expose" class="anchor" href="#What-the-cache-must-expose">What the cache must expose</a></h3>
+<p>Unchanged, and small - it serves the waveform viewer's drawing and nothing else:</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><code>needFetching handles window</code></p></td>
+<td><p>which of these waves has not got this window (diagnostics; the fetch decision is viewport equality, section J)</p></td>
+</tr>
+<tr class="even">
+<td><p><code>slice handle window</code></p></td>
+<td><p>the samples to draw</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>valueAt handle cycle</code></p></td>
+<td><p>the cursor column, and the waveform tooltip</p></td>
+</tr>
+<tr class="even">
+<td><p><code>setFetched</code></p></td>
+<td><p>fill it</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>holdNothing</code></p></td>
+<td><p>hold nothing, and ask for everything: a new design</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>The interface does not change; what changes is that nothing else goes through it. The step
+simulator, the RAM tables and the schematic tooltip are command-response, because each wants one
+answer once rather than a window read repeatedly from <code>view</code>.</p>
+<h3><a name="What-this-leaves-unbounded" class="anchor" href="#What-this-leaves-unbounded">What this leaves unbounded</a></h3>
+<p><code>SimBuild</code> and <code>SimDigest</code>, both declared. Every other command is bounded by something the caller
+sets: a sheet, a time budget, a sample count, an input count, a window length. That is what makes
+the reply-time invariant of section A6 a property of the protocol rather than a hope about it - and
+what makes the two exemptions worth naming in the code rather than discovering in a log.</p>
+<hr />
+<h2><a name="The-truth-table" class="anchor" href="#The-truth-table">The truth table</a></h2>
+<p>Stays in the renderer, permanently. It is a different simulation - algebraic, so it uses the
+<code>FData</code> backend rather than the numeric one - it is combinational only, and it is always small,
+because a truth table with enough inputs to be large is refused before it is built. There is
+nothing for the sidecar to do that the renderer cannot do faster than the round trip.</p>
+<p>That its <code>Simulator.simCache</code> is shared with the step simulator is then a renderer-side concern
+about two things wanting one cache slot, not a protocol question, and it does not belong in this
+document.</p>
+
+        
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <ul>
+  <li class="level-1">
+    <a href="#Invariants-of-the-NET-simulator-and-its-protocol">
+      Invariants of the .NET simulator and its protocol
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#The-fact-everything-else-rests-on">
+      The fact everything else rests on
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#0-What-wall-clock-time-may-decide">
+      0. What wall-clock time may decide
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#A-Transport">
+      A. Transport
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#A4-requests-that-never-settle">
+      A4 — requests that never settle
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#A6-the-reply-time-bound">
+      A6 — the reply-time bound
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#A7-a-dropped-connection-is-not-the-end-of-the-session">
+      A7 — a dropped connection is not the end of the session
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#B-Inside-the-sidecar">
+      B. Inside the sidecar
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#B6-a-fault-is-one-request-s-not-the-connection-s">
+      B6 — a fault is one request's, not the connection's
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#C-Agreement-between-renderer-and-sidecar">
+      C. Agreement between renderer and sidecar
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#C1-C2-and-C4-one-mechanism-the-session-epoch">
+      C1, C2 and C4 — one mechanism: the session epoch
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#C3-one-fetch-at-a-time">
+      C3 — one fetch at a time
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#D-The-waveform-cache">
+      D. The waveform cache
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#What-is-drawn-and-what-that-means-for-the-tooltip">
+      What is drawn, and what that means for the tooltip
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#E-Bounded-work-per-request">
+      E. Bounded work per request
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#F-What-a-running-Issie-can-check-for-itself">
+      F. What a running Issie can check for itself
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Timestamps-not-a-tick">
+      Timestamps, not a tick
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#What-is-displayed">
+      What is displayed
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#What-cannot-be-checked">
+      What cannot be checked
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#G-The-step-simulator">
+      G. The step simulator
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#The-commands-it-needs">
+      The commands it needs
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#G1-inputs-are-sticky-and-the-history-is-not-remembered">
+      G1 - inputs are sticky, and the history is not remembered
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#G2-what-the-step-simulator-has-to-know-about-its-own-arrays">
+      G2 - what the step simulator has to know about its own arrays
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#G3-RAM-contents-for-both-simulators">
+      G3 - RAM contents, for both simulators
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#As-implemented">
+      As implemented
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#What-this-leaves-the-cache-doing">
+      What this leaves the cache doing
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#H-Tooltips-two-of-them-and-only-one-is-a-cache-read">
+      H. Tooltips - two of them, and only one is a cache read
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#The-waveform-tooltip">
+      The waveform tooltip
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#The-schematic-tooltip">
+      The schematic tooltip
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#J-Who-may-ask-and-how-asking-is-decided">
+      J. Who may ask, and how asking is decided
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#I-The-whole-command-set">
+      I. The whole command set
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Why-there-is-no-separate-read-the-panel-command">
+      Why there is no separate "read the panel" command
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Why-there-is-no-separate-point-read-command">
+      Why there is no separate point-read command
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Why-RAM-is-one-command-and-not-three">
+      Why RAM is one command and not three
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#What-the-cache-must-expose">
+      What the cache must expose
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#What-this-leaves-unbounded">
+      What this leaves unbounded
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#The-truth-table">
+      The truth table
+    </a>
+  </li>
+</ul>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-details-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

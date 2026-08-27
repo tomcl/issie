@@ -535,9 +535,13 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
             /// derived from the ops table (the chunk in flight carries its target) and the
             /// session's clock - no state of its own. It occupies the same strip the stale
             /// warning would, and the two are mutually exclusive by construction: the warning is
-            /// suppressed while this shows.
+            /// suppressed whenever the simulator is running, whether or not this shows.
+            ///
+            /// Silent while the view is still being scrolled (WaveScrollSettling): scrolling into
+            /// unsimulated cycles starts a run every time, so a drag would otherwise flash this on
+            /// every step, about a run the next step supersedes.
             let runProgress =
-                if not (ModelHelpers.sidecarIsRunning model) then
+                if model.WaveScrollSettling || not (ModelHelpers.sidecarIsRunning model) then
                     []
                 else
                     let target =

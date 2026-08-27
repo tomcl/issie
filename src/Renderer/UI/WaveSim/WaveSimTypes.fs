@@ -21,6 +21,15 @@ module Constants =
     /// while they are still looking at it. A wait that is EXPECTED to be long has a progress bar,
     /// and this says nothing while one is up.
     let staleWaveformWarningMs = 1000.0
+
+    /// How still the waveform viewer must be, in ms, before the run banner may show.
+    ///
+    /// Scrolling into cycles that have not been simulated starts a run, so without this the
+    /// banner appears and vanishes on every step of a drag - noise, and about something the user
+    /// is not waiting for, since the next scroll changes what is being run for anyway. Long
+    /// enough that a scroll which keeps moving never shows it, short enough that one which stops
+    /// on unsimulated cycles says what it is waiting for almost at once.
+    let runBannerAfterScrollMs = 500
     // Width of names column - replaced by calcNamesColWidth function
 
     /// Width of values column

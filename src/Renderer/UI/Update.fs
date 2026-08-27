@@ -459,6 +459,16 @@ let updateUnpinned (msg : Msg) oldModel =
         updateWSModel transform model
         |> WaveSimTop.refreshWaveSim false
 
+    | WaveScrollSettled serial ->
+        // Only the timer armed by the LAST scroll ends the suppression. An earlier one lands in
+        // the middle of a drag that is still moving, which is exactly where the banner is not
+        // wanted, so it is ignored rather than allowed to show it for a frame.
+        (if serial = model.WaveScrollSerial then
+             Optic.set waveScrollSettling_ false model
+         else
+             model)
+        |> withNoMsg
+
     | GenerateCurrentWaveforms ->
         // Update the wave simulator with new waveforms based on current WsModel
         WaveSimTop.refreshWaveSim false model
@@ -1250,4 +1260,5 @@ let update (msg : Msg) oldModel =
     updateUnpinned msg oldModel
     |> map fst_ (ModelHelpers.pinIfReadOnly msg)
     |> scheduleAfterRender oldModel
+    |> WaveSimTop.noteWaveScroll oldModel
     |> WaveSimTop.sidecarChecks

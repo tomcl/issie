@@ -695,6 +695,10 @@ type Msg =
     /// drawn from: a snapshot written back undoes, on arrival, everything dispatched since it was
     /// taken - which is how the viewer could oscillate between two pasts.
     | GenerateWaveforms of (WaveSimModel -> WaveSimModel)
+    /// The waveform viewer has not been scrolled horizontally for Constants.runBannerAfterScrollMs.
+    /// Carries the serial of the scroll it was armed for, and does nothing unless that is still
+    /// the last one - see Model.WaveScrollSettling.
+    | WaveScrollSettled of int
     /// Generate waveforms according to the model paramerts of Wavesim
     | GenerateCurrentWaveforms
     /// A fetch of waveform data has landed, or failed. Carries nothing: what arrived is in the
@@ -1229,6 +1233,15 @@ type Model = {
     /// clock, so starting a fetch can never look stale for the frames it is in flight.
     CurrentViewport : DataViewport option
     ViewportChangedAtMs : float
+    /// True from a horizontal scroll of the waveform viewer until it has been still for
+    /// Constants.runBannerAfterScrollMs, carrying the serial number of the scroll that set it.
+    /// The run banner shows nothing while it holds - scrolling into cycles that have not been
+    /// simulated starts a run every time, and a banner that flashes on each step of a drag is
+    /// noise. The serial is what makes the wait restartable: the WaveScrollSettled message
+    /// carries the serial it was armed for, so the timer from an earlier step of a drag cannot
+    /// put the banner back up under a later one.
+    WaveScrollSettling : bool
+    WaveScrollSerial : int
     ShowLibrarySheets : bool
     /// The library sheets the user has asked to look inside, by name. A library component is an
     /// abstraction and its sheet is not normally reachable at all, but understanding how one
@@ -1324,6 +1337,8 @@ let failedFetch_ = Lens.create (fun a -> a.FailedFetch) (fun s a -> {a with Fail
 let stimulusGeneration_ = Lens.create (fun a -> a.StimulusGeneration) (fun s a -> {a with StimulusGeneration = s})
 let currentViewport_ = Lens.create (fun a -> a.CurrentViewport) (fun s a -> {a with CurrentViewport = s})
 let viewportChangedAtMs_ = Lens.create (fun a -> a.ViewportChangedAtMs) (fun s a -> {a with ViewportChangedAtMs = s})
+let waveScrollSettling_ = Lens.create (fun a -> a.WaveScrollSettling) (fun s a -> {a with WaveScrollSettling = s})
+let waveScrollSerial_ = Lens.create (fun a -> a.WaveScrollSerial) (fun s a -> {a with WaveScrollSerial = s})
 let showLibrarySheets_ = Lens.create (fun a -> a.ShowLibrarySheets) (fun s a -> {a with ShowLibrarySheets = s})
 let openedLibrarySheets_ = Lens.create (fun a -> a.OpenedLibrarySheets) (fun s a -> {a with OpenedLibrarySheets = s})
 let readOnlyBaseline_ = Lens.create (fun a -> a.ReadOnlyBaseline) (fun s a -> {a with ReadOnlyBaseline = s})

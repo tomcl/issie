@@ -104,6 +104,7 @@ let shortDisplayMsg (msg:Msg) =
     | CancelWaveSimulation -> Some "CancelWaveSimulation"
     | StartWaveSimulation -> Some "StartWaveSimulation"
     | RefreshWaveSim -> Some "RefreshWaveSim"
+    | WaveScrollSettled serial -> Some $"WaveScrollSettled #{serial}"
     | SetWaveSheetSelectionOpen _ -> Some "SetWaveSheetSelectionOpen"
     | SetWaveGroupSelectionOpen _
     | LockTabsToWaveSim 

@@ -862,6 +862,32 @@ let private readBundle
         return (if List.isEmpty failures then Ok() else Error(String.concat "; " failures)), rows, probed
     }
 
+/// Suppress the run banner while the waveform viewer is being scrolled horizontally, and arm the
+/// delayed message that lets it show again once the scrolling has stopped.
+///
+/// Here, once, rather than at each of the things that scroll - the scrollbar, its arrow buttons, a
+/// zoom, a cursor move that pulls the window along - because what they have in common is what they
+/// did to StartCycle, and none of them should have to know that there is a banner. Every one of
+/// them reaches this on the way out of the update.
+let noteWaveScroll (oldModel: Model) (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd<Msg> =
+    if (getWSModel model).StartCycle = (getWSModel oldModel).StartCycle then
+        model, cmd
+    else
+        // Each scroll re-arms: the serial it stamps is the one the message must still find when it
+        // lands, so a drag's earlier timers expire into nothing and the wait is measured from the
+        // scroll that turns out to be the last.
+        let serial = model.WaveScrollSerial + 1
+
+        let model =
+            model
+            |> Optic.set waveScrollSerial_ serial
+            |> Optic.set waveScrollSettling_ true
+
+        let settled =
+            Elmish.Cmd.ofMsg (DispatchDelayed(Constants.runBannerAfterScrollMs, WaveScrollSettled serial))
+
+        model, Elmish.Cmd.batch [ cmd; settled ]
+
 /// The end-of-update checks that keep the .NET simulation serving the view. Decisions are STATE
 /// COMPARISONS, never cache interrogations and never event tracking: is a session there (the
 /// start paths' business, not this one's - nothing here ever builds), has it run far enough for

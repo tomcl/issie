@@ -1478,6 +1478,51 @@
       <tr>
         <td class="fsdocs-entity-name">
           <p>
+            <a name="ErrorDisplay">
+              <a href="/issie/reference/global-errordisplay.html">
+                ErrorDisplay
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:ErrorDisplay`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ErrorDisplay\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/ErrorDisplay.fs#L20-20" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               How an error message is put on screen when the user may need to send it to us.
+
+ Issie has two kinds of error. Most are about the design - a port with nothing driving it, two
+ labels with one name - and the user reads them, fixes the design and never thinks about them
+ again. A few are about ISSIE: a sheet file that cannot have been produced by the editor, a
+ simulator that hit a state it says is impossible, a check that admits it should not have
+ fired. Those say "please report it (Info -> Bug Reports)", and a report is only useful if it
+ carries the message.
+
+ **Which is which is not written down anywhere, and this deliberately does not ask.** Classifying
+ `SimulationErrorType` case by case would be a second list to keep in step with the first, and it
+ would go stale the moment a case was added. Length decides instead, and it decides correctly by
+ construction: every message that asks to be reported is long, because it has to explain that the
+ fault is Issie's and say what to do about it. A one-line message about a missing connection stays
+ exactly as it was.
+
+ Being long is also, on its own, a reason to make a message copyable - a user quoting a
+ two-hundred-character explanation in a forum question retypes it or drops half of it - so the
+ rule needs no exception for the design errors it also catches.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
             <a name="EvalAlgebraic">
               <a href="/issie/reference/global-evalalgebraic.html">
                 EvalAlgebraic

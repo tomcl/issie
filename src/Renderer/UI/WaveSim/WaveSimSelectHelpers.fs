@@ -118,45 +118,6 @@ let waveIndicesOfInstanceBy
 let waveIndicesOfInstance (fs: FastSimulation) (instance: InstancePath) : WaveIndexT list =
     (PortView.ofInstanceCached fs instance).ViewPorts |> List.map (PortView.waveIndexOf instance)
 
-/// One instance of each sheet of the design, reached by taking the first instance at every step
-/// down from the top - the same chain the selector shows before anyone has chosen otherwise.
-///
-/// For a question whose answer is a fact about a SHEET rather than about an instance of one -
-/// "does the design have any Viewers, and where" - one instance is enough to find out, and the
-/// design has as many sheets as somebody drew. Asking it of every instance instead is what made
-/// choosing a default selection cost the whole expansion.
-///
-/// Sheets already reached are not entered again, so a sheet instantiated in several places is
-/// visited once; library sheets are not entered at all, their innards being opaque here.
-let defaultInstanceOfEachSheet (fs: FastSimulation) : InstancePath list =
-    let libraries = librarySheetsOf fs
-
-    let rec walk (visited: Set<string>) (instance: InstancePath) =
-        let sheet = fs.Design.SheetOfInstance instance
-
-        if Set.contains sheet visited || Set.contains sheet libraries then
-            [], visited
-        else
-            let subSheets =
-                Map.tryFind sheet fs.Design.DesignComponentsById
-                |> Option.defaultValue Map.empty
-                |> Map.toList
-                |> List.choose (fun (_, comp) ->
-                    match comp.Type with
-                    | Custom ct -> Some ct.Name
-                    | _ -> None)
-                |> List.distinct
-
-            (([ instance ], Set.add sheet visited), subSheets)
-            ||> List.fold (fun (found, visited) name ->
-                match fs.Design.InstancesInside(instance, name) |> List.tryHead with
-                | None -> found, visited
-                | Some child ->
-                    let below, visited = walk visited child
-                    found @ below, visited)
-
-    walk Set.empty (InstancePath []) |> fst
-
 /// The selected waves the simulation still has, which is what Show Only Selected shows and what the
 /// ticks in the dialog are drawn from.
 ///

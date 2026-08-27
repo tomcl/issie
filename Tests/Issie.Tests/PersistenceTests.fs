@@ -165,7 +165,10 @@ let tests =
         // one holding the same project twice, is a fault that outlives the session that caused it.
         test "opening a project puts it at the top of the recents, once, within the limit" {
             let limit = MenuHelpers.Constants.numberOfRecentProjects
-            let paths = [1..limit + 3] |> List.map (fun i -> $"/projects/p{i}")
+            // written the way the list stores them, which is this platform's separator: the list
+            // normalises so that one folder is one entry however its path was spelled
+            let paths =
+                [1..limit + 3] |> List.map (fun i -> FilesIO.normalisePath $"/projects/p{i}")
             let recents = paths |> List.fold (fun acc path -> MenuHelpers.addToRecents path acc) None
             match recents with
             | None -> failtest "opening a project must produce a list"

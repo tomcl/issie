@@ -463,6 +463,20 @@ type WaveSimModel = {
     WaveDetails: Map<WaveIndexT, Wave>
     /// List of which waves are currently visible in the waveform viewer.
     SelectedWaves: WaveIndexT list
+    /// Whether this simulation is still owed the selection it gets when the user has chosen
+    /// nothing - see WaveSimSelect.defaultSelectedWaves.
+    ///
+    /// It cannot be derived, which is the whole reason it is here. "Nothing is selected because
+    /// the simulation has only just started" and "nothing is selected because the user took the
+    /// last wave off" are the same model otherwise, and refilling the second is a viewer the user
+    /// cannot empty. Set when a simulation is STARTED and cleared as soon as anything is
+    /// selected - by the default choice or by the user.
+    ///
+    /// It has to survive a refresh or two because of what the choice reads: the ports of the top
+    /// instance, which while the .NET simulator is simulating are not known until its first slice
+    /// arrives. Choosing once, at the start, therefore chose from nothing and left the viewer
+    /// empty - in the mode that ships.
+    DefaultSelectionPending: bool
     /// When the view the waveforms are drawn under last changed, in ms on the performance clock.
     ///
     /// Waveforms are deliberately allowed to lag: a viewer whose data comes over a wire keeps

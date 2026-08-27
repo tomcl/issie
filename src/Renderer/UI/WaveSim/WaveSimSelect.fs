@@ -460,56 +460,63 @@ let probeLabelForWire
 //------------------------------What is shown before anything has been chosen-----------------------------//
 //--------------------------------------------------------------------------------------------------------//
 
-/// Most waves a first start will select for itself. A design with more top-level ports than this
-/// gets the first few rather than a screenful of waveforms nobody asked for; Select Waves is one
-/// click away for the rest.
-let private maxDefaultWaves = 12
-
 /// The waves to show when a wave simulation starts with nothing chosen.
 ///
 /// An empty viewer is never what the user wants: it makes the first thing they see after pressing
 /// Start a sentence telling them to press a different button.
 ///
-/// First choice is the simulated top sheet's own ports - inputs, then outputs, then Viewers. They
-/// are the signals every design has and the ones a beginner came to look at.
+/// First choice is every Viewer in the design, because a Viewer is placed for one reason only -
+/// somebody wanted to watch that net - so wherever they are, they are the signals the author of the
+/// design thought were worth looking at. Which INSTANCE of a sheet each is taken from is the
+/// selector's business, not this function's: the slice it is pointed at is what the user would see
+/// if they opened Select Waves, and a default selection naming instances the selector is not
+/// showing is one the user cannot find again.
+///
+/// With no Viewers anywhere, the top sheet's own ports - inputs and outputs, which are what a
+/// design says about itself to whatever uses it.
 ///
 /// A top sheet can have no ports at all: a whole CPU is often a ROM, a RAM and a couple of
-/// subsystem instances, wired to each other and to nothing outside. The `3cpu` demo's `eep1` is
-/// exactly that. Falling back to Viewers **anywhere in the design** answers it, because a Viewer
-/// is placed for one reason only - somebody wanted to watch that net - so wherever they are, they
-/// are the signals the author of the design thought were worth looking at.
+/// subsystem instances, wired to each other and to nothing outside, which is what the `3cpu` demo's
+/// `eep1` is. Then everything on the top sheet that carries a wave, which is the output of every
+/// component drawn on it. That is a screenful on a large top sheet and it is still better than the
+/// empty viewer it replaces, which explains itself to nobody.
 ///
-/// Both are read off the DESIGN: the top sheet's own components for the first, and one instance of
-/// each sheet for the second, since which Viewers a sheet has is a fact about the sheet. This used
-/// to be one pass over every wave in the simulation - 208,896 of them on largeTest, to choose
-/// twelve - and it was the last thing the wave selector did that grew with the expansion.
-let defaultSelectedWaves (fs: FastSimulation) : WaveIndexT list =
-    /// Ports of the simulated top sheet: inputs, then outputs, then Viewers - the order they are
-    /// read in, and the order a schematic is drawn in. Ranked with the label, which orders the
-    /// waves within each of the three and is what makes the choice repeatable.
+/// All of them, at each stage, and not the first few: someone who placed thirty Viewers meant all
+/// thirty. Read off the DESIGN - one instance of each sheet, since which Viewers a sheet has is a
+/// fact about the sheet - and not off the waves, which on a large design number in the hundreds of
+/// thousands.
+let defaultSelectedWaves (fs: FastSimulation) (ws: WaveSimModel) : WaveIndexT list =
+    /// Sorted by label within each instance, which is what makes the choice repeatable; the
+    /// instances stay in the order the selector lists them, top sheet first.
+    let chosen pick instances =
+        instances
+        |> List.collect (fun instance ->
+            waveIndicesOfInstanceBy pick fs instance
+            |> List.sortBy fst
+            |> List.map snd)
+
+    /// Ranked so that inputs come before outputs, the order a schematic is read in.
     let topSheetPort (comp: Component) =
         match comp.Type with
         | Input1 _ -> Some(0, comp.Label)
         | Output _ -> Some(1, comp.Label)
-        | Viewer _ -> Some(2, comp.Label)
         | _ -> None
 
-    /// Every Viewer in the design, at whatever depth.
-    let anyViewer (comp: Component) =
+    let viewer (comp: Component) =
         match comp.Type with
-        | Viewer _ -> Some(0, comp.Label)
+        | Viewer _ -> Some comp.Label
         | _ -> None
 
-    let ranked pick instances =
-        instances
-        |> List.collect (waveIndicesOfInstanceBy pick fs)
-        |> List.sortBy fst
-        |> List.truncate maxDefaultWaves
-        |> List.map snd
+    let topSheet = InstancePath []
 
-    match ranked topSheetPort [ InstancePath [] ] with
-    | [] -> ranked anyViewer (defaultInstanceOfEachSheet fs)
-    | topPorts -> topPorts
+    match chosen viewer (WaveSimHierarchy.selectorInstances fs ws) with
+    | [] ->
+        match chosen topSheetPort [ topSheet ] with
+        // every viewable port of the top sheet: no pick to make, since ViewPorts is exactly the
+        // ports that carry a wave
+        | [] -> waveIndicesOfInstance fs topSheet
+        | ports -> ports
+    | viewers -> viewers
 
 /// Choose waves for a wave simulation that has none. Applied only when the user has selected
 /// nothing at all - no waves and no RAMs - so a deliberately pared-down selection is never added
@@ -517,7 +524,28 @@ let defaultSelectedWaves (fs: FastSimulation) : WaveIndexT list =
 let withDefaultSelectionIfEmpty (fs: FastSimulation) (wsModel: WaveSimModel) : WaveSimModel =
     match List.isEmpty wsModel.SelectedWaves && Map.isEmpty wsModel.SelectedRams with
     | false -> wsModel
-    | true -> { wsModel with SelectedWaves = defaultSelectedWaves fs }
+    | true -> { wsModel with SelectedWaves = defaultSelectedWaves fs wsModel }
+
+/// The same, for a simulation that is still OWED its default selection - which is what every
+/// refresh of a started simulation asks, rather than the start asking once.
+///
+/// The choice reads the top instance's ports, and while the .NET simulator is simulating those are
+/// not known until its first slice arrives: asking once, at the start, asked before there was
+/// anything to answer with, and the viewer opened empty in the mode that ships. So it is asked
+/// again until it has something to say - and then not again, which is what leaves a viewer the user
+/// has emptied on purpose empty. See WaveSimModel.DefaultSelectionPending.
+let withDefaultSelectionIfPending (fs: FastSimulation) (wsModel: WaveSimModel) : WaveSimModel =
+    if not wsModel.DefaultSelectionPending then
+        wsModel
+    else
+        withDefaultSelectionIfEmpty fs wsModel
+        |> fun ws ->
+            // still owed only while there is still nothing to show. Cleared by the user's own
+            // first selection just as much as by this one, which is what makes taking every wave
+            // off again stick.
+            { ws with
+                DefaultSelectionPending =
+                    List.isEmpty ws.SelectedWaves && Map.isEmpty ws.SelectedRams }
 
 /// Modal that, when active, shows the ports of one component picked on the schematic, which of
 /// them are displayed as waveforms, and allows that to be changed. Opened from the right-click

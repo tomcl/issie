@@ -1,4 +1,4 @@
-/// Phase 0 of the RAM representation work ([docs/dev/ramRepresentation.md]): a RAM-at-scale
+﻿/// Phase 0 of the RAM representation work ([docs/dev/ramRepresentation.md]): a RAM-at-scale
 /// benchmark, because the suite had none. The only fixture with a read/write memory is
 /// `3cpu`/`eep1`, whose `DATAMEM` is a 64K x 16 `AsyncRAM1` - the exact case the design note
 /// argues about - but it is driven by a program and so writes at whatever rate that program
@@ -264,9 +264,11 @@ let private measureMany (title: string) (count: int) =
 /// Eratosthenes's sieve. This is the benchmark `simulatorStructure.md` names, and unlike the
 /// synthetic sheets above it is a real design where the RAM is one component among hundreds.
 ///
-/// The demo ships with its ROM linked to `sievesmall`, which finishes in well under 25 000 cycles
-/// and then spins in a self-jump - timing that measures a halted CPU. `sieve.txt` says the large
-/// program needs about 800 000 clocks, so it is relinked here.
+/// The ROM must be linked to `sieve`, the large program, which `sieve.txt` says needs about
+/// 800 000 clocks: the small one finishes in well under 25 000 cycles and then spins in a
+/// self-jump, which times a halted CPU. The demo now ships linked to it, and the relinking below
+/// is kept anyway - what this benchmark measures should not be a fact about a demo file somebody
+/// may relink for their own reasons.
 let private loadSieve () =
     // static/demos is the tracked copy; the demos/ directory at the repo root is a build artefact
     let path = Path.GetFullPath(Path.Combine(__SOURCE_DIRECTORY__, "..", "..", "static", "demos", "5eratosthenes"))

@@ -175,20 +175,31 @@ let rec refreshWaveSim (newSimulation: bool) (model: Model): Model * Elmish.Cmd<
     /// The validation may be done more than once because this function is recursive, but that is OK.
     /// validateSimparas is idempotent unless model changes.
     let wsModel =
+        /// A viewer with nothing in it is never what the user wants: give a simulation started with
+        /// nothing chosen the Viewers of the design. Does nothing once anything at all has been
+        /// selected.
+        ///
+        /// Tried on every refresh while it is still owed, not once at the start, because what it
+        /// reads is the top instance's PORTS - and while the .NET simulator is simulating those
+        /// arrive with its first slice, some refreshes after the start. Choosing once meant
+        /// choosing from nothing there, and the viewer opened empty in the mode that ships. The
+        /// flag is what stops that becoming a viewer nobody can empty: see
+        /// WaveSimModel.DefaultSelectionPending.
+        ///
+        /// This is where every wave the simulation offers used to be described, one record per
+        /// viewable port - more records than a large flat design has components. What each
+        /// SELECTED wave is, is worked out below.
         let chooseDefaultWaves (wsModel: WaveSimModel) =
-            // a viewer with nothing in it is never what the user wants: give a first start the top
-            // sheet's own ports. Does nothing once anything at all has been selected.
-            //
-            // This is where every wave the simulation offers used to be described, one record per
-            // viewable port - more records than a large flat design has components. What each
-            // SELECTED wave is, is worked out below.
-            let t0, m0 = TimeHelpers.getTimeMs (), TimeHelpers.usedHeapBytes ()
-            WaveSimSelect.withDefaultSelectionIfEmpty (Simulator.getFastSim()) wsModel
-            |> fun ws ->
-                if Log.isOn Log.Perf then
-                    let dt, dm = TimeHelpers.getTimeMs () - t0, TimeHelpers.usedHeapBytes () - m0
-                    Log.dbg Log.Perf $"defaultWaves {ws.SelectedWaves.Length} selected %8.0f{dt}ms  %+6.0f{dm / 1.0e6}MB"
-                ws
+            if not wsModel.DefaultSelectionPending then
+                wsModel
+            else
+                let t0, m0 = TimeHelpers.getTimeMs (), TimeHelpers.usedHeapBytes ()
+                WaveSimSelect.withDefaultSelectionIfPending (Simulator.getFastSim()) wsModel
+                |> fun ws ->
+                    if Log.isOn Log.Perf then
+                        let dt, dm = TimeHelpers.getTimeMs () - t0, TimeHelpers.usedHeapBytes () - m0
+                        Log.dbg Log.Perf $"defaultWaves {ws.SelectedWaves.Length} selected %8.0f{dt}ms  %+6.0f{dm / 1.0e6}MB"
+                    ws
         // Reconciled BEFORE the default selection is chosen, not after. A selection saved with the
         // sheet can name ports the design no longer has - it was saved by an older version of the
         // design, or of Issie - and reconciling drops those. Choosing defaults first meant a
@@ -197,7 +208,10 @@ let rec refreshWaveSim (newSimulation: bool) (model: Model): Model * Elmish.Cmd<
         // exactly the case where the user has no way to know why.
         validateSimParas wsModel
         |> reconcileWaves (Simulator.getFastSim())
-        |> if newSimulation then chooseDefaultWaves else id
+        // a START is what owes a default selection; every refresh after it is where the debt may
+        // finally be payable, since only then are the ports it chooses from known
+        |> (fun ws -> if newSimulation then { ws with DefaultSelectionPending = true } else ws)
+        |> chooseDefaultWaves
         |> reconcileWaves (Simulator.getFastSim())
 
     // Use the given (more uptodate) wsModel. This ensures it is returned from this function.

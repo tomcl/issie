@@ -109,10 +109,14 @@ let private simulatedShapes: FastSimulation -> SheetShapes * Set<string> =
         let shapes = getSheetShapes (fun _ -> false) fs.SimulatedCanvasState
         shapes, multiPathSheets shapes fs.SimulatedTopSheet)
 
-/// The hierarchy to draw: the sheets of the simulated design below its top sheet, collapsed so that
-/// several instances of one sheet inside one parent are one node, cut off below any node the user
-/// has not opened, and resolved against `fs` so each node names the instance it is showing.
-let getSelectorHierarchy (fs: FastSimulation) (ws: WaveSimModel): SelectorHierarchy =
+/// The hierarchy, built either as far as it is DRAWN or all the way down.
+///
+/// `wholeTree` is what separates the two. The selector draws only as far as the user has opened,
+/// so a node they have not opened has no children in it; a caller asking which instance each sheet
+/// is showing wants them all, because a node still shows an instance whether or not it is drawn.
+/// Both go through here so that the instance a sheet is showing is decided in ONE place: two walks
+/// choosing it separately is how the two panes of the selector could once disagree.
+let private hierarchyOf (wholeTree: bool) (fs: FastSimulation) (ws: WaveSimModel): SelectorHierarchy =
     let shapes, multiPath = simulatedShapes fs
     let root = fs.SimulatedTopSheet
 
@@ -134,7 +138,7 @@ let getSelectorHierarchy (fs: FastSimulation) (ws: WaveSimModel): SelectorHierar
 
     let tree =
         materialiseTree
-            (fun key -> not (collapsible key) || Set.contains key ws.ShowSheetDetail)
+            (fun key -> wholeTree || not (collapsible key) || Set.contains key ws.ShowSheetDetail)
             false
             shapes
             root
@@ -167,6 +171,27 @@ let getSelectorHierarchy (fs: FastSimulation) (ws: WaveSimModel): SelectorHierar
     { HierTree = tree
       HierNodes = order |> List.map (fun node -> node.NodeKey, node) |> Map.ofList
       HierOrder = order }
+
+/// The hierarchy to draw: the sheets of the simulated design below its top sheet, collapsed so that
+/// several instances of one sheet inside one parent are one node, cut off below any node the user
+/// has not opened, and resolved against `fs` so each node names the instance it is showing.
+let getSelectorHierarchy (fs: FastSimulation) (ws: WaveSimModel): SelectorHierarchy =
+    hierarchyOf false fs ws
+
+/// The slice the selector takes through the design's instances: the instance each sheet is showing,
+/// top sheet first, every sheet of the design and one entry per place in the tree it appears.
+///
+/// Which instance that is, is the user's choice wherever they have made one - the same
+/// SelectedSheetInstance chain the pills resolve, validated the same way - and the alphabetically
+/// first otherwise. A node the user has not opened is included: it is showing an instance like any
+/// other, it is simply not drawn until they open it.
+///
+/// This is what "everything the selector is currently pointed at" means for a question asked of the
+/// whole design rather than of one node, such as which Viewers to select when nothing has been
+/// chosen. It is a fact about the SHEETS - one instance each - so it costs the design and not the
+/// expansion.
+let selectorInstances (fs: FastSimulation) (ws: WaveSimModel) : InstancePath list =
+    (hierarchyOf true fs ws).HierOrder |> List.choose (fun node -> node.NodeInstance)
 
 /// The node a SheetTree node is drawn as, for the pills - which are handed SheetTree nodes by the
 /// breadcrumb renderer and need what was worked out about them here.

@@ -74,6 +74,40 @@ let private closedSimulation =
          | Ok simData ->
              simData.FastSim, TestFixtures.allWavesOf ModelHelpers.initWSModel simData.FastSim)
 
+/// A top sheet with ports of its own AND two instances of the sheet holding the Viewer: the case
+/// that says which of the two a first start prefers, and - since the Viewer inside PROBED1 and the
+/// one inside PROBED2 are different signals - which instance the choice is taken from.
+let private watched =
+    let i = makeComp 1 0 1 (Input1(1, None)) "IN"
+    let p1 = makeComp 2 1 1 (customOf probed [ "A", 1 ] [ "Y", 1 ] None) "PROBED1"
+    let p2 = makeComp 3 1 1 (customOf probed [ "A", 1 ] [ "Y", 1 ] None) "PROBED2"
+    let o = makeComp 4 1 0 (Output 1) "OUT"
+    makeLdc "watched" None
+        ([ i; p1; p2; o ], [ conn i 0 p1 0; conn p1 0 p2 0; conn p2 0 o 0 ])
+
+let private watchedSimulation =
+    lazy
+        (match Simulator.startCircuitSimulation maxArraySize "watched" watched.CanvasState [ watched; probed ] with
+         | Error e -> failwith $"Simulation setup failed: %A{e}"
+         | Ok simData ->
+             simData.FastSim, TestFixtures.allWavesOf ModelHelpers.initWSModel simData.FastSim)
+
+/// The last case there is: no Viewer anywhere and no ports on the top sheet either. A constant
+/// drives an instance whose output is terminated, so the only signals in the design are what the
+/// components drawn on the top sheet put out.
+let private sealedTop =
+    let c = makeComp 1 0 1 (Constant1(1, 1I, "1")) "C1"
+    let inst = makeComp 2 1 1 (customOf solo [ "A", 1 ] [ "Y", 1 ] None) "SOLO1"
+    let nc = makeComp 3 1 0 NotConnected "NC1"
+    makeLdc "sealed" None ([ c; inst; nc ], [ conn c 0 inst 0; conn inst 0 nc 0 ])
+
+let private sealedSimulation =
+    lazy
+        (match Simulator.startCircuitSimulation maxArraySize "sealed" sealedTop.CanvasState [ sealedTop; solo ] with
+         | Error e -> failwith $"Simulation setup failed: %A{e}"
+         | Ok simData ->
+             simData.FastSim, TestFixtures.allWavesOf ModelHelpers.initWSModel simData.FastSim)
+
 /// The simulation and every wave the wave simulator would offer from it. Built once: making a
 /// FastSimulation is not cheap, and the tests only read it.
 let private simulation =
@@ -404,7 +438,7 @@ let tests =
                                   (Some wi)
                                   $"{name}/{top.Name}: %A{wi.PortType}[%d{wi.PortNumber}] resolves to itself")
 
-                          let defaults = WaveSimSelect.defaultSelectedWaves fs
+                          let defaults = WaveSimSelect.defaultSelectedWaves fs ModelHelpers.initWSModel
 
                           Expect.isNonEmpty defaults $"{name}/{top.Name}: a first start offers something to look at"
 
@@ -557,28 +591,28 @@ let tests =
           // What the viewer shows before the user has chosen anything
           //-----------------------------------------------------------------------------------//
 
-          testCase "a first start shows the top sheet's own inputs and outputs"
+          testCase "a design with no Viewers shows the top sheet's own inputs and outputs"
           <| fun () ->
               let fs, allWaves = simulation.Force()
               let chosen =
-                  WaveSimSelect.defaultSelectedWaves fs
+                  WaveSimSelect.defaultSelectedWaves fs ModelHelpers.initWSModel
                   |> List.map (fun wi -> PortView.nameOfPort fs wi)
               // IN before OUT: inputs are ranked before outputs, and each group is sorted by label
               Expect.equal chosen [ "IN"; "OUT" ] "the top sheet's ports, inputs first"
 
-          testCase "a first start shows nothing from inside a subsheet"
+          testCase "with no Viewers nothing comes from inside a subsheet"
           <| fun () ->
               let fs, allWaves = simulation.Force()
               Expect.all
-                  (WaveSimSelect.defaultSelectedWaves fs)
+                  (WaveSimSelect.defaultSelectedWaves fs ModelHelpers.initWSModel)
                   (fun wi -> snd wi.Id = [])
                   "every default wave is on the simulated top sheet, not inside an instance"
 
-          testCase "a first start does not offer components that are not ports"
+          testCase "the top sheet's ports are its ports, not everything drawn on it"
           <| fun () ->
               let fs, allWaves = simulation.Force()
               Expect.all
-                  (WaveSimSelect.defaultSelectedWaves fs)
+                  (WaveSimSelect.defaultSelectedWaves fs ModelHelpers.initWSModel)
                   (fun wi -> fst wi.Id <> ComponentId 2)
                   "TOPNOT is on the top sheet but is not one of its ports"
 
@@ -614,28 +648,105 @@ let tests =
                   (WaveSimSelect.withDefaultSelectionIfEmpty fs ws).SelectedWaves
                   "the viewer never opens empty when the top sheet has ports"
 
-          testCase "a top sheet with no ports of its own falls back to the design's Viewers"
+          testCase "a Viewer anywhere in the design is what a first start shows"
           <| fun () ->
               let fs, allWaves = closedSimulation.Force()
               let chosen =
-                  WaveSimSelect.defaultSelectedWaves fs
+                  WaveSimSelect.defaultSelectedWaves fs ModelHelpers.initWSModel
                   |> List.map (fun wi -> PortView.nameOfPort fs wi)
               // the Viewer is inside the instance, which is exactly the point: it is the one signal
               // the author of the design said was worth watching, and nothing on the top sheet is
               Expect.equal chosen [ "PROBE" ] "the Viewer in the subsheet"
 
-          testCase "the fallback is only a fallback"
+          testCase "Viewers win over the top sheet's ports"
           <| fun () ->
-              // the first design has both top-level ports and no Viewers to be distracted by, so
-              // this only checks that having ports stops the search there
+              // Ports are what a design says to whatever uses it; a Viewer is what its author said
+              // was worth watching. The second is the better guess at what somebody pressed Start
+              // to look at, so the ports are not added to it.
+              let fs, _ = watchedSimulation.Force()
+              let chosen =
+                  WaveSimSelect.defaultSelectedWaves fs ModelHelpers.initWSModel
+                  |> List.map (fun wi -> PortView.nameOfPort fs wi)
+              Expect.equal chosen [ "PROBE" ] "the Viewer, though IN and OUT are on the top sheet"
+
+          testCase "the Viewers come from the instance the selector is showing"
+          <| fun () ->
+              // PROBED is instantiated twice, so "the Viewer in PROBED" is two different signals
+              // and the selector's own choice is what says which of them is meant.
+              let fs, _ = watchedSimulation.Force()
+              let second = instanceNamed fs "PROBED2"
+              let ws =
+                  { ModelHelpers.initWSModel with
+                      SelectedSheetInstance = Map [ [ "watched"; "probed" ], second ] }
+
+              Expect.equal
+                  (WaveSimSelect.defaultSelectedWaves fs ws |> List.map (fun wi -> snd wi.Id))
+                  [ (let (InstancePath ap) = second in ap) ]
+                  "the Viewer inside the chosen instance"
+
+              Expect.notEqual
+                  (WaveSimSelect.defaultSelectedWaves fs ws)
+                  (WaveSimSelect.defaultSelectedWaves fs ModelHelpers.initWSModel)
+                  "and not the one inside the instance shown before it was chosen"
+
+          testCase "a simulation owed a default selection is given one, once"
+          <| fun () ->
               let fs, allWaves = simulation.Force()
-              Expect.all
-                  (WaveSimSelect.defaultSelectedWaves fs)
-                  (fun wi ->
-                      match fs.ComponentOf wi.Id with
-                      | Some fc -> fc.AccessPath = []
-                      | None -> false)
-                  "a design with top-level ports never reaches into its subsheets"
+              let started =
+                  { ModelHelpers.initWSModel with
+                      WaveDetails = allWaves
+                      SelectedWaves = []
+                      DefaultSelectionPending = true }
+                  |> WaveSimSelect.withDefaultSelectionIfPending fs
+
+              Expect.isNonEmpty started.SelectedWaves "a started simulation is filled in"
+              Expect.isFalse started.DefaultSelectionPending "and is not owed one again"
+
+          testCase "a viewer the user has emptied stays empty"
+          <| fun () ->
+              // The debt is cleared by the FIRST selection, whoever made it, so taking every wave
+              // off afterwards is not the same state as a simulation that has just started - which
+              // is the whole reason the flag exists rather than being derived from the selection.
+              let fs, allWaves = simulation.Force()
+              let emptied =
+                  { ModelHelpers.initWSModel with
+                      WaveDetails = allWaves
+                      SelectedWaves = []
+                      DefaultSelectionPending = false }
+                  |> WaveSimSelect.withDefaultSelectionIfPending fs
+
+              Expect.isEmpty emptied.SelectedWaves "nothing is put back"
+
+          testCase "a simulation started with waves already chosen keeps them"
+          <| fun () ->
+              let fs, allWaves = simulation.Force()
+              let mine = [ (Map.toList allWaves |> List.head |> fst) ]
+              let started =
+                  { ModelHelpers.initWSModel with
+                      WaveDetails = allWaves
+                      SelectedWaves = mine
+                      DefaultSelectionPending = true }
+                  |> WaveSimSelect.withDefaultSelectionIfPending fs
+
+              Expect.equal started.SelectedWaves mine "a saved selection is not replaced"
+              Expect.isFalse started.DefaultSelectionPending "and the debt is settled by it"
+
+          testCase "with neither Viewers nor ports, everything the top sheet puts out"
+          <| fun () ->
+              // Nothing is left to prefer, and an empty viewer explains itself to nobody - so the
+              // output of every component drawn on the top sheet, which is what its ViewPorts are.
+              let fs, _ = sealedSimulation.Force()
+              let chosen =
+                  WaveSimSelect.defaultSelectedWaves fs ModelHelpers.initWSModel
+
+              Expect.isNonEmpty chosen "a design with nothing to prefer still shows something"
+              Expect.all chosen (fun wi -> snd wi.Id = []) "all of it on the top sheet"
+              Expect.equal
+                  (chosen |> List.map (fun wi -> PortView.nameOfPort fs wi) |> List.sort)
+                  [ "SOLO1.A"; "SOLO1.Y" ]
+                  // the constant's net is the instance's input port, which is where its wave is
+                  // named and held; NC1 terminates a net and puts nothing out
+                  "both ports of the instance, which is every wave the top sheet has"
 
           //---------------------------------------------------------------------------------//
           // The collapsed hierarchy.
@@ -1089,13 +1200,36 @@ let tests =
                       "and it is one the simulation holds, not a path assembled out of nothing"
               Expect.isNone (fs.Design.SoleInstanceOfSheet "shared") "shared is reached twice, so has none"
 
-          testCase "one instance of each sheet is enough to find what the design has"
+          testCase "the selector's slice names one instance of every sheet"
           <| fun () ->
-              // The fallback default selection reads Viewers off these, so what it must not do is
-              // miss a sheet or return the same sheet twice.
+              // The default selection reads Viewers off these, so what it must not do is miss a
+              // sheet - including one whose node the user has not opened, which is not drawn but is
+              // still showing an instance.
               let fs, _ = deepSimulation.Force()
-              let sheets = WaveSimSelectHelpers.defaultInstanceOfEachSheet fs |> List.map fs.Design.SheetOfInstance
-              Expect.equal (List.sort sheets) [ "deep"; "leaf"; "mid" ] "every sheet of the design, once each"
+              let slice = WaveSimHierarchy.selectorInstances fs ModelHelpers.initWSModel
+              Expect.equal
+                  (slice |> List.map fs.Design.SheetOfInstance |> List.sort)
+                  [ "deep"; "leaf"; "mid" ]
+                  "every sheet of the design, once each"
               Expect.isTrue
-                  (WaveSimSelectHelpers.defaultInstanceOfEachSheet fs |> List.forall (fun i -> List.contains i (allInstances fs)))
-                  "and each is an instance the simulation holds" ]
+                  (slice |> List.forall (fun i -> List.contains i (allInstances fs)))
+                  "and each is an instance the simulation holds"
+
+          testCase "the slice follows the instance the user chose"
+          <| fun () ->
+              // Choosing a different mid changes which leaves are inside it, so the slice below it
+              // moves too - the same chain the pills resolve, which is the point of sharing it.
+              let fs, _ = deepSimulation.Force()
+              let second = instanceNamed fs "MID2"
+              let ws =
+                  { ModelHelpers.initWSModel with SelectedSheetInstance = Map [ midKey, second ] }
+              let slice = WaveSimHierarchy.selectorInstances fs ws
+
+              Expect.isTrue (List.contains second slice) "the chosen mid is in the slice"
+              Expect.isFalse
+                  (List.contains (instanceNamed fs "MID1") slice)
+                  "and the one it replaced is not"
+              Expect.all
+                  (slice |> List.filter (fun i -> fs.Design.SheetOfInstance i = "leaf"))
+                  (fun (InstancePath ap) -> let (InstancePath chosen) = second in List.truncate chosen.Length ap = chosen)
+                  "and the leaf shown is one inside it" ]

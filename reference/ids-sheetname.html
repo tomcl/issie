@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="InstancePath (issie)" />
+    <meta property="og:title" content="SheetName (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="InstancePath (issie)">
+    <meta name="twitter:title" content="SheetName (issie)">
     
-    <title>InstancePath (issie) | issie</title>
+    <title>SheetName (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -472,7 +472,7 @@
     <div id="content">
         <div>
   <h2>
-    InstancePath Type
+    SheetName Type
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
@@ -486,8 +486,8 @@
     </dt>
     <dt>
       Parent Module: 
-      <a href="/issie/reference/global-commontypes.html">
-        CommonTypes
+      <a href="/issie/reference/global-ids.html">
+        Ids
       </a>
     </dt>
     <dt>
@@ -496,11 +496,11 @@
     </dt>
     <dt>
       All Interfaces: 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/commontypes-instancepath.html">InstancePath</a>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/ids-sheetname.html">SheetName</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
       , 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/commontypes-instancepath.html">InstancePath</a>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/ids-sheetname.html">SheetName</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
       , 
@@ -510,14 +510,18 @@
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         The chain of custom-component instances from the simulated top sheet down to one instance,
- root first - so it names one ELABORATED copy of a sheet.
+         The DESIGN-time name of a sheet.
 
- These are design-time ComponentIds, unique across the design, so a path is stable under
- relabelling and means the same thing whichever side computed it. It is not a new value: the
- simulator already builds exactly this as FastComponent.AccessPath (`ap @ [cid]` in
- FastCreate) and the design side already builds exactly this as SheetTree.SheetAccessPath
- (`accessPath @ [inst.InstId]` in MenuHelpers). This gives it a name.
+ A sheet's name and the name of one INSTANCE of that sheet are different things which have had
+ the same type - bare string - for as long as the waveform simulator has existed. That is why
+ SimTypes and ModelType each carry a long comment warning about the confusion, and why
+ FastCreate needs a collision hack for it. Wrapping the design-time one is half of telling
+ them apart; SimSheetId below is the other half.
+
+ Wrapped at the simulator interface only. It is deliberately NOT pushed into
+ LoadedComponent.Name, CustomComponentType.Name or SimpleSheet.SheetName: those cross the .dgm
+ persistence boundary and the SimpleJsonDotNet wire boundary, and [<Erase>] does not mean the
+ same thing under Fable as under .NET.
       </p>
     </div>
   </div>
@@ -543,19 +547,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3701', 3701)" onmouseover="showTip(event, '3701', 3701)">
+              <code onmouseout="hideTip(event, '4799', 4799)" onmouseover="showTip(event, '4799', 4799)">
                 <p>
-                  <a id="InstancePath">
-                    <a href="#InstancePath">
-                      <code><span>InstancePath&#32;<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></span></code>
+                  <a id="SheetName">
+                    <a href="#SheetName">
+                      <code><span>SheetName&#32;string</span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3701">
+              <div class="fsdocs-tip" id="4799">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>InstancePath&#32;<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></span></code>
+                  <code><span>SheetName&#32;string</span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -565,7 +569,7 @@
                         Item
                       </b>
                       :
-                      <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
+                      <code>string</code>
                     </span>
                     <br/>
                   </ul>
@@ -581,7 +585,7 @@
                   Item
                 </span>
                 :
-                <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
+                <code>string</code>
               </dt>
               <dd class="fsdocs-param-docs"></dd>
             </dl>

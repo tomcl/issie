@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="ConnectionId (issie)" />
+    <meta property="og:title" content="FComponentId (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="ConnectionId (issie)">
+    <meta name="twitter:title" content="FComponentId (issie)">
     
-    <title>ConnectionId (issie) | issie</title>
+    <title>FComponentId (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -472,7 +472,7 @@
     <div id="content">
         <div>
   <h2>
-    ConnectionId Type
+    FComponentId Type
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
@@ -486,9 +486,13 @@
     </dt>
     <dt>
       Parent Module: 
-      <a href="/issie/reference/global-commontypes.html">
-        CommonTypes
+      <a href="/issie/reference/global-ids.html">
+        Ids
       </a>
+    </dt>
+    <dt>
+      Abbreviation For: 
+      <code><a href="/issie/reference/ids-simcomponentid.html">SimComponentId</a></code>
     </dt>
     <dt>
       Base Type: 
@@ -496,37 +500,51 @@
     </dt>
     <dt>
       All Interfaces: 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/commontypes-connectionid.html">ConnectionId</a>&gt;</span></code>
+      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralcomparable">IStructuralComparable</a></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
       , 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/commontypes-connectionid.html">ConnectionId</a>&gt;</span></code>
-      , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
       , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralcomparable">IStructuralComparable</a></code>
+      <code><a href="https://learn.microsoft.com/dotnet/api/system.runtime.compilerservices.ituple">ITuple</a></code>
     </dt>
   </dl>
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         Unique integer id of a connection, unique within its SHEET only - nothing resolves a
- connection id outside the sheet it belongs to (error highlighting is sheet-guarded).
+         The old name for SimComponentId, kept while the ~70 sites that destructure it as a bare tuple
+ are still doing so.
+
+ Both are abbreviations of the same tuple today, so this costs nothing and changes nothing.
+ Making the identity a tagged type is one line here - `[<Erase>] type SimComponentId =
+ SimComponentId of ComponentId * ComponentId list` - and it was measured, on this branch, to
+ break 71 sites, 38 of them in FastCreate and FastExtract. THAT is the reason to wait: it is
+ worth doing with the change that needs it (the per-instance port enumeration, which factors a
+ predicate out of FastCreate anyway) rather than as a sweep of the simulator core which buys
+ nothing on its own.
+
+ When it is done, tag it [<Erase>] and NOT [<Struct>]: this is the key type of fs.FComps and
+ the note above the id types prices what a struct key costs in an F# Map. A plain reference
+ wrapper is what the rest of them are and what this should be.
       </p>
     </div>
   </div>
   <div></div>
   <div></div>
   <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
   <div>
     <h3>
-      Union cases
+      Instance members
     </h3>
     <table class="table outer-list fsdocs-member-list">
       <thead>
         <tr>
           <td class="fsdocs-member-list-header">
-            Union case
+            Instance member
           </td>
           <td class="fsdocs-member-list-header">
             Description
@@ -537,57 +555,84 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3601', 3601)" onmouseover="showTip(event, '3601', 3601)">
+              <code onmouseout="hideTip(event, '4788', 4788)" onmouseover="showTip(event, '4788', 4788)">
                 <p>
-                  <a id="ConnectionId">
-                    <a href="#ConnectionId">
-                      <code><span>ConnectionId&#32;int</span></code>
+                  <a id="Item1">
+                    <a href="#Item1">
+                      <code><span>this.Item1</span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3601">
+              <div class="fsdocs-tip" id="4788">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>ConnectionId&#32;int</span></code>
+                  <code><span>this.Item1</span></code>
                   <br/>
                   <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        Item
-                      </b>
-                      :
-                      <code>int</code>
-                    </span>
-                    <br/>
-                  </ul>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
+                  </span>
                   <br/>
                 </div>
               </div>
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
                 </span>
-                :
-                <code>int</code>
+                <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
               </dt>
-              <dd class="fsdocs-param-docs"></dd>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '4789', 4789)" onmouseover="showTip(event, '4789', 4789)">
+                <p>
+                  <a id="Item2">
+                    <a href="#Item2">
+                      <code><span>this.Item2</span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="4789">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>this.Item2</span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;list</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;list</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
             </dl>
           </td>
         </tr>
       </tbody>
     </table>
   </div>
-  <div></div>
-  <div></div>
-  <div></div>
-  <div></div>
   <div></div>
 </div>
         

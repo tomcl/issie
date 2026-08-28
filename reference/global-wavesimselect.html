@@ -511,7 +511,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3037', 3037)" onmouseover="showTip(event, '3037', 3037)">
+              <code onmouseout="hideTip(event, '3046', 3046)" onmouseover="showTip(event, '3046', 3046)">
                 <p>
                   <a id="compWavesToOffer">
                     <a href="#compWavesToOffer">
@@ -520,7 +520,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3037">
+              <div class="fsdocs-tip" id="3046">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>compWavesToOffer&#32;<span>model&#32;compId</span></span></code>
@@ -541,7 +541,7 @@
                         compId
                       </b>
                       :
-                      <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                      <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
                     </span>
                     <br/>
                   </ul>
@@ -588,7 +588,7 @@
                     compId
                   </span>
                   :
-                  <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                  <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
               </dl>
@@ -607,19 +607,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3038', 3038)" onmouseover="showTip(event, '3038', 3038)">
+              <code onmouseout="hideTip(event, '3047', 3047)" onmouseover="showTip(event, '3047', 3047)">
                 <p>
                   <a id="defaultSelectedWaves">
                     <a href="#defaultSelectedWaves">
-                      <code><span>defaultSelectedWaves&#32;<span>fs</span></span></code>
+                      <code><span>defaultSelectedWaves&#32;<span>fs&#32;ws</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3038">
+              <div class="fsdocs-tip" id="3047">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>defaultSelectedWaves&#32;<span>fs</span></span></code>
+                  <code><span>defaultSelectedWaves&#32;<span>fs&#32;ws</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -630,6 +630,14 @@
                       </b>
                       :
                       <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        ws
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
                     </span>
                     <br/>
                   </ul>
@@ -653,7 +661,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimSelect.defaultSelectedWaves\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimSelect.fs#L486-486" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimSelect.fs#L488-488" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -662,19 +670,26 @@
  An empty viewer is never what the user wants: it makes the first thing they see after pressing
  Start a sentence telling them to press a different button.
 
- First choice is the simulated top sheet's own ports - inputs, then outputs, then Viewers. They
- are the signals every design has and the ones a beginner came to look at.
+ First choice is every Viewer in the design, because a Viewer is placed for one reason only -
+ somebody wanted to watch that net - so wherever they are, they are the signals the author of the
+ design thought were worth looking at. Which INSTANCE of a sheet each is taken from is the
+ selector's business, not this function's: the slice it is pointed at is what the user would see
+ if they opened Select Waves, and a default selection naming instances the selector is not
+ showing is one the user cannot find again.
+
+ With no Viewers anywhere, the top sheet's own ports - inputs and outputs, which are what a
+ design says about itself to whatever uses it.
 
  A top sheet can have no ports at all: a whole CPU is often a ROM, a RAM and a couple of
- subsystem instances, wired to each other and to nothing outside. The `3cpu` demo's `eep1` is
- exactly that. Falling back to Viewers **anywhere in the design** answers it, because a Viewer
- is placed for one reason only - somebody wanted to watch that net - so wherever they are, they
- are the signals the author of the design thought were worth looking at.
+ subsystem instances, wired to each other and to nothing outside, which is what the `3cpu` demo's
+ `eep1` is. Then everything on the top sheet that carries a wave, which is the output of every
+ component drawn on it. That is a screenful on a large top sheet and it is still better than the
+ empty viewer it replaces, which explains itself to nobody.
 
- Both are read off the DESIGN: the top sheet's own components for the first, and one instance of
- each sheet for the second, since which Viewers a sheet has is a fact about the sheet. This used
- to be one pass over every wave in the simulation - 208,896 of them on largeTest, to choose
- twelve - and it was the last thing the wave selector did that grew with the expansion.
+ All of them, at each stage, and not the first few: someone who placed thirty Viewers meant all
+ thirty. Read off the DESIGN - one instance of each sheet, since which Viewers a sheet has is a
+ fact about the sheet - and not off the waves, which on a large design number in the hundreds of
+ thousands.
                   </p>
                 </div>
               </summary>
@@ -685,6 +700,14 @@
                   </span>
                   :
                   <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ws
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
               </dl>
@@ -703,7 +726,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3039', 3039)" onmouseover="showTip(event, '3039', 3039)">
+              <code onmouseout="hideTip(event, '3048', 3048)" onmouseover="showTip(event, '3048', 3048)">
                 <p>
                   <a id="enclosingInstance">
                     <a href="#enclosingInstance">
@@ -712,7 +735,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3039">
+              <div class="fsdocs-tip" id="3048">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>enclosingInstance&#32;<span>accessPath</span></span></code>
@@ -725,14 +748,14 @@
                         accessPath
                       </b>
                       :
-                      <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
+                      <code><span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;list</span></code>
                     </span>
                     <br/>
                   </ul>
                   <br/>
                   <span>
                     Returns: 
-                    <code><span><a href="/issie/reference/commontypes-fcomponentid.html">FComponentId</a>&#32;option</span></code>
+                    <code><span><a href="/issie/reference/ids-fcomponentid.html">FComponentId</a>&#32;option</span></code>
                   </span>
                   <br/>
                 </div>
@@ -765,7 +788,7 @@
                     accessPath
                   </span>
                   :
-                  <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
+                  <code><span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;list</span></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
               </dl>
@@ -774,7 +797,7 @@
                   <span class="fsdocs-return-name">
                     Returns: 
                   </span>
-                  <code><span><a href="/issie/reference/commontypes-fcomponentid.html">FComponentId</a>&#32;option</span></code>
+                  <code><span><a href="/issie/reference/ids-fcomponentid.html">FComponentId</a>&#32;option</span></code>
                 </dt>
                 <dd class="fsdocs-return-docs"></dd>
               </dl>
@@ -784,7 +807,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3040', 3040)" onmouseover="showTip(event, '3040', 3040)">
+              <code onmouseout="hideTip(event, '3049', 3049)" onmouseover="showTip(event, '3049', 3049)">
                 <p>
                   <a id="heldProbeValue">
                     <a href="#heldProbeValue">
@@ -793,7 +816,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3040">
+              <div class="fsdocs-tip" id="3049">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>heldProbeValue&#32;<span>model&#32;wi&#32;cycle</span></span></code>
@@ -899,7 +922,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3041', 3041)" onmouseover="showTip(event, '3041', 3041)">
+              <code onmouseout="hideTip(event, '3050', 3050)" onmouseover="showTip(event, '3050', 3050)">
                 <p>
                   <a id="probeLabelForWire">
                     <a href="#probeLabelForWire">
@@ -908,7 +931,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3041">
+              <div class="fsdocs-tip" id="3050">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>probeLabelForWire&#32;<span>model&#32;fs&#32;cycle&#32;radix&#32;wireModel&#32;cid</span></span></code>
@@ -961,7 +984,7 @@
                         cid
                       </b>
                       :
-                      <code><a href="/issie/reference/commontypes-connectionid.html">ConnectionId</a></code>
+                      <code><a href="/issie/reference/ids-connectionid.html">ConnectionId</a></code>
                     </span>
                     <br/>
                   </ul>
@@ -1047,7 +1070,7 @@
                     cid
                   </span>
                   :
-                  <code><a href="/issie/reference/commontypes-connectionid.html">ConnectionId</a></code>
+                  <code><a href="/issie/reference/ids-connectionid.html">ConnectionId</a></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
               </dl>
@@ -1066,7 +1089,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3042', 3042)" onmouseover="showTip(event, '3042', 3042)">
+              <code onmouseout="hideTip(event, '3051', 3051)" onmouseover="showTip(event, '3051', 3051)">
                 <p>
                   <a id="probeQuestion">
                     <a href="#probeQuestion">
@@ -1075,7 +1098,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3042">
+              <div class="fsdocs-tip" id="3051">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>probeQuestion&#32;<span>model</span></span></code>
@@ -1156,7 +1179,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3043', 3043)" onmouseover="showTip(event, '3043', 3043)">
+              <code onmouseout="hideTip(event, '3052', 3052)" onmouseover="showTip(event, '3052', 3052)">
                 <p>
                   <a id="selectCompWavesModal">
                     <a href="#selectCompWavesModal">
@@ -1165,7 +1188,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3043">
+              <div class="fsdocs-tip" id="3052">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>selectCompWavesModal&#32;<span>wsModel&#32;dispatch</span></span></code>
@@ -1210,7 +1233,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimSelect.selectCompWavesModal\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimSelect.fs#L525-525" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimSelect.fs#L553-553" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1253,7 +1276,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3044', 3044)" onmouseover="showTip(event, '3044', 3044)">
+              <code onmouseout="hideTip(event, '3053', 3053)" onmouseover="showTip(event, '3053', 3053)">
                 <p>
                   <a id="selectRamButton">
                     <a href="#selectRamButton">
@@ -1262,7 +1285,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3044">
+              <div class="fsdocs-tip" id="3053">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>selectRamButton&#32;<span>wsModel&#32;dispatch</span></span></code>
@@ -1348,7 +1371,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3045', 3045)" onmouseover="showTip(event, '3045', 3045)">
+              <code onmouseout="hideTip(event, '3054', 3054)" onmouseover="showTip(event, '3054', 3054)">
                 <p>
                   <a id="selectRamModal">
                     <a href="#selectRamModal">
@@ -1357,7 +1380,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3045">
+              <div class="fsdocs-tip" id="3054">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>selectRamModal&#32;<span>wsModel&#32;dispatch</span></span></code>
@@ -1443,7 +1466,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3046', 3046)" onmouseover="showTip(event, '3046', 3046)">
+              <code onmouseout="hideTip(event, '3055', 3055)" onmouseover="showTip(event, '3055', 3055)">
                 <p>
                   <a id="selectWavesButton">
                     <a href="#selectWavesButton">
@@ -1452,7 +1475,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3046">
+              <div class="fsdocs-tip" id="3055">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>selectWavesButton&#32;<span>wsModel&#32;dispatch</span></span></code>
@@ -1538,7 +1561,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3047', 3047)" onmouseover="showTip(event, '3047', 3047)">
+              <code onmouseout="hideTip(event, '3056', 3056)" onmouseover="showTip(event, '3056', 3056)">
                 <p>
                   <a id="toggleRamSelection">
                     <a href="#toggleRamSelection">
@@ -1547,7 +1570,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3047">
+              <div class="fsdocs-tip" id="3056">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>toggleRamSelection&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span>&#32;ramLabel&#32;dispatch</span></span></code>
@@ -1560,7 +1583,7 @@
                         arg0
                       </b>
                       :
-                      <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                      <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
                     </span>
                     <br/>
                     <span>
@@ -1568,7 +1591,7 @@
                         arg1
                       </b>
                       :
-                      <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
+                      <code><span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;list</span></code>
                     </span>
                     <br/>
                     <span>
@@ -1624,7 +1647,7 @@
                     arg0
                   </span>
                   :
-                  <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                  <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
@@ -1632,7 +1655,7 @@
                     arg1
                   </span>
                   :
-                  <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
+                  <code><span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;list</span></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
@@ -1667,7 +1690,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3048', 3048)" onmouseover="showTip(event, '3048', 3048)">
+              <code onmouseout="hideTip(event, '3057', 3057)" onmouseover="showTip(event, '3057', 3057)">
                 <p>
                   <a id="waveIndexOfWire">
                     <a href="#waveIndexOfWire">
@@ -1676,7 +1699,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3048">
+              <div class="fsdocs-tip" id="3057">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>waveIndexOfWire&#32;<span>fs&#32;wireModel&#32;cid</span></span></code>
@@ -1705,7 +1728,7 @@
                         cid
                       </b>
                       :
-                      <code><a href="/issie/reference/commontypes-connectionid.html">ConnectionId</a></code>
+                      <code><a href="/issie/reference/ids-connectionid.html">ConnectionId</a></code>
                     </span>
                     <br/>
                   </ul>
@@ -1764,7 +1787,7 @@
                     cid
                   </span>
                   :
-                  <code><a href="/issie/reference/commontypes-connectionid.html">ConnectionId</a></code>
+                  <code><a href="/issie/reference/ids-connectionid.html">ConnectionId</a></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
               </dl>
@@ -1783,7 +1806,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3049', 3049)" onmouseover="showTip(event, '3049', 3049)">
+              <code onmouseout="hideTip(event, '3058', 3058)" onmouseover="showTip(event, '3058', 3058)">
                 <p>
                   <a id="waveValueAt">
                     <a href="#waveValueAt">
@@ -1792,7 +1815,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3049">
+              <div class="fsdocs-tip" id="3058">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>waveValueAt&#32;<span>fs&#32;cycle&#32;radix&#32;wi</span></span></code>
@@ -1922,7 +1945,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3050', 3050)" onmouseover="showTip(event, '3050', 3050)">
+              <code onmouseout="hideTip(event, '3059', 3059)" onmouseover="showTip(event, '3059', 3059)">
                 <p>
                   <a id="wavesOfComponent">
                     <a href="#wavesOfComponent">
@@ -1931,7 +1954,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3050">
+              <div class="fsdocs-tip" id="3059">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>wavesOfComponent&#32;<span>fs&#32;ws&#32;compId</span></span></code>
@@ -1960,7 +1983,7 @@
                         compId
                       </b>
                       :
-                      <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                      <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
                     </span>
                     <br/>
                   </ul>
@@ -2016,7 +2039,7 @@
                     compId
                   </span>
                   :
-                  <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                  <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
               </dl>
@@ -2035,7 +2058,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3051', 3051)" onmouseover="showTip(event, '3051', 3051)">
+              <code onmouseout="hideTip(event, '3060', 3060)" onmouseover="showTip(event, '3060', 3060)">
                 <p>
                   <a id="wireWaveToOffer">
                     <a href="#wireWaveToOffer">
@@ -2044,7 +2067,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3051">
+              <div class="fsdocs-tip" id="3060">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>wireWaveToOffer&#32;<span>model&#32;cid</span></span></code>
@@ -2065,7 +2088,7 @@
                         cid
                       </b>
                       :
-                      <code><a href="/issie/reference/commontypes-connectionid.html">ConnectionId</a></code>
+                      <code><a href="/issie/reference/ids-connectionid.html">ConnectionId</a></code>
                     </span>
                     <br/>
                   </ul>
@@ -2113,7 +2136,7 @@
                     cid
                   </span>
                   :
-                  <code><a href="/issie/reference/commontypes-connectionid.html">ConnectionId</a></code>
+                  <code><a href="/issie/reference/ids-connectionid.html">ConnectionId</a></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
               </dl>
@@ -2132,7 +2155,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3052', 3052)" onmouseover="showTip(event, '3052', 3052)">
+              <code onmouseout="hideTip(event, '3061', 3061)" onmouseover="showTip(event, '3061', 3061)">
                 <p>
                   <a id="withDefaultSelectionIfEmpty">
                     <a href="#withDefaultSelectionIfEmpty">
@@ -2141,7 +2164,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3052">
+              <div class="fsdocs-tip" id="3061">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>withDefaultSelectionIfEmpty&#32;<span>fs&#32;wsModel</span></span></code>
@@ -2186,13 +2209,115 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimSelect.withDefaultSelectionIfEmpty\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimSelect.fs#L517-517" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimSelect.fs#L524-524" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
                      Choose waves for a wave simulation that has none. Applied only when the user has selected
  nothing at all - no waves and no RAMs - so a deliberately pared-down selection is never added
  to, and a selection saved with the sheet is never overridden.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    fs
+                  </span>
+                  :
+                  <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wsModel
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '3062', 3062)" onmouseover="showTip(event, '3062', 3062)">
+                <p>
+                  <a id="withDefaultSelectionIfPending">
+                    <a href="#withDefaultSelectionIfPending">
+                      <code><span>withDefaultSelectionIfPending&#32;<span>fs&#32;wsModel</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="3062">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>withDefaultSelectionIfPending&#32;<span>fs&#32;wsModel</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        fs
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        wsModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:WaveSimSelect.withDefaultSelectionIfPending`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimSelect.withDefaultSelectionIfPending\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimSelect.fs#L537-537" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The same, for a simulation that is still OWED its default selection - which is what every
+ refresh of a started simulation asks, rather than the start asking once.
+
+ The choice reads the top instance's ports, and while the .NET simulator is simulating those are
+ not known until its first slice arrives: asking once, at the start, asked before there was
+ anything to answer with, and the viewer opened empty in the mode that ships. So it is asked
+ again until it has something to say - and then not again, which is what leaves a viewer the user
+ has emptied on purpose empty. See WaveSimModel.DefaultSelectionPending.
                   </p>
                 </div>
               </summary>

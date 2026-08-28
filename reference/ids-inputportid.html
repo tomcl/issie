@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="LabelPath (issie)" />
+    <meta property="og:title" content="InputPortId (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="LabelPath (issie)">
+    <meta name="twitter:title" content="InputPortId (issie)">
     
-    <title>LabelPath (issie) | issie</title>
+    <title>InputPortId (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -472,7 +472,7 @@
     <div id="content">
         <div>
   <h2>
-    LabelPath Type
+    InputPortId Type
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
@@ -486,8 +486,8 @@
     </dt>
     <dt>
       Parent Module: 
-      <a href="/issie/reference/global-commontypes.html">
-        CommonTypes
+      <a href="/issie/reference/global-ids.html">
+        Ids
       </a>
     </dt>
     <dt>
@@ -496,11 +496,11 @@
     </dt>
     <dt>
       All Interfaces: 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/commontypes-labelpath.html">LabelPath</a>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/ids-inputportid.html">InputPortId</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
       , 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/commontypes-labelpath.html">LabelPath</a>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/ids-inputportid.html">InputPortId</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
       , 
@@ -510,10 +510,10 @@
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         A path as a person reads it: the labels of the custom components passed through, root first.
-
- DISPLAY ONLY, never an identity. A shown path may be shortened where that is unambiguous -
- which is a rendering decision, and must not reach anything that compares paths.
+         Integer id of a component port, unique within its SHEET.
+ Connection ports and connected component ports have the same port Id
+ InputPortId and OutputPortID wrap the id to distinguish component
+ inputs and outputs some times (e.g. in simulation)
       </p>
     </div>
   </div>
@@ -539,19 +539,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3717', 3717)" onmouseover="showTip(event, '3717', 3717)">
+              <code onmouseout="hideTip(event, '4790', 4790)" onmouseover="showTip(event, '4790', 4790)">
                 <p>
-                  <a id="LabelPath">
-                    <a href="#LabelPath">
-                      <code><span>LabelPath&#32;<span>string&#32;list</span></span></code>
+                  <a id="InputPortId">
+                    <a href="#InputPortId">
+                      <code><span>InputPortId&#32;<a href="/issie/reference/ids-portid.html">PortId</a></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3717">
+              <div class="fsdocs-tip" id="4790">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>LabelPath&#32;<span>string&#32;list</span></span></code>
+                  <code><span>InputPortId&#32;<a href="/issie/reference/ids-portid.html">PortId</a></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -561,7 +561,7 @@
                         Item
                       </b>
                       :
-                      <code><span>string&#32;list</span></code>
+                      <code><a href="/issie/reference/ids-portid.html">PortId</a></code>
                     </span>
                     <br/>
                   </ul>
@@ -577,7 +577,7 @@
                   Item
                 </span>
                 :
-                <code><span>string&#32;list</span></code>
+                <code><a href="/issie/reference/ids-portid.html">PortId</a></code>
               </dt>
               <dd class="fsdocs-param-docs"></dd>
             </dl>

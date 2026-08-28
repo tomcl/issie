@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="PortId (issie)" />
+    <meta property="og:title" content="OutputPortId (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="PortId (issie)">
+    <meta name="twitter:title" content="OutputPortId (issie)">
     
-    <title>PortId (issie) | issie</title>
+    <title>OutputPortId (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -472,7 +472,7 @@
     <div id="content">
         <div>
   <h2>
-    PortId Type
+    OutputPortId Type
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
@@ -486,8 +486,8 @@
     </dt>
     <dt>
       Parent Module: 
-      <a href="/issie/reference/drawmodeltype-symbolt.html">
-        SymbolT
+      <a href="/issie/reference/global-ids.html">
+        Ids
       </a>
     </dt>
     <dt>
@@ -496,11 +496,11 @@
     </dt>
     <dt>
       All Interfaces: 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/drawmodeltype-symbolt-portid.html">PortId</a>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/ids-outputportid.html">OutputPortId</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
       , 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/drawmodeltype-symbolt-portid.html">PortId</a>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/ids-outputportid.html">OutputPortId</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
       , 
@@ -510,7 +510,10 @@
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         Wraps around the input and output port id types
+         Integer id of a component port, unique within its SHEET.
+ Connection ports and connected component ports have the same port Id
+ InputPortId and OutputPortID wrap the id to distinguish component
+ inputs and outputs some times (e.g. in simulation)
       </p>
     </div>
   </div>
@@ -536,19 +539,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4654', 4654)" onmouseover="showTip(event, '4654', 4654)">
+              <code onmouseout="hideTip(event, '4794', 4794)" onmouseover="showTip(event, '4794', 4794)">
                 <p>
-                  <a id="InputId">
-                    <a href="#InputId">
-                      <code><span>InputId&#32;<a href="/issie/reference/commontypes-inputportid.html">InputPortId</a></span></code>
+                  <a id="OutputPortId">
+                    <a href="#OutputPortId">
+                      <code><span>OutputPortId&#32;<a href="/issie/reference/ids-portid.html">PortId</a></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4654">
+              <div class="fsdocs-tip" id="4794">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>InputId&#32;<a href="/issie/reference/commontypes-inputportid.html">InputPortId</a></span></code>
+                  <code><span>OutputPortId&#32;<a href="/issie/reference/ids-portid.html">PortId</a></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -558,7 +561,7 @@
                         Item
                       </b>
                       :
-                      <code><a href="/issie/reference/commontypes-inputportid.html">InputPortId</a></code>
+                      <code><a href="/issie/reference/ids-portid.html">PortId</a></code>
                     </span>
                     <br/>
                   </ul>
@@ -574,54 +577,7 @@
                   Item
                 </span>
                 :
-                <code><a href="/issie/reference/commontypes-inputportid.html">InputPortId</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4655', 4655)" onmouseover="showTip(event, '4655', 4655)">
-                <p>
-                  <a id="OutputId">
-                    <a href="#OutputId">
-                      <code><span>OutputId&#32;<a href="/issie/reference/commontypes-outputportid.html">OutputPortId</a></span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4655">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>OutputId&#32;<a href="/issie/reference/commontypes-outputportid.html">OutputPortId</a></span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        Item
-                      </b>
-                      :
-                      <code><a href="/issie/reference/commontypes-outputportid.html">OutputPortId</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item
-                </span>
-                :
-                <code><a href="/issie/reference/commontypes-outputportid.html">OutputPortId</a></code>
+                <code><a href="/issie/reference/ids-portid.html">PortId</a></code>
               </dt>
               <dd class="fsdocs-param-docs"></dd>
             </dl>
@@ -633,103 +589,7 @@
   <div></div>
   <div></div>
   <div></div>
-  <div>
-    <h3>
-      Instance members
-    </h3>
-    <table class="table outer-list fsdocs-member-list">
-      <thead>
-        <tr>
-          <td class="fsdocs-member-list-header">
-            Instance member
-          </td>
-          <td class="fsdocs-member-list-header">
-            Description
-          </td>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4656', 4656)" onmouseover="showTip(event, '4656', 4656)">
-                <p>
-                  <a id="IsInputId">
-                    <a href="#IsInputId">
-                      <code><span>this.IsInputId</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4656">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsInputId</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4657', 4657)" onmouseover="showTip(event, '4657', 4657)">
-                <p>
-                  <a id="IsOutputId">
-                    <a href="#IsOutputId">
-                      <code><span>this.IsOutputId</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4657">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsOutputId</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <div></div>
   <div></div>
 </div>
         

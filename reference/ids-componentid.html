@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="ComponentLabel (issie)" />
+    <meta property="og:title" content="ComponentId (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="ComponentLabel (issie)">
+    <meta name="twitter:title" content="ComponentId (issie)">
     
-    <title>ComponentLabel (issie) | issie</title>
+    <title>ComponentId (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -472,7 +472,7 @@
     <div id="content">
         <div>
   <h2>
-    ComponentLabel Type
+    ComponentId Type
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
@@ -486,8 +486,8 @@
     </dt>
     <dt>
       Parent Module: 
-      <a href="/issie/reference/global-commontypes.html">
-        CommonTypes
+      <a href="/issie/reference/global-ids.html">
+        Ids
       </a>
     </dt>
     <dt>
@@ -496,11 +496,11 @@
     </dt>
     <dt>
       All Interfaces: 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/commontypes-componentlabel.html">ComponentLabel</a>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/ids-componentid.html">ComponentId</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
       , 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/commontypes-componentlabel.html">ComponentLabel</a>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/ids-componentid.html">ComponentId</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
       , 
@@ -510,8 +510,9 @@
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         Human-readable name of component as displayed on sheet.
- For I/O/labelIO components a width indication eg (7:0) is also displayed, but NOT included here
+         Unique integer id of a component. Unique across the whole DESIGN - the one id namespace
+ with a global invariant, allocated densely from 1 by Helpers.IdAllocator so a design's
+ components can index arrays directly. 0 and negatives are sentinels, never allocated.
       </p>
     </div>
   </div>
@@ -537,19 +538,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3496', 3496)" onmouseover="showTip(event, '3496', 3496)">
+              <code onmouseout="hideTip(event, '4784', 4784)" onmouseover="showTip(event, '4784', 4784)">
                 <p>
-                  <a id="ComponentLabel">
-                    <a href="#ComponentLabel">
-                      <code><span>ComponentLabel&#32;string</span></code>
+                  <a id="ComponentId">
+                    <a href="#ComponentId">
+                      <code><span>ComponentId&#32;int</span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3496">
+              <div class="fsdocs-tip" id="4784">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>ComponentLabel&#32;string</span></code>
+                  <code><span>ComponentId&#32;int</span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -559,7 +560,7 @@
                         Item
                       </b>
                       :
-                      <code>string</code>
+                      <code>int</code>
                     </span>
                     <br/>
                   </ul>
@@ -575,7 +576,7 @@
                   Item
                 </span>
                 :
-                <code>string</code>
+                <code>int</code>
               </dt>
               <dd class="fsdocs-param-docs"></dd>
             </dl>

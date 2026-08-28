@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="FComponentId (issie)" />
+    <meta property="og:title" content="InstancePath (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="FComponentId (issie)">
+    <meta name="twitter:title" content="InstancePath (issie)">
     
-    <title>FComponentId (issie) | issie</title>
+    <title>InstancePath (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -472,7 +472,7 @@
     <div id="content">
         <div>
   <h2>
-    FComponentId Type
+    InstancePath Type
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
@@ -486,13 +486,9 @@
     </dt>
     <dt>
       Parent Module: 
-      <a href="/issie/reference/global-commontypes.html">
-        CommonTypes
+      <a href="/issie/reference/global-ids.html">
+        Ids
       </a>
-    </dt>
-    <dt>
-      Abbreviation For: 
-      <code><a href="/issie/reference/commontypes-simcomponentid.html">SimComponentId</a></code>
     </dt>
     <dt>
       Base Type: 
@@ -500,51 +496,43 @@
     </dt>
     <dt>
       All Interfaces: 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralcomparable">IStructuralComparable</a></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/ids-instancepath.html">InstancePath</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
       , 
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/ids-instancepath.html">InstancePath</a>&gt;</span></code>
+      , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
       , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.runtime.compilerservices.ituple">ITuple</a></code>
+      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralcomparable">IStructuralComparable</a></code>
     </dt>
   </dl>
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         The old name for SimComponentId, kept while the ~70 sites that destructure it as a bare tuple
- are still doing so.
+         The chain of custom-component instances from the simulated top sheet down to one instance,
+ root first - so it names one ELABORATED copy of a sheet.
 
- Both are abbreviations of the same tuple today, so this costs nothing and changes nothing.
- Making the identity a tagged type is one line here - `[<Erase>] type SimComponentId =
- SimComponentId of ComponentId * ComponentId list` - and it was measured, on this branch, to
- break 71 sites, 38 of them in FastCreate and FastExtract. THAT is the reason to wait: it is
- worth doing with the change that needs it (the per-instance port enumeration, which factors a
- predicate out of FastCreate anyway) rather than as a sweep of the simulator core which buys
- nothing on its own.
-
- When it is done, tag it [<Erase>] and NOT [<Struct>]: this is the key type of fs.FComps and
- the note above the id types prices what a struct key costs in an F# Map. A plain reference
- wrapper is what the rest of them are and what this should be.
+ These are design-time ComponentIds, unique across the design, so a path is stable under
+ relabelling and means the same thing whichever side computed it. It is not a new value: the
+ simulator already builds exactly this as FastComponent.AccessPath (`ap @ [cid]` in
+ FastCreate) and the design side already builds exactly this as SheetTree.SheetAccessPath
+ (`accessPath @ [inst.InstId]` in MenuHelpers). This gives it a name.
       </p>
     </div>
   </div>
   <div></div>
   <div></div>
   <div></div>
-  <div></div>
-  <div></div>
-  <div></div>
-  <div></div>
   <div>
     <h3>
-      Instance members
+      Union cases
     </h3>
     <table class="table outer-list fsdocs-member-list">
       <thead>
         <tr>
           <td class="fsdocs-member-list-header">
-            Instance member
+            Union case
           </td>
           <td class="fsdocs-member-list-header">
             Description
@@ -555,84 +543,57 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3648', 3648)" onmouseover="showTip(event, '3648', 3648)">
+              <code onmouseout="hideTip(event, '4792', 4792)" onmouseover="showTip(event, '4792', 4792)">
                 <p>
-                  <a id="Item1">
-                    <a href="#Item1">
-                      <code><span>this.Item1</span></code>
+                  <a id="InstancePath">
+                    <a href="#InstancePath">
+                      <code><span>InstancePath&#32;<span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;list</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3648">
+              <div class="fsdocs-tip" id="4792">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>this.Item1</span></code>
+                  <code><span>InstancePath&#32;<span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;list</span></span></code>
                   <br/>
                   <br/>
-                  <span>
-                    Returns: 
-                    <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
-                  </span>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        Item
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                  </ul>
                   <br/>
                 </div>
               </div>
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  Item
                 </span>
-                <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                :
+                <code><span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;list</span></code>
               </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '3649', 3649)" onmouseover="showTip(event, '3649', 3649)">
-                <p>
-                  <a id="Item2">
-                    <a href="#Item2">
-                      <code><span>this.Item2</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="3649">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.Item2</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
+              <dd class="fsdocs-param-docs"></dd>
             </dl>
           </td>
         </tr>
       </tbody>
     </table>
   </div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
   <div></div>
 </div>
         

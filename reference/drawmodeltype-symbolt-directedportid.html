@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="SimComponentId (issie)" />
+    <meta property="og:title" content="DirectedPortId (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="SimComponentId (issie)">
+    <meta name="twitter:title" content="DirectedPortId (issie)">
     
-    <title>SimComponentId (issie) | issie</title>
+    <title>DirectedPortId (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -472,7 +472,7 @@
     <div id="content">
         <div>
   <h2>
-    SimComponentId Type
+    DirectedPortId Type
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
@@ -486,13 +486,9 @@
     </dt>
     <dt>
       Parent Module: 
-      <a href="/issie/reference/global-commontypes.html">
-        CommonTypes
+      <a href="/issie/reference/drawmodeltype-symbolt.html">
+        SymbolT
       </a>
-    </dt>
-    <dt>
-      Abbreviation For: 
-      <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;*&#32;<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></span></code>
     </dt>
     <dt>
       Base Type: 
@@ -500,28 +496,142 @@
     </dt>
     <dt>
       All Interfaces: 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralcomparable">IStructuralComparable</a></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/drawmodeltype-symbolt-directedportid.html">DirectedPortId</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
       , 
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/drawmodeltype-symbolt-directedportid.html">DirectedPortId</a>&gt;</span></code>
+      , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
       , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.runtime.compilerservices.ituple">ITuple</a></code>
+      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralcomparable">IStructuralComparable</a></code>
     </dt>
   </dl>
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         Unique identifier for a fast component.
- The list is the access path, a list of all the containing custom components 
- from the top sheet of the simulation (root first)
+         Wraps around the input and output port id types
+ A port named together with the side of a connection it is: the undirected id is
+ PortId, which this carries inside InputPortId or OutputPortId.
       </p>
     </div>
   </div>
   <div></div>
   <div></div>
   <div></div>
-  <div></div>
+  <div>
+    <h3>
+      Union cases
+    </h3>
+    <table class="table outer-list fsdocs-member-list">
+      <thead>
+        <tr>
+          <td class="fsdocs-member-list-header">
+            Union case
+          </td>
+          <td class="fsdocs-member-list-header">
+            Description
+          </td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '4547', 4547)" onmouseover="showTip(event, '4547', 4547)">
+                <p>
+                  <a id="InputId">
+                    <a href="#InputId">
+                      <code><span>InputId&#32;<a href="/issie/reference/ids-inputportid.html">InputPortId</a></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="4547">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>InputId&#32;<a href="/issie/reference/ids-inputportid.html">InputPortId</a></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        Item
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ids-inputportid.html">InputPortId</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  Item
+                </span>
+                :
+                <code><a href="/issie/reference/ids-inputportid.html">InputPortId</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '4548', 4548)" onmouseover="showTip(event, '4548', 4548)">
+                <p>
+                  <a id="OutputId">
+                    <a href="#OutputId">
+                      <code><span>OutputId&#32;<a href="/issie/reference/ids-outputportid.html">OutputPortId</a></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="4548">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>OutputId&#32;<a href="/issie/reference/ids-outputportid.html">OutputPortId</a></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        Item
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ids-outputportid.html">OutputPortId</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  Item
+                </span>
+                :
+                <code><a href="/issie/reference/ids-outputportid.html">OutputPortId</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
   <div></div>
   <div></div>
   <div></div>
@@ -544,24 +654,24 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3804', 3804)" onmouseover="showTip(event, '3804', 3804)">
+              <code onmouseout="hideTip(event, '4549', 4549)" onmouseover="showTip(event, '4549', 4549)">
                 <p>
-                  <a id="Item1">
-                    <a href="#Item1">
-                      <code><span>this.Item1</span></code>
+                  <a id="IsInputId">
+                    <a href="#IsInputId">
+                      <code><span>this.IsInputId</span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3804">
+              <div class="fsdocs-tip" id="4549">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>this.Item1</span></code>
+                  <code><span>this.IsInputId</span></code>
                   <br/>
                   <br/>
                   <span>
                     Returns: 
-                    <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                    <code>bool</code>
                   </span>
                   <br/>
                 </div>
@@ -574,7 +684,7 @@
                 <span class="fsdocs-return-name">
                   Returns: 
                 </span>
-                <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                <code>bool</code>
               </dt>
               <dd class="fsdocs-return-docs"></dd>
             </dl>
@@ -583,24 +693,24 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3805', 3805)" onmouseover="showTip(event, '3805', 3805)">
+              <code onmouseout="hideTip(event, '4550', 4550)" onmouseover="showTip(event, '4550', 4550)">
                 <p>
-                  <a id="Item2">
-                    <a href="#Item2">
-                      <code><span>this.Item2</span></code>
+                  <a id="IsOutputId">
+                    <a href="#IsOutputId">
+                      <code><span>this.IsOutputId</span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3805">
+              <div class="fsdocs-tip" id="4550">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>this.Item2</span></code>
+                  <code><span>this.IsOutputId</span></code>
                   <br/>
                   <br/>
                   <span>
                     Returns: 
-                    <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
+                    <code>bool</code>
                   </span>
                   <br/>
                 </div>
@@ -613,7 +723,7 @@
                 <span class="fsdocs-return-name">
                   Returns: 
                 </span>
-                <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
+                <code>bool</code>
               </dt>
               <dd class="fsdocs-return-docs"></dd>
             </dl>

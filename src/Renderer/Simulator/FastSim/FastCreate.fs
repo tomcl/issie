@@ -29,6 +29,7 @@ let emptyFastSimulation diagramName =
       FOrderedComps = Array.empty
       FIOActive = Map.empty
       FIOLinks = []
+      FCompsByIndex = Array.empty
       FComps = Map.empty
       FCustomComps = Map.empty
       FCustomOutputCompLookup = Map.empty
@@ -599,13 +600,13 @@ let createFastComponent
       ReduceClocked = fun _ -> failwithf "Reducer for %A was never installed" sComp.Type
       // stamped by LookupArray.addItem the moment this is stored; the links are filled in by the
       // flatten as it resolves them, and dropped again by linkFastComponents
-      Index = -1
+      Index = FastCompIndex -1
       OutLinks = Array.empty
       CustomInLinks =
         match sComp.Type with
-        | Custom _ -> Array.create inPortNum (-1)
+        | Custom _ -> Array.create inPortNum (FastCompIndex -1)
         | _ -> Array.empty
-      CustomOutIndex = -1
+      CustomOutIndex = FastCompIndex -1
       CustomOutPort = 0
       Touched = false
       DrivenComponents = []
@@ -697,7 +698,7 @@ let rec private flattenLevel
                 createFastComponent maxArraySize comp ap (g.getFullSimName fid) (g.getFullSimPath fid)
                 |> fun fc -> LookupArray.addItem fc g.Comps
 
-            sib.Ix[i] <- fc.Index
+            sib.Ix[i] <- fastCompIndexValue fc.Index
             comp, fc)
 
     // Sibling links. sComp.Outputs names design ids in this same instance, so they resolve to
@@ -708,14 +709,14 @@ let rec private flattenLevel
             (max fc.Outputs.Length 1, comp.Outputs)
             ||> Map.fold (fun n (OutputPortNumber k) _ -> max n (k + 1))
 
-        let outLinks: (int * InputPortNumber) array array = Array.create ports [||]
+        let outLinks: (FastCompIndex * InputPortNumber) array array = Array.create ports [||]
 
         comp.Outputs
         |> Map.iter (fun (OutputPortNumber k) driven ->
             outLinks[k] <-
                 driven
                 |> List.toArray
-                |> Array.map (fun (ComponentId j, ipn) -> sib.Ix[j], ipn))
+                |> Array.map (fun (ComponentId j, ipn) -> FastCompIndex sib.Ix[j], ipn))
 
         fc.OutLinks <- outLinks)
 
@@ -744,8 +745,8 @@ let rec private flattenLevel
 
         ct.OutputLabels
         |> List.iteri (fun i labelled ->
-            let inner = LookupArray.item (indexOf outputs labelled) g.Comps
-            inner.CustomOutIndex <- customIndex
+            let inner = LookupArray.item (fastCompIndexValue (indexOf outputs labelled)) g.Comps
+            inner.CustomOutIndex <- FastCompIndex customIndex
             inner.CustomOutPort <- i)
 
         let inputs = created |> List.filter (fun (comp, _) -> isInput comp.Type)
@@ -758,7 +759,8 @@ let rec private flattenLevel
     created
     |> List.iter (fun (comp, fc) ->
         match comp.Type, comp.CustomSimulationGraph with
-        | Custom ct, Some csg -> flattenLevel g sib maxArraySize (ap @ [ comp.Id ]) csg (Some(fc.Index, ct))
+        | Custom ct, Some csg ->
+            flattenLevel g sib maxArraySize (ap @ [ comp.Id ]) csg (Some(fastCompIndexValue fc.Index, ct))
         | _ -> ())
 
 /// Flatten the SimulationGraph into the one index space the rest of the build works in, creating
@@ -775,12 +777,12 @@ let gatherSimulation (maxArraySize: int) (size: int) (graph: SimulationGraph) =
     let g =
         { Comps =
             LookupArray.create
-                (fun (fc: FastComponent) -> fc.Index)
+                (fun (fc: FastComponent) -> fastCompIndexValue fc.Index)
                 // in place: FastComponent is [<ReferenceEquality>] and already carries mutable
                 // fields, so the stamp costs no record copy and the identity the simulator relies
                 // on survives it
                 (fun fc i ->
-                    fc.Index <- i
+                    fc.Index <- FastCompIndex i
                     fc)
                 size
                 storeGrowthCap
@@ -1001,15 +1003,16 @@ let createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: FastS
     let customOutLookup =
         (Map.empty, all)
         ||> Array.fold (fun m fc ->
-            if fc.CustomOutIndex < 0 then
+            if fastCompIndexValue fc.CustomOutIndex < 0 then
                 m
             else
-                let custom = LookupArray.item fc.CustomOutIndex g.Comps
+                let custom = LookupArray.item (fastCompIndexValue fc.CustomOutIndex) g.Comps
                 Map.add (custom.fId, OutputPortNumber fc.CustomOutPort) fc.fId m)
 
     instrumentTime "createInitFastCompPhase" start
 
     { f with
+        FCompsByIndex = all
         FComps = comps
         FCustomComps = customComps
         MaxArraySize = simulationArraySize
@@ -1029,7 +1032,7 @@ let private reLinkIOLabels (fs: FastSimulation) =
         let labKey = ioDriver.SimComponent.Label, ioDriver.AccessPath
         let fcActiveDriver = fs.FIOActive[labKey]
         fcDriven.InputLinks[ipn] <- fcActiveDriver.Outputs[0]
-        fcDriven.InputDrivers[ipn] <- Some(fcActiveDriver.fId, OutputPortNumber 0)
+        fcDriven.InputDrivers[ipn] <- Some(fcActiveDriver.Index, OutputPortNumber 0)
         // DrivenComponents must only include asynchronous drive paths on hybrid components
         // on clocked components, or combinational components, it can include all drive paths
         match getHybridComponentAsyncOuts fcDriven.FType (InputPortNumber ipn) with
@@ -1060,15 +1063,15 @@ let linkFastComponents (g: GatherData) (f: FastSimulation) =
     /// Follow one component output across custom component boundaries to the real inputs it
     /// drives, as store indices. Every step of this used to be a map lookup; they are all array
     /// reads now, off links the flatten resolved while it had both ends in hand.
-    let rec getLinks (i: int) (opn: int) (ipnOpt: InputPortNumber option) : (int * InputPortNumber) array =
-        let fc = LookupArray.item i store
+    let rec getLinks (i: FastCompIndex) (opn: int) (ipnOpt: InputPortNumber option) : (FastCompIndex * InputPortNumber) array =
+        let fc = LookupArray.item (fastCompIndexValue i) store
 
         match isOutput fc.FType, isCustom fc.FType, ipnOpt with
         | true, _, None when fc.AccessPath = [] -> [||] // no links in this case from global output
         | true, _, None ->
 #if ASSERTS
             assertThat
-                (isCustom (LookupArray.item fc.CustomOutIndex store).FType)
+                (isCustom (LookupArray.item (fastCompIndexValue fc.CustomOutIndex) store).FType)
                 "What? this should be a custom component output"
 #endif
             getLinks fc.CustomOutIndex fc.CustomOutPort None // go from inner output to CC output and recurse
@@ -1096,9 +1099,9 @@ let linkFastComponents (g: GatherData) (f: FastSimulation) =
         if not (isCustom fDriver.FType) then
             fDriver.Outputs
             |> Array.iteri (fun iOut _ ->
-                getLinks iDriver iOut None
+                getLinks (FastCompIndex iDriver) iOut None
                 |> Array.iter (fun (iDriven, InputPortNumber ipn) ->
-                    let fDriven = LookupArray.item iDriven store
+                    let fDriven = LookupArray.item (fastCompIndexValue iDriven) store
                     let inputKey = fDriven.InputLinks[ipn].Index
 
                     match driverOf[inputKey] with
@@ -1111,7 +1114,7 @@ let linkFastComponents (g: GatherData) (f: FastSimulation) =
 
                     driverOf[inputKey] <- iDriver
                     driverPort[inputKey] <- iOut
-                    let (_, ap) = fDriven.fId
+                    let ap = fDriven.AccessPath
 
                     // we have a link from fDriver to fDriven
 
@@ -1138,7 +1141,7 @@ let linkFastComponents (g: GatherData) (f: FastSimulation) =
                         | Some(_ :: _) -> fDriver.DrivenComponents <- fDriven :: fDriver.DrivenComponents
                         | _ -> ()
 
-                        fDriven.InputDrivers[ipn] <- Some(fDriver.fId, OutputPortNumber iOut))))
+                        fDriven.InputDrivers[ipn] <- Some(fDriver.Index, OutputPortNumber iOut))))
 
     reLinkIOLabels f
 

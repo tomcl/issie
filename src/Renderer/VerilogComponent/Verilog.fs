@@ -1,4 +1,4 @@
-module Verilog
+﻿module Verilog
 
 open CommonTypes
 open SimGraphTypes
@@ -337,7 +337,7 @@ let getVPortOutWithSlice (fc: FastComponent) (opn: OutputPortNumber) =
 /// Get string corresponding to name of signal that drives component input port
 let getVPortInput (fs: FastSimulation) (fc: FastComponent) (InputPortNumber ipn) : string =
     match fc.InputDrivers[ipn] with
-    | Some (fid, opn) -> getVPortOut fs.FComps[fid] opn
+    | Some (index, opn) -> getVPortOut (fs.ComponentAt index) opn
     | None -> failwithf "Can't find input driver for %A port %d" fc.FullName ipn
 
 
@@ -383,12 +383,12 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         | n -> n
 
     let inW i =
-        let (fid, OutputPortNumber opn) =
+        let (index, OutputPortNumber opn) =
             match fc.InputDrivers[i] with
             | Some x -> x
             | None -> failwithf "Can't find input driver for port %d of %s" i fc.FullName
 
-        fs.FComps[fid].OutputWidth opn
+        (fs.ComponentAt index).OutputWidth opn
 
     
     let demuxOutput (outputPort: string) (selectPort: string) (w:int) = 

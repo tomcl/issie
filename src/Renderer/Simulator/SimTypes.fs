@@ -182,7 +182,7 @@ type FastComponent =
       /// Input data - this an array of fxed links to the relevant driver output data arrays
       InputLinks: IOArray array
       /// info on where the drivers are for each input
-      InputDrivers: (FComponentId * OutputPortNumber) option array
+      InputDrivers: (FastCompIndex * OutputPortNumber) option array
       /// the output data for this component (this gets linked to all the conmponents driven
       Outputs: IOArray array
       /// the legacy SimulationConmponent from which this FastComponent is generated.
@@ -211,19 +211,19 @@ type FastComponent =
       /// Where this component sits in the build's one index space: the index it was stamped with
       /// as the flatten created it, and the index the link fields below are expressed in. Written
       /// once, by LookupArray.addItem, and never again.
-      mutable Index: int
+      mutable Index: FastCompIndex
       /// This instance's outgoing links, by output port number, already resolved to store
       /// indices - so linking neither looks a design id up nor walks a map. Build scaffolding:
       /// linkFastComponents drops it, along with the two fields below, once it has used them, so
       /// that a built simulation does not carry a link table per component for the rest of its life.
-      mutable OutLinks: (int * InputPortNumber) array array
+      mutable OutLinks: (FastCompIndex * InputPortNumber) array array
       /// For a Custom component: the store index of the inner Input component each of its input
       /// ports maps to. Empty for every other type. Build scaffolding, dropped with OutLinks.
-      mutable CustomInLinks: int array
+      mutable CustomInLinks: FastCompIndex array
       /// For an Output component INSIDE a custom component: the store index of that custom
       /// component, and which of its output ports this one is. -1 when there is no such link -
       /// a top-level Output, or any other type. Build scaffolding, dropped with OutLinks.
-      mutable CustomOutIndex: int
+      mutable CustomOutIndex: FastCompIndex
       mutable CustomOutPort: int
       // these fields are used only to determine component ordering for correct evaluation
       mutable Touched: bool // legacy field
@@ -774,6 +774,10 @@ type FastSimulation =
         /// Fast components: this array is longer than FOrderedComps because it contains
         /// IOlabel components that are redundant in the simulation.
         /// It doe snot contain custom Components
+        /// Every component of the build at its own index - what a FastCompIndex indexes, and
+        /// what the links between components are expressed in. Ordinary and custom alike, in the
+        /// order the flatten created them, so walking it walks memory forwards.
+        FCompsByIndex: FastComponent array
         FComps: Map<FComponentId, FastComponent>
         /// Custom Components.
         FCustomComps: Map<FComponentId, FastComponent>
@@ -804,6 +808,11 @@ type FastSimulation =
     /// of them for a lookup that is two tries. It was also the only reason a wave viewer needed a
     /// structure the wave tables built, so removing it is what lets the same code answer from a
     /// build made without them.
+    /// The component at one index of this build. Not valid across builds: an index names a slot
+    /// in the store that made it, which is why what OUTLIVES a build is the design-time name.
+    member this.ComponentAt(index: FastCompIndex) : FastComponent =
+        this.FCompsByIndex[fastCompIndexValue index]
+
     member this.ComponentOf(fId: FComponentId) : FastComponent option =
         match Map.tryFind fId this.FComps with
         | Some fc -> Some fc

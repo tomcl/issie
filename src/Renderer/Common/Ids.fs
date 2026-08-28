@@ -163,6 +163,22 @@ type InputPortNumber  = | InputPortNumber of int
 [<Erase>]
 type OutputPortNumber = | OutputPortNumber of int
 
+/// Where a FastComponent sits in the build that made it: the slot LookupArray stamped it with as
+/// the flatten created it, and the identity of a fast component INSIDE a simulation.
+///
+/// The design-time name a component also has - its ComponentId and the access path of the instance
+/// it belongs to - is carried by the FastComponent itself (cId, AccessPath) and read from there
+/// when something needs it. That name is what survives a rebuild, so it is what the renderer holds
+/// and what a saved selection resolves through; the index is what the simulation uses, and it is
+/// meaningless in the next build.
+///
+/// [<Struct>] as well as [<Erase>], and safely so: this is only ever an ARRAY index, never the key
+/// of an F# Map - which is the one thing the note above prices a struct id at.
+[<Erase; Struct>]
+type FastCompIndex = | FastCompIndex of int
+
+let fastCompIndexValue (FastCompIndex n) = n
+
 /// Where a driven signal sits in the build's array of drivers.
 ///
 /// [<Struct>] as well as [<Erase>], and safely so: this is only ever an ARRAY index, never the key

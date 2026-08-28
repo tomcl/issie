@@ -346,7 +346,7 @@ let updateUnpinned (msg : Msg) oldModel =
                     match simData with
                     | Error err -> failwithf "Error occured when running startCircuitSimulation on %A, %A" c.Name err
                     | Ok simData ->
-                        let comps = simData.FastSim.FComps.Values |> Seq.filter (fun fc -> match fc.FType with | IOLabel -> false | _ -> true) |> Seq.length
+                        let comps = simData.FastSim.FCompsByIndex |> Seq.filter (fun fc -> match fc.FType with | IOLabel -> false | _ -> true) |> Seq.length
                         Log.out $"benchmarking with component {c.Name}"
 
                         [ 1 .. (warmup + simulationRound) ]

@@ -163,7 +163,10 @@ let private deepSimulation =
 /// component - each of which introduces the instance of the sheet it names.
 let private allInstances (fs: FastSimulation) =
     InstancePath []
-    :: (fs.FCustomComps |> Map.toList |> List.map (fun ((cid, ap), _) -> InstancePath(ap @ [ cid ])))
+    :: (fs.FCompsByIndex
+        |> Array.toList
+        |> List.filter (fun fc -> match fc.FType with Custom _ -> true | _ -> false)
+        |> List.map (fun fc -> InstancePath(fc.AccessPath @ [ fc.cId ])))
 
 /// How an instance reads, which is how these tests name one. The identity is a path of component
 /// ids; this is the path of LABELS it renders as, which is what a user sees and what the identity

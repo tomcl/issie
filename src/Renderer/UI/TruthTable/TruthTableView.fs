@@ -946,9 +946,8 @@ let private clockedComponentsOf (graph: SimulationGraph) : ComponentId list =
 /// it must still refuse the table, which is why the two are returned apart.
 let private wideBusComponentsOf (fs: SimTypes.FastSimulation) : ComponentId list * bool =
     let wide =
-        fs.FComps
-        |> Map.toList
-        |> List.map snd
+        fs.FCompsByIndex
+        |> Array.toList
         |> List.filter (fun fc ->
             fc.Outputs
             |> Array.exists (fun out -> out.Width > TruthTableTypes.Constants.maxTruthTableBusWidth))

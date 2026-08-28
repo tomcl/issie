@@ -232,7 +232,7 @@ let startCircuitSimulationWith
                 SimLog.record
                     SimLog.SimBuild
                     diagramName
-                    (fs.FComps.Count + fs.FCustomComps.Count)
+                    fs.FCompsByIndex.Length
                     0
                     0
                     (TimeHelpers.getTimeMs () - buildStart)

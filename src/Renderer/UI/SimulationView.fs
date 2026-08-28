@@ -93,10 +93,10 @@ let verilogOutputForSheet (sheetName: string) (vType: Verilog.VMode) (model: Mod
         | _ -> () // do nothing if no project is loaded
 
 let setFastSimInputsToDefault (fs:FastSimulation) =
-    fs.FComps
-    |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
-    |> Map.map (fun cid fc -> fst cid, match fc.FType with | Input1 (w,defVal) -> (w,defVal) | _ -> failwithf "What? Impossible")
-    |> Map.toList
+    fs.FCompsByIndex
+    |> Array.filter (fun fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
+    |> Array.map (fun fc -> fc.cId, (fc.cId, match fc.FType with | Input1 (w,defVal) -> (w,defVal) | _ -> failwithf "What? Impossible"))
+    |> Array.toList
     |> List.map (fun ( _, (cid, (w,defaultVal ))) -> 
         match w,defaultVal with
         | _, Some defaultVal -> cid, convertBigintToFastData w defaultVal
@@ -176,10 +176,10 @@ let InputDefaultsEqualInputs fs (model:Model) (clocktick : int)=
 let InputDefaultsEqualInputsRefresh fs (model:Model) (clocktick: int) =
     if not model.SimulateInRenderer then InputDefaultsEqualInputs fs model clocktick else
     let tick = fs.ClockTick
-    fs.FComps
-    |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
-    |> Map.map (fun fid fc ->
-        let cid = fst fid
+    fs.FCompsByIndex
+    |> Array.filter (fun fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
+    |> Array.map (fun fc ->
+        let cid = fc.cId
         if Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) then
             let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
             let currdefault = match typ with
@@ -188,7 +188,6 @@ let InputDefaultsEqualInputsRefresh fs (model:Model) (clocktick: int) =
             FastExtract.outputsAreTheSameAsDefault fs fc tick currdefault
         else
             true)
-    |> Map.values
     |> Seq.forall id
 
 

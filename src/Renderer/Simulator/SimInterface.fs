@@ -65,8 +65,8 @@
 /// hand. Neither is a question put to a simulator during a render.
 ///
 /// **Why this interface is narrow and the old one was not.** What the renderer uses today is not
-/// an interface at all: it is field access into a `FastSimulation` - `FComps`, `Drivers`,
-/// `WaveIndex`, `WaveComps`. Every one of those is proportional to the
+/// an interface at all: it is field access into a `FastSimulation` - the component store,
+/// `Drivers`, `WaveIndex`. Every one of those is proportional to the
 /// EXPANDED simulation, so promoting them to an interface would oblige a remote simulator to
 /// rebuild all of it renderer-side, which is the cost this exists to remove. So the interface
 /// asks small questions - which instances are inside this one, which ports does this instance

@@ -42,12 +42,13 @@ let installReducers (fs: FastSimulation) : FastSimulation =
     fs
 
 /// The three arrays the run loop and the ordering pass iterate, taken from `comps` - every
-/// component of the build, in the order the gather created them - rather than from fs.FComps.
+/// component of the build, in the order the gather created them.
 ///
 /// Not just to avoid building three throwaway Maps to filter with, though it does that. The
 /// components are ALLOCATED in gather order, so walking them in that order walks memory forwards;
-/// fs.FComps is keyed by (ComponentId, access path) and iterating it visits the same objects in an
-/// order unrelated to where they sit. On a 15,000-component design that difference was worth more
+/// walking them through a map keyed by (ComponentId, access path) - which is what a built
+/// simulation offered when this was written - visits the same objects in an order unrelated to
+/// where they sit. On a 15,000-component design that difference was worth more
 /// than everything else in this phase put together - and it applies to every pass that walks all
 /// the components, which is why determineBigIntState and addWavesToFastSimulation take the array
 /// too.
@@ -174,9 +175,12 @@ let buildFastSimulation
 /// explanation there and this is the backstop for any other caller.
 let private checkWidthsForFData (fs: FastSimulation) : Result<FastSimulation, SimulationError> =
     let tooWide =
-        fs.FComps
-        |> Map.toList
-        |> List.collect (fun (_, fc) ->
+        // the custom-component placeholders reduce nothing, so their ports are not what this
+        // check is about
+        fs.FCompsByIndex
+        |> Array.toList
+        |> List.filter (fun fc -> match fc.FType with Custom _ -> false | _ -> true)
+        |> List.collect (fun fc ->
             fc.Outputs
             |> Array.toList
             |> List.map (fun out -> fc, out.Width))

@@ -95,7 +95,7 @@ let build (design: SimpleDesign) (maxArraySize: int) : string =
                 """{"epoch":%d,"sheet":"%s","components":%d,"maxArraySize":%d,"buildMs":%.2f}"""
                 epoch
                 (Protocol.jsonSafe design.TopSheet)
-                (fs.FComps.Count + fs.FCustomComps.Count)
+                fs.FCompsByIndex.Length
                 fs.MaxArraySize
                 sw.Elapsed.TotalMilliseconds
 

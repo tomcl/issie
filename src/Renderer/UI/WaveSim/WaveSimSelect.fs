@@ -243,7 +243,7 @@ let private waveOfInstancePort
         labels |> List.tryFindIndex (fun (label, _) -> label = fc.FLabel)
     match fc.FType, enclosingInstance (snd fc.fId) with
     | (Input1 _ | Output _), Some instanceId ->
-        match Map.tryFind instanceId fs.FCustomComps with
+        match fs.ComponentOf instanceId with
         | Some { FType = Custom cc } ->
             let portType, portNum =
                 match fc.FType with

@@ -141,7 +141,7 @@ let noWaveTablesTest (projectName: string) (topSheet: string) (ticks: int) =
         let lean = build NoWaveTables
 
         // the same simulation either way...
-        Expect.equal lean.FComps.Count full.FComps.Count "the same components"
+        Expect.equal lean.FCompsByIndex.Length full.FCompsByIndex.Length "the same components"
         Expect.equal lean.FClockedComps.Length full.FClockedComps.Length "the same clocked components"
         Expect.equal lean.FOrderedComps.Length full.FOrderedComps.Length "the same evaluation order"
         Expect.equal lean.NumStepArrays full.NumStepArrays "the same step arrays"
@@ -161,11 +161,12 @@ let noWaveTablesTest (projectName: string) (topSheet: string) (ticks: int) =
         // Output inside the subsheet, and every waveform of a subsheet boundary reads as nothing.
         // Comparing the array indices is what tells the two apart.
         let customPortArrays (fs: FastSimulation) =
-            fs.FCustomComps
-            |> Map.toList
-            |> List.collect (fun (fid, fc) ->
-                [ for i, io in Array.indexed fc.Outputs -> $"{fid}.out{i}={io.Index}"
-                  for i, io in Array.indexed fc.InputLinks -> $"{fid}.in{i}={io.Index}" ])
+            fs.FCompsByIndex
+            |> Array.toList
+            |> List.filter (fun fc -> match fc.FType with Custom _ -> true | _ -> false)
+            |> List.collect (fun fc ->
+                [ for i, io in Array.indexed fc.Outputs -> $"{fc.fId}.out{i}={io.Index}"
+                  for i, io in Array.indexed fc.InputLinks -> $"{fc.fId}.in{i}={io.Index}" ])
 
         Expect.equal (customPortArrays lean) (customPortArrays full)
             "custom component ports must point at the same arrays in both builds"

@@ -778,11 +778,13 @@ type FastSimulation =
         /// what the links between components are expressed in. Ordinary and custom alike, in the
         /// order the flatten created them, so walking it walks memory forwards.
         FCompsByIndex: FastComponent array
-        FComps: Map<FComponentId, FastComponent>
-        /// Custom Components.
-        FCustomComps: Map<FComponentId, FastComponent>
+        /// Where a design-time name sits in that array - the ONE map a built simulation keeps,
+        /// and the only way in from outside. A saved wave selection, a RAM the user picked, a
+        /// component clicked on the canvas: all of them arrive as a name, resolve here once, and
+        /// everything after that is an index.
+        FIndexOf: Map<FComponentId, FastCompIndex>
         /// look up from output port of custom component to the relevant Output component
-        FCustomOutputCompLookup: Map<(ComponentId * ComponentId list) * OutputPortNumber, FComponentId>
+        FCustomOutputCompLookup: Map<FComponentId * OutputPortNumber, FastCompIndex>
         /// Total number of step arrays (= drivers)
         NumStepArrays: int
         /// Each driver represents one output with its data
@@ -808,15 +810,14 @@ type FastSimulation =
     /// of them for a lookup that is two tries. It was also the only reason a wave viewer needed a
     /// structure the wave tables built, so removing it is what lets the same code answer from a
     /// build made without them.
+
     /// The component at one index of this build. Not valid across builds: an index names a slot
     /// in the store that made it, which is why what OUTLIVES a build is the design-time name.
     member this.ComponentAt(index: FastCompIndex) : FastComponent =
         this.FCompsByIndex[fastCompIndexValue index]
 
     member this.ComponentOf(fId: FComponentId) : FastComponent option =
-        match Map.tryFind fId this.FComps with
-        | Some fc -> Some fc
-        | None -> Map.tryFind fId this.FCustomComps
+        Map.tryFind fId this.FIndexOf |> Option.map this.ComponentAt
 
     /// The same, for a caller that knows the component is there and says so - the callers that
     /// used to index WaveComps directly. Raises naming the id when it is not, which is what
@@ -853,8 +854,8 @@ type FastSimulation =
 /// of lookups - a measured fifth of a 480,000-component build went on one of them. They are now a
 /// single index space instead: the flatten creates each FastComponent, stamps it with its position
 /// in `Comps`, and expresses every link it finds as those indices. Nothing here is keyed by
-/// anything but an int, and the `Map`s a built simulation offers the rest of the program
-/// (FComps, FCustomComps, FCustomOutputCompLookup) are made once at the end, from this.
+/// anything but an int, and what a built simulation offers the rest of the program - the store in
+/// gather order, and one map from a design-time name into it - is made once at the end, from this.
 ///
 /// One store and one index space, holding the FastComponents themselves: custom against ordinary
 /// is a PREDICATE over it, never a second store. Splitting them is the obvious tidy-up and it is

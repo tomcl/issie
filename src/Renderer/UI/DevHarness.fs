@@ -208,7 +208,7 @@ let private sidecar () =
 /// still in memory" cannot be answered from the model alone - and answering it wrongly is how a
 /// leak gets attributed to whichever holder was looked at first.
 let private simRefs () =
-    let comps (fs: SimTypes.FastSimulation) = fs.FComps.Count + fs.FCustomComps.Count
+    let comps (fs: SimTypes.FastSimulation) = fs.FCompsByIndex.Length
     let inModel =
         match latestModel with
         | Some { CurrentStepSimulationStep = Some(Ok sd) } -> comps sd.FastSim
@@ -232,20 +232,18 @@ let private simRefs () =
 let private simStats () =
     let fs =
         [ Simulator.simCache.FastSim ]
-        |> List.tryFind (fun fs -> fs.FComps.Count > 0)
+        |> List.tryFind (fun fs -> fs.FCompsByIndex.Length > 0)
     match fs with
     | None -> box {| live = false |}
     | Some fs ->
         let outputArrays =
-            fs.FComps
-            |> Map.toSeq
-            |> Seq.collect (fun (_, fc) -> fc.Outputs |> Seq.map (fun io -> io.Width))
+            fs.FCompsByIndex
+            |> Seq.collect (fun fc -> fc.Outputs |> Seq.map (fun io -> io.Width))
         let widths = outputArrays |> Seq.toArray
         box
             {| live = true
                sheet = fs.SimulatedTopSheet
-               comps = fs.FComps.Count
-               customComps = fs.FCustomComps.Count
+               comps = fs.FCompsByIndex.Length
                maxArraySize = fs.MaxArraySize
                numStepArrays = fs.NumStepArrays
                outputPorts = widths.Length
@@ -286,7 +284,7 @@ let private timeRuns (fs: SimTypes.FastSimulation) (steps: int) =
     let times = all |> List.skip warmUp |> List.sort
     let median = times[times.Length / 2]
     let series = all |> List.map (sprintf "%.1f") |> String.concat ", "
-    let comps = fs.FComps.Count + fs.FCustomComps.Count
+    let comps = fs.FCompsByIndex.Length
     let heapMB = float (JSHelpers.usedHeap ()) / 1048576.0
     $"""{{"sheet": "{fs.SimulatedTopSheet}", "comps": {comps}, "syncComps": {fs.FClockedComps.Length}, """
     + $""""ordered": {fs.FOrderedComps.Length}, "stepArrays": {fs.NumStepArrays}, """
@@ -841,10 +839,12 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
 
                   // the first few top-level components with a ≤32-bit output
                   let items =
-                      localFs.FComps
-                      |> Map.toList
-                      |> List.choose (fun ((ComponentId cid, path), fc) ->
-                          if List.isEmpty path && fc.Outputs.Length > 0 && fc.Outputs[0].Width <= 32 then
+                      localFs.FCompsByIndex
+                      |> Array.toList
+                      |> List.choose (fun fc ->
+                          let (ComponentId cid) = fc.cId
+                          if List.isEmpty fc.AccessPath && fc.Outputs.Length > 0
+                             && fc.Outputs[0].Width <= 32 then
                               Some(cid, 0, [])
                           else
                               None)

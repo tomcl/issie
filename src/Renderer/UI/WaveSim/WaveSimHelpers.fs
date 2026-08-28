@@ -100,7 +100,7 @@ let sheetOfWave (fs: FastSimulation) (wave: Wave) : string option =
     | [] ->
         Some fs.SimulatedTopSheet
     | path ->
-        Map.tryFind (path[path.Length - 1], path[0 .. path.Length - 2]) fs.FCustomComps
+        fs.ComponentOf(path[path.Length - 1], path[0 .. path.Length - 2])
         |> Option.bind (fun instance ->
             match instance.FType with
             | Custom cc -> Some cc.Name

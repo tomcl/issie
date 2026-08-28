@@ -152,7 +152,7 @@ let ofFastSim
     (start: bigint)
     (rows: int)
     : Result<RamView, string> =
-    match Map.tryFind fid fs.FComps with
+    match fs.ComponentOf fid with
     | None -> Error "no such component in this simulation"
     | Some fc ->
         storeOf fs fid fc cycle

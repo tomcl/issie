@@ -205,9 +205,9 @@ let tests =
 
                 let fs = simData.FastSim
                 let typed, heap =
-                    Seq.append (Map.toSeq fs.FComps) (Map.toSeq fs.FCustomComps)
+                    fs.FCompsByIndex
                     |> Seq.fold
-                        (fun (typed, heap) (_, fc: FastComponent) ->
+                        (fun (typed, heap) (fc: FastComponent) ->
                             let typed, heap =
                                 ((typed, heap), fc.SimComponent.OutputWidths)
                                 ||> Array.fold (fun (t, h) w ->

@@ -51,9 +51,9 @@ let private memoryContentsError (fs: FastSimulation) (activeComps: FastComponent
 let checkAndValidate (fs: FastSimulation) =
     let start = getTimeMs ()
     let activeComps =
-        fs.FComps
-        |> mapValues
-        |> Array.filter (fun fc -> fc.Active)
+        fs.FCompsByIndex
+        |> Array.filter (fun fc ->
+            fc.Active && (match fc.FType with Custom _ -> false | _ -> true))
 
     let inSimulationComps =
         [| Array.filter (fun fc -> not (isHybridComponent fc.FType)) fs.FClockedComps
@@ -68,8 +68,8 @@ let checkAndValidate (fs: FastSimulation) =
         if Log.isOn Log.Sim then
             inSimulationComps
             |> Array.iter (fun fc -> Log.dbg Log.Sim $"simulation: {printComp fs 0 fc}")
-            fs.FComps
-            |> Map.iter (fun fid fc -> Log.dbg Log.Sim $"FComps: {printComp fs 0 fc}")
+            fs.FCompsByIndex
+            |> Array.iter (fun fc -> Log.dbg Log.Sim $"FComps: {printComp fs 0 fc}")
 
         let possibleCycleComps =
             Set(
@@ -125,9 +125,9 @@ let checkAndValidate (fs: FastSimulation) =
 let checkAndValidateFData (fs: FastSimulation) =
     let start = getTimeMs ()
     let activeComps =
-        fs.FComps
-        |> mapValues
-        |> Array.filter (fun fc -> fc.Active)
+        fs.FCompsByIndex
+        |> Array.filter (fun fc ->
+            fc.Active && (match fc.FType with Custom _ -> false | _ -> true))
 
     let inSimulationComps =
         [| Array.filter (fun fc -> not (isHybridComponent fc.FType)) fs.FClockedComps
@@ -142,8 +142,8 @@ let checkAndValidateFData (fs: FastSimulation) =
         if Log.isOn Log.Sim then
             inSimulationComps
             |> Array.iter (fun fc -> Log.dbg Log.Sim $"simulation: {printComp fs 0 fc}")
-            fs.FComps
-            |> Map.iter (fun fid fc -> Log.dbg Log.Sim $"FComps: {printComp fs 0 fc}")
+            fs.FCompsByIndex
+            |> Array.iter (fun fc -> Log.dbg Log.Sim $"FComps: {printComp fs 0 fc}")
 
         let possibleCycleComps =
             Set(

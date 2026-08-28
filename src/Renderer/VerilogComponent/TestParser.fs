@@ -260,7 +260,7 @@ let simulateAST ast src dst loadedComps=
                 // go through outputs and get the fastdata for them
                 outputCompIds
                 |> Map.map (fun label id ->
-                    match Map.tryFind (id,[]) fs.FComps with
+                    match fs.ComponentOf(id, []) with
                     | Some fc -> 
                         let data = FastExtract.getArrayOfOutputs fc 0 ticks
                         {Label=label; Values= data |> Array.toList}

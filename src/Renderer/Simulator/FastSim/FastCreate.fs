@@ -30,8 +30,7 @@ let emptyFastSimulation diagramName =
       FIOActive = Map.empty
       FIOLinks = []
       FCompsByIndex = Array.empty
-      FComps = Map.empty
-      FCustomComps = Map.empty
+      FIndexOf = Map.empty
       FCustomOutputCompLookup = Map.empty
       NumStepArrays = 0 // this will be overwritten by createInitFastCompPhase
       Drivers = Array.empty
@@ -925,7 +924,7 @@ let linkFastCustomComponentsToDriverArrays (fs: FastSimulation) (fid: FComponent
                 |> List.find (fun (i, (lab, _)) -> (ComponentLabel lab = sc.Label))
                 |> fst
 
-            fc.InputLinks[portNum] <- fs.FComps[cid, ap].Outputs[0]
+            fc.InputLinks[portNum] <- (fs.FastComponentOf(cid, ap)).Outputs[0]
         | Output w ->
             let portNum =
                 ct.OutputLabels
@@ -933,7 +932,7 @@ let linkFastCustomComponentsToDriverArrays (fs: FastSimulation) (fid: FComponent
                 |> List.find (fun (i, (lab, _)) -> ComponentLabel lab = sc.Label)
                 |> fst
 
-            fc.Outputs[portNum] <- fs.FComps[cid, ap].InputLinks[0]
+            fc.Outputs[portNum] <- (fs.FastComponentOf(cid, ap)).InputLinks[0]
         | _ -> ())
 
 /// Point every custom component's ports at the arrays of the Input and Output components inside
@@ -977,11 +976,10 @@ let addWavesToFastSimulation (comps: FastComponent array) (fs: FastSimulation) :
 /// The door between the build's index space and the rest of the program.
 ///
 /// It used to create the FastComponents as well; the flatten does that now, so what is left of it
-/// is the boundary. FComps, FCustomComps and FCustomOutputCompLookup stay maps keyed by
-/// FComponentId, which is what the ~85 call sites in the waveform simulator, Verilog output,
-/// extraction and the tests ask a FastSimulation with - every one of them unchanged. Building
-/// them costs O(n log n) once, against the millions of lookups the index space saves, and they
-/// are the thing a later stage deletes when WaveIndexT.Id carries an index instead.
+/// is the boundary. What a built simulation offers is the STORE - FCompsByIndex, in gather order -
+/// and one map, FIndexOf, from the design-time name a caller arrives with to a place in it. The
+/// name is what survives a rebuild and so what the renderer holds; the index is what everything
+/// inside the simulation works in.
 ///
 /// Custom against ordinary is decided here, by a predicate over the one store. It is not a second
 /// index space and must not become one: the links the flatten resolved are positions in this
@@ -990,13 +988,10 @@ let createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: FastS
     let start = getTimeMs ()
     let all = LookupArray.toArray g.Comps
 
-    let comps, customComps =
-        ((Map.empty, Map.empty), all)
-        ||> Array.fold (fun (m, mc) fc ->
-            if isCustom fc.FType then
-                m, Map.add fc.fId fc mc
-            else
-                Map.add fc.fId fc m, mc)
+    /// The one map a built simulation keeps: where each design-time name sits in the store.
+    /// Custom components are in it too - the wave viewer reaches their ports through it.
+    let indexOfName =
+        (Map.empty, all) ||> Array.fold (fun m fc -> Map.add fc.fId fc.Index m)
 
     /// which Output component inside a custom component drives each of its output ports - the
     /// inverse of the link the flatten stamped onto that Output component
@@ -1007,14 +1002,13 @@ let createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: FastS
                 m
             else
                 let custom = LookupArray.item (fastCompIndexValue fc.CustomOutIndex) g.Comps
-                Map.add (custom.fId, OutputPortNumber fc.CustomOutPort) fc.fId m)
+                Map.add (custom.fId, OutputPortNumber fc.CustomOutPort) fc.Index m)
 
     instrumentTime "createInitFastCompPhase" start
 
     { f with
         FCompsByIndex = all
-        FComps = comps
-        FCustomComps = customComps
+        FIndexOf = indexOfName
         MaxArraySize = simulationArraySize
         FCustomOutputCompLookup = customOutLookup
         NumStepArrays = stepArrayIndex + 1

@@ -24,7 +24,7 @@ let tests =
                 | Error e -> failwith $"carrier: %A{e.ErrType}"
             let cfs = carrier.FastSim
             Expect.equal cfs.SimulatedTopSheet "eep1" "the carrier knows its sheet"
-            Expect.equal cfs.FComps.Count 0 "and holds no components at all"
+            Expect.equal cfs.FCompsByIndex.Length 0 "and holds no components at all"
             Expect.isTrue carrier.IsSynchronous
                 "the carrier answers IsSynchronous as the real build does: eep1 is a CPU"
 

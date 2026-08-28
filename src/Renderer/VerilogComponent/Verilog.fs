@@ -66,10 +66,9 @@ let writeVerilogNames (fs: FastSimulation) =
 
     // keep array of components and base names in well defined order
     let namesWithFC = 
-        fs.FComps
-        |> Map.toArray
-        |> Array.sortBy (fun (fid,_) -> fid)
-        |> Array.map (fun (fid, fc) ->
+        fs.FCompsByIndex
+        |> Array.sortBy (fun fc -> fc.fId)
+        |> Array.map (fun fc ->
             getBaseVerilogName fc, fc)
     /// if the set of names is not distinct add suffixes as needed to make it so
     /// recursive to deal with unusual case where adding a suffix causes another clash
@@ -263,10 +262,9 @@ let makeAsyncRamModule (moduleName: string) (mem: Memory1) =
 /// get all the RAM and ROM modules used
 /// NB at the moment each instance is made a separately named module, for simplicity
 let getInstantiatedModules (profile: CompilationProfile) (fs: FastSimulation) =
-    fs.FComps
-    |> Map.toArray
+    fs.FCompsByIndex
     |> Array.collect
-        (fun (fid, fc) ->
+        (fun fc ->
             let name = memModuleName fc
 
             match fc.FType with
@@ -586,8 +584,7 @@ let getMainHeader (vType:VMode) (profile: CompilationProfile) (fs: FastSimulatio
 
 /// return the wire and reg definitions needed to make the verilog design work.
 let getMainSignalDefinitions (vType: VMode) (profile: CompilationProfile) (fs: FastSimulation) =
-    fs.FComps
-    |> mapValues
+    fs.FCompsByIndex
     |> Array.filter (fun fc -> fc.Active)
     |> Array.collect
         (fun fc ->
@@ -622,14 +619,13 @@ let getInitialSimulationBlock (vType:VMode) (fs: FastSimulation) =
         |> String.concat "\n                    "
 
     let outNames, (outFormat, outVars) =
-        fs.FComps
-        |> Map.toArray
+        fs.FCompsByIndex
         |> Array.filter
             (function
-            | _, { AccessPath = []; FType = Output _ } -> true
+            | { AccessPath = []; FType = Output _ } -> true
             | _ -> false)
         |> Array.map
-            (fun (_, fc) ->
+            (fun fc ->
                 let sigName = fc.VerilogOutputName[0]
 
                 let hexWidth =

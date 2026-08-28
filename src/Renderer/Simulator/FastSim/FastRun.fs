@@ -1,4 +1,4 @@
-module FastRun
+﻿module FastRun
 
 open CommonTypes
 open TimeHelpers
@@ -107,7 +107,7 @@ let private pollWorkTarget = 1000
 /// one constant was most of why timed running behaved badly at both ends of the size range - and it
 /// appeared twice, because the loop it guarded was written out twice.
 let private cyclesBetweenClockReads (fs: FastSimulation) =
-    let components = max 1 (fs.FComps.Count + fs.FCustomComps.Count)
+    let components = max 1 fs.FCompsByIndex.Length
     max 1 (pollWorkTarget / components)
 
 /// Run an existing fast simulation to `lastStepNeeded`, mutating its data arrays, and doing no
@@ -168,7 +168,7 @@ let runFastSimulation (timeOut: float option) (lastStepNeeded: int) (fs: FastSim
         SimLog.record
             SimLog.SimRun
             fs.SimulatedTopSheet
-            (fs.FComps.Count + fs.FCustomComps.Count)
+            fs.FCompsByIndex.Length
             fromTick
             fs.ClockTick
             (getTimeMs () - start)

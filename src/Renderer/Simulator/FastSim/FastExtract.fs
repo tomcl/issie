@@ -18,13 +18,13 @@ open NumberHelpers
 
 /// sets the mutable simulation data for a given input at a given time step
 let private setSimulationInput (cid: ComponentId) (fd: FastData) (step: int) (fs: FastSimulation) =
-    match Map.tryFind (cid, []) fs.FComps, fd.Width with
+    match fs.ComponentOf(cid, []), fd.Width with
     | Some fc, w when w > 32 -> fc.Outputs[0].SetBig (step % fs.MaxArraySize) fd.GetBigInt
     | Some fc, w -> fc.Outputs[0].SetU32 (step % fs.MaxArraySize) fd.GetQUint32
     | None, _ -> failwithf "Can't find %A in FastSim" cid
 
 let private setSimulationInputFData (cid: ComponentId) (fd: FData) (step: int) (fs: FastSimulation) =
-    match Map.tryFind (cid, []) fs.FComps with
+    match fs.ComponentOf(cid, []) with
     | Some fc -> fc.Outputs[0].FDataStep[ step % fs.MaxArraySize ] <- fd
     | None -> failwithf "Can't find %A in FastSim" cid
 
@@ -125,7 +125,7 @@ let rec tryFindOutputArray
     : Result<IOArray, string> =
     let (OutputPortNumber n) = opn
 
-    match Map.tryFind (cid, ap) fs.FComps with
+    match fs.ComponentOf(cid, ap) with
     | Some fc ->
         match Array.tryItem n fc.Outputs with
         | None -> Error $"{fc.FullName} has no output port {n}"
@@ -134,7 +134,7 @@ let rec tryFindOutputArray
         | Some io -> Ok io
     | None ->
         match Map.tryFind ((cid, ap), opn) fs.FCustomOutputCompLookup with
-        | Some inner -> tryFindOutputArray fs inner (OutputPortNumber 0)
+        | Some inner -> tryFindOutputArray fs (fs.ComponentAt inner).fId (OutputPortNumber 0)
         | None -> Error $"no component {cid} at {ap} in this simulation"
 
 /// Every step array of a build, dense by its own index - what turns a driver HANDLE back into
@@ -156,14 +156,10 @@ let driverArraysOf: FastSimulation -> IOArray option array =
             if io.Index >= 0 && io.Index < arrays.Length then
                 arrays[io.Index] <- Some io
 
-        let addAllOf (comps: Map<FComponentId, FastComponent>) =
-            comps
-            |> Map.iter (fun _ fc ->
-                Array.iter add fc.Outputs
-                Array.iter add fc.InputLinks)
-
-        addAllOf fs.FComps
-        addAllOf fs.FCustomComps
+        fs.FCompsByIndex
+        |> Array.iter (fun fc ->
+            Array.iter add fc.Outputs
+            Array.iter add fc.InputLinks)
         arrays)
 
 /// One sample of a resolved array, as a bigint whatever the width.
@@ -189,7 +185,7 @@ let rec extractFastSimulationOutput
     =
     let (OutputPortNumber n) = opn
 
-    match Map.tryFind (cid, ap) fs.FComps with
+    match fs.ComponentOf(cid, ap) with
     | Some fc ->
         match fc.OutputWidth n with
         | 0 ->
@@ -211,7 +207,7 @@ let rec extractFastSimulationOutput
     | None ->
         // if it is a custom component output extract from the corresponding Output FastComponent
         match Map.tryFind ((cid, ap), opn) fs.FCustomOutputCompLookup with
-        | Some(cid, ap) -> extractFastSimulationOutput fs step (cid, ap) (OutputPortNumber 0)
+        | Some inner -> extractFastSimulationOutput fs step (fs.ComponentAt inner).fId (OutputPortNumber 0)
         | None -> failwithf "What? extracting component data failed - can't find component from id"
 
 let rec extractFastSimulationOutputFData
@@ -224,7 +220,7 @@ let rec extractFastSimulationOutputFData
 
     let (OutputPortNumber n) = opn
 
-    match Map.tryFind (cid, ap) fs.FComps with
+    match fs.ComponentOf(cid, ap) with
     | Some fc ->
         match Array.tryItem (step % fs.MaxArraySize) fc.Outputs[n].FDataStep with
         | None ->
@@ -243,7 +239,8 @@ let rec extractFastSimulationOutputFData
     | None ->
         // if it is a custom component output extract from the corresponding Output FastComponent
         match Map.tryFind ((cid, ap), opn) fs.FCustomOutputCompLookup with
-        | Some(cid, ap) -> extractFastSimulationOutputFData fs step (cid, ap) (OutputPortNumber 0)
+        | Some inner ->
+            extractFastSimulationOutputFData fs step (fs.ComponentAt inner).fId (OutputPortNumber 0)
         | None -> failwithf "What? extracting component data failed - can't find component from id"
 
 /// return state data from simulation
@@ -254,7 +251,7 @@ let rec extractFastSimulationState
     : SimulationComponentState
     =
 
-    match Map.tryFind (cid, ap) fs.FComps with
+    match fs.ComponentOf(cid, ap) with
     | Some fc ->
         match fc.State with
         | None ->
@@ -300,31 +297,33 @@ let extractFastSimulationIOsFData
 
 /// Extract a component's label and its full name which includes all of its path to root of simulation.
 let getFLabel (fs: FastSimulation) (fId: FComponentId) =
-    let fc = fs.FComps[fId]
+    let fc = fs.FastComponentOf fId
     let (ComponentLabel name) = fc.SimComponent.Label
     name, fc.FullName
 
 /// Extract the width of a component's output port.
 let extractFastSimulationWidth (fs: FastSimulation) (fid: FComponentId) (opn: OutputPortNumber) =
     let (OutputPortNumber n) = opn
-    fs.FComps[fid].OutputWidth n
+    (fs.FastComponentOf fid).OutputWidth n
 
 /// Extract all Viewer components with names and wire widths. 
 let extractViewers (simulationData: SimulationData) : ((string * string) * int * FSInterface) list =
     let fs = simulationData.FastSim
 
     let viewers =
-        simulationData.FastSim.FComps
-        |> Map.filter (fun fid fc ->
+        simulationData.FastSim.FCompsByIndex
+        |> Array.filter (fun fc ->
             match fc.FType with
             | Viewer _ -> true
             | _ -> false)
 
     viewers
-    |> Map.toList
-    |> List.map (fun (fid, fc) ->
+    |> Array.toList
+    |> List.map (fun fc ->
         let width = fc.OutputWidth 0
-        getFLabel fs fid, width, extractFastSimulationOutput fs simulationData.ClockTickNumber fid (OutputPortNumber 0))
+        getFLabel fs fc.fId,
+        width,
+        extractFastSimulationOutput fs simulationData.ClockTickNumber fc.fId (OutputPortNumber 0))
 
 /// Check if the components and connections of a fast simulation and a canvas are the same.
 let compareLoadedStates (fs: FastSimulation) (canv: CanvasState) (p: Project option) =

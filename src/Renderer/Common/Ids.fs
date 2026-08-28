@@ -116,9 +116,9 @@ type SimComponentId = ComponentId * ComponentId list
 /// predicate out of FastCreate anyway) rather than as a sweep of the simulator core which buys
 /// nothing on its own.
 ///
-/// When it is done, tag it [<Erase>] and NOT [<Struct>]: this is the key type of fs.FComps and
-/// the note above the id types prices what a struct key costs in an F# Map. A plain reference
-/// wrapper is what the rest of them are and what this should be.
+/// When it is done, tag it [<Erase>] and NOT [<Struct>]: it is the key type of FIndexOf, the one
+/// map a built simulation keeps, and the note above the id types prices what a struct key costs in
+/// an F# Map. A plain reference wrapper is what the rest of them are and what this should be.
 type FComponentId = SimComponentId
 
 // An instance of a sheet in a running simulation is named by its InstancePath and nothing more,

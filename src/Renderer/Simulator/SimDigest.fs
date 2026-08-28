@@ -1,4 +1,4 @@
-/// A deterministic text rendering of a design's observable simulation behaviour, shared by both
+﻿/// A deterministic text rendering of a design's observable simulation behaviour, shared by both
 /// runtimes so they can be compared byte for byte.
 ///
 /// This is the golden-model render, moved here from the test suite unchanged so that the dotnet
@@ -61,9 +61,9 @@ let renderWith
                 |> Array.filter (fun fc -> match fc.FType with ROM1 _ -> false | _ -> true)
                 |> Array.sortBy (fun fc -> fc.FullName)
             let viewers =
-                fs.FComps
-                |> Map.toList
-                |> List.choose (fun (_, fc) -> match fc.FType with Viewer _ -> Some fc | _ -> None)
+                fs.FCompsByIndex
+                |> Array.toList
+                |> List.choose (fun fc -> match fc.FType with Viewer _ -> Some fc | _ -> None)
                 |> List.sortBy (fun fc -> fc.FullName)
             let isRam (fc: FastComponent) =
                 match fc.FType with

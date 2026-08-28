@@ -522,12 +522,11 @@ let updateLdCompsWithCompOpt (newCompOpt:LoadedComponent option) (ldComps: Loade
 /// merely the shape the sheet happens to be drawn at. Where nothing is parameterised there is one
 /// pair and this says what it always said.
 let memoryWidthsInDesign (model: Model) (compId: ComponentId) (mem: Memory1) : (int * int) list =
-    let (ComponentId compIdStr) = compId
     match model.CurrentProj with
     | None -> [ mem.AddressWidth, mem.WordWidth ]
     | Some project ->
         ParameterAnalysis.memoryWidthsInDesign
-            project.LoadedComponents project.OpenFileName compIdStr mem
+            project.LoadedComponents project.OpenFileName compId mem
 
 /// returns a string option representing the current file name if file is loaded, otherwise None
 let getCurrFile (model: Model) =

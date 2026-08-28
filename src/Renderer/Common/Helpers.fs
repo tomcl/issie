@@ -547,14 +547,11 @@ module RegenerateIds =
         |> Optic.map portOrientation_ (Map.toList >> List.map (fun (id, edge) -> sub portMap id, edge) >> Map.ofList)
         |> Optic.map portOrder_ (Map.map (fun _ ids -> List.map (sub portMap) ids))
 
-    /// ComponentSlotExpr is keyed by ParamSlot, which holds the component id as a bare integer:
-    /// those types compile before the id types, so the map has to be unwrapped to use it here.
+    /// ComponentSlotExpr is keyed by ParamSlot, which holds the component id.
     let private remapSlots (compMap: Map<ComponentId, ComponentId>) (slots: ComponentSlotExpr) =
-        let subInt n = sub compMap (ComponentId n) |> componentIdValue
-
         slots
         |> Map.toList
-        |> List.map (fun (slot, expr) -> Optic.map compId_ subInt slot, expr)
+        |> List.map (fun (slot, expr) -> Optic.map compId_ (sub compMap) slot, expr)
         |> Map.ofList
 
     let private remapComp compMap portMap (comp: Component) =

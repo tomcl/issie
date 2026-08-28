@@ -66,7 +66,7 @@ module SymbolT =
     /// Wraps around the input and output port id types
 
     /// A port named together with the side of a connection it is: the undirected id is
-    /// CommonTypes.PortId, which this carries inside InputPortId or OutputPortId.
+    /// PortId, which this carries inside InputPortId or OutputPortId.
     type DirectedPortId = | InputId of InputPortId | OutputId of OutputPortId
 
     /// data structures defining where ports are put on symbol boundary
@@ -74,9 +74,9 @@ module SymbolT =
     type PortMaps =
         {     
             /// Maps edge to list of ports on that edge, in correct order
-            Order: Map<Edge, CommonTypes.PortId list>
+            Order: Map<Edge, PortId list>
             /// Maps the port ids to which side of the component the port is on
-            Orientation: Map<CommonTypes.PortId, Edge>
+            Orientation: Map<PortId, Edge>
         }
 
     let order_ = Lens.create (fun a -> a.Order) (fun s a -> {a with Order = s})
@@ -197,7 +197,7 @@ module SymbolT =
 
             /// Option to represent a port that is being moved, if it's some, it contains the moving port's Id and its current position.
             /// dynamic info used in port move operation.
-            MovingPort: Option<{|PortId: CommonTypes.PortId; CurrPos: XYPos|}>
+            MovingPort: Option<{|PortId: PortId; CurrPos: XYPos|}>
             /// dynamic info used in port move operation
             MovingPortTarget: (XYPos*XYPos) option
 
@@ -225,7 +225,7 @@ module SymbolT =
         CopiedSymbols: Map<ComponentId, Symbol>
 
         /// Contains all the input and output ports in the model (currently rendered)
-        Ports: Map<CommonTypes.PortId, Port>
+        Ports: Map<PortId, Port>
 
         /// Contains all the inputports that have a wire connected to them.
         /// If a port is in the set, it is connected, otherwise it is not
@@ -277,8 +277,8 @@ module SymbolT =
         | RotateAntiClockAng of compList : ComponentId list * Rotation
         | Flip of compList: ComponentId list * orientation: FlipType
         /// Taking the input and..
-        | MovePort of portId: CommonTypes.PortId * move: XYPos
-        | MovePortDone of portId: CommonTypes.PortId * move: XYPos
+        | MovePort of portId: PortId * move: XYPos
+        | MovePortDone of portId: PortId * move: XYPos
         // HLP23 AUTHOR: BRYAN TAN
         | ShowCustomCorners of compList: ComponentId list
         | HideCustomCorners of compList: ComponentId list
@@ -416,7 +416,7 @@ module BusWireT =
         | ResetModel // For Issie Integration
         | LoadConnections of list<Connection> // For Issie Integration
         | UpdateConnectedWires of list<ComponentId> // rotate each symbol separately. TODO - rotate as group? Custom comps do not rotate
-        | RerouteWire of CommonTypes.PortId
+        | RerouteWire of PortId
         | ToggleSnapToNet
 
     let symbol_ = Lens.create (fun m -> m.Symbol) (fun w m -> {m with Symbol = w})
@@ -449,12 +449,12 @@ module SheetT =
 
     /// Used to keep track of what the mouse is on
     type MouseOn =
-        | Label of CommonTypes.ComponentId
-        | InputPort of CommonTypes.InputPortId * XYPos
-        | OutputPort of CommonTypes.OutputPortId * XYPos
-        | Component of CommonTypes.ComponentId
-        | Connection of CommonTypes.ConnectionId
-        | ComponentCorner of CommonTypes.ComponentId * XYPos * int
+        | Label of ComponentId
+        | InputPort of InputPortId * XYPos
+        | OutputPort of OutputPortId * XYPos
+        | Component of ComponentId
+        | Connection of ConnectionId
+        | ComponentCorner of ComponentId * XYPos * int
         | Canvas
 
     /// What a right-click has made draggable on one custom component.
@@ -472,27 +472,27 @@ module SheetT =
     /// Keeps track of the current action that the user is doing
     type CurrentAction =
         | Selecting
-        | InitialiseMoving of CommonTypes.ComponentId // In case user clicks on a component and never drags the mouse then we'll have saved the component that the user clicked on to reset any multi-selection to that component only.
-        | InitialiseMovingLabel of CommonTypes.ComponentId
+        | InitialiseMoving of ComponentId // In case user clicks on a component and never drags the mouse then we'll have saved the component that the user clicked on to reset any multi-selection to that component only.
+        | InitialiseMovingLabel of ComponentId
         | MovingSymbols
         | MovingLabel
         | DragAndDrop
         | Panning of offset: XYPos // panning sheet using shift/drag, offset = (initials) ScreenScrollPos + (initial) ScreenPage
         | MovingWire of SegmentId list // Sends mouse messages on to BusWire
-        | ConnectingInput of CommonTypes.InputPortId // When trying to connect a wire from an input
-        | ConnectingOutput of CommonTypes.OutputPortId // When trying to connect a wire from an output
+        | ConnectingInput of InputPortId // When trying to connect a wire from an input
+        | ConnectingOutput of OutputPortId // When trying to connect a wire from an output
         | Scrolling // For Automatic Scrolling by moving mouse to edge to screen
         | Idle
         | Scaling
         // ------------------------------ Issie Actions ---------------------------- //
         // (ComponentId -> Unit) is function used to add created component to parameter slots
         | InitialisedCreateComponent of LoadedComponent list * ComponentType * string * (ComponentId -> Unit) option
-        | MovingPort of portId: CommonTypes.PortId//?? should it have the port id?
-        | ResizingSymbol of CommonTypes.ComponentId * XYPos
+        | MovingPort of portId: PortId//?? should it have the port id?
+        | ResizingSymbol of ComponentId * XYPos
 
     type UndoAction =
-        | MoveBackSymbol of CommonTypes.ComponentId List * XYPos
-        | UndoPaste of CommonTypes.ComponentId list
+        | MoveBackSymbol of ComponentId List * XYPos
+        | UndoPaste of ComponentId list
 
 
 
@@ -636,22 +636,22 @@ module SheetT =
         PopupViewFunc : ((Msg -> Unit) -> PopupDialogData -> Fable.React.ReactElement) option
         // data to populate popup (may not all be used)
         PopupDialogData : PopupDialogData
-        BoundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>
-        LastValidBoundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>
-        SelectedLabel: CommonTypes.ComponentId option
-        SelectedComponents: CommonTypes.ComponentId List
-        SelectedWires: CommonTypes.ConnectionId list
-        NearbyComponents: CommonTypes.ComponentId list
+        BoundingBoxes: Map<ComponentId, BoundingBox>
+        LastValidBoundingBoxes: Map<ComponentId, BoundingBox>
+        SelectedLabel: ComponentId option
+        SelectedComponents: ComponentId List
+        SelectedWires: ConnectionId list
+        NearbyComponents: ComponentId list
         /// The wire the mouse is resting on, when it is resting on one and nothing is being
         /// dragged. Recorded so that the value it carries can be shown beside the cursor while a
         /// simulation is running - which is the draw block's only interest in it: the value itself
         /// is worked out by the UI layer, which is the only part that knows a simulation exists.
-        HoveredWire: CommonTypes.ConnectionId option
-        ErrorComponents: CommonTypes.ComponentId list
+        HoveredWire: ConnectionId option
+        ErrorComponents: ComponentId list
         DragToSelectBox: BoundingBox
         ConnectPortsLine: XYPos * XYPos // Visual indicator for connecting ports, defines two vertices to draw a line in-between.
         /// PortId 0 = none. Keeps track of if a target port has been found for connecting two wires in-between.
-        TargetPortId: CommonTypes.PortId
+        TargetPortId: PortId
         Action: CurrentAction
         ShowGrid: bool // Always true at the moment, kept in-case we want an optional grid
         //Theme: ThemeType
@@ -665,7 +665,7 @@ module SheetT =
         /// clicks away, so the affordance stays put rather than depending on a key being held.
         /// None is the ordinary state, which is why there is no case for it: a mode without a
         /// symbol to apply to would mean nothing.
-        SymbolEdit: (CommonTypes.ComponentId * SymbolEditMode) option
+        SymbolEdit: (ComponentId * SymbolEditMode) option
         SnapSymbols: SnapXY
         SnapSegments: SnapXY
         /// how X,Y coordinates throughout draw block are scaled into screen pixels.

@@ -216,7 +216,7 @@ let instanceBindingProblem
             |> Map.ofList
         ParameterTypes.slotsUsingParam name slots
         |> List.choose (fun (slot, exprSpec) ->
-            Map.tryFind (ComponentId slot.CompId) typeOfComp
+            Map.tryFind slot.CompId typeOfComp
             |> Option.map (fun compType ->
                 {exprSpec with Constraints = ComponentSlots.constraintsFor slot.CompSlot compType}))
         |> evaluateConstraints bindings
@@ -234,10 +234,10 @@ let instanceBindingProblem
 /// bindings - and are built here from `model`, which is a snapshot: issued one slot at a time
 /// they would overwrite each other, leaving all but the last slot at its old value.
 /// (ChangeWidth and ChangeInputValue read the live symbol and so do not have this problem.)
-let updateComponentSlots dispatch (model: Model) (compIdStr: int) (slotValues: (CompSlotName * ParamInt) list) =
+let updateComponentSlots dispatch (model: Model) (compId: ComponentId) (slotValues: (CompSlotName * ParamInt) list) =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
 
-    let comp = model.Sheet.GetComponentById <| ComponentId compIdStr
+    let comp = model.Sheet.GetComponentById compId
     let compId = comp.Id
     let valueOf slot = slotValues |> List.tryPick (fun (s, v) -> if s = slot then Some v else None)
 
@@ -382,14 +382,10 @@ let updateParamSlot
 let addParamComponent
     (newCompSpec: NewParamCompSpec)
     (dispatch: Msg -> Unit)
-    (compId: CommonTypes.ComponentId)
+    (compId: ComponentId)
     : Unit =
 
-    let compIdStr =
-        match compId with
-        | ComponentId txt -> txt
-    
-    let slot = {CompId = compIdStr; CompSlot = newCompSpec.CompSlot}
+    let slot = {CompId = compId; CompSlot = newCompSpec.CompSlot}
     let exprSpec = {
         Expression = newCompSpec.Expression
         Constraints = newCompSpec.Constraints
@@ -404,7 +400,7 @@ let addParamComponent
 let addParamComponents
     (newCompSpecs: NewParamCompSpec list)
     (dispatch: Msg -> Unit)
-    (compId: CommonTypes.ComponentId)
+    (compId: ComponentId)
     : Unit =
     newCompSpecs |> List.iter (fun spec -> addParamComponent spec dispatch compId)
 
@@ -463,7 +459,7 @@ let paramInputField
 
     /// Which box this is. The component id is part of it because slot names are shared: every
     /// component with a width has `Buswidth`, so without it one component's box read another's.
-    let boxKey = ParameterTypes.paramBoxKey (comp |> Option.map (fun c -> componentIdValue c.Id)) compSlotName
+    let boxKey = ParameterTypes.paramBoxKey (comp |> Option.map (fun c -> c.Id)) compSlotName
 
     let onChange inputExpr =
         let paramBindings = paramBindingsOfModel model
@@ -497,7 +493,7 @@ let paramInputField
             | Some c ->
                 // Update existing component
                 let exprSpec = {Expression = expr; Constraints = constraints}
-                let slot = {CompId = componentIdValue c.Id; CompSlot = compSlotName}
+                let slot = {CompId = c.Id; CompSlot = compSlotName}
                 updateComponent dispatch model slot value
                 dispatch <| UpdateModel (updateParamSlot slot exprSpec)
             | None -> ()
@@ -536,7 +532,7 @@ let paramInputField
         // the expression out of the box. See ParameterTypes.sameSlot.
         comp
         |> Option.bind (fun c ->
-            ParameterTypes.tryFindSlot {CompId = componentIdValue c.Id; CompSlot = compSlotName} slots)
+            ParameterTypes.tryFindSlot {CompId = c.Id; CompSlot = compSlotName} slots)
         |> Option.map (fun exprSpec -> exprSpec.Expression)
         // a custom component instance may hold its binding on the instance rather than in a slot
         // of the sheet it sits on, and the box must show what the value IS either way: a binding
@@ -613,7 +609,7 @@ let updateComponents
     /// the sheet invariant and cannot be pushed onto the canvas. Skip it rather than kill the app:
     /// the checks made when parameters and components are deleted are what keep this from happening.
     let liveSlotValue (slot: ParamSlot) (exprSpec: ConstrainedExpr) =
-        match Map.containsKey (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols with
+        match Map.containsKey slot.CompId model.Sheet.Wire.Symbol.Symbols with
         | false ->
             Log.warn $"Skipping parameter slot of component {slot.CompId}, which is not on this sheet"
             None
@@ -712,9 +708,9 @@ let copyParamSlotsToPastedComponents (pairs: (ComponentId * ComponentId) list) (
             slots
             |> Map.toList
             |> List.filter (fun (slot, exprSpec) ->
-                slot.CompId = componentIdValue sourceId
+                slot.CompId = sourceId
                 && ParameterTypes.paramNamesOfSlot exprSpec |> List.forall isDeclaredHere)
-            |> List.map (fun (slot, exprSpec) -> {slot with CompId = componentIdValue pastedId}, exprSpec))
+            |> List.map (fun (slot, exprSpec) -> {slot with CompId = pastedId}, exprSpec))
     let withSlots =
         match copied with
         | [] -> model
@@ -1019,7 +1015,7 @@ let editParameterBox model parameterName dispatch   =
             // a slot whose component has gone cannot be checked against anything; it is pruned
             // when the sheet is saved
             |> List.choose (fun (slot, exprSpec) ->
-                Map.tryFind (ComponentId slot.CompId) model'.Sheet.Wire.Symbol.Symbols
+                Map.tryFind slot.CompId model'.Sheet.Wire.Symbol.Symbols
                 |> Option.map (fun sym ->
                     {exprSpec with
                         Constraints = ComponentSlots.constraintsFor slot.CompSlot sym.Component.Type}))
@@ -1089,7 +1085,7 @@ let slotFieldName (slot: CompSlotName) : string =
 /// Human readable name of the slot a parameter expression fills, for use in messages.
 let describeSlot (model: Model) (slot: ParamSlot) =
     let slotName = slotFieldName slot.CompSlot
-    match Map.tryFind (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols with
+    match Map.tryFind slot.CompId model.Sheet.Wire.Symbol.Symbols with
     | Some symbol -> $"{symbol.Component.Label}: {slotName}"
     | None -> $"[deleted component]: {slotName}"
 
@@ -1115,7 +1111,7 @@ let removeParamFromInstances (sheetName: string) (name: ParamName) (model: Model
             slots
             |> Map.filter (fun (slot: ParamSlot) _ ->
                 match slot.CompSlot with
-                | CustomCompParam p -> not (p = paramString && Set.contains (ComponentId slot.CompId) instanceIds)
+                | CustomCompParam p -> not (p = paramString && Set.contains slot.CompId instanceIds)
                 | _ -> true)
         let ldc' =
             {ldc with
@@ -1146,7 +1142,7 @@ let deleteParameterBox model parameterName dispatch  =
         let users =
             getParamSlots sheet
             |> ParameterTypes.slotsUsingParam name
-            |> List.filter (fun (slot, _) -> Map.containsKey (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols)
+            |> List.filter (fun (slot, _) -> Map.containsKey slot.CompId model.Sheet.Wire.Symbol.Symbols)
         match users with
         | [] ->
             removeDeclaredParam project parameterName dispatch
@@ -1343,7 +1339,7 @@ let private applyChainActionToLdc (action: ParameterAnalysis.ChainAction) (ldc: 
     | ParameterAnalysis.BindInstance (sheet, instId, _, _, name) when sheet = ldc.Name ->
         let (ParamName nameStr) = name
         let defs = Option.defaultValue emptyParamDefs ldc.LCParameterSlots
-        let slot = {CompId = componentIdValue instId; CompSlot = CustomCompParam nameStr}
+        let slot = {CompId = instId; CompSlot = CustomCompParam nameStr}
         let defs' = {defs with ParamSlots = Map.add slot {Expression = PParameter name; Constraints = []} defs.ParamSlots}
         let comps, conns = ldc.CanvasState
         let comps' =
@@ -1474,7 +1470,7 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
     /// the binding held on the instance itself. Every instance sets every property its sheet
     /// declares - repaired on load where an old project does not - so there is always one.
     let exprOf (paramName: string) (key: ParamName) : ParamExpression option =
-        Map.tryFind {CompId = componentIdValue comp.Id; CompSlot = CustomCompParam paramName} slots
+        Map.tryFind {CompId = comp.Id; CompSlot = CustomCompParam paramName} slots
         |> Option.map (fun spec -> spec.Expression)
         |> Option.orElse (Map.tryFind key ccParams)
 
@@ -1488,7 +1484,7 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
     let boxIsEmptyFor (ParamName nameStr) =
         model.PopupDialogData.DialogState
         |> Option.defaultValue Map.empty
-        |> Map.tryFind (ParameterTypes.paramBoxKey (Some(componentIdValue comp.Id)) (CustomCompParam nameStr))
+        |> Map.tryFind (ParameterTypes.paramBoxKey (Some comp.Id) (CustomCompParam nameStr))
         |> function
            | Some state -> state.Text = ""
            | None -> false
@@ -1533,7 +1529,7 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
                     // works out to beside it. An ordinary dispatch: the box's text is model state,
                     // and nothing here needs to know it is a DOM element.
                     dispatch <| ClearPopupDialogParamSpec
-                        (ParameterTypes.paramBoxKey (Some(componentIdValue comp.Id)) (CustomCompParam nameStr)))
+                        (ParameterTypes.paramBoxKey (Some comp.Id) (CustomCompParam nameStr)))
                   Fulma.Button.Color IsSuccess
                   Fulma.Button.IsLight
                 ]
@@ -1815,7 +1811,7 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
     /// UI component to display a single parameterised Component slot definition.
     /// This is read-only.
     let renderSlotSpec (slot: ParamSlot) (expr: ConstrainedExpr) =
-        let symbol = Map.tryFind (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols
+        let symbol = Map.tryFind slot.CompId model.Sheet.Wire.Symbol.Symbols
         let name =
             match symbol with
             | Some sym -> sym.Component.Label

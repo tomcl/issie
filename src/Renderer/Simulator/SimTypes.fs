@@ -863,7 +863,7 @@ and GatherData =
       Comps: LookupArray.LookupArray<FastComponent>
       /// Shortcut to find the label of a component, indexed by the component's DESIGN id.
       /// An array and not a map because design ComponentIds are allocated densely from 1
-      /// (CommonTypes.ComponentId), and getFullSimName below does one lookup per element of the
+      /// (ComponentId), and getFullSimName below does one lookup per element of the
       /// access path for every component of the expanded design - millions of them on a design
       /// that expands, each one a boxed comparison per tree level as a Map. An id the design does
       /// not have reads as "*", which is what the Map gave for a key it did not hold.

@@ -501,7 +501,7 @@ let paramDefsOf (sheet: SheetDescription) : Result<ParameterDefs option, string>
                 match ParameterTypes.paramNamesOfExpr expr
                       |> List.filter (fun n -> not (Map.containsKey n declarations)) with
                 | [] ->
-                    Ok ({ CompId = componentIdValue (componentIdIn sheet spec.Comp); CompSlot = spec.Slot },
+                    Ok ({ CompId = componentIdIn sheet spec.Comp; CompSlot = spec.Slot },
                         { Expression = expr; Constraints = [] })
                 | (ParamName missing) :: _ ->
                     // every parameter used on a sheet must be declared on it
@@ -539,7 +539,7 @@ let private applySlotValues (defs: ParameterDefs option) (comps: Component list)
             let byComp = resolved |> List.groupBy fst |> List.map (fun (id, vs) -> id, List.map snd vs) |> Map.ofList
             comps
             |> List.map (fun comp ->
-                match Map.tryFind (componentIdValue comp.Id) byComp with
+                match Map.tryFind comp.Id byComp with
                 | None -> comp
                 | Some slotValues ->
                     let compType =

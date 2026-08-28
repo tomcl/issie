@@ -52,7 +52,7 @@ let private representativeDesign : SimpleDesign =
       Sheets =
         [ { SheetName = "top"
             Components =
-              [ { CompId = 1; TypeS = GateN(And, 2); Label = "G1" }
+              [ {CompId = 1; TypeS = GateN(And, 2); Label = "G1" }
                 { CompId = 2
                   TypeS =
                     Custom
@@ -77,7 +77,7 @@ let private representativeDesign : SimpleDesign =
               Map.ofList [ ParamName "W", { Expression = PInt 4I; Description = "bus width" } ]
             ParamSlots =
               Map.ofList
-                  [ { CompId = 2; CompSlot = CustomCompParam "W" },
+                  [ {CompId = ComponentId 2; CompSlot = CustomCompParam "W" },
                     { Expression = PParameter(ParamName "W")
                       Constraints = [ MinVal(PInt 1I, "width must be at least 1") ] } ] } ] }
 
@@ -129,7 +129,7 @@ let tests =
             // label path, and a legacy RAM selection naming its own component by id.
             let childComp = makeComp 1 1 1 (NbitsNot 3) "N1"
             let slots: ComponentSlotExpr =
-                Map.ofList [ { CompId = 1; CompSlot = Buswidth }, { Expression = PInt 3I; Constraints = [] } ]
+                Map.ofList [ {CompId = ComponentId 1; CompSlot = Buswidth }, { Expression = PInt 3I; Constraints = [] } ]
             let child =
                 makeLdc "child" (Some { DefaultBindings = Map.empty; ParamSlots = slots }) ([ childComp ], [])
 
@@ -163,7 +163,7 @@ let tests =
                     child'.LCParameterSlots
                     |> Option.map (fun defs -> defs.ParamSlots |> Map.toList |> List.map (fun (slot, _) -> slot.CompId))
                     |> Option.defaultValue []
-                Expect.equal slotIds [ componentIdValue childId ] "the parameter slot does not follow its component"
+                Expect.equal slotIds [ childId ] "the parameter slot does not follow its component"
 
                 match parent'.WaveInfo with
                 | Some info ->

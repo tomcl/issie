@@ -113,7 +113,7 @@ let instanceBindingExprs (parentSlots: ComponentSlotExpr) (comp: Component) (cc:
     (stored, parentSlots)
     ||> Map.fold (fun acc slot exprSpec ->
         match slot.CompSlot with
-        | CustomCompParam p when slot.CompId = componentIdValue comp.Id ->
+        | CustomCompParam p when slot.CompId = comp.Id ->
             Map.add (ParamName p) exprSpec.Expression acc
         | _ -> acc)
 
@@ -345,7 +345,7 @@ let bindingEnvironmentsOf (ldcs: LoadedComponent list) (sheetName: string) : Par
 let memoryWidthsInDesign
         (ldcs: LoadedComponent list)
         (sheetName: string)
-        (compId: int)
+        (compId: ComponentId)
         (mem: Memory1)
         : (int * int) list =
     let slots =

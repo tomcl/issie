@@ -291,7 +291,7 @@ let tidyParamSlots ((comps, _): CanvasState) (paramDefs: ParameterTypes.Paramete
         defs.ParamSlots
         |> Map.toList
         |> List.choose (fun (slot, exprSpec) ->
-            match Map.tryFind (ComponentId slot.CompId) labelOf, slot.CompSlot with
+            match Map.tryFind slot.CompId labelOf, slot.CompSlot with
             | None, _ -> None
             | Some label, IO _ -> Some ({slot with CompSlot = IO label}, exprSpec)
             | Some _, _ -> Some (slot, exprSpec))

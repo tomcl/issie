@@ -199,7 +199,7 @@ let noSymbolOverlap (boxesIntersect: BoundingBox -> BoundingBox -> bool) boundin
 let optimiseSymbol
     (wModel: BusWireT.Model)
     (symbol: Symbol)
-    (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>)
+    (boundingBoxes: Map<ComponentId, BoundingBox>)
     : BusWireT.Model =
 
     // If a wire connects the target symbol to another symbol, note which edge it is connected to

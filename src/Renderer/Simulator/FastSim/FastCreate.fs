@@ -636,7 +636,7 @@ type private SiblingIndex = { mutable Ix: int array }
 let private storeGrowthCap = 65536
 
 /// Make room in both arrays the flatten indexes by DESIGN ComponentId. Those ids are dense from 1
-/// across the whole design (CommonTypes.ComponentId), which is what makes an array the right
+/// across the whole design (ComponentId), which is what makes an array the right
 /// lookup - but the largest one is not known until the walk has met it, and walking the design
 /// twice to find out would cost more than growing costs.
 let private ensureId (g: GatherData) (sib: SiblingIndex) (i: int) =

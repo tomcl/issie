@@ -375,9 +375,9 @@ let insideBox (pos: XYPos) boundingBox =
 
 /// Checks if pos is inside any of the bounding boxes of the components in boundingBoxes
 let inline insideBoxMap 
-        (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>) 
+        (boundingBoxes: Map<ComponentId, BoundingBox>) 
         (pos: XYPos) 
-            : CommonTypes.ComponentId Option =
+            : ComponentId Option =
     boundingBoxes
     |> Map.tryFindKey (fun k box -> insideBox pos box)// If there are multiple components overlapping (should not happen), return first one found
 
@@ -919,12 +919,12 @@ let mouseOn (model: Model) (pos: XYPos) : MouseOn =
                         | None -> Canvas
 
 
-let notIntersectingComponents (model: Model) (box1: BoundingBox) (inputId: CommonTypes.ComponentId) =
+let notIntersectingComponents (model: Model) (box1: BoundingBox) (inputId: ComponentId) =
    model.BoundingBoxes
    |> Map.filter (fun sId boundingBox -> boxesIntersect boundingBox box1 && inputId <> sId)
    |> Map.isEmpty
 
-let notIntersectingSelectedComponents (model: Model) (box1: BoundingBox) (inputId: CommonTypes.ComponentId) =
+let notIntersectingSelectedComponents (model: Model) (box1: BoundingBox) (inputId: ComponentId) =
    model.BoundingBoxes |> Map.filter (fun sId _ -> List.contains sId model.SelectedComponents)
    |> Map.filter (fun sId boundingBox -> boxesIntersect boundingBox box1 && inputId <> sId)
    |> Map.isEmpty

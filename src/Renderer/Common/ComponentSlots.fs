@@ -223,7 +223,7 @@ let resolveCanvasAtBindings
     let slotsOf (compId: ComponentId) =
         slots
         |> Map.toList
-        |> List.filter (fun (slot, _) -> slot.CompId = componentIdValue compId)
+        |> List.filter (fun (slot, _) -> slot.CompId = compId)
     let resolve (comp: Component) =
         (comp.Type, slotsOf comp.Id)
         ||> List.fold (fun compType (slot, exprSpec) ->

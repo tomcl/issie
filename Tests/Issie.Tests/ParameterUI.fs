@@ -32,7 +32,7 @@ let private widthSheet (name: string) =
     let out = makeComp 1 1 0 (Output 4) "O"
     let wExpr = { Expression = PParameter(ParamName "W"); Constraints = [] }
     makeLdc name
-        (Some (paramDefs [ declares "W" (PInt 4I) ] [ { CompId = 1; CompSlot = IO "O" }, wExpr ]))
+        (Some (paramDefs [ declares "W" (PInt 4I) ] [ {CompId = ComponentId 1; CompSlot = IO "O" }, wExpr ]))
         ([ out ], [])
 
 /// An instance of `child` on a parent sheet, binding W to the given expression (or to nothing).
@@ -318,11 +318,11 @@ let tests =
             // Every component with a width has a Buswidth slot, so keying on the slot name alone
             // meant one component's box read another's entry - and showed its error, in red, on a
             // component whose own value was fine.
-            let a = ParameterTypes.paramBoxKey (Some 1) Buswidth
-            let b = ParameterTypes.paramBoxKey (Some 2) Buswidth
+            let a = ParameterTypes.paramBoxKey (Some(ComponentId 1)) Buswidth
+            let b = ParameterTypes.paramBoxKey (Some(ComponentId 2)) Buswidth
             Expect.notEqual a b "two components' width boxes are different boxes"
             Expect.equal (Map.ofList [a, 1; b, 2] |> Map.count) 2 "so they do not share an entry"
-            Expect.equal (ParameterTypes.paramBoxKey None Buswidth).CompId 0
+            Expect.equal (ParameterTypes.paramBoxKey None Buswidth).CompId (ComponentId 0)
                 "a popup has no component, and its entries go when the popup closes"
         }
 
@@ -507,7 +507,7 @@ let tests =
 
         test "writing a slot to a sheet that declares nothing also lands" {
             // the same hole seen from the other field: updateParamSlot writes through this lens too
-            let slot = {CompId = 1; CompSlot = Buswidth}
+            let slot = {CompId = ComponentId 1; CompSlot = Buswidth}
             let written =
                 sheetOf "fresh" []
                 |> Optic.map (lcParameterDefs_ >-> paramSlots_)

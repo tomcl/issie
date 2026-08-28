@@ -184,9 +184,8 @@ type CompSlotName =
     | MemoryWordWidth
 
 /// A slot in a component instance that can be bound to a parameter expression.
-/// CompId is the integer id of the component (it would be a ComponentId, but these types compile
-/// before CommonTypes); 0 is the sentinel for "no component" - a popup's dialog box.
-type ParamSlot = {CompId: int; CompSlot: CompSlotName}
+/// ComponentId 0 is the sentinel for "no component" - a popup's dialog box.
+type ParamSlot = {CompId: ComponentId; CompSlot: CompSlotName}
 
 /// Lenses for ParamSlot
 let compId_ = Optics.Lens.create (fun s -> s.CompId) (fun v s -> {s with CompId = v})
@@ -263,8 +262,8 @@ type ParamBoxDialogState = Map<ParamSlot, ParamBoxState>
 
 /// The dialog-state key for a box belonging to a component, or to a popup where there is none.
 /// 0 is never a real component id - the allocator hands out ids from 1 - so it means "popup".
-let paramBoxKey (compId: int option) (slot: CompSlotName) : ParamSlot =
-    {CompId = Option.defaultValue 0 compId; CompSlot = slot}
+let paramBoxKey (compId: ComponentId option) (slot: CompSlotName) : ParamSlot =
+    {CompId = Option.defaultValue (ComponentId 0) compId; CompSlot = slot}
 
 /// Map from name to expression for each parameter.
 /// This is what an INSTANCE binds: a custom component binding carries no description, because the
@@ -352,11 +351,12 @@ module JSONParams =
 let slotsToJson (slots: ComponentSlotExpr) : JSONParams.ComponentSlotExpr =
     slots
     |> Map.toList
-    |> List.map (fun (slot, expr) -> ({CompId = string slot.CompId; CompSlot = slot.CompSlot}: JSONParams.ParamSlot), expr)
+    |> List.map (fun (slot, expr) ->
+        ({CompId = string (componentIdValue slot.CompId); CompSlot = slot.CompSlot}: JSONParams.ParamSlot), expr)
     |> Map.ofList
 
 /// A saved slot map read back, id strings mapped by the loader's rule.
-let slotsOfJson (mapCompId: string -> int) (slots: JSONParams.ComponentSlotExpr) : ComponentSlotExpr =
+let slotsOfJson (mapCompId: string -> ComponentId) (slots: JSONParams.ComponentSlotExpr) : ComponentSlotExpr =
     slots
     |> Map.toList
     |> List.map (fun (slot: JSONParams.ParamSlot, expr) -> {CompId = mapCompId slot.CompId; CompSlot = slot.CompSlot}, expr)
@@ -366,7 +366,7 @@ let paramDefsToJson (defs: ParameterDefs) : JSONParams.ParameterDefs =
     { DefaultBindings = defs.DefaultBindings
       ParamSlots = slotsToJson defs.ParamSlots }
 
-let paramDefsOfJson (mapCompId: string -> int) (defs: JSONParams.ParameterDefs) : ParameterDefs =
+let paramDefsOfJson (mapCompId: string -> ComponentId) (defs: JSONParams.ParameterDefs) : ParameterDefs =
     { DefaultBindings = defs.DefaultBindings
       ParamSlots = slotsOfJson mapCompId defs.ParamSlots }
 

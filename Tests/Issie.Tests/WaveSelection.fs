@@ -324,10 +324,10 @@ let private parameterisedAtNine () =
     let paramDefs: ParameterTypes.ParameterDefs =
         { DefaultBindings = Map [ declares "W" (ParameterTypes.PInt 4I) ]
           ParamSlots =
-            Map [ { CompId = 1; CompSlot = ParameterTypes.IO "A" }, wExpr
-                  { CompId = 2; CompSlot = ParameterTypes.IO "B" }, wExpr
-                  { CompId = 3; CompSlot = ParameterTypes.Buswidth }, wExpr
-                  { CompId = 4; CompSlot = ParameterTypes.IO "S" }, wExpr ] }
+            Map [ {CompId = ComponentId 1; CompSlot = ParameterTypes.IO "A" }, wExpr
+                  {CompId = ComponentId 2; CompSlot = ParameterTypes.IO "B" }, wExpr
+                  {CompId = ComponentId 3; CompSlot = ParameterTypes.Buswidth }, wExpr
+                  {CompId = ComponentId 4; CompSlot = ParameterTypes.IO "S" }, wExpr ] }
 
     let child = makeLdc "pchild" (Some paramDefs) canvas
     let bindings = Some(Map [ ParameterTypes.ParamName "W", ParameterTypes.PInt 9I ])

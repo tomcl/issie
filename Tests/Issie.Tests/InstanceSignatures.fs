@@ -32,8 +32,8 @@ let private childLdc =
     let s = {makeComp 2 1 0 (Output 4) "S" with Y = 100.}
     makeLdc "child"
         (Some (paramDefs [declares "W" (PInt 4I)]
-                         [{CompId = 1; CompSlot = IO "A"}, wExpr
-                          {CompId = 2; CompSlot = IO "S"}, wExpr]))
+                         [{CompId = ComponentId 1; CompSlot = IO "A"}, wExpr
+                          {CompId = ComponentId 2; CompSlot = IO "S"}, wExpr]))
         ([a; s], [conn a 0 s 0])
 
 /// An instance of the child, whose stored ports may deliberately be wrong so that the code under
@@ -216,9 +216,9 @@ let tests =
                 let s = {makeComp 3 1 0 (Output 4) "S" with Y = 100.}
                 makeLdc "child"
                     (Some (paramDefs [declares "W" (PInt 4I)]
-                                     [{CompId = 1; CompSlot = IO "A"}, wExpr
-                                      {CompId = 2; CompSlot = IO "B"}, wExpr
-                                      {CompId = 3; CompSlot = IO "S"}, wExpr]))
+                                     [{CompId = ComponentId 1; CompSlot = IO "A"}, wExpr
+                                      {CompId = ComponentId 2; CompSlot = IO "B"}, wExpr
+                                      {CompId = ComponentId 3; CompSlot = IO "S"}, wExpr]))
                     ([a; b; s], [conn a 0 s 0])
             let i16 = instanceOf 1 "I16" 16 (bindingOf 16)
             let parent = makeLdc "parent" None ([i16], [])
@@ -240,7 +240,7 @@ let tests =
             let shrunkChild =
                 let s = {makeComp 1 1 0 (Output 4) "S" with Y = 100.}
                 makeLdc "child"
-                    (Some (paramDefs [declares "W" (PInt 4I)] [{CompId = 1; CompSlot = IO "S"}, wExpr]))
+                    (Some (paramDefs [declares "W" (PInt 4I)] [{CompId = ComponentId 1; CompSlot = IO "S"}, wExpr]))
                     ([s], [])
             let i16 = instanceOf 1 "I16" 16 (bindingOf 16)
             let parent = makeLdc "parent" None ([i16], [])
@@ -313,7 +313,7 @@ let tests =
             let ci = makeComp 1 1 1 (customOf childLdc ["A", 4] ["S", 4] (bindingOf 4)) "CI"
             makeLdc "mid"
                 (Some (paramDefs [declares "W" (PInt 4I)]
-                                 [{CompId = 1; CompSlot = CustomCompParam "W"},
+                                 [{CompId = ComponentId 1; CompSlot = CustomCompParam "W"},
                                   {Expression = PParameter (ParamName "W"); Constraints = []}]))
                 ([ci], [])
 
@@ -428,8 +428,8 @@ let tests =
                 let s = {makeComp 2 1 0 (Output 4) "S" with Y = 100.}
                 makeLdc "child"
                     (Some (paramDefs [declares "W" (PInt 4I)]
-                                     [{CompId = 1; CompSlot = IO "A"}, wExpr
-                                      {CompId = 2; CompSlot = IO "S"}, wExpr]))
+                                     [{CompId = ComponentId 1; CompSlot = IO "A"}, wExpr
+                                      {CompId = ComponentId 2; CompSlot = IO "S"}, wExpr]))
                     ([a; s], [conn a 0 s 0])
             let i8 = instanceOf 1 "I8" 8 (bindingOf 8)
             let i16 = instanceOf 2 "I16" 16 (bindingOf 16)
@@ -472,20 +472,20 @@ let tests =
         // --- a slot survives its component being renamed ---
 
         test "an IO slot is the same slot after its component is renamed" {
-            let stored = {CompId = 1; CompSlot = IO "A"}
-            let asked = {CompId = 1; CompSlot = IO "RENAMED"}
+            let stored = {CompId = ComponentId 1; CompSlot = IO "A"}
+            let asked = {CompId = ComponentId 1; CompSlot = IO "RENAMED"}
             Expect.isTrue (ParameterTypes.sameSlot stored asked) "the label is not part of a slot's identity"
-            Expect.isFalse (ParameterTypes.sameSlot stored {CompId = 2; CompSlot = IO "A"})
+            Expect.isFalse (ParameterTypes.sameSlot stored {CompId = ComponentId 2; CompSlot = IO "A"})
                 "but the component is"
             Expect.isFalse
-                (ParameterTypes.sameSlot {CompId = 1; CompSlot = Buswidth} {CompId = 1; CompSlot = InputDefault})
+                (ParameterTypes.sameSlot {CompId = ComponentId 1; CompSlot = Buswidth} {CompId = ComponentId 1; CompSlot = InputDefault})
                 "and so is which field of it"
         }
 
         test "a slot is found under the component's old label" {
-            let slots = Map [{CompId = 1; CompSlot = IO "A"}, wExpr]
+            let slots = Map [{CompId = ComponentId 1; CompSlot = IO "A"}, wExpr]
             Expect.equal
-                (ParameterTypes.tryFindSlot {CompId = 1; CompSlot = IO "RENAMED"} slots)
+                (ParameterTypes.tryFindSlot {CompId = ComponentId 1; CompSlot = IO "RENAMED"} slots)
                 (Some wExpr)
                 "the expression is still this field's, so the properties pane still shows it"
         }
@@ -494,16 +494,16 @@ let tests =
             // two slots for one field left them to fight over the component's width in Map key order
             let newExpr = {Expression = PParameter (ParamName "N"); Constraints = []}
             let slots =
-                Map [{CompId = 1; CompSlot = IO "A"}, wExpr]
-                |> ParameterTypes.addSlot {CompId = 1; CompSlot = IO "RENAMED"} newExpr
+                Map [{CompId = ComponentId 1; CompSlot = IO "A"}, wExpr]
+                |> ParameterTypes.addSlot {CompId = ComponentId 1; CompSlot = IO "RENAMED"} newExpr
             Expect.equal (Map.count slots) 1 "one slot for one field"
             Expect.equal (Map.toList slots |> List.head |> snd) newExpr "and it is the new expression"
         }
 
         test "clearing a renamed component's slot clears the one stored under the old label" {
             let slots =
-                Map [{CompId = 1; CompSlot = IO "A"}, wExpr]
-                |> ParameterTypes.removeSlot {CompId = 1; CompSlot = IO "RENAMED"}
+                Map [{CompId = ComponentId 1; CompSlot = IO "A"}, wExpr]
+                |> ParameterTypes.removeSlot {CompId = ComponentId 1; CompSlot = IO "RENAMED"}
             Expect.isEmpty slots "the field goes back to being an ordinary number"
         }
 
@@ -514,8 +514,8 @@ let tests =
             let ldc =
                 makeLdc "child"
                     (Some (paramDefs [declares "W" (PInt 4I)]
-                                     [{CompId = 1; CompSlot = IO "A"}, wExpr
-                                      {CompId = 2; CompSlot = IO "S"}, wExpr]))
+                                     [{CompId = ComponentId 1; CompSlot = IO "A"}, wExpr
+                                      {CompId = ComponentId 2; CompSlot = IO "S"}, wExpr]))
                     ([a; s], [conn a 0 s 0])
             let widths = CanvasExtractor.signatureOfInstance [ldc] Map.empty "child" (Map [ParamName "W", PInt 16I])
             Expect.equal widths (Some (["RENAMED", 16], ["S", 16]))
@@ -526,13 +526,13 @@ let tests =
             let a = {makeComp 1 0 1 (Input1 (4, None)) "RENAMED" with Y = 0.}
             let defs =
                 paramDefs [declares "W" (PInt 4I)]
-                          [{CompId = 1; CompSlot = IO "A"}, wExpr
-                           {CompId = 99; CompSlot = IO "GONE"}, wExpr]
+                          [{CompId = ComponentId 1; CompSlot = IO "A"}, wExpr
+                           {CompId = ComponentId 99; CompSlot = IO "GONE"}, wExpr]
             let tidied =
                 CanvasExtractor.tidyParamSlots ([a], []) (Some defs)
                 |> Option.defaultWith (fun () -> failtest "no definitions")
             Expect.equal (Map.toList tidied.ParamSlots |> List.map fst)
-                [{CompId = 1; CompSlot = IO "RENAMED"}]
+                [{CompId = ComponentId 1; CompSlot = IO "RENAMED"}]
                 "the live slot is repointed and the slot of a deleted component is gone"
         }
 

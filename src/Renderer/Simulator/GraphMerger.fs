@@ -517,8 +517,8 @@ let rec private resolveSheet
     let evalExpr expr = ParameterTypes.evaluateParamExpression bindings expr
 
     // Process a single component
-    let processComponent (ComponentId compIdStr as compId) (comp: SimulationComponent) =
-        let relevantSlots = paramSlots |> Map.filter (fun slot _ -> slot.CompId = compIdStr)
+    let processComponent (compId: ComponentId) (comp: SimulationComponent) =
+        let relevantSlots = paramSlots |> Map.filter (fun slot _ -> slot.CompId = compId)
         
         relevantSlots
         |> Map.toList

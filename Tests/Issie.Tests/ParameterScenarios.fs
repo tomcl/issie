@@ -1,4 +1,4 @@
-/// Parameter resolution scenarios: sheets with parameterised slots, instantiated with
+﻿/// Parameter resolution scenarios: sheets with parameterised slots, instantiated with
 /// different bindings, simulated through the full pipeline. These pin down the
 /// GraphMerger behaviour: effective bindings per instance, memoised resolution,
 /// CustomCompParam propagation, and informative errors for bad expressions.
@@ -29,10 +29,10 @@ let private childLdc =
     let paramDefs =
         { DefaultBindings = Map [ declares "W" (PInt 4I) ]
           ParamSlots =
-            Map [ { CompId = 1; CompSlot = IO "A" }, wExpr
-                  { CompId = 2; CompSlot = IO "B" }, wExpr
-                  { CompId = 3; CompSlot = Buswidth }, wExpr
-                  { CompId = 4; CompSlot = IO "S" }, wExpr ] }
+            Map [ {CompId = ComponentId 1; CompSlot = IO "A" }, wExpr
+                  {CompId = ComponentId 2; CompSlot = IO "B" }, wExpr
+                  {CompId = ComponentId 3; CompSlot = Buswidth }, wExpr
+                  {CompId = ComponentId 4; CompSlot = IO "S" }, wExpr ] }
     makeLdc "pchild" (Some paramDefs) canvas
 
 /// An instance of the child at width `w` (bindings given unless w is the default 4)
@@ -78,7 +78,7 @@ let private selectLdc =
     let paramDefs =
         { DefaultBindings = Map [ declares "L" (PInt 0I) ]
           ParamSlots =
-            Map [ { CompId = 2; CompSlot = IO "SEL" },
+            Map [ {CompId = ComponentId 2; CompSlot = IO "SEL" },
                   { Expression = PParameter(ParamName "L"); Constraints = [] } ] }
     makeLdc "pselect" (Some paramDefs) canvas
 
@@ -156,9 +156,9 @@ let tests =
             let paramDefs =
                 { DefaultBindings = Map [ declares "P" (PInt 8I) ]
                   ParamSlots =
-                    Map [ { CompId = 1; CompSlot = IO "X" }, { Expression = PParameter(ParamName "P"); Constraints = [] }
-                          { CompId = 2; CompSlot = IO "Y" }, { Expression = PParameter(ParamName "P"); Constraints = [] }
-                          { CompId = 4; CompSlot = IO "S" }, { Expression = PParameter(ParamName "P"); Constraints = [] } ] }
+                    Map [ {CompId = ComponentId 1; CompSlot = IO "X" }, { Expression = PParameter(ParamName "P"); Constraints = [] }
+                          {CompId = ComponentId 2; CompSlot = IO "Y" }, { Expression = PParameter(ParamName "P"); Constraints = [] }
+                          {CompId = ComponentId 4; CompSlot = IO "S" }, { Expression = PParameter(ParamName "P"); Constraints = [] } ] }
             let parent =
                 makeLdc "pexpr" (Some paramDefs) (
                     [ x; y; cc; out ],
@@ -178,10 +178,10 @@ let tests =
             let midDefs =
                 { DefaultBindings = Map [ declares "P" (PInt 4I) ]
                   ParamSlots =
-                    Map [ { CompId = 1; CompSlot = IO "A2" }, pExpr
-                          { CompId = 2; CompSlot = IO "B2" }, pExpr
-                          { CompId = 4; CompSlot = IO "S2" }, pExpr
-                          { CompId = 3; CompSlot = CustomCompParam "W" }, pExpr ] }
+                    Map [ {CompId = ComponentId 1; CompSlot = IO "A2" }, pExpr
+                          {CompId = ComponentId 2; CompSlot = IO "B2" }, pExpr
+                          {CompId = ComponentId 4; CompSlot = IO "S2" }, pExpr
+                          {CompId = ComponentId 3; CompSlot = CustomCompParam "W" }, pExpr ] }
             let midLdc =
                 makeLdc "pmid" (Some midDefs) (
                     [ a2; b2; ccc; s2 ],
@@ -209,7 +209,7 @@ let tests =
             let defs =
                 { DefaultBindings = Map.empty
                   ParamSlots =
-                    Map [ { CompId = 1; CompSlot = IO "A" },
+                    Map [ {CompId = ComponentId 1; CompSlot = IO "A" },
                           { Expression = PParameter(ParamName "NOPE"); Constraints = [] } ] }
             let ldc = makeLdc "perr1" (Some defs) ([ a; s ], [ conn a 0 s 0 ])
             match run ldc [] (Map [ "A", 1I ]) with
@@ -225,7 +225,7 @@ let tests =
             let defs =
                 { DefaultBindings = Map [ declares "W" (PDivide(PInt 4I, PInt 0I)) ]
                   ParamSlots =
-                    Map [ { CompId = 1; CompSlot = IO "A" },
+                    Map [ {CompId = ComponentId 1; CompSlot = IO "A" },
                           { Expression = PParameter(ParamName "W"); Constraints = [] } ] }
             let ldc = makeLdc "perr2" (Some defs) ([ a; s ], [ conn a 0 s 0 ])
             match run ldc [] (Map [ "A", 1I ]) with
@@ -255,8 +255,8 @@ let tests =
                 let defs =
                     { DefaultBindings = Map [ declares "W" (PInt 4I) ]
                       ParamSlots =
-                        Map [ { CompId = 2; CompSlot = MemoryAddressWidth }, wExpr
-                              { CompId = 1; CompSlot = IO "ADDR" }, wExpr ] }
+                        Map [ {CompId = ComponentId 2; CompSlot = MemoryAddressWidth }, wExpr
+                              {CompId = ComponentId 1; CompSlot = IO "ADDR" }, wExpr ] }
                 makeLdc "pmem" (Some defs)
                     ([ addr; rom; dout ], [ conn addr 0 rom 0; conn rom 0 dout 0 ])
             /// A parent driving one instance of that sheet at the given address width.
@@ -287,7 +287,7 @@ let tests =
             let defs =
                 { DefaultBindings = Map [ declares "W" (PParameter(ParamName "W")) ]
                   ParamSlots =
-                    Map [ { CompId = 1; CompSlot = IO "A" },
+                    Map [ {CompId = ComponentId 1; CompSlot = IO "A" },
                           { Expression = PParameter(ParamName "W"); Constraints = [] } ] }
             let ldc = makeLdc "perr3" (Some defs) ([ a; s ], [ conn a 0 s 0 ])
             match run ldc [] (Map [ "A", 1I ]) with
@@ -350,8 +350,8 @@ let tests =
                 { DefaultBindings = Map [ declares "W" (PInt 4I) ]
                   // the slot was created while the input was called A
                   ParamSlots =
-                    Map [ { CompId = 1; CompSlot = IO "A" }, { Expression = PParameter(ParamName "W"); Constraints = [] }
-                          { CompId = 2; CompSlot = IO "S" }, { Expression = PParameter(ParamName "W"); Constraints = [] } ] }
+                    Map [ {CompId = ComponentId 1; CompSlot = IO "A" }, { Expression = PParameter(ParamName "W"); Constraints = [] }
+                          {CompId = ComponentId 2; CompSlot = IO "S" }, { Expression = PParameter(ParamName "W"); Constraints = [] } ] }
             let renamedLdc = makeLdc "prenamed" (Some defs) ([ a; s ], [ conn a 0 s 0 ])
             let x = makeComp 1 0 1 (Input1(8, None)) "X"
             let cc =

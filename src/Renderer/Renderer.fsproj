@@ -41,6 +41,7 @@
     <Compile Include="Common\SimpleJson\Json.Converter.fs" />
     <!-- Not part of the vendored package: reads its encoding back on .NET, where it cannot run -->
     <Compile Include="Common\SimpleJsonDotNet.fs" />
+    <Compile Include="Common\Ids.fs" />
     <Compile Include="Common\ParameterTypes.fs" />
     <Compile Include="Common\CommonTypes.fs" />
     <Compile Include="Common\WavePath.fs" />

@@ -1,4 +1,4 @@
-/// Memories whose address and data widths are parameters.
+﻿/// Memories whose address and data widths are parameters.
 ///
 /// A memory is the one component with two widths and with contents that have to fit them, and the
 /// two facts meet badly: parameterise a width and one component becomes several memories, one per
@@ -126,8 +126,8 @@ let tests =
             let paramDefs =
                 { DefaultBindings = Map [ declares "W" (PInt 4I) ]
                   ParamSlots =
-                    Map [ { CompId = 1; CompSlot = MemoryAddressWidth }, wExpr
-                          { CompId = 2; CompSlot = IO "ADDR" }, wExpr ] }
+                    Map [ {CompId = ComponentId 1; CompSlot = MemoryAddressWidth }, wExpr
+                          {CompId = ComponentId 2; CompSlot = IO "ADDR" }, wExpr ] }
             let child = makeLdc "mchild" (Some paramDefs) canvas
             let instance (id: int) (w: int) =
                 makeComp id 1 1
@@ -138,7 +138,7 @@ let tests =
                 makeLdc "mparent" None (instances, [])
 
             let widthsUnder (parent: LoadedComponent) =
-                ParameterAnalysis.memoryWidthsInDesign [ parent; child ] "mchild" 1 (mem 4 8 [])
+                ParameterAnalysis.memoryWidthsInDesign [ parent; child ] "mchild" (ComponentId 1) (mem 4 8 [])
 
             Expect.equal (widthsUnder (parentOf [ instance 1 4 ])) [ 4, 8 ]
                 "one instance, one shape - the data width is not parameterised, so it is the stored one"
@@ -147,7 +147,7 @@ let tests =
                 "two instances at different values give the memory two shapes"
             Expect.equal (widthsUnder (parentOf [ instance 1 4; instance 2 4 ])) [ 4, 8 ]
                 "two instances at the same value give one"
-            Expect.equal (ParameterAnalysis.memoryWidthsInDesign [ child ] "mchild" 1 (mem 4 8 []))
+            Expect.equal (ParameterAnalysis.memoryWidthsInDesign [ child ] "mchild" (ComponentId 1) (mem 4 8 []))
                 [ 4, 8 ]
                 "and a sheet nothing instantiates has the shape its own declared values give it"
         }
@@ -155,7 +155,7 @@ let tests =
         test "a memory whose widths are not parameters has one shape wherever it is used" {
             let rom = makeComp 1 1 1 (ROM1 (mem 5 16 [])) "ROM"
             let sheet = makeLdc "plain" None ([ rom ], [])
-            Expect.equal (ParameterAnalysis.memoryWidthsInDesign [ sheet ] "plain" 1 (mem 5 16 []))
+            Expect.equal (ParameterAnalysis.memoryWidthsInDesign [ sheet ] "plain" (ComponentId 1) (mem 5 16 []))
                 [ 5, 16 ]
                 "the widths the component carries, which is the only answer there is"
         }

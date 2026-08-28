@@ -743,6 +743,6 @@ let simPorts (epoch: int) (path: int list) : JS.Promise<Result<PortView.Componen
                       let nIns = readU32 ()
                       let nOuts = readU32 ()
 
-                      { PortView.SlotsComp = CommonTypes.ComponentId cid
+                      { PortView.SlotsComp = ComponentId cid
                         PortView.SlotsIns = readSlots nIns
                         PortView.SlotsOuts = readSlots nOuts } ])

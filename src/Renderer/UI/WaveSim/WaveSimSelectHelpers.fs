@@ -176,25 +176,36 @@ let updateSheetString (newSheetName: string) (ws: WaveSimModel) =
 /// once per wave, which is a product of two numbers that both grow with the design - the reason
 /// opening this dialog on a large design took minutes. The worst case was the DEFAULT one: an empty
 /// sheet box matches every instance, since every string contains the empty string.
-let filterWaves (shown: Set<InstancePath> option) (wsModel: WaveSimModel) =
+let filterWaves (shown: Set<InstancePath>) (wsModel: WaveSimModel) =
     let fs = Simulator.getFastSim()
     // Only the instances on show are enumerated. This is the step that makes the cost the design's
     // rather than its expansion's: everything below works on what it returns, and working out what
     // one instance offers costs one sheet.
-    let candidates =
-        match shown with
-        | Some instances ->
-            // Described as they are drawn, rather than looked up in a map of every wave the
-            // simulation offers. A library component is opaque in the hierarchy, so no instance
-            // inside one is ever on show and none of their waves can reach this.
-            instances
-            |> Set.toList
-            |> List.collect (waveIndicesOfInstance fs)
-            |> List.map (makeWave wsModel fs)
-        | None ->
-            // Show Only Selected draws the waves already chosen and nothing else, so those are the
-            // only candidates there are, and there are at most maxAllowedViewerWaves of them.
-            wsModel.SelectedWaves |> List.choose (fun wi -> Map.tryFind wi wsModel.WaveDetails)
+    //
+    // Described as they are drawn, rather than looked up in a map of every wave the simulation
+    // offers. A library component is opaque in the hierarchy, so no instance inside one is ever on
+    // show and none of their waves can reach this.
+    let onShow =
+        shown
+        |> Set.toList
+        |> List.collect (waveIndicesOfInstance fs)
+        |> List.map (makeWave wsModel fs)
+
+    // ...and every wave already selected in an instance that no combo box is currently showing.
+    //
+    // A selection is not confined to the slice: it is saved and reloaded as label paths naming any
+    // instance of the design, and moving one combo box moves the slice out from under waves chosen
+    // through another. Listing only the slice would draw the viewer full of waveforms whose ticks
+    // are nowhere in the dialog - deselectable at the label, but with the selector disagreeing
+    // about what is selected, which is the surprise this avoids. Bounded by the selection, so it
+    // costs the design nothing: there are at most maxAllowedViewerWaves of them, and a wave with no
+    // record yet is not one of them, exactly as for a wave that cannot be drawn.
+    let elsewhere =
+        wsModel.SelectedWaves
+        |> List.filter (fun wi -> not (Set.contains (InstancePath(snd wi.Id)) shown))
+        |> List.choose (fun wi -> Map.tryFind wi wsModel.WaveDetails)
+
+    let candidates = onShow @ elsewhere
     let selectedIds = Set.ofList (consistentSelectedWaves wsModel)
     let matchWithBox (searchString: string) (matcher:string) =
         let s = searchString.Trim().ToUpperInvariant()
@@ -212,17 +223,16 @@ let filterWaves (shown: Set<InstancePath> option) (wsModel: WaveSimModel) =
     let allSubSheets = sheetBox.EndsWith "*"
     // The sheet box is matched against the instances on show, for the same reason: what it decides
     // is which pills are highlighted and which rows are drawn, and both are drawn from those.
+    //
+    // The instances a wave was selected in are matched too, since they are drawn too -
+    // makeInstanceRows groups by exactly this. Not every instance the design has: that used to be
+    // every key of the instance-to-parent map, one per sheet INSTANCE and so tens of thousands on a
+    // design that expands, each then tested against a list of the same length below, making a
+    // single click on the checkbox quadratic in the expansion. largeTest is seven sheets and 49,152
+    // instances of the innermost one.
     let allSheets =
-        match shown with
-        | Some instances -> Set.toList instances
-        | None ->
-            // Under Show Only Selected the rows are one per instance a wave was chosen in -
-            // makeInstanceRows groups by exactly this - so those are the instances to match. It
-            // used to be every key of the instance-to-parent map, one per sheet INSTANCE and so
-            // tens of thousands on a design that expands; each was then tested against a list of
-            // the same length below, making a single click on the checkbox quadratic in the
-            // expansion. largeTest is seven sheets and 49,152 instances of the innermost one.
-            candidates |> List.map (fun wave -> wave.SheetId) |> List.distinct
+        Set.toList shown @ (elsewhere |> List.map (fun wave -> wave.SheetId) |> List.distinct)
+        |> List.distinct
 
     // Matched against the SHEET's name, not the instance's identity. The identity is the path of
     // labels down to the instance, which is what makes it unique and what makes it unreadable: the
@@ -605,8 +615,12 @@ let private instanceSelector (node: WaveSimHierarchy.SelectorNode) (dispatch: Ms
     | _ -> null
 
 /// One row per sheet instance, which is what the pane showed before the hierarchy was collapsed.
-/// Kept for Show Only Selected: a wave already chosen inside an instance that no combo box is
-/// currently showing has to stay reachable, or it could never be deselected.
+///
+/// What it draws now is the tail of every list: the waves selected in instances no combo box is
+/// showing. They have no node to sit under - a node holds the waves of the ONE instance it is
+/// showing - so they are drawn as themselves, below the tree, in whichever mode the dialog is in.
+/// They are reachable at their label in the viewer either way; what this is for is that the
+/// selector should not disagree with the viewer about what is selected.
 let private makeInstanceRows showDetails (ws: WaveSimModel) (fs: FastSimulation) waves dispatch =
     waves
     |> List.groupBy (fun (w: Wave) -> w.SheetId)
@@ -724,11 +738,15 @@ let makeSelectionTable
         List.length waves < Constants.maxAutoExpandWaves
         || ws.ShowOnlySelected
         || sheetNum < 2
+    // The tree, then the instances that are not in it - which are exactly the ones holding a wave
+    // selected outside the slice, since nothing else reaches this. Same split in both modes: Show
+    // Only Selected narrows which waves are listed, not which instances may hold one.
+    let shown =
+        hierarchy.HierOrder |> List.choose (fun node -> node.NodeInstance) |> Set.ofList
+    let onShow, elsewhere = waves |> List.partition (fun wave -> Set.contains wave.SheetId shown)
     let subSheetRows =
-        if ws.ShowOnlySelected then
-            makeInstanceRows showDetails ws fs waves dispatch
-        else
-            makeNodeRows showDetails ws fs hierarchy waves dispatch
+        makeNodeRows showDetails ws fs hierarchy onShow dispatch
+        @ makeInstanceRows showDetails ws fs elsewhere dispatch
     let messageColour =
         match ws.SelectedWaves.Length with
         | n when n > Constants.maxAllowedViewerWaves -> "darkred"
@@ -804,16 +822,8 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
             // over a running simulation.
             if fs.SimulatedTopSheet = "" then WaveSimHierarchy.emptyHierarchy
             else WaveSimHierarchy.getSelectorHierarchy fs wsModel
-        // Show Only Selected lists the instances a wave was chosen in rather than the ones on show,
-        // so it is the one mode that has to look wider than the hierarchy.
         let shownInstances =
-            if wsModel.ShowOnlySelected then
-                None
-            else
-                hierarchy.HierOrder
-                |> List.choose (fun node -> node.NodeInstance)
-                |> Set.ofList
-                |> Some
+            hierarchy.HierOrder |> List.choose (fun node -> node.NodeInstance) |> Set.ofList
         let filteredWaves = filterWaves shownInstances wsModel
         Modal.modal [
             Modal.IsActive wsModel.WaveModalActive

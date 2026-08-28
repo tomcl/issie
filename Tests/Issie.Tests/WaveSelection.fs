@@ -853,7 +853,7 @@ let tests =
               let shown = hierarchy.HierOrder |> List.choose (fun node -> node.NodeInstance) |> Set.ofList
 
               let filtered =
-                  WaveSimSelectHelpers.filterWaves (Some shown) { ws with SheetSearchString = "LEAF" }
+                  WaveSimSelectHelpers.filterWaves shown { ws with SheetSearchString = "LEAF" }
               Expect.isNonEmpty filtered.OfSheet "the sheet is found by the name the user gave it"
               Expect.all
                   filtered.OfSheet
@@ -862,18 +862,20 @@ let tests =
 
               // the identity is no longer what the box is matched against
               let byIdentity =
-                  WaveSimSelectHelpers.filterWaves (Some shown) { ws with SheetSearchString = "MID1.LEAF1" }
+                  WaveSimSelectHelpers.filterWaves shown { ws with SheetSearchString = "MID1.LEAF1" }
               Expect.isEmpty byIdentity.OfSheet "a path through the hierarchy is not what this box takes"
 
               Simulator.simCache <- Simulator.simCacheInit ()
 
-          testCase "Show Only Selected reaches a wave chosen in an instance no node is showing"
+          testCase "a wave chosen in an instance no node is showing stays in the selector"
           <| fun () ->
-              // The one mode the collapsed hierarchy cannot narrow: a wave already chosen inside an
-              // instance no combo box is currently showing has to stay reachable, or it could never
-              // be deselected. So it is bounded by the SELECTION instead, which is what keeps it off
-              // the expansion - reading every wave in WaveDetails and every key of SimSheetStructure
-              // made one click on the checkbox cost the whole of a design that multiplies out.
+              // The selection is not confined to the slice: it is saved as label paths naming any
+              // instance, and moving one combo box moves the slice out from under waves chosen
+              // through another. Listing only the slice would leave the viewer full of waveforms
+              // whose ticks are nowhere in the dialog. What is added is bounded by the SELECTION,
+              // which is what keeps it off the expansion - reading every wave in WaveDetails and
+              // every key of SimSheetStructure made one click on the checkbox cost the whole of a
+              // design that multiplies out.
               let fs, allWaves = deepSimulation.Force()
               Simulator.simCache <- { Simulator.simCacheInit () with FastSim = fs }
               let ws = { ModelHelpers.initWSModel with WaveDetails = allWaves }
@@ -889,24 +891,35 @@ let tests =
                   |> List.map snd
                   |> List.filter (fun wave -> wave.SheetId = instanceNamed fs "MID2.LEAF2")
               Expect.isNonEmpty hidden "the design has waves in that instance"
-              let chosen =
-                  { ws with
-                      SelectedWaves = hidden |> List.map (fun wave -> wave.WaveId)
-                      ShowOnlySelected = true }
+              let ofHiddenInstance (waves: ModelType.Wave list) =
+                  waves
+                  |> List.filter (fun wave -> wave.SheetId = instanceNamed fs "MID2.LEAF2")
+                  |> List.map (fun wave -> wave.WaveId)
+                  |> List.sort
 
               Expect.isEmpty
-                  (WaveSimSelectHelpers.filterWaves (Some shown) chosen).OfSheet
-                  "no node is showing that instance, so its waves are not among the rows drawn from them"
+                  (ofHiddenInstance (WaveSimSelectHelpers.filterWaves shown ws).OfSheet)
+                  "with nothing chosen there, an instance no node is showing contributes nothing"
 
-              let filtered = WaveSimSelectHelpers.filterWaves None chosen
+              let chosen = { ws with SelectedWaves = hidden |> List.map (fun wave -> wave.WaveId) }
+
+              let listedWith showOnlySelected =
+                  WaveSimSelectHelpers.filterWaves shown { chosen with ShowOnlySelected = showOnlySelected }
+
+              // The same in both modes, which is the point: Show Only Selected narrows which waves
+              // are listed, not which instances may hold one.
               Expect.equal
-                  (filtered.OfSheet |> List.map (fun wave -> wave.WaveId) |> List.sort)
+                  (ofHiddenInstance (listedWith false).OfSheet)
                   (hidden |> List.map (fun wave -> wave.WaveId) |> List.sort)
-                  "Show Only Selected gives back exactly the waves that were chosen"
+                  "the waves chosen there are listed beside the tree"
               Expect.equal
-                  (Set.toList filtered.Sheets)
+                  (ofHiddenInstance (listedWith true).OfSheet)
+                  (hidden |> List.map (fun wave -> wave.WaveId) |> List.sort)
+                  "and under Show Only Selected"
+              Expect.equal
+                  (Set.toList (listedWith false).Sheets |> List.filter (fun i -> not (Set.contains i shown)))
                   [ instanceNamed fs "MID2.LEAF2" ]
-                  "and only the instances they are in, not every sheet instance in the design"
+                  "and the only instance added to the sheet box is the one they are in"
 
               Simulator.simCache <- Simulator.simCacheInit ()
 
@@ -1114,7 +1127,7 @@ let tests =
               let ws = { ModelHelpers.initWSModel with WaveDetails = allWaves }
               let hierarchy = WaveSimHierarchy.getSelectorHierarchy fs ws
               let shown = hierarchy.HierOrder |> List.choose (fun node -> node.NodeInstance) |> Set.ofList
-              let filtered = WaveSimSelectHelpers.filterWaves (Some shown) ws
+              let filtered = WaveSimSelectHelpers.filterWaves shown ws
 
               let everyInstance =
                   allWaves |> Map.toList |> List.map (fun (_, w) -> w.SheetId) |> Set.ofList
@@ -1122,16 +1135,19 @@ let tests =
                   "the design holds more instances than the dialog draws, which is what makes this matter"
               Expect.isNonEmpty filtered.All "the instances on show have waves"
               Expect.all filtered.All (fun wave -> Set.contains wave.SheetId shown)
-                  "and no wave of any other instance is read"
+                  "and with nothing selected, no wave of any other instance is read"
 
-              // Show Only Selected is the exception: a wave chosen inside an instance no combo box
-              // is showing has to stay reachable, or it could never be deselected.
+              // The selection is the only thing that reaches outside the slice, and it does so
+              // whatever the mode - one wave more to read, not one instance more to enumerate.
               let chosen = allWaves |> Map.toList |> List.map fst |> List.truncate 1
-              let unrestricted =
+              let withSelection showOnlySelected =
                   WaveSimSelectHelpers.filterWaves
-                      None { ws with ShowOnlySelected = true; SelectedWaves = chosen }
-              Expect.equal (List.length unrestricted.All) 1
-                  "the selected wave is found wherever in the design it was chosen"
+                      shown { ws with ShowOnlySelected = showOnlySelected; SelectedWaves = chosen }
+              Expect.equal (List.length (withSelection true).All) 1
+                  "under Show Only Selected the chosen wave is found wherever in the design it was"
+              Expect.isTrue
+                  (List.contains (List.head chosen) ((withSelection false).All |> List.map (fun w -> w.WaveId)))
+                  "and it is in the full list too, rather than appearing only when the mode is on"
 
               Simulator.simCache <- Simulator.simCacheInit ()
 

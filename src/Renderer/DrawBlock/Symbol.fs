@@ -447,14 +447,14 @@ let customStringToLength (lst: string list) =
         |> List.max
 
 
-let addPortToMaps (edge: Edge) (portMaps: PortMaps) (portId: int) =
+let addPortToMaps (edge: Edge) (portMaps: PortMaps) (portId: PortId) =
     {
         Order = portMaps.Order |> Map.add edge (portMaps.Order[edge] @ [portId])
         Orientation = portMaps.Orientation |> Map.add portId edge
     }
 
-let deletePortFromMaps (port: int) (portMaps: PortMaps) =
-    let deletePort (ports: int list) = List.filter ((<>) port) ports
+let deletePortFromMaps (port: PortId) (portMaps: PortMaps) =
+    let deletePort (ports: PortId list) = List.filter ((<>) port) ports
     {
         Order = Map.map (fun edge pL -> deletePort pL) portMaps.Order
         Orientation = Map.remove port portMaps.Orientation
@@ -515,7 +515,7 @@ let getCustomPortIdMap (comp: Component)  =
 /// Needed because the I/Os of a custom component can be changed on anotehr sheet.
 /// When the component is reloaded its port maps will be inconsistent.
 /// This function keeps existing layout, and adds new I/Os or deletes old ones.
-let makeMapsConsistent (portIdMap: Map<int,string>) (sym: Symbol) =
+let makeMapsConsistent (portIdMap: Map<PortId,string>) (sym: Symbol) =
     let newPortIds = Set (portIdMap |> Map.keys)
     let currentPortIds = Set (sym.PortMaps.Orientation |> Map.keys)
     let addedPortIds = newPortIds - currentPortIds
@@ -737,7 +737,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
 
 // Function to add ports to port model     
 let addToPortModel (model: Model) (sym: Symbol) =
-    let addOnePort (currentPorts: Map<int, Port>) (port: Port) =
+    let addOnePort (currentPorts: Map<PortId, Port>) (port: Port) =
         Map.add port.Id port currentPorts
     
     let addedInputPorts = (model.Ports, sym.Component.InputPorts) ||> List.fold addOnePort
@@ -809,7 +809,7 @@ let getPortPos (sym: Symbol) (port: Port) : XYPos =
     let side = getSymbolPortOrientation sym port
     let ports = sym.PortMaps.Order[side] //list of ports on the same side as port
     let numberOnSide = List.length ports
-    let index = ( List.findIndex (fun (p:int)  -> p = port.Id) ports )
+    let index = List.findIndex (fun (p: PortId) -> p = port.Id) ports
     let index' = match sym.ReversedInputPorts with |Some true -> float (numberOnSide-1-index) | _ -> float(index)
     let gap = getPortPosEdgeGap sym.Component.Type 
     let topBottomGap = gap + 0.3 // extra space for clk symbol
@@ -842,7 +842,7 @@ let inline getPortPosModel (model: Model) (port:Port) =
     getPortPos (Map.find (port.HostId) model.Symbols) port
 
 /// Returns the location of a given portId, with good efficiency
-let getPortLocation (defPos: XYPos option) (model: Model) (portId : int) : XYPos=
+let getPortLocation (defPos: XYPos option) (model: Model) (portId: PortId) : XYPos =
     let portOpt = Map.tryFind portId model.Ports
     let symbolIdOpt = 
         portOpt

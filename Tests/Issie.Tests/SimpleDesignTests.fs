@@ -112,7 +112,7 @@ let tests =
                 let conns = connIds ldc
                 Expect.equal (List.length (List.distinct ports)) (List.length ports) $"{ldc.Name}: port ids collide"
                 Expect.equal (List.length (List.distinct conns)) (List.length conns) $"{ldc.Name}: connection ids collide"
-                (ports @ List.map (fun (ConnectionId n) -> n) conns)
+                (List.map portIdValue ports @ List.map (fun (ConnectionId n) -> n) conns)
                 |> List.iter (fun id -> Expect.isTrue (id > 0) $"{ldc.Name}: id {id} is not positive")
         }
 

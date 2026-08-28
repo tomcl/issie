@@ -235,7 +235,8 @@ let tests =
                     let jsonComps, conns = saved.getCanvas
                     // the freshly saved ids are decimal strings of the int ids, so plain
                     // parsing is the whole mapping back
-                    let comps = List.map (convertFromJSONComponent (int >> ComponentId) int) jsonComps
+                    let comps =
+                        List.map (convertFromJSONComponent (int >> ComponentId) (int >> PortId)) jsonComps
                     Expect.equal (List.length conns) 2 "connection count"
                     Expect.equal
                         (comps |> List.map (fun c -> c.Id, c.Type) |> List.sort)

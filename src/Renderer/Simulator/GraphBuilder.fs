@@ -184,7 +184,8 @@ let private buildSimulationComponent
             match sourceToTargetPort.TryFind <| OutputPortId port.Id with
             | None when comp.Type = IOLabel -> [] // IOLabels are allowed to be connected to nothing
             | None ->
-                failwithf "what? Unconnected output port %d in comp %d" port.Id (componentIdValue comp.Id)
+                failwithf "what? Unconnected output port %d in comp %d"
+                    (portIdValue port.Id) (componentIdValue comp.Id)
             | Some targets ->
                 [ OutputPortNumber
                   <| getPortNumberOrFail port.PortNumber,

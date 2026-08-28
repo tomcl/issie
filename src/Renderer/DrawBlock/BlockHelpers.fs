@@ -334,19 +334,19 @@ let getCopiedSymbols (symModel: SymbolT.Model) : (ComponentId list) =
 
 
 /// Returns the port object associated with a given portId
-let inline getPort (symModel: SymbolT.Model) (portId: int) =
+let inline getPort (symModel: SymbolT.Model) (portId: PortId) =
     symModel.Ports.[portId]
 
-let inline getSymbol (model: SymbolT.Model) (portId: int) =
+let inline getSymbol (model: SymbolT.Model) (portId: PortId) =
     let port = getPort model portId
     model.Symbols.[port.HostId]
 
-let inline getCompId (model: SymbolT.Model) (portId: int) =
+let inline getCompId (model: SymbolT.Model) (portId: PortId) =
     let symbol = getSymbol model portId
     symbol.Id
 
 /// Returns the string of a PortId
-let inline getPortIdStr (portId: PortId) = 
+let inline getPortIdStr (portId: DirectedPortId) = 
     match portId with
     | InputId (InputPortId id) -> id
     | OutputId (OutputPortId id) -> id
@@ -360,13 +360,13 @@ let inline getOutputPortIdStr (portId: OutputPortId) =
     | OutputPortId s -> s
 
 /// HLP23: AUTHOR dgs119
-let inline getPortOrientationFrmPortIdStr (model: SymbolT.Model) (portIdStr: int) : Edge = 
+let inline getPortOrientationFrmPortIdStr (model: SymbolT.Model) (portIdStr: PortId) : Edge = 
     let port = model.Ports[portIdStr]
     let sId = port.HostId
     model.Symbols[sId].PortMaps.Orientation[portIdStr]
 
 /// returns what side of the symbol the port is on
-let inline getPortOrientation (model: SymbolT.Model)  (portId: PortId) : Edge =
+let inline getPortOrientation (model: SymbolT.Model)  (portId: DirectedPortId) : Edge =
     let portIdStr = getPortIdStr portId
     getPortOrientationFrmPortIdStr model portIdStr
 
@@ -421,7 +421,7 @@ let isWireInNet (model: Model) (wire: Wire) : (OutputPortId * (ConnectionId * Wi
 
 /// Checks if a port is part of a Symbol.
 /// HLP23: AUTHOR dgs119
-let isPortInSymbol (portId: int) (symbol: Symbol) : bool =
+let isPortInSymbol (portId: PortId) (symbol: Symbol) : bool =
     symbol.PortMaps.Orientation |> Map.containsKey portId
 
 /// Get pairs of unique symbols that are connected to each other.

@@ -517,13 +517,13 @@ module IdAllocator =
 
     /// A fresh port id. Unique across the design in practice (one allocator serves every
     /// sheet), though only uniqueness within a sheet is required of it.
-    let newPortId () = next ports
+    let newPortId () = PortId(next ports)
 
     /// A fresh connection id; as newPortId, over-unique by construction.
     let newConnectionId () = ConnectionId(next connections)
 
     let reserveComponentId (ComponentId id) = reserve components id
-    let reservePortId (id: int) = reserve ports id
+    let reservePortId (PortId id) = reserve ports id
     let reserveConnectionId (ConnectionId id) = reserve connections id
     let componentIdUsed (ComponentId id) = isUsed components id
 
@@ -642,7 +642,9 @@ module RegenerateIds =
             List.exists (fun id -> value id <= 0) ids
             || List.length (List.distinct ids) <> List.length ids
 
-        if broken componentIdValue compIds || broken id portIds || broken (fun (ConnectionId n) -> n) connIds then
+        if broken componentIdValue compIds
+           || broken portIdValue portIds
+           || broken (fun (ConnectionId n) -> n) connIds then
             // a sentinel or an internal duplicate: a malformed sheet - renumber it wholesale
             regenerateSheetIds ldc, true
         else
@@ -740,11 +742,13 @@ let sheetOfJson
     let mapCompIdInt = jsonComps |> List.map (fun comp -> comp.Id) |> makeMapping
     let mapCompId = mapCompIdInt >> ComponentId
 
-    let mapPortId =
+    let mapPortIdInt =
         jsonComps
         |> List.collect (fun comp -> comp.InputPorts @ comp.OutputPorts)
         |> List.map (fun port -> port.Id)
         |> makeMapping
+
+    let mapPortId = mapPortIdInt >> PortId
 
     let mapConnId = (jsonConns |> List.map (fun conn -> conn.Id) |> makeMapping) >> ConnectionId
 

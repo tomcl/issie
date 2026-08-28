@@ -232,7 +232,7 @@ let getPosIndex (sym: Symbol) (pos: XYPos) (edge: Edge): int =
     | _, Top ->
         -1 * int (pos'.X * (float (ports.Length + 1) + 2.0*gap - 1.0) / float(w) - float( ports.Length + 1) + 1.0 - gap - 0.5)
 
-let updatePortPos (sym:Symbol) (pos:XYPos) (portId: int) : Symbol =
+let updatePortPos (sym:Symbol) (pos:XYPos) (portId: PortId) : Symbol =
     match sym.Component.Type with
     | Custom x ->
         let oldMaps = sym.PortMaps
@@ -267,7 +267,7 @@ let updatePortPos (sym:Symbol) (pos:XYPos) (portId: int) : Symbol =
 
 
 /// Contains the code for the MovePort update msg
-let movePortUpdate (model:Model) (portId:int) (pos:XYPos) : Model*Cmd<'a> =
+let movePortUpdate (model:Model) (portId: PortId) (pos:XYPos) : Model*Cmd<'a> =
     
     /// Get a port's position given the symbol, the side the port is on, the number of ports on that side and the index of the port on that side  
     let getPortPosWithIndex (sym: Symbol) portsNumber side portIndex: XYPos =

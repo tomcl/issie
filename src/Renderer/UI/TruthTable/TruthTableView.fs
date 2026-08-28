@@ -136,13 +136,13 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
     // ports should never be in the CanvasState returned by this function!
     // negative ids: sentinel space, so they can never collide with real (positive) ids
     let dummyInputPort = {
-        Id = -1
+        Id = PortId -1
         PortNumber = None
         PortType = PortType.Input
         HostId = ComponentId -2
     }
     let dummyOutputPort = {
-        Id = -3
+        Id = PortId -3
         PortNumber = None
         PortType = PortType.Output
         HostId = ComponentId -4

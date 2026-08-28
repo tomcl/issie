@@ -160,6 +160,10 @@ Because a design sheet can be instantiated as a component they can also represen
 [<Erase>]
 type PortId = | PortId of int
 
+/// The integer inside a port id, for the seams that must speak in bare ids - the file writers and
+/// the generators that derive port ids from a component's.
+let portIdValue (PortId n) = n
+
 /// Unique integer id of a component. Unique across the whole DESIGN - the one id namespace
 /// with a global invariant, allocated densely from 1 by Helpers.IdAllocator so a design's
 /// components can index arrays directly. 0 and negatives are sentinels, never allocated.
@@ -255,14 +259,14 @@ type ComponentLabel   = | ComponentLabel of string
 /// InputPortId and OutputPortID wrap the id to distinguish component
 /// inputs and outputs some times (e.g. in simulation)
 [<Erase>]
-type InputPortId      = | InputPortId of int
+type InputPortId      = | InputPortId of PortId
 
 /// Integer id of a component port, unique within its SHEET.
 /// Connection ports and connected component ports have the same port Id
 /// InputPortId and OutputPortID wrap the id to distinguish component
 /// inputs and outputs some times (e.g. in simulation)
 [<Erase>]
-type OutputPortId     = | OutputPortId of int
+type OutputPortId     = | OutputPortId of PortId
 
 /// Port numbers are sequential unique with port lists.
 /// Inputs and Outputs are both numberd from 0 up.
@@ -276,7 +280,7 @@ type OutputPortNumber = | OutputPortNumber of int
 
 
 type Port = {
-    Id : int
+    Id : PortId
     // For example, an And would have input ports 0 and 1, and output port 0.
     // If the port is used in a Connection record as Source or Target, the Number is None. 
     PortNumber : int option
@@ -557,8 +561,8 @@ type SymbolInfo = {
     LabelRotation: Rotation option
     STransform: STransform
     ReversedInputPorts: bool option
-    PortOrientation: Map<int, Edge>
-    PortOrder: Map<Edge, int list>
+    PortOrientation: Map<PortId, Edge>
+    PortOrder: Map<Edge, PortId list>
     HScale: float option
     VScale: float option
 }
@@ -657,8 +661,8 @@ type Component = {
 }
 
 with
-    member this.getPort (PortId portId: PortId) = 
-        List.tryFind (fun (port:Port) -> port.Id = portId ) (this.InputPorts @ this.OutputPorts)
+    member this.getPort (portId: PortId) =
+        List.tryFind (fun (port: Port) -> port.Id = portId) (this.InputPorts @ this.OutputPorts)
 
     /// Equality function for components, includes all geometry except component position
     member c1.isSame(c2: Component) =
@@ -815,7 +819,7 @@ module JSONComponent =
 /// Transforms JSON components (parsed from JSON) to current components: legacy ComponentType
 /// cases are upgraded, and the file's string ids become integers through the mapping functions
 /// the loader supplies - which is where a uuid in an old file gets its integer allocated.
-let convertFromJSONComponent (mapCompId: string -> ComponentId) (mapPortId: string -> int) (comp: JSONComponent.Component) : Component =
+let convertFromJSONComponent (mapCompId: string -> ComponentId) (mapPortId: string -> PortId) (comp: JSONComponent.Component) : Component =
     let newType (ct: JSONComponent.ComponentType) : ComponentType = 
         match ct with
         | JSONComponent.ComponentType.Input1 (a,b) -> Input1 (a,b)
@@ -911,7 +915,7 @@ let convertFromJSONComponent (mapCompId: string -> ComponentId) (mapPortId: stri
 let convertFromJSONConnection
     (mapConnId: string -> ConnectionId)
     (mapCompId: string -> ComponentId)
-    (mapPortId: string -> int)
+    (mapPortId: string -> PortId)
     (conn: JSONComponent.Connection)
     : Connection =
     let newPort (port: JSONComponent.Port) : Port =
@@ -987,7 +991,7 @@ let convertToJSONComponent (comp: Component) : JSONComponent.Component =
         | Input w -> JSONComponent.ComponentType.Input w
         | Constant (w, v) -> JSONComponent.ComponentType.Constant (w, v)
     let jsonPort (port: Port) : JSONComponent.Port =
-        { Id = string port.Id
+        { Id = string (portIdValue port.Id)
           PortNumber = port.PortNumber
           PortType = port.PortType
           HostId = string (componentIdValue port.HostId) }
@@ -1020,7 +1024,7 @@ let convertToJSONComponent (comp: Component) : JSONComponent.Component =
 /// A live connection to its file form, ids written as decimal strings.
 let convertToJSONConnection (conn: Connection) : JSONComponent.Connection =
     let jsonPort (port: Port) : JSONComponent.Port =
-        { Id = string port.Id
+        { Id = string (portIdValue port.Id)
           PortNumber = port.PortNumber
           PortType = port.PortType
           HostId = string (componentIdValue port.HostId) }

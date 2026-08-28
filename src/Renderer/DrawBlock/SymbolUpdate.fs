@@ -226,7 +226,7 @@ let tryGetPastedEl copiedIds pastedIds target =
     | _ -> None
 
 /// Returns a tuple of the list of input ports of a given input symbol, and list of output ports of a given output symbol
-let getPortIds (input: Symbol) (output: Symbol) : (int list * int list)=
+let getPortIds (input: Symbol) (output: Symbol) : (PortId list * PortId list) =
     let inPortIds = 
         input.Component.InputPorts
         |> List.map (fun port -> port.Id)

@@ -349,7 +349,7 @@ let getRmInfoData m port =
     let portName = getPortName parentComp {port with PortNumber = portNum}
     (parentComp, portName)
 
-let private getInPortRmInfo (m: MapData) (counts: Map<int,Connection list * int>) (port: Port) : PortRmInfo =
+let private getInPortRmInfo (m: MapData) (counts: Map<PortId, Connection list * int>) (port: Port) : PortRmInfo =
     let parentComp, portName = getRmInfoData m port
     let checkAllPorts (cond: int -> Port -> bool) (ports: Port list) =
         ports
@@ -392,7 +392,7 @@ let private getInPortRmInfo (m: MapData) (counts: Map<int,Connection list * int>
     | _ -> Unremovable
 
 
-let private getOutPortRmInfo (m: MapData) (counts: Map<int,Connection list * int>) (port: Port) : PortRmInfo =
+let private getOutPortRmInfo (m: MapData) (counts: Map<PortId, Connection list * int>) (port: Port) : PortRmInfo =
     let parentComp, portName = getRmInfoData m port
     match parentComp.Type with
     | NbitsAdder w ->
@@ -412,7 +412,7 @@ let getOutErrType count port rmInfo =
 
 let private checkPortConnections
     (m: MapData)
-    (connMap: Connection -> int)
+    (connMap: Connection -> PortId)
     (bins: Port list)
     (cond: int -> bool)
     pidMap

@@ -433,7 +433,7 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
             |> Seq.map (Cmd.map (fun cmd -> ModelType.Msg.Sheet (DrawModelType.SheetT.Msg.Wire cmd)))
         issieModel, Cmd.batch updatePortIdMessages
 
-    | RerouteWire (portId: int) ->
+    | RerouteWire (portId: PortId) ->
         // parially or fully autoroutes wires connected to port
         // typically used after port has moved
         // NB if direction of port has changed wire must be autorouted.

@@ -373,7 +373,7 @@ let tests =
                   LType = BusWireRoutingHelpers.BARRIERPOS
                   SameNetLink = []
                   Wid = ConnectionId 0
-                  PortId = OutputPortId 0
+                  PortId = OutputPortId(PortId 0)
                   Lid = BusWireRoutingHelpers.LineId 0 }
             let lines = [| 10.; 20.; 30. |] |> Array.map lineAt
             let at p = BusWireSeparate.findInterval lines p
@@ -392,8 +392,8 @@ let tests =
                   IntersectOrJumpList = []; Mode = BusWireT.Auto; Draggable = i <> 0 }
             let wire: BusWireT.Wire =
                 { WId = ConnectionId 1
-                  InputPort = InputPortId 1
-                  OutputPort = OutputPortId 2
+                  InputPort = InputPortId(PortId 1)
+                  OutputPort = OutputPortId(PortId 2)
                   Color = HighLightColor.Red
                   Width = 1
                   StartPos = { X = 0.; Y = 0. }

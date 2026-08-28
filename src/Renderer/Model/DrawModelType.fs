@@ -65,16 +65,18 @@ module SymbolT =
     type ScaleType = ScaleUp | ScaleDown
     /// Wraps around the input and output port id types
 
-    type PortId = | InputId of InputPortId | OutputId of OutputPortId
+    /// A port named together with the side of a connection it is: the undirected id is
+    /// CommonTypes.PortId, which this carries inside InputPortId or OutputPortId.
+    type DirectedPortId = | InputId of InputPortId | OutputId of OutputPortId
 
     /// data structures defining where ports are put on symbol boundary
     /// strings here are used for port ids
     type PortMaps =
         {     
             /// Maps edge to list of ports on that edge, in correct order
-            Order: Map<Edge, int list>
+            Order: Map<Edge, CommonTypes.PortId list>
             /// Maps the port ids to which side of the component the port is on
-            Orientation: Map<int, Edge>
+            Orientation: Map<CommonTypes.PortId, Edge>
         }
 
     let order_ = Lens.create (fun a -> a.Order) (fun s a -> {a with Order = s})
@@ -195,7 +197,7 @@ module SymbolT =
 
             /// Option to represent a port that is being moved, if it's some, it contains the moving port's Id and its current position.
             /// dynamic info used in port move operation.
-            MovingPort: Option<{|PortId:int; CurrPos: XYPos|}>
+            MovingPort: Option<{|PortId: CommonTypes.PortId; CurrPos: XYPos|}>
             /// dynamic info used in port move operation
             MovingPortTarget: (XYPos*XYPos) option
 
@@ -223,7 +225,7 @@ module SymbolT =
         CopiedSymbols: Map<ComponentId, Symbol>
 
         /// Contains all the input and output ports in the model (currently rendered)
-        Ports: Map<int, Port>
+        Ports: Map<CommonTypes.PortId, Port>
 
         /// Contains all the inputports that have a wire connected to them.
         /// If a port is in the set, it is connected, otherwise it is not
@@ -275,8 +277,8 @@ module SymbolT =
         | RotateAntiClockAng of compList : ComponentId list * Rotation
         | Flip of compList: ComponentId list * orientation: FlipType
         /// Taking the input and..
-        | MovePort of portId: int * move: XYPos
-        | MovePortDone of portId: int * move: XYPos
+        | MovePort of portId: CommonTypes.PortId * move: XYPos
+        | MovePortDone of portId: CommonTypes.PortId * move: XYPos
         // HLP23 AUTHOR: BRYAN TAN
         | ShowCustomCorners of compList: ComponentId list
         | HideCustomCorners of compList: ComponentId list
@@ -414,7 +416,7 @@ module BusWireT =
         | ResetModel // For Issie Integration
         | LoadConnections of list<Connection> // For Issie Integration
         | UpdateConnectedWires of list<ComponentId> // rotate each symbol separately. TODO - rotate as group? Custom comps do not rotate
-        | RerouteWire of int
+        | RerouteWire of CommonTypes.PortId
         | ToggleSnapToNet
 
     let symbol_ = Lens.create (fun m -> m.Symbol) (fun w m -> {m with Symbol = w})
@@ -485,7 +487,7 @@ module SheetT =
         // ------------------------------ Issie Actions ---------------------------- //
         // (ComponentId -> Unit) is function used to add created component to parameter slots
         | InitialisedCreateComponent of LoadedComponent list * ComponentType * string * (ComponentId -> Unit) option
-        | MovingPort of portId: int//?? should it have the port id?
+        | MovingPort of portId: CommonTypes.PortId//?? should it have the port id?
         | ResizingSymbol of CommonTypes.ComponentId * XYPos
 
     type UndoAction =
@@ -648,7 +650,8 @@ module SheetT =
         ErrorComponents: CommonTypes.ComponentId list
         DragToSelectBox: BoundingBox
         ConnectPortsLine: XYPos * XYPos // Visual indicator for connecting ports, defines two vertices to draw a line in-between.
-        TargetPortId: int // 0 = none. Keeps track of if a target port has been found for connecting two wires in-between.
+        /// PortId 0 = none. Keeps track of if a target port has been found for connecting two wires in-between.
+        TargetPortId: CommonTypes.PortId
         Action: CurrentAction
         ShowGrid: bool // Always true at the moment, kept in-case we want an optional grid
         //Theme: ThemeType

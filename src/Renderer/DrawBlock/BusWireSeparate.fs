@@ -107,7 +107,7 @@ let bBoxToLines (ori: Orientation) (box: BoundingBox) : Line list =
             Seg1 = None
             SameNetLink = []
             Wid = ConnectionId 0
-            PortId = OutputPortId 0
+            PortId = OutputPortId(PortId 0)
             Lid = LineId 0 })
 
 /// Where two segments in lines are on the same Net and on top of each other we must NEVER separate them.

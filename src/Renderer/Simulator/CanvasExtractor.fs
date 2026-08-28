@@ -535,7 +535,7 @@ let simpleSheetOfLoadedComponent (ldc: LoadedComponent) : SimpleSheet =
                 | Some n -> port.Id, (componentIdValue comp.Id, n)
                 | None ->
                     failwithf "simpleSheet: port %d on component %d of %s has no port number"
-                        port.Id (componentIdValue comp.Id) ldc.Name
+                        (portIdValue port.Id) (componentIdValue comp.Id) ldc.Name
 
             List.map entry comp.InputPorts @ List.map entry comp.OutputPorts)
         |> Map.ofList
@@ -544,7 +544,8 @@ let simpleSheetOfLoadedComponent (ldc: LoadedComponent) : SimpleSheet =
         match Map.tryFind port.Id portInfo with
         | Some found -> found
         | None ->
-            failwithf "simpleSheet: the %s of a connection on %s names port %d, which no component has" which ldc.Name port.Id
+            failwithf "simpleSheet: the %s of a connection on %s names port %d, which no component has"
+                which ldc.Name (portIdValue port.Id)
 
     let simpleComp (comp: Component) : SimpleComponent =
         { CompId = componentIdValue comp.Id

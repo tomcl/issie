@@ -14,7 +14,7 @@ let makeComp (compId: int) (nInputs: int) (nOutputs: int) (compType: ComponentTy
     let makePorts n portType =
         let offset = match portType with | PortType.Input -> 0 | PortType.Output -> 500
         [ for i in 0 .. n - 1 ->
-            { Id = compId * 1000 + offset + i
+            { Id = PortId(compId * 1000 + offset + i)
               PortNumber = Some i
               PortType = portType
               HostId = id } ]
@@ -34,7 +34,9 @@ let makeComp (compId: int) (nInputs: int) (nOutputs: int) (compType: ComponentTy
 /// Connection-end ports carry no port number, as in saved .dgm files. The id pairs the two
 /// port ids, so it is deterministic and unique for distinct endpoint pairs.
 let conn (src: Component) (srcPort: int) (tgt: Component) (tgtPort: int) : Connection =
-    { Id = ConnectionId(src.OutputPorts[srcPort].Id * 1000 + tgt.InputPorts[tgtPort].Id % 1000)
+    let portNum (port: Port) = portIdValue port.Id
+
+    { Id = ConnectionId(portNum src.OutputPorts[srcPort] * 1000 + portNum tgt.InputPorts[tgtPort] % 1000)
       Source = { src.OutputPorts[srcPort] with PortNumber = None }
       Target = { tgt.InputPorts[tgtPort] with PortNumber = None }
       Vertices = [] }

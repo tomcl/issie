@@ -28,7 +28,7 @@ let private makeComp (compId: int) (nInputs: int) (nOutputs: int) (compType: Com
     let makePorts n portType =
         let offset = match portType with | PortType.Input -> 0 | PortType.Output -> 500
         [ for i in 0 .. n - 1 ->
-            { Id = compId * 1000 + offset + i
+            { Id = PortId(compId * 1000 + offset + i)
               PortNumber = Some i
               PortType = portType
               HostId = id } ]

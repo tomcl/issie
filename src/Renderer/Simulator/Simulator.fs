@@ -112,7 +112,7 @@ let getCurrentSimulationState
 /// name is the name of the containing sheet.
 let portSheetPort (compsWithIds: Map<ComponentId, Component>) (name: string) port =
     let comp = compsWithIds[port.HostId]
-    let compPort = comp.getPort (PortId port.Id)
+    let compPort = comp.getPort port.Id
 
     match compPort with
     | None -> None

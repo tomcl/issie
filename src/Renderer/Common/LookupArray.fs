@@ -37,8 +37,9 @@ type LookupArray<'T> =
 /// is `[<ReferenceEquality>]` and already carries mutable fields, so an index written in place
 /// costs nothing and keeps the object identity the simulator relies on:
 ///
-///     // in place - no copy, the same object back
-///     LookupArray.create (fun fc -> fc.Index) (fun fc i -> fc.Index <- i; fc) n maxInc
+///     // in place - no copy, the same object back. The store works in bare ints; a caller whose
+///     // index is a wrapped one unwraps at this boundary and nowhere else.
+///     LookupArray.create (fun fc -> fastCompIndexValue fc.Index) (fun fc i -> fc.Index <- FastCompIndex i; fc) n maxInc
 ///     // through a lens, where the type is immutable
 ///     LookupArray.create (Optic.get index_) (fun t i -> Optic.set index_ i t) n maxInc
 ///

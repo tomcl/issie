@@ -194,8 +194,13 @@ type OutputPortNumber = | OutputPortNumber of int
 /// and what a saved selection resolves through; the index is what the simulation uses, and it is
 /// meaningless in the next build.
 ///
-/// [<Struct>] as well as [<Erase>], and safely so: this is only ever an ARRAY index, never the key
-/// of an F# Map - which is the one thing the note above prices a struct id at.
+/// [<Struct>] as well as [<Erase>], and safely so: it is only ever an ARRAY index, never the key of
+/// an F# Map, never in a Set and never sorted - which are the things the note above prices a struct
+/// id at. It is a map VALUE (FIndexOf, FCustomOutputCompLookup), which costs nothing, since a value
+/// is never compared. Every read unwraps it to the bare int first - `FCompsByIndex[fastCompIndexValue
+/// index]`, `LookupArray.item (fastCompIndexValue i)` - and the -1 sentinel is tested as
+/// `fastCompIndexValue fc.CustomOutIndex < 0`, an int comparison. Keep it that way: a generic `=` on
+/// a struct DU boxes both sides.
 [<Erase; Struct>]
 type FastCompIndex = | FastCompIndex of int
 
@@ -203,9 +208,11 @@ let fastCompIndexValue (FastCompIndex n) = n
 
 /// Where a driven signal sits in the build's array of drivers.
 ///
-/// [<Struct>] as well as [<Erase>], and safely so: this is only ever an ARRAY index, never the key
-/// of an F# Map - which is the one thing the note above prices a struct id at. Erased to the bare
-/// integer under Fable, a value type carrying one under .NET, so it costs nothing on either.
+/// [<Struct>] as well as [<Erase>]. Unlike FastCompIndex this one IS a Map key - WaveData's fetch
+/// cache and WaveDrawn's memo of the SVGs, plus a Set of them for pruning - so the note above does
+/// price it. It costs nothing as shipped because both of those are RENDERER stores, where [<Erase>]
+/// has already made the key a bare number and the Map is an ordinary int-keyed one. Moving either
+/// store to the .NET side would start paying for it; nothing else here would notice.
 ///
 /// SignalHandle is this index PLUS the build it belongs to: a handle can be quoted back by a
 /// reader, an index cannot, which is what stops one simulation's index reading another's data.

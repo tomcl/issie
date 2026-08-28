@@ -9,8 +9,6 @@ open EEExtensions
 open CommonTypes
 open SimGraphTypes
 
-// type FComponentId = ComponentId * ComponentId list moved to CommonTypes
-
 type FData =
     | Data of FastData
     | Alg of FastAlgExp
@@ -195,14 +193,6 @@ type FastComponent =
       FullName: string
       /// label of component
       FLabel: string
-      /// The component's full path in the simulation: the LABELS of the custom component
-      /// instances it sits within, from the root of the simulation, followed by its own label.
-      /// All upper-cased. Built by GatherData.getFullSimPath.
-      /// Despite the name these are component labels, NOT sheet names - a component on the top
-      /// sheet has a single-element path holding its own label. For which INSTANCE a component
-      /// is in use Instance below, and for that instance's sheet use getSheetNameOfInstance.
-      /// SubSheet below drops the last element to give just the enclosing instances.
-      SheetName: string list
       /// This component's reducer, bound to this component, as a combinational and as a
       /// clocked reduction. Installed once by installReducers when the simulation is built,
       /// so that the loop calls the component's own code instead of dispatching on FType for
@@ -268,10 +258,6 @@ type FastComponent =
     member inline this.PutOutputFData (epoch) (OutputPortNumber n) dat =
         this.Outputs[n].FDataStep[ epoch ] <- dat
     member inline this.Id = this.SimComponent.Id
-    /// The labels of the custom component instances this component sits within, outermost first.
-    /// Empty for a component on the sheet being simulated. This is SheetName without the
-    /// component's own label, so like it these are component labels, not sheet names.
-    member inline this.SubSheet = this.SheetName[0 .. this.SheetName.Length - 2]
 
 /// Convenience array used so that waveform simulation can access
 /// component outputs (drivers) without a Map lookup
@@ -776,7 +762,13 @@ type FastSimulation =
         FClockedComps: FastComponent array
         /// Components that will be reduced in order allowing sequential reduction to implement simulation
         FOrderedComps: FastComponent array
-        /// which is the active component for each set of labels?
+        /// Which component of each IOLabel group the build elected to drive it.
+        ///
+        /// A label key, not a component one - the only thing in the simulator keyed by anything
+        /// other than ComponentId, FComponentId or FastCompIndex, and deliberately so. The
+        /// components of an IOLabel group SHARE a label and are one net: what has to be looked up
+        /// is the net, in one instance, and only then which component of it carries the data. So
+        /// the key is (the label, the access path of the instance), and the value is the answer.
         mutable FIOActive: Map<ComponentLabel * ComponentId list, FastComponent>
         /// list of deferred links driven from inactive IOlabls - at end of linkage the
         /// corresponding active IOLabel can be substituted as driver an dthe link made
@@ -904,11 +896,6 @@ and GatherData =
         cid :: ap |> List.rev |> List.map (fun cid -> this.labelOf cid)
         |> String.concat "."
 
-    /// The same path as getFullSimName, upper-cased and as a list rather than dot-separated.
-    /// These are component labels, not sheet names: it becomes FastComponent.SheetName, whose
-    /// name is misleading.
-    member this.getFullSimPath((cid, ap):FComponentId) =
-        cid :: ap |> List.rev |> List.map (fun cid -> (this.labelOf cid).ToUpper())
 
 
 

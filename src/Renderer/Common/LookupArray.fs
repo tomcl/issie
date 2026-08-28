@@ -2,8 +2,8 @@
 /// the index it was stored at, and read back by that index.
 ///
 /// It exists because the simulator's build phase was indexing its own components by structural
-/// keys. A `Map<ComponentId * ComponentId list, _>` costs a boxed comparison of a GUID-like id
-/// and a list per tree level of every lookup - 200,000 lookups into a 10,000-entry map measured
+/// keys. A `Map<FComponentId, _>` - a component id and its access path - costs a boxed comparison
+/// of the id and one of the list per lookup - 200,000 lookups into a 10,000-entry map measured
 /// 77.2 ms as such a Map and 0.2 ms as an array index - and the build does millions of them.
 /// The fix is not a faster map but an index: the thing being looked up is created by the same
 /// walk that later reads it, so it can be given its position as it is made.

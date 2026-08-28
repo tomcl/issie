@@ -96,11 +96,10 @@ type SheetName = | SheetName of string
 /// of the sheet that instance is drawn on. Both are a cons here; root first they were an
 /// `@ [cid]` at seventeen sites and a `path[0 .. path.Length - 2]` at three.
 ///
-/// FIVE places pay for it, and they are all of them: SheetOfInstance resolves a path against the
-/// design from the top down, so it folds back; SimulatedDesign.LabelsOfInstance and
-/// getFullSimName/getFullSimPath turn one into text; and WavePath.pathOfComponent reverses before
-/// walking. Anything else that needs a path root first should go through LabelsOfInstance rather
-/// than reverse one of its own.
+/// FOUR places pay for it, and they are all of them: SheetOfInstance resolves a path against the
+/// design from the top down, so it folds back; SimulatedDesign.LabelsOfInstance and getFullSimName
+/// turn one into text; and WavePath.pathOfComponent reverses before walking. Anything else that
+/// needs a path root first should go through LabelsOfInstance rather than reverse one of its own.
 ///
 /// Two consequences worth knowing before writing against it. The instances a path sits INSIDE are
 /// its tails, not its prefixes - so containment is a suffix test (WaveSimSelectHelpers.isSubSheetOf)
@@ -121,26 +120,28 @@ type InstancePath = | InstancePath of ComponentId list
 [<Erase>]
 type LabelPath = | LabelPath of string list
 
-/// Unique identifier for a fast component.
-/// The list is the access path, a list of all the containing custom components between it and
-/// the top sheet of the simulation, innermost first - see InstancePath, which is the same list.
-type SimComponentId = ComponentId * ComponentId list
-
-/// The old name for SimComponentId, kept while the ~70 sites that destructure it as a bare tuple
-/// are still doing so.
+/// Unique identifier for a component of a running simulation: which component, and which
+/// elaborated copy of its sheet it belongs to.
 ///
-/// Both are abbreviations of the same tuple today, so this costs nothing and changes nothing.
-/// Making the identity a tagged type is one line here - `[<Erase>] type SimComponentId =
-/// SimComponentId of ComponentId * ComponentId list` - and it was measured, on this branch, to
-/// break 71 sites, 38 of them in FastCreate and FastExtract. THAT is the reason to wait: it is
-/// worth doing with the change that needs it (the per-instance port enumeration, which factors a
-/// predicate out of FastCreate anyway) rather than as a sweep of the simulator core which buys
-/// nothing on its own.
+/// The list is the access path - the containing custom component instances between it and the top
+/// sheet of the simulation, innermost first. It is an InstancePath, the same list under the same
+/// rule; a pair rather than one list because the component's own id always exists while the path
+/// may be empty.
 ///
-/// When it is done, tag it [<Erase>] and NOT [<Struct>]: it is the key type of FIndexOf, the one
-/// map a built simulation keeps, and the note above the id types prices what a struct key costs in
-/// an F# Map. A plain reference wrapper is what the rest of them are and what this should be.
-type FComponentId = SimComponentId
+/// THREE NAMES FOR A COMPONENT, AND NO OTHERS. ComponentId names one of the DESIGN - unique across
+/// it, and the same one in every instance of its sheet. This names one of a SIMULATION: the design
+/// component plus which copy. FastCompIndex names one inside a particular BUILD, and means nothing
+/// in the next. This is the durable one, and so what the renderer holds, what a saved selection
+/// resolves to, and what FIndexOf translates to a FastCompIndex. There used to be a fourth,
+/// SimComponentId, which was an abbreviation of this same tuple under another name.
+///
+/// A bare tuple, deliberately. Tagging it is one line - `[<Erase>] type FComponentId = FComponentId
+/// of ComponentId * ComponentId list` - and was measured on this branch to break 71 sites, 38 of
+/// them in FastCreate and FastExtract, which destructure it as a tuple. Worth doing with a change
+/// that needs it rather than as a sweep of the simulator core. If it is done, tag it [<Erase>] and
+/// NOT [<Struct>]: it is the key type of FIndexOf, the one map a built simulation keeps, and the
+/// note above the id types prices what a struct key costs in an F# Map.
+type FComponentId = ComponentId * ComponentId list
 
 // An instance of a sheet in a running simulation is named by its InstancePath and nothing more,
 // so no separate type for it: a wrapper carrying exactly the same information would be a layer to

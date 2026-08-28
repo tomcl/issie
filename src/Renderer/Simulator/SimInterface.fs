@@ -138,7 +138,7 @@ type SimViewer =
 /// One clocked component's state at one cycle, for the step simulator's state pane.
 type SimStateEntry =
     { StName: string
-      StComp: SimComponentId
+      StComp: FComponentId
       StState: SimulationComponentState }
 
 /// Everything the step simulator's panel shows at one cycle.

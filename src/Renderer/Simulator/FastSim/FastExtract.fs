@@ -179,7 +179,7 @@ let sampleOfArray (fs: FastSimulation) (io: IOArray) (cycle: int) : bigint optio
 let rec extractFastSimulationOutput
     (fs: FastSimulation)
     (step: int)
-    ((cid, ap): ComponentId * ComponentId list)
+    ((cid, ap): FComponentId)
     (opn: OutputPortNumber)
     : FSInterface
     =
@@ -213,7 +213,7 @@ let rec extractFastSimulationOutput
 let rec extractFastSimulationOutputFData
     (fs: FastSimulation)
     (step: int)
-    ((cid, ap): ComponentId * ComponentId list)
+    ((cid, ap): FComponentId)
     (opn: OutputPortNumber)
     : FSInterface
     =
@@ -247,7 +247,7 @@ let rec extractFastSimulationOutputFData
 let rec extractFastSimulationState
     (fs: FastSimulation)
     (step: int)
-    ((cid, ap): ComponentId * ComponentId list)
+    ((cid, ap): FComponentId)
     : SimulationComponentState
     =
 

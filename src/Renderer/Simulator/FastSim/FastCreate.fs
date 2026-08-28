@@ -529,16 +529,15 @@ let makeIOArrayW w size =
 /// create a FastComponent data structure with data arrays from a SimulationComponent.
 /// numSteps is the number of past clocks data kept - arrays are managed as circular buffers.
 ///
-/// fullName and sheetName are given rather than filled in afterwards: the flatten stores this
-/// object in its index space, and `{ fc with FullName = ... }` afterwards would put a DIFFERENT
-/// object there than the one the caller kept - a copy of a 24-field record per component, and a
-/// reference-equal identity broken, for two strings that are known when it is made.
+/// fullName is given rather than filled in afterwards: the flatten stores this object in its
+/// index space, and `{ fc with FullName = ... }` afterwards would put a DIFFERENT object there than
+/// the one the caller kept - a copy of a 23-field record per component, and a reference-equal
+/// identity broken, for a string that is known when it is made.
 let createFastComponent
     (maxArraySize: int)
     (sComp: SimulationComponent)
     (accessPath: ComponentId list)
     (fullName: string)
-    (sheetName: string list)
     =
     let inPortNum, outPortNum = getPortNumbers sComp
     // dummy arrays wil be replaced by real ones when components are linked after being created
@@ -591,7 +590,6 @@ let createFastComponent
       cId = sComp.Id
       FType = sComp.Type
       AccessPath = accessPath
-      SheetName = sheetName
       // placeholders: the real reducers need EvalReference, which is compiled after this, and
       // cannot be built until widths and bigint state are known anyway. installReducers puts
       // them in once the simulation is linked.
@@ -694,7 +692,7 @@ let rec private flattenLevel
             let fid = getFid cid ap
 
             let fc =
-                createFastComponent maxArraySize comp ap (g.getFullSimName fid) (g.getFullSimPath fid)
+                createFastComponent maxArraySize comp ap (g.getFullSimName fid)
                 |> fun fc -> LookupArray.addItem fc g.Comps
 
             sib.Ix[i] <- fastCompIndexValue fc.Index
@@ -829,8 +827,10 @@ let portCarriesWave (f: FastSimulation) (fc: FastComponent) (pType: PortType) =
         | MergeN _
         | SplitN _
         | Constant1 _ -> false
-        | Output _ when fc.SubSheet <> [] -> false
-        | Input1 _ when fc.SubSheet <> [] -> false
+        // in a subsheet: the port belongs to the enclosing custom component instance, and is
+        // named after that. AccessPath is the chain of instances, so empty means the top sheet.
+        | Output _ when fc.AccessPath <> [] -> false
+        | Input1 _ when fc.AccessPath <> [] -> false
         | _ -> true
 
 let addComponentWaveDrivers (f: FastSimulation) (fc: FastComponent) (pType: PortType) =

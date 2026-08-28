@@ -946,7 +946,7 @@ let shortPSComp (comp: SimulationComponent) =
     | _ -> sprintf "%s:%A" lab comp.Type
 
 let tryGetCompLabel (compId: ComponentId) (sg: SimulationGraph) =
-    Map.tryPick (fun k v -> if k = compId then Some v else None) sg
+    SimGraph.tryFind compId sg
     |> Option.map (fun comp -> comp.Label)
     |> Option.map (fun (ComponentLabel s) -> s)
     |> Option.defaultValue "'Not in SimGraph'"

@@ -75,10 +75,9 @@ let rec private dfs
         let currStack = currStack.Add curr
         // Get all of the combinatorial outputs of the node using the function
         // getCombinatorialOutputs (already partially applied).
+        // The children of every combinatorial output, whichever port each is on: which ports are
+        // returned is getCombinatorialOutputs' decision and nothing here depends on the number.
         getCombOuts currNode inputPortNumber
-        |> Map.toList
-        // Extract all the children for all the ports.
-        |> List.collect (fun (_, portChildren) -> portChildren)
         |> exploreChildren visited currStack
     | true, false ->
         // A node in the stack must always be visited.
@@ -134,7 +133,7 @@ let private checkCombinatorialCycle
                 let loop =
                     cycle
                     |> List.map (fun cid ->
-                        match Map.tryFind cid graph with
+                        match SimGraph.tryFind cid graph with
                         | Some { Label = ComponentLabel label } -> label
                         | None -> "?")
                     |> String.concat " -> "
@@ -163,7 +162,7 @@ let private checkCombinatorialCycle
 
     let allIdsAndPNums =
         graph
-        |> Map.toList
+        |> SimGraph.toList
         |> List.collect (fun (id, comp) ->
             match comp.Type with
             | Custom custom ->
@@ -206,8 +205,8 @@ let rec private recursivelyCheckCombinatorialCycles
         let alreadyChecked = alreadyChecked.Add dependencyName
         // Check all custom components in this graph.
         currGraph
-        |> Map.filter (fun compId comp -> isCustom comp.Type)
-        |> Map.toList
+        |> SimGraph.filterValues (fun comp -> isCustom comp.Type)
+        |> SimGraph.toList
         |> iterateChildren alreadyChecked
         |> Result.bind (fun alreadyChecked ->
             // Children are fine. Check the current graph.

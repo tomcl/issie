@@ -401,7 +401,7 @@ let rec private merger (currGraph: SimulationGraph) (dependencyMap: DependencyMa
     let currGraphCopy = currGraph
 
     (currGraph, currGraphCopy)
-    ||> Map.fold (fun currGraph compId comp ->
+    ||> SimGraph.fold (fun currGraph compId comp ->
         match comp.Type with
         | Custom custom ->
             let dependencyGraph =
@@ -415,7 +415,7 @@ let rec private merger (currGraph: SimulationGraph) (dependencyMap: DependencyMa
             // We'll resolve parameters after all merging is complete to avoid forward reference issues
             let newComp = { comp with CustomSimulationGraph = Some recursivelyMergedGraph }
 
-            currGraph.Add(compId, newComp)
+            SimGraph.add compId newComp currGraph
         | _ -> currGraph // Ignore non-custom components.
     )
 /// The parameters of a sheet whose effective value differs from that sheet's default value.
@@ -588,8 +588,8 @@ let rec private resolveSheet
 
     /// Apply this sheet's slots to every component, then descend into each custom component.
     let resolveComponents memo =
-        ((Ok (Map.empty, memo)), graph)
-        ||> Map.fold (fun acc compId comp ->
+        ((Ok (SimGraph.empty, memo)), graph)
+        ||> SimGraph.fold (fun acc compId comp ->
             acc
             |> Result.bind (fun (resolvedSoFar, memo) ->
                 processComponent compId comp
@@ -597,7 +597,7 @@ let rec private resolveSheet
                     match c.Type, c.CustomSimulationGraph with
                     | Custom cc, Some cGraph -> resolveCustomComp memo compId c cc cGraph
                     | _ -> Ok (c, memo))
-                |> Result.map (fun (c, memo') -> Map.add compId c resolvedSoFar, memo')))
+                |> Result.map (fun (c, memo') -> SimGraph.add compId c resolvedSoFar, memo')))
 
     /// The widths held in a sheet's graph (OutputWidths, InputWidths) were inferred from the
     /// canvas as saved, i.e. at default parameter values, and FastSim sizes its data arrays
@@ -614,14 +614,15 @@ let rec private resolveSheet
             /// The canvas component's type after resolution. A custom component's port
             /// widths are read from its resolved sheet, since this sheet's wires follow them.
             let resolvedType (comp: Component) =
-                match Map.tryFind (comp.Id) resolved with
+                match SimGraph.tryFind comp.Id resolved with
                 | None -> comp.Type
                 | Some sc ->
                     match sc.Type, sc.CustomSimulationGraph with
                     | Custom cc, Some cGraph ->
                         let portWidth isOutput ((label, width): string * int) =
                             cGraph
-                            |> Map.tryPick (fun _ (child: SimulationComponent) ->
+                            |> SimGraph.values
+                            |> Seq.tryPick (fun (child: SimulationComponent) ->
                                 match child.Label, child.Type, isOutput with
                                 | ComponentLabel l, Output w, true when l = label -> Some w
                                 | ComponentLabel l, Input1 (w, _), false when l = label -> Some w
@@ -637,8 +638,8 @@ let rec private resolveSheet
             GraphBuilder.runCanvasStateChecksAndBuildGraph substituted loadedDependencies
             |> Result.map (fun fresh ->
                 fresh
-                |> Map.map (fun cid freshComp ->
-                    match Map.tryFind cid resolved with
+                |> SimGraph.map (fun cid freshComp ->
+                    match SimGraph.tryFind cid resolved with
                     | Some rc -> { freshComp with CustomSimulationGraph = rc.CustomSimulationGraph }
                     | None -> freshComp))
             |> Result.mapError (fun e ->

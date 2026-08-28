@@ -927,7 +927,7 @@ type private NoTable =
 /// answer for deciding whether to run a truth table but the wrong one for pointing at the culprits.
 let private clockedComponentsOf (graph: SimulationGraph) : ComponentId list =
     graph
-    |> Map.toList
+    |> SimGraph.toList
     |> List.choose (fun (cid, comp) ->
         let isClocked =
             match comp.Type with

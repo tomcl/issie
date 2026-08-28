@@ -38,7 +38,25 @@ open Fable.Core
 //     all seven struct                            278.11 MB   +2.9%
 //
 // So: [<Struct>] is free for an id that never becomes a Map key, and costs allocation and time
-// for one that does. Every id below is Map-key material. Do not add it without measuring.
+// for one that does. It is also free under FABLE whatever the id does, since [<Erase>] has already
+// made it a bare number there - this is a .NET question only, and .NET here means the sidecar,
+// which runs the whole build path (Sidecar/SimSession.build).
+//
+// Measured again after SimulationGraph became an encapsulated int-keyed map (SimGraph, in
+// SimGraphTypes) - 9 interleaved A/B pairs against a worktree of the commit before, fastest slice
+// of each, tiered compilation off. Making every int id below [<Struct>]:
+//
+//     3cpu build   +2.0% on the minimum, +3.6% on the mean, base ahead in 6 pairs of 9
+//     3cpu run     neutral - the run loop touches no id
+//     retained     unchanged
+//
+// Inside the 5% gate, and still the wrong trade: it buys nothing measurable and costs a little,
+// because the id-keyed maps the .NET build still walks generically go on boxing both operands -
+// Map<OutputPortId,_> and Map<PortId,_> in WidthInferer, CanvasStateAnalyser and GraphBuilder,
+// Map<FComponentId,_> (a tuple holding a ComponentId and a list of them) and
+// Map<ComponentLabel * ComponentId list,_> in the fast simulation. Encapsulating SimulationGraph
+// took the largest one out of that set. Encapsulate the rest the same way and struct should become
+// free or positive; until then, do not add it without measuring.
 //
 // The table also prices the wrappers themselves: a raw int key is 2.4x faster than the reference
 // DU. That is the standing cost of type-safe ids in an F# Map, it is already being paid, and

@@ -47,9 +47,17 @@ type SimulationComponent =
     { Id: ComponentId
       Type: ComponentType
       Label: ComponentLabel
-      // Mapping from each output port number to all of the ports and
-      // Components connected to that port.
-      Outputs: Map<OutputPortNumber, (ComponentId * InputPortNumber) list>
+      /// What each output port drives: entry k is the ports and components connected to output
+      /// port k, and a port driving nothing - an unconnected IOLabel - is an empty list rather
+      /// than a missing key.
+      ///
+      /// An ARRAY and not a Map, on the rule that an array is right exactly when it is written
+      /// once: this is built complete when the component is made and never updated, and the key is
+      /// a port number, dense from 0. It used to be one small F# Map allocated per component per
+      /// INSTANCE of its sheet - the expansion's worth of them on a design that multiplies out -
+      /// each iterated twice by the flatten. OutputWidths beside it is already an array indexed
+      /// the same way.
+      Outputs: (ComponentId * InputPortNumber) list array
       DrivenInputWidths: ((ComponentId * InputPortNumber) * int) list
       InputWidths: Map<InputPortNumber, int>
       OutputWidths: int array
@@ -64,8 +72,64 @@ type SimulationComponent =
       // will be ignored.
      }
 
-/// Map every ComponentId to its SimulationComponent.
-and SimulationGraph = Map<ComponentId, SimulationComponent>
+/// Every component of one sheet instance, by its design-time id.
+///
+/// Keyed by the bare int INSIDE a ComponentId, and reached only through the SimGraph module below,
+/// which takes and returns the wrapped type. F#'s Map takes its comparer from
+/// LanguagePrimitives.FastGenericComparer, which has hard-coded fast paths for genuine primitives
+/// and a boxing fallback for everything else - so an int key is 2.4x faster than a reference
+/// wrapper and a struct wrapper is slower than either, boxing BOTH operands on every comparison.
+/// Unwrapping at this one boundary buys the primitive path and keeps the types at every call site,
+/// which is what lets ComponentId be [<Struct>] without this map being the thing that pays.
+and SimulationGraph = Map<int, SimulationComponent>
+
+/// The one way in and out of a SimulationGraph, in ComponentIds.
+///
+/// The key-carrying functions WRAP on the way out, which is free under Fable ([<Erase>]) and free
+/// under .NET only while ComponentId is a struct. So where a caller does not need the key there is
+/// a value-only form beside each - `values`, `iterValues`, `foldValues`, `mapValues` - and the hot
+/// iterations use those. Nothing outside this module names the int.
+[<RequireQualifiedAccess>]
+module SimGraph =
+    let empty: SimulationGraph = Map.empty
+
+    let tryFind (ComponentId c) (g: SimulationGraph) = Map.tryFind c g
+    let find (ComponentId c) (g: SimulationGraph) = Map.find c g
+    let containsKey (ComponentId c) (g: SimulationGraph) = Map.containsKey c g
+    let add (ComponentId c) (comp: SimulationComponent) (g: SimulationGraph) : SimulationGraph = Map.add c comp g
+    let count (g: SimulationGraph) = g.Count
+    let isEmpty (g: SimulationGraph) = Map.isEmpty g
+
+    let ofList (pairs: (ComponentId * SimulationComponent) list) : SimulationGraph =
+        pairs |> List.map (fun (ComponentId c, comp) -> c, comp) |> Map.ofList
+
+    let toList (g: SimulationGraph) : (ComponentId * SimulationComponent) list =
+        g |> Map.toList |> List.map (fun (c, comp) -> ComponentId c, comp)
+
+    let iter (f: ComponentId -> SimulationComponent -> unit) (g: SimulationGraph) =
+        g |> Map.iter (fun c comp -> f (ComponentId c) comp)
+
+    let map (f: ComponentId -> SimulationComponent -> SimulationComponent) (g: SimulationGraph) : SimulationGraph =
+        g |> Map.map (fun c comp -> f (ComponentId c) comp)
+
+    let filter (f: ComponentId -> SimulationComponent -> bool) (g: SimulationGraph) : SimulationGraph =
+        g |> Map.filter (fun c comp -> f (ComponentId c) comp)
+
+    let fold (f: 'S -> ComponentId -> SimulationComponent -> 'S) (state: 'S) (g: SimulationGraph) : 'S =
+        (state, g) ||> Map.fold (fun s c comp -> f s (ComponentId c) comp)
+
+    // value-only forms: no key, so nothing to wrap
+    let values (g: SimulationGraph) = Map.values g
+    let iterValues (f: SimulationComponent -> unit) (g: SimulationGraph) = g |> Map.iter (fun _ comp -> f comp)
+
+    let mapValues (f: SimulationComponent -> SimulationComponent) (g: SimulationGraph) : SimulationGraph =
+        g |> Map.map (fun _ comp -> f comp)
+
+    let filterValues (f: SimulationComponent -> bool) (g: SimulationGraph) : SimulationGraph =
+        g |> Map.filter (fun _ comp -> f comp)
+
+    let foldValues (f: 'S -> SimulationComponent -> 'S) (state: 'S) (g: SimulationGraph) : 'S =
+        (state, g) ||> Map.fold (fun s _ comp -> f s comp)
 
 /// For every IO node, keep track of its Id, Label and wire width.
 /// - Id: to feed values into the simulationGraph.

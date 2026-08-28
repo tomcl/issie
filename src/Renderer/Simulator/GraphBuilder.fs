@@ -179,23 +179,30 @@ let private buildSimulationComponent
     // For each output port, find out which other components and ports are
     // connected to it.
     let outputs =
-        comp.OutputPorts
-        |> List.collect (fun port ->
+        let targetsOf (port: Port) =
             match sourceToTargetPort.TryFind <| OutputPortId port.Id with
             | None when comp.Type = IOLabel -> [] // IOLabels are allowed to be connected to nothing
             | None ->
                 failwithf "what? Unconnected output port %d in comp %d"
                     (portIdValue port.Id) (componentIdValue comp.Id)
-            | Some targets ->
-                [ OutputPortNumber
-                  <| getPortNumberOrFail port.PortNumber,
-                  mapPortIdsToPortNumbers targets ])
-        |> Map.ofList
+            | Some targets -> mapPortIdsToPortNumbers targets
+
+        // A component's position in OutputPorts IS its output port number (CommonTypes.Component
+        // says so), which is what lets this be an array. Checked rather than assumed: a
+        // disagreement would silently make every later link drive the wrong port.
+        comp.OutputPorts
+        |> List.mapi (fun k port ->
+            match getPortNumberOrFail port.PortNumber with
+            | n when n = k -> targetsOf port
+            | n ->
+                failwithf "what? output port at position %d of comp %d is numbered %d"
+                    k (componentIdValue comp.Id) n)
+        |> List.toArray
     let drivenInputs =
         // determine the inputs driven by this components outputs, and their widths
         outputs
-        |> Map.toList
-        |> List.collect (fun (OutputPortNumber x, inpL) -> List.map (fun (inpPort) -> inpPort, outputWidths[x]) inpL)
+        |> Array.mapi (fun x inpL -> inpL |> List.map (fun inpPort -> inpPort, outputWidths[x]))
+        |> List.concat
         // The inputs will normally be set from driving outputs, but we just need to initialise
         // the ones for Output nodes.
         |> (fun inputs ->
@@ -270,12 +277,12 @@ let private buildSimulationGraph (canvasState: CanvasState) outputWidths : (Simu
     /// Add the input widths to the inputs of each component.
     let addInputWidthsToInputs comps =
         (comps, comps)
-        ||> Map.fold (fun comps cid comp ->
+        ||> SimGraph.foldValues (fun comps comp ->
                 (comps, comp.DrivenInputWidths)
                 ||> List.fold (fun comps ((cid,ipn),width) ->
-                        let compWithInput = comps[cid]
+                        let compWithInput = SimGraph.find cid comps
                         let inputs' = Map.add ipn width compWithInput.InputWidths
-                        Map.add cid {compWithInput with InputWidths = inputs'} comps))
+                        SimGraph.add cid {compWithInput with InputWidths = inputs'} comps))
 
     let components, connections' = canvasState
     let labConns = getLabelConnections components connections'
@@ -295,7 +302,7 @@ let private buildSimulationGraph (canvasState: CanvasState) outputWidths : (Simu
             |> Array.sortBy fst
             |> Array.map snd
         comp.Id, mapper comp ws)
-    |> Map.ofList
+    |> SimGraph.ofList
     |> addInputWidthsToInputs
 // Find out width of outputs of components from ConnectionsWidth map. Map<ConnectionId, "Width" option> -> Map<(ComponentId * "PortNumber"), "Width">
 let private findOutputWidths (canvasState: CanvasState) (connsWidth: ConnectionsWidth) =

@@ -282,7 +282,7 @@ let stepBytesForWidth (w: int) =
 let costAndSizeOfGraph (graph: SimulationGraph) : StepCost * int =
     let rec walk (acc: int * int * int) (graph: SimulationGraph) =
         (acc, graph)
-        ||> Map.fold (fun (typed, heap, count) _ sComp ->
+        ||> SimGraph.foldValues (fun (typed, heap, count) sComp ->
             let typed, heap =
                 ((typed, heap), sComp.OutputWidths)
                 ||> Array.fold (fun (typed, heap) w ->
@@ -676,7 +676,7 @@ let rec private flattenLevel
     (parent: (int * CustomComponentType) option)
     : unit
     =
-    let graphL = Map.toList graph
+    let graphL = SimGraph.toList graph
 
     graphL
     |> List.iter (fun (ComponentId i, comp) ->
@@ -702,18 +702,16 @@ let rec private flattenLevel
     // store indices here, once, instead of being followed through a map on every link.
     created
     |> List.iter (fun (comp, fc) ->
-        let ports =
-            (max fc.Outputs.Length 1, comp.Outputs)
-            ||> Map.fold (fun n (OutputPortNumber k) _ -> max n (k + 1))
+        let ports = max (max fc.Outputs.Length 1) comp.Outputs.Length
 
-        let outLinks: (FastCompIndex * InputPortNumber) array array = Array.create ports [||]
-
-        comp.Outputs
-        |> Map.iter (fun (OutputPortNumber k) driven ->
-            outLinks[k] <-
-                driven
-                |> List.toArray
-                |> Array.map (fun (ComponentId j, ipn) -> FastCompIndex sib.Ix[j], ipn))
+        let outLinks: (FastCompIndex * InputPortNumber) array array =
+            Array.init ports (fun k ->
+                if k < comp.Outputs.Length then
+                    comp.Outputs[k]
+                    |> List.toArray
+                    |> Array.map (fun (ComponentId j, ipn) -> FastCompIndex sib.Ix[j], ipn)
+                else
+                    [||])
 
         fc.OutLinks <- outLinks)
 
@@ -917,7 +915,7 @@ let linkFastCustomComponentsToDriverArrays (fs: FastSimulation) (fid: FComponent
         | None -> failwithf "What? Can't find customSimulationGraph"
 
     graph
-    |> Map.iter (fun cid sc ->
+    |> SimGraph.iter (fun cid sc ->
         match sc.Type with
         | Input1(w, _) ->
             let portNum =

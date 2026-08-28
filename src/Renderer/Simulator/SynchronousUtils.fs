@@ -141,7 +141,7 @@ let rec hasSynchronousComponents graph : bool =
 
 
 let getNodeOrFail (graph: SimulationGraph) (id: ComponentId) : SimulationComponent =
-    match graph.TryFind id with
+    match SimGraph.tryFind id graph with
     | None -> failwithf "what? getNodeOrFail received invalid component id: %A" id
     | Some comp -> comp
 
@@ -166,7 +166,7 @@ let private getCustomCombinatorialOutputs
     (combRoutes: CustomCompsCombPaths)
     (customNode: SimulationComponent)
     (inputPortNumber: InputPortNumber)
-    : Map<OutputPortNumber, (ComponentId * InputPortNumber) list>
+    : (ComponentId * InputPortNumber) list
     =
     // Determine the outputs connected to the input port.
     let combOutputs =
@@ -181,7 +181,10 @@ let private getCustomCombinatorialOutputs
             | Some outputs -> outputs
     // Filter only the children of the combinatorial outputs.
     customNode.Outputs
-    |> Map.filter (fun outputPortNumber _ -> List.contains outputPortNumber combOutputs)
+    |> Array.toList
+    |> List.indexed
+    |> List.filter (fun (k, _) -> List.contains (OutputPortNumber k) combOutputs)
+    |> List.collect snd
 
 /// Given a map of combinatorial routes from inputs to outputs for every
 /// simulation graph, perform a lookup to find the combinatorial routes from a
@@ -192,7 +195,7 @@ let getCombinatorialOutputs
     (combRoutes: CustomCompsCombPaths)
     (node: SimulationComponent)
     (inputPortNumberOpt: InputPortNumber option)
-    : Map<OutputPortNumber, (ComponentId * InputPortNumber) list>
+    : (ComponentId * InputPortNumber) list
     =
     match node.Type with
     | Custom _ ->
@@ -202,13 +205,13 @@ let getCombinatorialOutputs
         <| Option.get inputPortNumberOpt
     | AsyncRAM1 _ when inputPortNumberOpt = Some(InputPortNumber 0) ->
         // special case of hybrid component
-        node.Outputs
+        List.concat node.Outputs
     | comp when couldBeSynchronousComponent comp ->
         // Synchronous components, no combinatorial outputs.
-        Map.empty
+        []
     | comp ->
         // Combinatorial component, return all outpus.
-        node.Outputs
+        List.concat node.Outputs
 
 /// Start a dfs from the given node and input port number. Return the labels
 /// of all output nodes that can be reached from there via a combinatorial path.
@@ -257,10 +260,9 @@ let rec private dfs
             visited, currNode.Label :: outputsReached
         | _ ->
             // Normal component. Get all of its combinatorial children.
+            // The children of every combinatorial output, whichever port each is on: the port
+            // number decides which of them are returned and nothing after that.
             getCombinatorialOutputs combPaths currNode inputPortNumber
-            |> Map.toList
-            // Extract all the children for all the ports.
-            |> List.collect (fun (_, portChildren) -> portChildren)
             |> exploreChildren visited outputsReached
 
 /// For each input node in a simulation graph, determine all the output nodes it
@@ -316,8 +318,8 @@ let rec private exploreNestedComponents
     let rec iterateNestedComponents (res: CustomCompsCombPaths option) nested =
         match nested with
         | [] -> res
-        | (_, (nextGraph, customNode)) :: nested' when res.IsNone -> None
-        | (_, (nextGraph, customNode)) :: nested' when res.IsSome ->
+        | (nextGraph, customNode) :: nested' when res.IsNone -> None
+        | (nextGraph, customNode) :: nested' when res.IsSome ->
             let result = Option.get res
 
             match
@@ -334,9 +336,10 @@ let rec private exploreNestedComponents
 
     // Extract all custom components.
     currGraph
-    |> Map.filter (fun compId comp -> isCustom comp.Type)
-    |> Map.map (fun compId comp -> Option.get comp.CustomSimulationGraph, comp.Type)
-    |> Map.toList
+    |> SimGraph.values
+    |> Seq.filter (fun comp -> isCustom comp.Type)
+    |> Seq.map (fun comp -> Option.get comp.CustomSimulationGraph, comp.Type)
+    |> List.ofSeq
     |> iterateNestedComponents (Some result)
 
 /// Calculate the combinatorial paths for a custom component and add it to the

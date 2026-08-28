@@ -34,12 +34,12 @@ type InstancePort =
       PortIs: PortType
       PortNum: int
       /// where this port's data lies in the simulation that answered: the step array...
-      PortArrayIndex: int
+      PortArrayIndex: DriverIndex
       /// ...and the driver, which is what a waveform is read from. This is the build's read
       /// HANDLE: the fetch quotes it back, and the simulator answers with no lookup by name at
       /// all. An input port's is already the array of the output driving it - the simulator's own
       /// linker resolved that, crossing sheet boundaries where the net does.
-      PortDriver: int
+      PortDriver: DriverIndex
       PortWidth: int
       /// comp.port(w:0), as the selector lists it and the viewer titles it
       PortDisplayName: string
@@ -72,7 +72,7 @@ type PortSlot =
       /// the step array this port reads: an output's own, an input's the output driving it.
       /// Resolved by the SIMULATOR (an input's driver can cross a sheet boundary, and the linker
       /// has already followed it), so the renderer never re-derives it.
-      SlotDriver: int }
+      SlotDriver: DriverIndex }
 
 /// Every port of one component of one instance, positionally: array index = port number, which
 /// is the design's own numbering (a Component's port lists are position-numbered).
@@ -98,7 +98,7 @@ let sheetSliceOf (fs: FastSimulation) (InstancePath ap as instance) : ComponentS
     let sheet = fs.Design.SheetOfInstance instance
 
     let slotsOf (arrays: IOArray array) =
-        arrays |> Array.map (fun io -> { SlotWidth = io.Width; SlotDriver = io.Index })
+        arrays |> Array.map (fun io -> { SlotWidth = io.Width; SlotDriver = DriverIndex io.Index })
 
     fs.Design.DesignSheets
     |> List.tryFind (fun ldc -> ldc.Name = sheet)
@@ -256,7 +256,7 @@ let private trySliceOf (fs: FastSimulation) (instance: InstancePath) : Component
 
 /// The wave-carrying ports of one instance, from the DESIGN alone - no simulation, no slices.
 ///
-/// Every wave comes back UNRESOLVED (SimArrayIndex = -1): where its data lies is a build fact
+/// Every wave comes back UNRESOLVED (SimArrayIndex = DriverIndex -1): where its data lies is a build fact
 /// this deliberately does not know. Reconciliation resolves them against whichever simulator
 /// runs - which is what makes this enumeration mode-agnostic, and what the dev harness selects
 /// with. Port counts and numbering are the design's own; the carries-a-wave rule is the same one
@@ -283,7 +283,7 @@ let waveIndicesOfDesign (design: SimulatedDesign) (InstancePath ap as instance) 
                 else
                     [ 0 .. count - 1 ]
                     |> List.map (fun pn ->
-                        { SimArrayIndex = -1
+                        { SimArrayIndex = DriverIndex -1
                           Id = comp.Id, ap
                           PortType = portType
                           PortNumber = pn })

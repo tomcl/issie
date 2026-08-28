@@ -749,7 +749,7 @@ let tests =
                     Array.init n (fun _ ->
                         let width = readU32 ()
                         let driver = readU32 ()
-                        { PortView.SlotWidth = width; PortView.SlotDriver = driver })
+                        { PortView.SlotWidth = width; PortView.SlotDriver = DriverIndex driver })
 
                 let compCount = int (System.BitConverter.ToUInt32(reply, 0))
 

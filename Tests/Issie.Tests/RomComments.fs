@@ -51,7 +51,7 @@ let private simulateAt (ldc: LoadedComponent) (romId: int) (address: bigint) (ti
         // FastSimulation directly, as this used to, is the one thing the code under test must not
         // do: it is what made these comments impossible to show when the simulator is the .NET one.
         WaveData.setLocal
-            (fun (SignalHandle i) ->
+            (fun (SignalHandle(DriverIndex i)) ->
                 Array.tryItem i fs.Drivers
                 |> Option.flatten
                 |> Option.map (fun driver -> driver.DriverData))

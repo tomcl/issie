@@ -1,4 +1,4 @@
-/// Golden-model tests: simulate whole fixture projects and compare every output on
+﻿/// Golden-model tests: simulate whole fixture projects and compare every output on
 /// every clock cycle (plus the final state of clocked components) against a stored
 /// golden file. Regenerate goldens by running with ISSIE_UPDATE_GOLDEN=1.
 module GoldenModel
@@ -235,7 +235,7 @@ let portViewWithoutTablesTest (projectName: string) (topSheet: string) =
                 (PortView.ofInstance full inst).ViewPorts
                 |> List.map (fun p ->
                     let viaDriver =
-                        match Array.tryItem p.PortArrayIndex full.Drivers with
+                        match Array.tryItem (driverIndexValue p.PortArrayIndex) full.Drivers with
                         | Some(Some d) -> d.DriverWidth
                         | _ -> 0
 

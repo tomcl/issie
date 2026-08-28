@@ -96,7 +96,7 @@ let pathOfSignal (ldcs: LoadedComponent list) (topSheet: string) (wi: WaveIndexT
 let signalOfPath (ldcs: LoadedComponent list) (topSheet: string) (path: WavePath) : WaveIndexT option =
     componentOfPath ldcs topSheet path.WPLabels
     |> Option.map (fun fId ->
-        { SimArrayIndex = -1
+        { SimArrayIndex = DriverIndex -1
           Id = fId
           PortType = path.WPPortType
           PortNumber = path.WPPortNumber })

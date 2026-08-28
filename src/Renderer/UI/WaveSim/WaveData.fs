@@ -1,4 +1,4 @@
-/// Where the waveform viewer gets its data, whichever simulator produced it.
+﻿/// Where the waveform viewer gets its data, whichever simulator produced it.
 ///
 /// Two sources answer the same two questions. `Local` reads the renderer's own
 /// `FastSimulation` step arrays in place, which is what the viewer has always done. `Fetched`
@@ -77,7 +77,7 @@ type Source =
     /// here used to point at a check in the update function; there was no such check, and there is
     /// nowhere for one to be, because this is written from inside a promise where the model is not
     /// reachable. Saying which session the cache is OF settles it where the writing happens.
-    | Fetched of epoch: int * Map<int, Held>
+    | Fetched of epoch: int * Map<DriverIndex, Held>
 
 /// What the viewer is currently drawing from. Local until the waveform simulator says otherwise.
 let mutable private source = Source.Local
@@ -130,7 +130,7 @@ let holdNothing (epoch: int) = source <- Source.Fetched(epoch, Map.empty)
 /// confidently as the rest. Reporting it and then storing it anyway made the check a description
 /// of the failure instead of a stop to it. A wave with no entry draws nothing, which is what the
 /// viewer already does for one whose data has not arrived.
-let setFetched (epoch: int) (waves: (int * CachedWave) list) =
+let setFetched (epoch: int) (waves: (DriverIndex * CachedWave) list) =
     match source with
     | Source.Fetched(held, existing) when held = epoch ->
         /// how far into the reply this wave's row reaches: where it starts, plus a sample per
@@ -162,7 +162,7 @@ let setFetched (epoch: int) (waves: (int * CachedWave) list) =
 ///
 /// Session-checked exactly as `setFetched` is, and for the same reason: "no driver" is an answer
 /// about one build, and the next build may well have one.
-let setNoDriver (epoch: int) (handles: int list) (window: Window) =
+let setNoDriver (epoch: int) (handles: DriverIndex list) (window: Window) =
     match source with
     | Source.Fetched(held, existing) when held = epoch ->
         source <- Source.Fetched(epoch, (existing, handles) ||> List.fold (fun m h -> Map.add h (NoDriver window) m))

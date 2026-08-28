@@ -1001,7 +1001,7 @@ with
 /// wave is from. Two waves can be identical but have a different index (e.g. a wave with
 /// PortType Input must be driven by another wave of PortType Output).
 type WaveIndexT = {
-    SimArrayIndex: int
+    SimArrayIndex: DriverIndex
     Id: FComponentId
     PortType: PortType
     PortNumber: int
@@ -1027,7 +1027,7 @@ type SignalId =
 /// is what stops a handle from one simulation being used to read another - which is exactly the
 /// mistake an exposed SimArrayIndex makes possible.
 [<Erase>]
-type SignalHandle = | SignalHandle of int
+type SignalHandle = | SignalHandle of DriverIndex
 
 /// Bumped by every simulation build. Every cached entry and every reply in flight carries the
 /// epoch it belongs to, so an answer from a superseded build is discarded rather than displayed.

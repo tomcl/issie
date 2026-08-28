@@ -1,4 +1,4 @@
-/// The design-only simulation carrier: what the renderer holds when the .NET sidecar simulates.
+﻿/// The design-only simulation carrier: what the renderer holds when the .NET sidecar simulates.
 /// These pin the resolve lifecycle that makes it work with no ordering at all: a selection
 /// enumerated from the design alone is KEPT unresolved while no slice has arrived, and resolves
 /// completely once the slices land - the exact flow the app runs between a build reply and its
@@ -40,7 +40,7 @@ let tests =
             // resolution BEFORE any slice: must keep, unresolved
             let kept = waves |> List.choose (WaveSimHelpers.reResolveWave cfs)
             Expect.equal (List.length kept) 100 "before any slice arrives every wave is KEPT"
-            Expect.equal (kept |> List.filter (fun w -> w.SimArrayIndex >= 0) |> List.length) 0
+            Expect.equal (kept |> List.filter (fun w -> driverIndexValue w.SimArrayIndex >= 0) |> List.length) 0
                 "and none is resolved - there is nothing to resolve against"
 
             // slices from a REAL build (identical to what the wire returns - proven earlier)
@@ -54,7 +54,7 @@ let tests =
 
             let resolved = waves |> List.choose (WaveSimHelpers.reResolveWave cfs)
             Expect.equal (List.length resolved) 100 "once the slices land every wave is still here"
-            Expect.equal (resolved |> List.filter (fun w -> w.SimArrayIndex >= 0) |> List.length) 100
+            Expect.equal (resolved |> List.filter (fun w -> driverIndexValue w.SimArrayIndex >= 0) |> List.length) 100
                 "and every one is resolved to the build's own handle"
             PortData.forget ()
         }

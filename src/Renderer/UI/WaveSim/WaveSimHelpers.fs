@@ -388,14 +388,14 @@ let waveIndicesOfFComp (fs: FastSimulation) ((compId, ap) as fId: FComponentId) 
 /// hundred waves is a hundred lookups.
 /// None drops the wave. That is said only by an instance that HAS been described and does not
 /// offer the port - a component renamed or deleted. An instance not yet described (the sidecar
-/// has not answered for it) keeps the wave, unresolved: SimArrayIndex = -1, which nothing draws
+/// has not answered for it) keeps the wave, unresolved: SimArrayIndex = DriverIndex -1, which nothing draws
 /// and nothing fetches, until the slice lands and the next refresh resolves it - or drops it
 /// then, knowing.
 let reResolveWave (fs: FastSimulation) (wi: WaveIndexT) : WaveIndexT option =
     let compId, ap = wi.Id
 
     match PortView.tryOfInstanceCached fs (InstancePath ap) with
-    | None -> Some { wi with SimArrayIndex = -1 }
+    | None -> Some { wi with SimArrayIndex = DriverIndex -1 }
     | Some view ->
         view.ViewPorts
         |> List.tryFind (fun p -> p.PortComp = compId && p.PortIs = wi.PortType && p.PortNum = wi.PortNumber)

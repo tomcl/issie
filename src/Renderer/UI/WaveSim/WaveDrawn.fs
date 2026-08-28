@@ -1,4 +1,4 @@
-/// What each waveform on screen is, and what it was drawn from.
+﻿/// What each waveform on screen is, and what it was drawn from.
 ///
 /// A drawn waveform is a pure function of the data for one signal over one window and a handful of
 /// display settings - so it does not belong in the model, and the model no longer holds it. What is
@@ -40,7 +40,7 @@ open SimGraphTypes
 /// the memo. Everything else is named individually because it is not all in one place.
 type WaveSpec =
     { /// which signal: the index of its driver in the simulation
-      Driver: int
+      Driver: DriverIndex
       Width: int
       /// which cycles, at what sampling: see WaveSlice.Window
       Window: WaveSlice.Window
@@ -67,7 +67,7 @@ type Drawn =
 ///
 /// One entry per row on screen - the viewer draws at most a hundred - and pruned to the selection
 /// whenever the viewer refreshes.
-let mutable private drawn: Map<int, Drawn> = Map.empty
+let mutable private drawn: Map<DriverIndex, Drawn> = Map.empty
 
 /// What the viewer is asking for, for one wave, right now.
 let specOf (ws: WaveSimModel) (wave: Wave) : WaveSpec =
@@ -82,13 +82,13 @@ let specOf (ws: WaveSimModel) (wave: Wave) : WaveSpec =
       Config = ws.WSConfig }
 
 /// What is on screen for one wave, if anything ever has been.
-let tryDrawn (driver: int) = Map.tryFind driver drawn
+let tryDrawn (driver: DriverIndex) = Map.tryFind driver drawn
 
 let put (d: Drawn) = drawn <- Map.add d.Spec.Driver d drawn
 
 /// Forget the waveforms of waves no longer selected. Called from the refresh, which is where the
 /// selection is settled.
-let keepOnly (drivers: Set<int>) =
+let keepOnly (drivers: Set<DriverIndex>) =
     drawn <- drawn |> Map.filter (fun driver _ -> Set.contains driver drivers)
 
 /// Forget everything. Called when the simulation is replaced: a driver index names a different

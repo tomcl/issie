@@ -833,13 +833,15 @@ let portCarriesWave (f: FastSimulation) (fc: FastComponent) (pType: PortType) =
         | _ -> true
 
 let addComponentWaveDrivers (f: FastSimulation) (fc: FastComponent) (pType: PortType) =
-    let makeWaveIndex index pn pType arr =
-        { SimArrayIndex = index; Id = fc.fId; PortType = pType; PortNumber = pn }
+    let makeWaveIndex (index: int) pn pType arr =
+        { SimArrayIndex = DriverIndex index; Id = fc.fId; PortType = pType; PortNumber = pn }
 
-    let addStepArray pn index stepA =
+    let addStepArray pn (index: int) stepA =
         f.Drivers[index] <-
             Some
-            <| Option.defaultValue { Index = index; DriverData = stepA; DriverWidth = 0 } f.Drivers[index]
+            <| Option.defaultValue
+                { Index = DriverIndex index; DriverData = stepA; DriverWidth = 0 }
+                f.Drivers[index]
 
         let addWidth w optDriver =
             Option.map (fun d -> { d with DriverWidth = w }) optDriver

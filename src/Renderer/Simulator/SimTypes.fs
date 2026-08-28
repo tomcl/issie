@@ -276,7 +276,7 @@ type FastComponent =
 type Driver =
     {
       /// Index of this driver in the array of drivers
-      Index: int
+      Index: DriverIndex
       /// Bus width of the driven bus
       DriverWidth: int
       /// Simulation data for the driven bus

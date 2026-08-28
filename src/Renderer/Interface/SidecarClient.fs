@@ -645,9 +645,10 @@ let simReadDrivers
     (startCycle: int)
     (rep: int)
     (samples: int)
-    (drivers: int list)
+    (drivers: DriverIndex list)
     : JS.Promise<obj> =
-    let args = [ epoch; startCycle; rep; samples; List.length drivers ] @ drivers
+    let args =
+        [ epoch; startCycle; rep; samples; List.length drivers ] @ List.map driverIndexValue drivers
     let payload = makeBytes (4 * List.length args)
     args |> List.iteri (fun i value -> writeUint32At payload (4 * i) (float value))
     request Constants.simReadDriversCmd payload
@@ -735,7 +736,7 @@ let simPorts (epoch: int) (path: int list) : JS.Promise<Result<PortView.Componen
                 Array.init n (fun _ ->
                     let width = readU32 ()
                     let driver = readU32 ()
-                    { PortView.SlotWidth = width; PortView.SlotDriver = driver })
+                    { PortView.SlotWidth = width; PortView.SlotDriver = DriverIndex driver })
 
             Ok
                 [ for _ in 1 .. compCount ->

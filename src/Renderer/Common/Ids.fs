@@ -162,3 +162,16 @@ type InputPortNumber  = | InputPortNumber of int
 /// Inputs and Outputs are both numberd from 0 up.
 [<Erase>]
 type OutputPortNumber = | OutputPortNumber of int
+
+/// Where a driven signal sits in the build's array of drivers.
+///
+/// [<Struct>] as well as [<Erase>], and safely so: this is only ever an ARRAY index, never the key
+/// of an F# Map - which is the one thing the note above prices a struct id at. Erased to the bare
+/// integer under Fable, a value type carrying one under .NET, so it costs nothing on either.
+///
+/// SignalHandle is this index PLUS the build it belongs to: a handle can be quoted back by a
+/// reader, an index cannot, which is what stops one simulation's index reading another's data.
+[<Erase; Struct>]
+type DriverIndex = | DriverIndex of int
+
+let driverIndexValue (DriverIndex n) = n

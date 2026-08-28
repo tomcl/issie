@@ -102,7 +102,7 @@ let addressWaveOf (fs: FastSimulation) (ram: FComponentId) : WaveIndexT option =
     |> Option.map (PortView.waveIndexOf (InstancePath path))
 
 /// Where that address lies in the simulation that answered - the key the cache holds it under.
-let addressDriverOf (fs: FastSimulation) (ram: FComponentId) : int option =
+let addressDriverOf (fs: FastSimulation) (ram: FComponentId) : DriverIndex option =
     addressWaveOf fs ram |> Option.map (fun wi -> wi.SimArrayIndex)
 
 /// The cycle at which a memory's address input says what it is reading, for a location shown at

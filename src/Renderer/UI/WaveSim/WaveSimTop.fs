@@ -73,7 +73,7 @@ let private reconcileWaves (fs: FastSimulation) (ws: WaveSimModel) : WaveSimMode
 
     // For one simulation the circuit is frozen, so resolution can only change at a build
     // boundary - which is when a wave in an instance the sidecar has not yet described comes
-    // through UNRESOLVED (SimArrayIndex = -1) rather than dropped. Such a wave gets no record
+    // through UNRESOLVED (SimArrayIndex = DriverIndex -1) rather than dropped. Such a wave gets no record
     // built: there is nothing to build one from until the slice lands, and the next refresh
     // after it does resolves the wave and builds it then.
     let details =
@@ -81,7 +81,7 @@ let private reconcileWaves (fs: FastSimulation) (ws: WaveSimModel) : WaveSimMode
         |> List.choose (fun wi ->
             match Map.tryFind wi ws.WaveDetails with
             | Some wave -> Some(wi, wave)
-            | None when wi.SimArrayIndex >= 0 -> Some(wi, WaveSimHelpers.makeWave ws fs wi)
+            | None when driverIndexValue wi.SimArrayIndex >= 0 -> Some(wi, WaveSimHelpers.makeWave ws fs wi)
             | None -> None)
         |> WaveSimHelpers.makeWaveMap
 
@@ -100,7 +100,7 @@ let private reconcileWaves (fs: FastSimulation) (ws: WaveSimModel) : WaveSimMode
 /// Looked up at read time rather than closed over, so installing this pins nothing - a closure
 /// holding a FastSimulation would keep its step arrays alive for as long as the cache lived,
 /// which is the leak ModelHelpers.releaseWaveSimData exists to prevent.
-let private localDriverData (SignalHandle i) =
+let private localDriverData (SignalHandle(DriverIndex i)) =
     match Array.tryItem i (Simulator.getFastSim ()).Drivers with
     | Some(Some driver) -> Some driver.DriverData
     | _ -> None
@@ -317,7 +317,8 @@ let rec refreshWaveSim (newSimulation: bool) (model: Model): Model * Elmish.Cmd<
             // Negative means unresolved - nothing to read. The upper bound is only the renderer's
             // own driver table; a handle in sidecar mode is valid because the build's slices
             // issued it, and the local table is empty by construction.
-            |> List.filter (fun i -> i >= 0 && (not model.SimulateInRenderer || i < fs.Drivers.Length))
+            |> List.filter (fun (DriverIndex i) ->
+                i >= 0 && (not model.SimulateInRenderer || i < fs.Drivers.Length))
 
         // Which simulator is answering, decided once. Nothing below asks again: the refresh has
         // one question - is the data for this view here yet - and only the answer differs.
@@ -565,7 +566,7 @@ let private missingForWaves (model: Model) (project: Project) : Missing option =
                 |> List.append addressWaves
                 // negative is unresolved; the local driver table bounds nothing here, because in
                 // this mode the handles were issued by the sidecar's own slices
-                |> List.filter (fun wi -> wi.SimArrayIndex >= 0)
+                |> List.filter (fun wi -> driverIndexValue wi.SimArrayIndex >= 0)
                 |> List.distinctBy (fun wi -> wi.SimArrayIndex)
 
             let missing =
@@ -692,7 +693,7 @@ let private dataViewportOf (model: Model) (epoch: int) : DataViewport =
                 |> List.append addressWaves
                 // negative is unresolved - nothing to read for it yet; its slice arriving
                 // resolves it, which changes this list, which is a new viewport and a fetch
-                |> List.filter (fun wi -> wi.SimArrayIndex >= 0)
+                |> List.filter (fun wi -> driverIndexValue wi.SimArrayIndex >= 0)
                 |> List.distinctBy (fun wi -> wi.SimArrayIndex)
                 |> List.sortBy (fun wi -> wi.SimArrayIndex)
 

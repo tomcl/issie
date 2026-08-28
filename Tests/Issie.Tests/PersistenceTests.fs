@@ -249,7 +249,7 @@ let tests =
             let ldcs = nested ()
             // the NOT gate's output, inside the MID instance labelled M1
             let signal: WaveIndexT =
-                { SimArrayIndex = 17   // a build number, which must not survive
+                { SimArrayIndex = DriverIndex 17   // a build number, which must not survive
                   Id = ComponentId 1, [ ComponentId 2 ]
                   PortType = PortType.Output
                   PortNumber = 0 }
@@ -264,7 +264,7 @@ let tests =
                     Expect.equal back.Id signal.Id "component and access path come back"
                     Expect.equal back.PortType signal.PortType "port type comes back"
                     Expect.equal back.PortNumber signal.PortNumber "port number comes back"
-                    Expect.equal back.SimArrayIndex -1
+                    Expect.equal back.SimArrayIndex (DriverIndex -1)
                         "the build's array index must NOT come back: there is no build here"
         }
 

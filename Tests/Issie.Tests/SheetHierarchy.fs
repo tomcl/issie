@@ -1,4 +1,4 @@
-/// The tree of sheets the Sheets menu and the design-hierarchy breadcrumbs are drawn from.
+﻿/// The tree of sheets the Sheets menu and the design-hierarchy breadcrumbs are drawn from.
 ///
 /// It is built in the VIEW, so it is rebuilt on every render - which is every mouse move of a
 /// drag. That makes the cost of building it a property worth pinning, and not only its shape: a
@@ -105,7 +105,7 @@ let private designOf (p: Project) : SimulatedDesign =
             p.LoadedComponents
             |> List.map (fun ldc ->
                 ldc.Name,
-                fst ldc.CanvasState |> List.map (fun comp -> ComponentId comp.Id, comp) |> Map.ofList)
+                fst ldc.CanvasState |> List.map (fun comp -> comp.Id, comp) |> Map.ofList)
             |> Map.ofList }
 
 let private memory = RAM1 { Init = FromData; AddressWidth = 2; WordWidth = 3; Data = Map.empty; Comments = None }

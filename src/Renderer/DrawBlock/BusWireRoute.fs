@@ -126,16 +126,16 @@ let findWireSymbolIntersectionsBySegment (model: Model) (wire: Wire) : (int * Bo
 
     // this was added to fix MUX SEL port wire rooting bug, it is irrelevant in other cases
     let inputIsSelect =
-        let inputSymbol = model.Symbol.Symbols.[ComponentId inputCompId]
+        let inputSymbol = model.Symbol.Symbols.[inputCompId]
         let inputCompInPorts = inputSymbol.Component.InputPorts
         
         componentIsMux inputSymbol.Component && (inputCompInPorts.[List.length inputCompInPorts - 1].Id = inputPortStr wire.InputPort)
 
     let inputCompRotation =
-        model.Symbol.Symbols.[ComponentId inputCompId].STransform.Rotation
+        model.Symbol.Symbols.[inputCompId].STransform.Rotation
 
     let outputCompRotation =
-        model.Symbol.Symbols.[ComponentId outputCompId].STransform.Rotation
+        model.Symbol.Symbols.[outputCompId].STransform.Rotation
 
     let isConnectedToSelf = inputCompId = outputCompId
 
@@ -580,10 +580,10 @@ let generateEndSegments (startIndex: int) (numOfSegs: int) (wire: Wire) : Segmen
 let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
 
     let inputCompId =
-        ComponentId model.Symbol.Ports[inputPortStr wireToRoute.InputPort].HostId
+        model.Symbol.Ports[inputPortStr wireToRoute.InputPort].HostId
 
     let outputCompId =
-        ComponentId model.Symbol.Ports[outputPortStr wireToRoute.OutputPort].HostId
+        model.Symbol.Ports[outputPortStr wireToRoute.OutputPort].HostId
 
     let isRotated =
         model.Symbol.Symbols[inputCompId].STransform.Rotation = Degree90

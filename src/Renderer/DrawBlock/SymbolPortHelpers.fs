@@ -389,7 +389,7 @@ let movePortUpdate (model:Model) (portId:int) (pos:XYPos) : Model*Cmd<'a> =
             set (symbolOf_ symId) newSymbol model, Cmd.none
     
     let port = model.Ports[portId]
-    let symId = ComponentId port.HostId
+    let symId = port.HostId
     let oldSymbol = model.Symbols[symId]
     match oldSymbol.Component.Type with
     | Custom _ -> isTouchingEdge port symId oldSymbol

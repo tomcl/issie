@@ -98,7 +98,7 @@ let tests =
         test "admission produces dense design-unique component ids and per-sheet invariants" {
             let admitted = loadProject "3cpu"
 
-            let allCompIds = admitted |> List.collect compIds
+            let allCompIds = admitted |> List.collect compIds |> List.map componentIdValue
             allCompIds |> List.iter (fun id -> Expect.isTrue (id > 0) $"component id {id} is not positive")
 
             Expect.equal (List.length (List.distinct allCompIds)) (List.length allCompIds)
@@ -156,14 +156,14 @@ let tests =
 
                 let childId = (fst child'.CanvasState |> List.exactlyOne).Id
                 let parentId = (fst parent'.CanvasState |> List.exactlyOne).Id
-                Expect.equal childId 1 "the first sheet keeps its id"
-                Expect.equal parentId 2 "the second sheet takes the next free id"
+                Expect.equal childId (ComponentId 1) "the first sheet keeps its id"
+                Expect.equal parentId (ComponentId 2) "the second sheet takes the next free id"
 
                 let slotIds =
                     child'.LCParameterSlots
                     |> Option.map (fun defs -> defs.ParamSlots |> Map.toList |> List.map (fun (slot, _) -> slot.CompId))
                     |> Option.defaultValue []
-                Expect.equal slotIds [ childId ] "the parameter slot does not follow its component"
+                Expect.equal slotIds [ componentIdValue childId ] "the parameter slot does not follow its component"
 
                 match parent'.WaveInfo with
                 | Some info ->
@@ -177,7 +177,7 @@ let tests =
                         "nor the RAM selection"
                     match info.SelectedRams with
                     | Some rams ->
-                        Expect.isTrue (Map.containsKey (ComponentId parentId) rams)
+                        Expect.isTrue (Map.containsKey parentId rams)
                             "the legacy id-keyed RAM field does follow its component"
                     | None -> failtest "legacy RAM selection lost in admission"
                 | None -> failtest "waveform info lost in admission"
@@ -193,7 +193,7 @@ let tests =
             match RegenerateIds.admitDesign [ big; clash ] with
             | [ _; clash' ], changed ->
                 Expect.equal changed [ "clash" ] "the colliding sheet renumbers"
-                Expect.equal (compIds clash') [ 12_001 ] "the next free id sits past the grown region"
+                Expect.equal (compIds clash' |> List.map componentIdValue) [ 12_001 ] "the next free id sits past the grown region"
             | _ -> failtest "admission changed the number of sheets"
         }
 

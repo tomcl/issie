@@ -111,7 +111,7 @@ let private getAllInputPortIds (components: Component list) : (InputPortId * Com
     components
     |> List.collect (fun comp ->
         comp.InputPorts
-        |> List.map (fun port -> InputPortId port.Id, ComponentId comp.Id))
+        |> List.map (fun port -> InputPortId port.Id, comp.Id))
 
 /// Return all the Ids of all ouput ports across all components.
 /// Return also the ComponentId which may be used in error messages.
@@ -119,7 +119,7 @@ let private getAllOutputPortIds (components: Component list) : (OutputPortId * C
     components
     |> List.collect (fun comp ->
         comp.OutputPorts
-        |> List.map (fun port -> OutputPortId port.Id, ComponentId comp.Id))
+        |> List.map (fun port -> OutputPortId port.Id, comp.Id))
 
 /// maps for use in various places
 let private genMaps ((comps, conns): CanvasState) =
@@ -128,14 +128,14 @@ let private genMaps ((comps, conns): CanvasState) =
 
     let idToComp =
         comps
-        |> List.map (fun co -> ComponentId co.Id, co)
+        |> List.map (fun co -> co.Id, co)
         |> Map.ofList
 
     let targetIsLabel (c: Connection) =
-        idToComp[ComponentId c.Target.HostId].Type = IOLabel
+        idToComp[c.Target.HostId].Type = IOLabel
 
     let sourceIsLabel (c: Connection) =
-        idToComp[ComponentId c.Source.HostId].Type = IOLabel
+        idToComp[c.Source.HostId].Type = IOLabel
 
     let splitBy pred lst =
         (([], []), lst)
@@ -220,13 +220,13 @@ let private checkPortTypesAreConsistent (canvasState: CanvasState) : SimulationE
             Some
                 { ErrType = PortNumMissing correctType
                   InDependency = None
-                  ComponentsAffected = [ ComponentId port.HostId ]
+                  ComponentsAffected = [ port.HostId ]
                   ConnectionsAffected = [] }
         | port :: _ when port.PortType <> correctType ->
             Some 
                 { ErrType = WrongPortType (correctType, port)
                   InDependency = None
-                  ComponentsAffected = [ ComponentId port.HostId ]
+                  ComponentsAffected = [ port.HostId ]
                   ConnectionsAffected = [] }
         | _ :: ports' -> checkComponentPorts ports' correctType
 
@@ -248,13 +248,13 @@ let private checkPortTypesAreConsistent (canvasState: CanvasState) : SimulationE
             Some
                 { ErrType = WrongPortType (correctType, port)
                   InDependency = None
-                  ComponentsAffected = [ ComponentId port.HostId ]
+                  ComponentsAffected = [ port.HostId ]
                   ConnectionsAffected = [ connId ] }
         | _, Some portNumber ->
             Some
                 { ErrType = ConnTypeHasNum (correctType, portNumber)
                   InDependency = None
-                  ComponentsAffected = [ ComponentId port.HostId ]
+                  ComponentsAffected = [ port.HostId ]
                   ConnectionsAffected = [ connId ] }
         | true, None -> None // All right.
 
@@ -341,7 +341,7 @@ let getPortNum (pList: Port list) (port: Port) =
         | None -> failwithf "port should be in given port list"
 
 let getRmInfoData m port =
-    let parentComp = m.ToComp[ComponentId port.HostId]
+    let parentComp = m.ToComp[port.HostId]
     let portNum =
         getPortNum
             (if port.PortType = PortType.Input then parentComp.InputPorts else parentComp.OutputPorts)
@@ -433,13 +433,13 @@ let private checkPortConnections
         Some {
             ErrType = errTypeGen count port rmInfo
             InDependency = None
-            ComponentsAffected = [ComponentId port.HostId]
+            ComponentsAffected = [port.HostId]
             ConnectionsAffected = connsAffected
         }
     | None -> None
 
 let private checkConns (conns: Connection list) (m: MapData) : SimulationError option =
-    let compOfPort p = m.ToComp[ComponentId p.HostId]
+    let compOfPort p = m.ToComp[p.HostId]
 
     conns
     |> List.tryPick (fun conn ->
@@ -453,7 +453,7 @@ let private checkConns (conns: Connection list) (m: MapData) : SimulationError o
     |> Option.map (fun (s, t, conn) ->
         {   ErrType = LabelConnect
             InDependency = None
-            ComponentsAffected = [ ComponentId s.Id; ComponentId t.Id ]
+            ComponentsAffected = [ s.Id; t.Id ]
             ConnectionsAffected = [ conn.Id ] })
 
 /// Check that:
@@ -477,7 +477,7 @@ let private checkPortsAreConnectedProperly (canvasState: CanvasState) =
 
       match (checkCounts
           m.LabTargetConns
-          (fun conn -> m.ToComp[ComponentId conn.Target.HostId].Label)
+          (fun conn -> m.ToComp[conn.Target.HostId].Label)
           (m.LabGroup |> Map.keysL)
           (labMap)
           ((=) 1)) with
@@ -485,7 +485,7 @@ let private checkPortsAreConnectedProperly (canvasState: CanvasState) =
                 Some {
                     ErrType = LabelConnError count
                     InDependency = None
-                    ComponentsAffected = (labMap labelId) |> List.map (fun comp -> ComponentId comp.Id)
+                    ComponentsAffected = (labMap labelId) |> List.map (fun comp -> comp.Id)
                     ConnectionsAffected = connsAffected
                 }
             | None -> None
@@ -506,7 +506,7 @@ let private checkPortsAreConnectedProperly (canvasState: CanvasState) =
 
 /// Input/Output components in a simulationgraph all have unique labels.
 let private checkIOLabels (canvasState: CanvasState) : SimulationError option =
-    let rec checkDuplicate (comps: Component list) (map: Map<string, int>) (ioType: string) =
+    let rec checkDuplicate (comps: Component list) (map: Map<string, ComponentId>) (ioType: string) =
         match comps with
         | [] -> None
         | comp :: comps' ->
@@ -517,7 +517,7 @@ let private checkIOLabels (canvasState: CanvasState) : SimulationError option =
                 Some
                     { ErrType = LabelDuplicate (ioType, comp.Label)
                       InDependency = None
-                      ComponentsAffected = [ comp.Id; compId ] |> List.map ComponentId
+                      ComponentsAffected = [ comp.Id; compId ]
                       ConnectionsAffected = [] }
 
     let toMap (comps: Component list) =
@@ -621,7 +621,7 @@ let checkCustomComponentsOk ((comps, _): CanvasState) (sheets: LoadedComponent l
         Some
             { ErrType = t
               InDependency = None
-              ComponentsAffected = [ ComponentId c.Id ]
+              ComponentsAffected = [ c.Id ]
               ConnectionsAffected = [] }
 
     let disp portL =
@@ -678,7 +678,7 @@ let checkAdderUnnecessaryNC ((comps, conns): CanvasState) : SimulationError opti
         | affPorts ->
             let affectedComps =
                 affPorts
-                |> List.map (fun port -> ComponentId port.HostId)
+                |> List.map (fun port -> port.HostId)
             
             let affectedConns =
                 conns
@@ -772,7 +772,7 @@ let checkComponentNamesAreOk ((comps, conns): CanvasState) =
           ConnectionsAffected = []
           ComponentsAffected =
             comps
-            |> List.map (fun comp -> ComponentId comp.Id) })
+            |> List.map (fun comp -> comp.Id) })
 
 /// Analyse a CanvasState and return any error (or None).
 let analyseState

@@ -98,7 +98,7 @@ let calculateBusWidths model =
 
             let addSymbolWidthFolder (m: Map<ComponentId,Symbol>) (_: ConnectionId) (wire: Wire) =
                     let inPort = model.Symbol.Ports[match wire.InputPort with InputPortId ip -> ip]
-                    let symId = ComponentId inPort.HostId
+                    let symId = inPort.HostId
                     let symbol = m[symId]
 
                     match symbol.Component.Type with

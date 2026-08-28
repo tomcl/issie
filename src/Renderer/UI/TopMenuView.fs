@@ -1,4 +1,4 @@
-(*
+﻿(*
     FileMenuView.fs
 
     View for the top menu, and related functionalities: renamimg, loadimg, saving, deleting sheets
@@ -71,7 +71,7 @@ let updateVerilogFileAction newCS name model (dispatch: Msg -> Unit)=
                         match List.tryFind (fun (c:Component) -> c.Id=comp.Id) ramCheck with
                         | Some newRam -> 
                             // TODO: create consistent helpers for messages
-                            dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.WriteMemoryType (ComponentId comp.Id, newRam.Type))))
+                            dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.WriteMemoryType (comp.Id, newRam.Type))))
                             newRam
                         | _ -> comp), conns)
         writeComponentToBackupFile 4 1. newLdc dispatch

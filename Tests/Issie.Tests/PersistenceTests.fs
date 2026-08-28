@@ -1,4 +1,4 @@
-/// Persistence tests: the .dgm save path must produce JSON that the load path can
+﻿/// Persistence tests: the .dgm save path must produce JSON that the load path can
 /// read back, and a serialisation failure must surface as an Error rather than as
 /// placeholder text that would overwrite the sheet file.
 module PersistenceTests
@@ -235,11 +235,12 @@ let tests =
                     let jsonComps, conns = saved.getCanvas
                     // the freshly saved ids are decimal strings of the int ids, so plain
                     // parsing is the whole mapping back
-                    let comps = List.map (convertFromJSONComponent int int) jsonComps
+                    let comps = List.map (convertFromJSONComponent (int >> ComponentId) int) jsonComps
                     Expect.equal (List.length conns) 2 "connection count"
                     Expect.equal
                         (comps |> List.map (fun c -> c.Id, c.Type) |> List.sort)
-                        ([ 1, Input1(3, None); 2, NbitsNot 3; 3, Output 3 ] |> List.sort)
+                        ([ ComponentId 1, Input1(3, None); ComponentId 2, NbitsNot 3; ComponentId 3, Output 3 ]
+                         |> List.sort)
                         "component ids and types survive the round trip"
         }
 

@@ -284,13 +284,13 @@ let inline getTargetPort (model:Model) (wire:Wire) =
 let inline getSourceSymbol (model:Model) (wire:Wire) =
     let portId = outputPortStr wire.OutputPort
     let port = model.Symbol.Ports[portId]
-    let symbol = model.Symbol.Symbols[ComponentId port.HostId]
+    let symbol = model.Symbol.Symbols[port.HostId]
     symbol
 
 let inline getTargetSymbol (model:Model) (wire:Wire) =
     let portId = inputPortStr wire.InputPort
     let port = model.Symbol.Ports[portId]
-    let symbol = model.Symbol.Symbols[ComponentId port.HostId]
+    let symbol = model.Symbol.Symbols[port.HostId]
     symbol
 
 /// Moves a wire by the XY amounts specified by displacement
@@ -339,7 +339,7 @@ let inline getPort (symModel: SymbolT.Model) (portId: int) =
 
 let inline getSymbol (model: SymbolT.Model) (portId: int) =
     let port = getPort model portId
-    model.Symbols.[ComponentId port.HostId]
+    model.Symbols.[port.HostId]
 
 let inline getCompId (model: SymbolT.Model) (portId: int) =
     let symbol = getSymbol model portId
@@ -362,7 +362,7 @@ let inline getOutputPortIdStr (portId: OutputPortId) =
 /// HLP23: AUTHOR dgs119
 let inline getPortOrientationFrmPortIdStr (model: SymbolT.Model) (portIdStr: int) : Edge = 
     let port = model.Ports[portIdStr]
-    let sId = ComponentId port.HostId
+    let sId = port.HostId
     model.Symbols[sId].PortMaps.Orientation[portIdStr]
 
 /// returns what side of the symbol the port is on
@@ -458,7 +458,7 @@ let wiresBtwnSyms (wModel: BusWireT.Model) (symA: Symbol) (symB: Symbol) : Wire 
 /// Filters Ports by Symbol.
 /// HLP23: AUTHOR dgs119
 let filterPortBySym (ports: Port list) (sym: Symbol) =
-    ports |> List.filter (fun port -> ComponentId port.HostId = sym.Id)
+    ports |> List.filter (fun port -> port.HostId = sym.Id)
 
 /// Gets Ports From a List of Wires.
 /// HLP23: AUTHOR dgs119

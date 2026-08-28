@@ -105,9 +105,9 @@ let sheetSliceOf (fs: FastSimulation) (InstancePath ap as instance) : ComponentS
     |> Option.map (fun ldc ->
         fst ldc.CanvasState
         |> List.choose (fun comp ->
-            fs.ComponentOf(ComponentId comp.Id, ap)
+            fs.ComponentOf(comp.Id, ap)
             |> Option.map (fun fc ->
-                { SlotsComp = ComponentId comp.Id
+                { SlotsComp = comp.Id
                   SlotsIns = slotsOf fc.InputLinks
                   SlotsOuts = slotsOf fc.Outputs })))
     |> Option.defaultValue []
@@ -284,7 +284,7 @@ let waveIndicesOfDesign (design: SimulatedDesign) (InstancePath ap as instance) 
                     [ 0 .. count - 1 ]
                     |> List.map (fun pn ->
                         { SimArrayIndex = -1
-                          Id = ComponentId comp.Id, ap
+                          Id = comp.Id, ap
                           PortType = portType
                           PortNumber = pn })
 

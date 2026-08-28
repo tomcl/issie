@@ -129,7 +129,7 @@ let symbolCrossingsOf (model: Model) =
     |> List.sumBy (fun (_, w) ->
         let ends =
             [ w.InputPort |> inputPortStr; w.OutputPort |> outputPortStr ]
-            |> List.map (fun p -> ComponentId model.Symbol.Ports[p].HostId)
+            |> List.map (fun p -> model.Symbol.Ports[p].HostId)
         let segs = getAbsSegments w
         segs
         |> List.indexed
@@ -397,7 +397,7 @@ let private busiestDriver (model: Model) =
     |> List.countBy (fun (_, w) -> w.OutputPort)
     |> List.maxBy snd
     |> fst
-    |> fun (OutputPortId p) -> ComponentId model.Symbol.Ports[p].HostId
+    |> fun (OutputPortId p) -> model.Symbol.Ports[p].HostId
 
 /// Which wires changed, by segment lengths.
 let private wiresDiffering (a: Model) (b: Model) =
@@ -915,7 +915,7 @@ let tests =
                 |> Map.toList
                 |> List.find (fun (_, w) ->
                     routed.Symbol.Ports[outputPortStr w.OutputPort].HostId
-                    |> fun hid -> routed.Symbol.Symbols[ComponentId hid].Component.Label = "IA")
+                    |> fun hid -> routed.Symbol.Symbols[hid].Component.Label = "IA")
                 |> fst
             let local = BusWireSeparate.updateWireSegmentJumpsAndSeparations [ aWire ] routed
             Expect.isGreaterThan (metricsOf local).CrossNetOverlap 1.0

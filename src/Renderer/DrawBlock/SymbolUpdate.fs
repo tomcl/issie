@@ -179,7 +179,7 @@ let pasteSymbols (model: Model) (wireMap:Map<ConnectionId,DrawModelType.BusWireT
        
         let newSymbol =
             { oldSymbol with
-                Id = ComponentId newId
+                Id = newId
                 Component = newComp
                 Pos = newPos
                 Appearance = 
@@ -194,7 +194,7 @@ let pasteSymbols (model: Model) (wireMap:Map<ConnectionId,DrawModelType.BusWireT
 
         
              
-        let newSymbolMap = currSymbolModel.Symbols.Add (ComponentId newId, newSymbol)
+        let newSymbolMap = currSymbolModel.Symbols.Add (newId, newSymbol)
         let newPorts = addToPortModel currSymbolModel newSymbol
         let newModel = { currSymbolModel with Symbols = newSymbolMap; Ports = newPorts }
         let newPastedIdsList = pastedIdsList @ [ newSymbol.Id ]
@@ -244,7 +244,7 @@ let mergeOptions =
 /// Returns the symbol containing the given portId in the model's CopiedSymbols map
 let getCopiedSymbol model portId =
     let symbolId = getPortHostId model portId
-    model.CopiedSymbols[ComponentId symbolId]
+    model.CopiedSymbols[symbolId]
 
 /// Given two componentId list of same length and input / output ports that are in list 1, return the equivalent ports in list 2.
 /// ComponentIds at same index in both list 1 and list 2 need to be of the same ComponentType.
@@ -464,7 +464,7 @@ let createSymbolRecord ldcs theme comp =
                 Colour = getSymbolColour comp.Type clocked theme
                 Opacity = 1.0
             }
-            Id = ComponentId comp.Id
+            Id = comp.Id
             Component = {comp with H=h ; W = w}
             Annotation = None
             Moving = false
@@ -830,7 +830,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
     | MovePortDone (portId, pos)->
         let port = model.Ports[portId]
-        let symId = ComponentId port.HostId
+        let symId = port.HostId
         let oldSymbol = model.Symbols[symId]
         let newSymbol = 
             {(updatePortPos oldSymbol pos portId) with MovingPortTarget = None}

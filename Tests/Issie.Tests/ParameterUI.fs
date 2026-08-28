@@ -348,7 +348,7 @@ let tests =
 
         // --- repairing the totality invariant on load ---
 
-        let bindingOf (ldcs: LoadedComponent list) (sheet: string) (instId: int) (name: string) =
+        let bindingOf (ldcs: LoadedComponent list) (sheet: string) (instId: ComponentId) (name: string) =
             ldcs
             |> List.tryFind (fun ldc -> ldc.Name = sheet)
             |> Option.map (fst << (fun ldc -> ldc.CanvasState))
@@ -362,7 +362,7 @@ let tests =
             let child = widthSheet "child"
             let top = sheetOf "top" [ instance child 1 None ]
             let repaired = ParameterAnalysis.bindMissingInstanceParams [ top; child ]
-            Expect.equal (bindingOf repaired "top" 1 "W") (Some (PInt 4I))
+            Expect.equal (bindingOf repaired "top" (ComponentId 1) "W") (Some (PInt 4I))
                 "written down at the value it was already resolving to, so no design changes"
             Expect.isTrue (ParameterAnalysis.everyInstanceBindsEveryParam repaired)
                 "and the invariant the rest of the system is written against now holds"
@@ -372,7 +372,7 @@ let tests =
             let child = widthSheet "child"
             let top = sheetOf "top" [ instance child 1 (Some (PInt 16I)) ]
             let once = ParameterAnalysis.bindMissingInstanceParams [ top; child ]
-            Expect.equal (bindingOf once "top" 1 "W") (Some (PInt 16I)) "the instance's own value stands"
+            Expect.equal (bindingOf once "top" (ComponentId 1) "W") (Some (PInt 16I)) "the instance's own value stands"
             Expect.equal (List.map (fun (l: LoadedComponent) -> l.CanvasState) once)
                 (List.map (fun (l: LoadedComponent) -> l.CanvasState) [ top; child ])
                 "a project that already holds the invariant is untouched"
@@ -434,8 +434,8 @@ let tests =
                     match comp.Id = id, comp.Type with
                     | true, Custom cc -> cc.ParameterBindings |> Option.bind (Map.tryFind (ParamName "W"))
                     | _ -> None)
-            Expect.equal (bindingOf 1) (PInt 16I) "the chosen value survives"
-            Expect.equal (bindingOf 2) (PInt 4I) "the one with none takes the declared value"
+            Expect.equal (bindingOf (ComponentId 1)) (PInt 16I) "the chosen value survives"
+            Expect.equal (bindingOf (ComponentId 2)) (PInt 4I) "the one with none takes the declared value"
         }
 
         test "the sheet gaining the parameter is not touched" {

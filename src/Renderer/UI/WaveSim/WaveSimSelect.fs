@@ -325,7 +325,7 @@ let waveIndexOfWire
             match port.PortNumber with
             | None -> None
             | Some portNum ->
-                match copiesOfCanvasComp fs (ComponentId port.HostId) with
+                match copiesOfCanvasComp fs (port.HostId) with
                 | Ok fId ->
                     waveIndicesOfFComp fs fId
                     |> List.tryFind (fun wi ->

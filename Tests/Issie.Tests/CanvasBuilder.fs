@@ -7,11 +7,14 @@ open CommonTypes
 /// A component with explicit input/output port counts. Port ids are derived from the component
 /// id (inputs at id*1000, outputs offset by 500), unique within any sheet whose component ids
 /// stay below 1000 - which test sheets always do.
-let makeComp (id: int) (nInputs: int) (nOutputs: int) (compType: ComponentType) (label: string) : Component =
+let makeComp (compId: int) (nInputs: int) (nOutputs: int) (compType: ComponentType) (label: string) : Component =
+    // the tests name components by number, which is what a component id is inside
+    let id = ComponentId compId
+
     let makePorts n portType =
         let offset = match portType with | PortType.Input -> 0 | PortType.Output -> 500
         [ for i in 0 .. n - 1 ->
-            { Id = id * 1000 + offset + i
+            { Id = compId * 1000 + offset + i
               PortNumber = Some i
               PortType = portType
               HostId = id } ]
@@ -88,7 +91,7 @@ let makeSymbol (comp: Component) : DrawModelType.SymbolT.Symbol =
           HighlightLabel = false
           Colour = "lightgray"
           Opacity = 1.0 }
-      Id = ComponentId comp.Id
+      Id = comp.Id
       Component = comp
       Annotation = None
       Moving = false

@@ -1,4 +1,4 @@
-module ParameterAnalysis
+﻿module ParameterAnalysis
 
 (*
     ParameterAnalysis.fs
@@ -22,7 +22,7 @@ open CommonTypes
 type InstancePathLink = {
     ParentSheet: string
     /// Component.Id of the custom component instance
-    InstanceId: int
+    InstanceId: ComponentId
     InstanceLabel: string
     ChildSheet: string
 }
@@ -113,7 +113,8 @@ let instanceBindingExprs (parentSlots: ComponentSlotExpr) (comp: Component) (cc:
     (stored, parentSlots)
     ||> Map.fold (fun acc slot exprSpec ->
         match slot.CompSlot with
-        | CustomCompParam p when slot.CompId = comp.Id -> Map.add (ParamName p) exprSpec.Expression acc
+        | CustomCompParam p when slot.CompId = componentIdValue comp.Id ->
+            Map.add (ParamName p) exprSpec.Expression acc
         | _ -> acc)
 
 /// The values the child sheet's parameters take inside one instance of it.
@@ -624,7 +625,7 @@ type ChainAction =
     | AddSheetParam of Sheet: string * Param: ParamName * Default: ParamInt * Description: string
     /// Bind parameter Param of the instance InstanceId (of sheet ChildSheet, labelled
     /// InstanceLabel) on Sheet to the expression `Param`, i.e. to Sheet's own parameter.
-    | BindInstance of Sheet: string * InstanceId: int * InstanceLabel: string * ChildSheet: string * Param: ParamName
+    | BindInstance of Sheet: string * InstanceId: ComponentId * InstanceLabel: string * ChildSheet: string * Param: ParamName
 
 /// An offer to bind one unbound instance parameter to a same-named parameter on an ancestor
 /// sheet, by materialising parameters and bindings along every instance path from the ancestor
@@ -633,7 +634,7 @@ type BindOffer = {
     /// The sheet the unbound instance sits on.
     OnSheet: string
     /// The unbound instance.
-    InstanceId: int
+    InstanceId: ComponentId
     InstanceLabel: string
     /// The sheet inside the instance, which declares the parameter.
     ChildSheet: string

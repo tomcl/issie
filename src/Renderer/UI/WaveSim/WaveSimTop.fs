@@ -125,7 +125,7 @@ let private ramCompIdsOf: FastSimulation -> (FComponentId * string) list =
     Helpers.memoizeByIdentity (fun (fs: FastSimulation) ->
         fs.Design.InstancesOfComponents isMemory
         |> List.map (fun (comp, InstancePath ap as pair) ->
-            (ComponentId comp.Id, ap), fs.Design.FullNameOf pair)
+            (comp.Id, ap), fs.Design.FullNameOf pair)
         |> List.sortBy snd)
 
 /// Major function called after changes to extend simulation and/or redo waveforms.

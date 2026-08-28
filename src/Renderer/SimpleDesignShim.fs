@@ -22,11 +22,13 @@ let portCounts (typeS: ComponentType) (label: string) =
         let nIn, nOut, _, _ = Symbol.getComponentProperties t label
         nIn, nOut
 
-let private makeComp (id: int) (nInputs: int) (nOutputs: int) (compType: ComponentType) (label: string) : Component =
+let private makeComp (compId: int) (nInputs: int) (nOutputs: int) (compType: ComponentType) (label: string) : Component =
+    let id = ComponentId compId
+
     let makePorts n portType =
         let offset = match portType with | PortType.Input -> 0 | PortType.Output -> 500
         [ for i in 0 .. n - 1 ->
-            { Id = id * 1000 + offset + i
+            { Id = compId * 1000 + offset + i
               PortNumber = Some i
               PortType = portType
               HostId = id } ]
@@ -55,8 +57,8 @@ let sheetToLoadedComponent (sheet: SimpleSheet) : LoadedComponent =
     let conns =
         sheet.Connections
         |> List.map (fun sc ->
-            let src = compById[sc.SrcComp]
-            let tgt = compById[sc.DestComp]
+            let src = compById[ComponentId sc.SrcComp]
+            let tgt = compById[ComponentId sc.DestComp]
 
             { Id = ConnectionId sc.ConnId
               Source = { src.OutputPorts[sc.SrcPort] with PortNumber = None }

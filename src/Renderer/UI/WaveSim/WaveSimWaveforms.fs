@@ -104,7 +104,7 @@ let highlightWaveComps (model: Model) (wave: Wave) (dispatch: Msg -> Unit) =
         |> Map.toList
         |> List.map (fun (_,sym) -> sym.Component)
         |> List.filter (function | {Type=IOLabel;Label = lab'} when lab' = lab -> true |_ -> false)
-        |> List.map (fun comp -> ComponentId comp.Id)
+        |> List.map (fun comp -> comp.Id)
         |> fun labelComps -> highlightCircuit model labelComps wave dispatch
     | Some _ ->
         highlightCircuit model [fst wave.WaveId.Id] wave dispatch
@@ -159,7 +159,7 @@ let private sheetOfComponent (model: Model) (wave: Wave) : string option =
     |> Option.bind (fun project ->
         project.LoadedComponents
         |> List.tryFind (fun ldc ->
-            fst ldc.CanvasState |> List.exists (fun comp -> ComponentId comp.Id = compId))
+            fst ldc.CanvasState |> List.exists (fun comp -> comp.Id = compId))
         |> Option.map (fun ldc -> ldc.Name))
 
 /// Put the component in the middle of the canvas and highlight it, once the sheet holding it has

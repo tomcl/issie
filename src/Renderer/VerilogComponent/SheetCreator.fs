@@ -1,4 +1,4 @@
-module SheetCreator
+﻿module SheetCreator
 open EEExtensions
 open VerilogTypes
 open CommonTypes
@@ -70,7 +70,7 @@ let createComponent' id compType (name:string) inputPorts outputPorts =
     }
 
 /// Create a port (type: Port) based on the parameters given
-let createPort hostId portType portNumber =
+let createPort (hostId: ComponentId) portType portNumber =
     {
         Id = Helpers.IdAllocator.newPortId()
         PortNumber = portNumber
@@ -89,7 +89,7 @@ let createConnection (source:Port) (target:Port) =
         Vertices = []
     }
 
-let createPortList (ofType:PortType) (number:int) (hostId:int) =
+let createPortList (ofType:PortType) (number:int) (hostId: ComponentId) =
     [0..(number-1)] |> List.collect (fun i -> [createPort hostId ofType (Some i)] )
 
 
@@ -358,8 +358,8 @@ let concatenateCanvasStates (mainCS: CanvasState) (newCS:CanvasState) : CanvasSt
     ((fst mainCS)@(fst newCS) |> List.distinct,(snd mainCS)@(snd newCS) |> List.distinct)
     
 
-let dfsTraversal (graph: Map<int, List<int>>) (componentMap: Map<int, Component>) (connections: List<Connection>) (parents: Set<int> )=
-    let rec dfsHelper name (visited, (compMap: Map<int, Component>), conns) currentNode =
+let dfsTraversal (graph: Map<ComponentId, List<ComponentId>>) (componentMap: Map<ComponentId, Component>) (connections: List<Connection>) (parents: Set<ComponentId>) =
+    let rec dfsHelper name (visited, (compMap: Map<ComponentId, Component>), conns) currentNode =
         if Set.contains currentNode visited then
             visited, compMap, conns // Node has already been visited, skip it
         else
@@ -427,7 +427,7 @@ let fixConsecutiveWires (oldCanvasState: CanvasState) =
     // build dependency graph + find root nodes
     let graph, parents =
         ((Map.empty, wires), wireConns)
-        ||> List.fold (fun ((graph:Map<int,List<int>>), parents) conn ->
+        ||> List.fold (fun ((graph: Map<ComponentId, List<ComponentId>>), parents) conn ->
             let currDeps = (Option.defaultValue [] (Map.tryFind conn.Source.HostId graph))
             let graph' = Map.add conn.Source.HostId (currDeps@[conn.Target.HostId]) graph
             let parents' = Set.remove conn.Target.HostId parents

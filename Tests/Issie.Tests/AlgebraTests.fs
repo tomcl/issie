@@ -1,4 +1,4 @@
-/// Tests for truth-table algebraic simulation: direct unit tests of the evalExp
+﻿/// Tests for truth-table algebraic simulation: direct unit tests of the evalExp
 /// simplifier, of the append-handling helpers, and end-to-end symbolic simulation
 /// through the FData fast simulation.
 module AlgebraTests
@@ -182,7 +182,7 @@ let private simulateAlg (canvas: CanvasState) (name: string) (numericInputs: Map
 let private inputTerm (canvas: CanvasState) (label: string) (w: int) : FastAlgExp =
     let comps, _ = canvas
     let comp = comps |> List.find (fun c -> c.Label = label)
-    SingleTerm(ComponentId comp.Id, ComponentLabel label, w)
+    SingleTerm(comp.Id, ComponentLabel label, w)
 
 let private e2eTests =
     testList "end-to-end" [

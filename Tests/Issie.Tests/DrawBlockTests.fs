@@ -312,7 +312,7 @@ let tests =
             [ 1, 0; 4, 0; 8, 0; 1, 31; 16, 16; 32, 0; 8, 1024 ]
             |> List.iter (fun (nBits, lsb) ->
                 let ct = BusSelection (nBits, lsb)
-                let comp = Symbol.makeComponent { X = 0.; Y = 0. } ct 1 "SEL"
+                let comp = Symbol.makeComponent { X = 0.; Y = 0. } ct (ComponentId 1) "SEL"
                 Expect.equal (Symbol.getComponentLegend ct Degree0) ""
                     "nothing is drawn inside the body, so no rotation of it can clip anything"
                 Expect.equal comp.H (float Symbol.Constants.gridSize / 2.)
@@ -327,7 +327,7 @@ let tests =
         // the usual size with a name on each port, and the wire shape it used to be drawn as is
         // gone. What matters is that the ports still exist and still say which is which.
         test "the bus spreader is a body with a named port on each side" {
-            let comp = Symbol.makeComponent { X = 0.; Y = 0. } (NbitSpreader 8) 1 "S1"
+            let comp = Symbol.makeComponent { X = 0.; Y = 0. } (NbitSpreader 8) (ComponentId 1) "S1"
             let inNames, outNames = CanvasStateAnalyser.portNames (NbitSpreader 8)
             Expect.equal inNames [ "IN" ] "the input is named"
             Expect.equal outNames [ "OUT" ] "and so is the output"

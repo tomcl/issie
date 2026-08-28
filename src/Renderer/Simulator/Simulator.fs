@@ -111,7 +111,7 @@ let getCurrentSimulationState
 /// within a design sheet.
 /// name is the name of the containing sheet.
 let portSheetPort (compsWithIds: Map<ComponentId, Component>) (name: string) port =
-    let comp = compsWithIds[ComponentId port.HostId]
+    let comp = compsWithIds[port.HostId]
     let compPort = comp.getPort (PortId port.Id)
 
     match compPort with
@@ -142,7 +142,7 @@ let saveStateInSimulation
 
                 let compsWithIds =
                     comps
-                    |> List.map (fun comp -> ComponentId comp.Id, comp)
+                    |> List.map (fun comp -> comp.Id, comp)
                     |> Map.ofList
 
                 let portSheetPort = portSheetPort compsWithIds ldc.Name

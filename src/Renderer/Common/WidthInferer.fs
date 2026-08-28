@@ -710,7 +710,7 @@ let rec private infer
     let iterateChildren outgoingConnections connectionsWidth =
         let children =
             outgoingConnections
-            |> List.map (fun conn -> getComponentFromId (ComponentId conn.Target.HostId) compIdsToComps)
+            |> List.map (fun conn -> getComponentFromId (conn.Target.HostId) compIdsToComps)
         (Ok connectionsWidth, children)
         ||> List.fold (fun connectionsWidthRes child ->
             connectionsWidthRes
@@ -781,7 +781,7 @@ let private mapComponentIdsToComponents
         (components : Component list)
         : Map<ComponentId, Component> =
     components
-    |> List.map (fun comp -> ComponentId comp.Id, comp)
+    |> List.map (fun comp -> comp.Id, comp)
     |> Map.ofList 
 
     

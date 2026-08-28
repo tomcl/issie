@@ -237,7 +237,7 @@ let guessAtRenamedPorts (matches: PortChange seq)  : PortChange array =
 type Instance = {
     /// the sheet the instance sits on
     Sheet: string
-    CompId: int
+    CompId: ComponentId
     Label: string
     Old: Signature
     Expected: Signature

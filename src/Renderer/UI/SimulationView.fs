@@ -141,11 +141,11 @@ let private topLevelInputs (fs: FastSimulation) =
 /// value comes from the panel snapshot, which holds exactly these signals for exactly this clock.
 let private inputValueAt (model: Model) (fs: FastSimulation) (comp: Component) (tick: int) =
     if model.SimulateInRenderer then
-        match FastExtract.extractFastSimulationOutput fs tick (ComponentId comp.Id, []) (OutputPortNumber 0) with
+        match FastExtract.extractFastSimulationOutput fs tick (comp.Id, []) (OutputPortNumber 0) with
         | IData fd -> fd.GetBigInt
         | IAlg _ -> 0I
     else
-        StepPanelData.valueAt tick { Comp = comp.Id; Path = []; Port = 0 }
+        StepPanelData.valueAt tick { Comp = componentIdValue comp.Id; Path = []; Port = 0 }
         |> Option.defaultValue 0I
 
 let InputDefaultsEqualInputs fs (model:Model) (clocktick : int)=
@@ -153,7 +153,7 @@ let InputDefaultsEqualInputs fs (model:Model) (clocktick : int)=
 
     topLevelInputs fs
     |> List.forall (fun comp ->
-        let cid = ComponentId comp.Id
+        let cid = comp.Id
 
         if Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) then
             let newDefault = inputValueAt model fs comp tick
@@ -206,7 +206,7 @@ let setInputDefaultsFromInputs (model: Model) fs (dispatch: Msg -> Unit) (clockt
 
     topLevelInputs fs
     |> List.iter (fun comp ->
-        let cid = ComponentId comp.Id
+        let cid = comp.Id
         let newDefault = inputValueAt model fs comp tick
 
         SymbolUpdate.updateSymbol (setInputDefault newDefault) cid
@@ -290,13 +290,13 @@ let panelSignals (simData: SimulationData) : StepPanelData.PanelSignal list =
 
     let viewers =
         viewerInstances simData.FastSim
-        |> List.map (fun (comp, InstancePath ap) -> asSignal (ComponentId comp.Id, ap))
+        |> List.map (fun (comp, InstancePath ap) -> asSignal (comp.Id, ap))
 
     // the stateful rows that are signals; a RAM's and a ROM's contents are not. The same design
     // list statefulValues displays from, so a row cannot be shown that was never asked for
     let registers =
         topRegisters simData.FastSim
-        |> List.map (fun comp -> asSignal (ComponentId comp.Id, []))
+        |> List.map (fun comp -> asSignal (comp.Id, []))
 
     ios @ viewers @ registers |> List.distinct
 
@@ -573,7 +573,7 @@ let viewerValues (model: Model) (simData: SimulationData) =
 
     viewerInstances fs
     |> List.map (fun ((comp, InstancePath ap) as instance) ->
-        let fId = ComponentId comp.Id, ap
+        let fId = comp.Id, ap
         let width = outputWidthOf fs fId
 
         let value =
@@ -583,7 +583,7 @@ let viewerValues (model: Model) (simData: SimulationData) =
                 panelValue
                     simData.ClockTickNumber
                     width
-                    { Comp = comp.Id
+                    { Comp = componentIdValue comp.Id
                       Path = ap |> List.map (fun (ComponentId p) -> p)
                       Port = 0 }
 
@@ -602,10 +602,11 @@ let statefulValues (model: Model) (simData: SimulationData) =
     else
         topRegisters simData.FastSim
         |> List.map (fun comp ->
-            let width = outputWidthOf simData.FastSim (ComponentId comp.Id, [])
+            let width = outputWidthOf simData.FastSim (comp.Id, [])
 
             let value =
-                StepPanelData.valueAt simData.ClockTickNumber { Comp = comp.Id; Path = []; Port = 0 }
+                StepPanelData.valueAt simData.ClockTickNumber
+                    { Comp = componentIdValue comp.Id; Path = []; Port = 0 }
                 |> Option.defaultValue 0I
 
             comp.Label, comp.Type, RegisterState(convertBigintToFastData width value))
@@ -651,8 +652,8 @@ let openRemoteRamDiff (ram: Component) (cycle: int) (model: Model) (dispatch: Ms
                 SidecarClient.simReadRam
                     epoch
                     cycle
-                    cid
-                    (path |> List.map (fun (ComponentId p) -> p))
+                    (componentIdValue cid)
+                    (path |> List.map componentIdValue)
                     RamStore.Constants.maxSlotsForWholeRead
                     0I
                     0
@@ -936,7 +937,7 @@ let viewSimulationError
     // absent, having been deleted between the simulation and this render.
     let getComponentByIdListOpt (compId: ComponentId) =
         comps
-        |> List.tryFind (fun comp -> ComponentId comp.Id = compId)
+        |> List.tryFind (fun comp -> comp.Id = compId)
         |> function | Some comp -> [comp]
                     | None ->
                         Log.warn "an errored component from the simulation is missing, and will be ignored"
@@ -974,7 +975,7 @@ let viewSimulationError
                 match rmInfo with
                 | Removable targetType ->
                     let deletePort model _ =
-                        changeAdderType (ComponentId comp.Id) targetType model ()
+                        changeAdderType (comp.Id) targetType model ()
                         cleanup()
                     Button.button [
                         Button.Color IsSuccess
@@ -1010,7 +1011,7 @@ let viewSimulationError
             ]
         | [comp], InputConnError (0, port, rmInfo) ->
             let compAndPortAffectedMsg = comp.Label + "." + CanvasStateAnalyser.getPortName comp port
-            let compId = ComponentId comp.Id
+            let compId = comp.Id
             let removeInPorts (moel: Model) _ =
                 match rmInfo with
                 | Removable targetType ->
@@ -1047,7 +1048,7 @@ let viewSimulationError
                     simError.ConnectionsAffected
                     |> List.collect getConnectionByIdLstOpt
                     |> List.map (fun conn ->
-                        ComponentId conn.Target.HostId)
+                        conn.Target.HostId)
                 // delete NotConnected components
                 symbolDispatch <| SymbolT.DeleteSymbols NCsToDelete
                 // delete affected connections
@@ -1057,8 +1058,8 @@ let viewSimulationError
                 |> List.collect getComponentByIdListOpt
                 |> List.iter (fun comp ->
                     match comp.Type with
-                    | NbitsAdder w -> dispatch <| ExecFuncInMessage ((changeAdderType (ComponentId comp.Id) (NbitsAdderNoCout w)),dispatch)
-                    | NbitsAdderNoCin w -> dispatch <| ExecFuncInMessage((changeAdderType (ComponentId comp.Id) (NbitsAdderNoCinCout w)),dispatch)
+                    | NbitsAdder w -> dispatch <| ExecFuncInMessage ((changeAdderType (comp.Id) (NbitsAdderNoCout w)),dispatch)
+                    | NbitsAdderNoCin w -> dispatch <| ExecFuncInMessage((changeAdderType (comp.Id) (NbitsAdderNoCinCout w)),dispatch)
                     | _ -> failwithf "Unexpected adder type. Should only encounter these 2 types with this error message")
                 
                 simReset dispatch

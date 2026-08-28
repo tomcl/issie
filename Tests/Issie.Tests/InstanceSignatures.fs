@@ -1,4 +1,4 @@
-/// What a custom component instance's ports are, and keeping instances in step with the sheet
+﻿/// What a custom component instance's ports are, and keeping instances in step with the sheet
 /// inside them.
 ///
 /// A sheet that declares parameters has no single signature: it has a family of them, one per set
@@ -70,10 +70,10 @@ let private storedAgainstExpected
         (stored: CanvasExtractor.Signature)
         (expected: CanvasExtractor.Signature)
         : CustomCompPorts.Instance =
-    { Sheet = "parent"; CompId = 1; Label = "I"; Old = stored; Expected = expected }
+    { Sheet = "parent"; CompId = ComponentId 1; Label = "I"; Old = stored; Expected = expected }
 
 /// The custom component type of `cid` on `sheet` after the project has been updated.
-let private customOn (p: Project) (sheet: string) (cid: int) =
+let private customOn (p: Project) (sheet: string) (cid: ComponentId) =
     p.LoadedComponents
     |> List.find (fun ldc -> ldc.Name = sheet)
     |> fun ldc -> fst ldc.CanvasState
@@ -201,9 +201,9 @@ let tests =
             let updated =
                 (project, [instanceUnderTest ldcs parent stale8; instanceUnderTest ldcs parent stale16])
                 ||> List.fold (fun p inst -> CustomCompPorts.updateInstance inst p)
-            Expect.equal (customOn updated "parent" 1).InputLabels ["A", 8]
+            Expect.equal (customOn updated "parent" (ComponentId 1)).InputLabels ["A", 8]
                 "the 8-bit instance goes to 8, not to the sheet's declared 4"
-            Expect.equal (customOn updated "parent" 2).InputLabels ["A", 16]
+            Expect.equal (customOn updated "parent" (ComponentId 2)).InputLabels ["A", 16]
                 "and the 16-bit instance to 16, not to the other instance's 8"
         }
 
@@ -226,12 +226,12 @@ let tests =
             let project =
                 { ProjectPath = ""; OpenFileName = "child"; WorkingFileName = None; LoadedComponents = ldcs }
             let updated = CustomCompPorts.updateInstance (instanceUnderTest ldcs parent i16) project
-            let cc = customOn updated "parent" 1
+            let cc = customOn updated "parent" (ComponentId 1)
             Expect.equal cc.InputLabels ["A", 16; "B", 16] "B is added, at the instance's 16 rather than the sheet's 4"
             let comp =
                 updated.LoadedComponents
                 |> List.find (fun l -> l.Name = "parent")
-                |> fun l -> fst l.CanvasState |> List.find (fun c -> c.Id = 1)
+                |> fun l -> fst l.CanvasState |> List.find (fun c -> c.Id = ComponentId 1)
             Expect.equal (comp.InputPorts |> List.map (fun p -> p.PortNumber)) [Some 0; Some 1]
                 "and the instance has a port for it, numbered contiguously"
         }
@@ -248,7 +248,7 @@ let tests =
             let project =
                 { ProjectPath = ""; OpenFileName = "child"; WorkingFileName = None; LoadedComponents = ldcs }
             let updated = CustomCompPorts.updateInstance (instanceUnderTest ldcs parent i16) project
-            let cc = customOn updated "parent" 1
+            let cc = customOn updated "parent" (ComponentId 1)
             Expect.isEmpty cc.InputLabels "A is gone"
             Expect.equal cc.OutputLabels ["S", 16] "and S keeps the instance's width"
         }
@@ -262,7 +262,7 @@ let tests =
             let project =
                 { ProjectPath = ""; OpenFileName = "child"; WorkingFileName = None; LoadedComponents = ldcs }
             let updated = CustomCompPorts.updateInstance (instanceUnderTest ldcs parent stale) project
-            let cc = customOn updated "parent" 1
+            let cc = customOn updated "parent" (ComponentId 1)
             Expect.equal cc.ParameterBindings (bindingOf 8) "the binding is untouched"
             Expect.equal (cc.InputLabels, cc.OutputLabels) (["A", 8], ["S", 8]) "and the ports now agree with it"
         }
@@ -295,7 +295,7 @@ let tests =
             Expect.isEmpty
                 (saved.LoadedComponents |> List.filter (fun l -> l.LoadedComponentIsOutOfDate) |> List.map (fun l -> l.Name))
                 "no sheet reports unsaved changes"
-            Expect.equal (customOn saved "parent" 1).InputLabels ["A", 8]
+            Expect.equal (customOn saved "parent" (ComponentId 1)).InputLabels ["A", 8]
                 "and the update itself survived"
         }
 
@@ -322,7 +322,7 @@ let tests =
             makeComp 1 0 0 (customOf midLdc [] [] (bindingOf 16)) "MI"
             |> fun mi -> makeLdc "top" None ([mi], [])
 
-        let instancePortsOn (ldcs: LoadedComponent list) (sheet: string) (cid: int) =
+        let instancePortsOn (ldcs: LoadedComponent list) (sheet: string) (cid: ComponentId) =
             ldcs
             |> List.find (fun ldc -> ldc.Name = sheet)
             |> fun ldc -> fst ldc.CanvasState |> List.find (fun comp -> comp.Id = cid)
@@ -338,7 +338,7 @@ let tests =
             let cc =
                 propagated
                 |> List.find (fun ldc -> ldc.Name = "mid")
-                |> fun ldc -> fst ldc.CanvasState |> List.find (fun comp -> comp.Id = 1)
+                |> fun ldc -> fst ldc.CanvasState |> List.find (fun comp -> comp.Id = ComponentId 1)
                 |> fun comp -> match comp.Type with | Custom cc -> cc | t -> failtest $"got {t}"
             Expect.equal cc.ParameterBindings (bindingOf 16) "the slot carried W = 16 into the binding"
             Expect.equal (cc.InputLabels, cc.OutputLabels) (["A", 4], ["S", 4])
@@ -349,7 +349,7 @@ let tests =
             let synced =
                 ParameterAnalysis.propagateParameterValues [topLdc; midLdc; childLdc]
                 |> CanvasExtractor.syncInstancePorts
-            Expect.equal (instancePortsOn synced "mid" 1) (["A", 16], ["S", 16])
+            Expect.equal (instancePortsOn synced "mid" (ComponentId 1)) (["A", 16], ["S", 16])
                 "the instance is sized at what its own bindings give it"
         }
 

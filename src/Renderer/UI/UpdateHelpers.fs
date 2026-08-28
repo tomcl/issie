@@ -1104,7 +1104,6 @@ let sheetMsg sMsg model =
                     | false -> Cmd.none
                     | true ->
                         List.zip sourceIds pastedIds
-                        |> List.map (fun (ComponentId src, ComponentId pasted) -> src, pasted)
                         |> ParameterView.copyParamSlotsToPastedComponents
                         |> UpdateModel
                         |> Cmd.ofMsg

@@ -1,4 +1,4 @@
-module GraphMerger
+﻿module GraphMerger
 (*
     GraphMerger.fs
 
@@ -614,7 +614,7 @@ let rec private resolveSheet
             /// The canvas component's type after resolution. A custom component's port
             /// widths are read from its resolved sheet, since this sheet's wires follow them.
             let resolvedType (comp: Component) =
-                match Map.tryFind (ComponentId comp.Id) resolved with
+                match Map.tryFind (comp.Id) resolved with
                 | None -> comp.Type
                 | Some sc ->
                     match sc.Type, sc.CustomSimulationGraph with

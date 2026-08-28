@@ -127,7 +127,7 @@ let arrangeSymbols (arrange: Arrange) (model:Model) : Model * Cmd<ModelType.Msg>
         |> List.map (fun sId -> model.Wire.Symbol.Symbols[sId])
         |> workOutArrangement arrange
     let newSelected = 
-        syms |> List.map (fun sym -> ComponentId sym.Component.Id)
+        syms |> List.map (fun sym -> sym.Component.Id)
     match result with
     | Error _mess -> 
         {model with SelectedComponents = newSelected}, Cmd.none
@@ -266,7 +266,7 @@ let portIsEditable (model: Model) (portIdStr: int) =
     match model.SymbolEdit with
     | Some (compId, EditPorts) ->
         Map.tryFind portIdStr model.Wire.Symbol.Ports
-        |> Option.map (fun port -> CommonTypes.ComponentId port.HostId = compId)
+        |> Option.map (fun port -> port.HostId = compId)
         |> Option.defaultValue false
     | _ -> false
 
@@ -282,7 +282,7 @@ let clickKeepsSymbolEdit (model: Model) (mouseOnResult: MouseOn) =
         | ComponentCorner (cId, _, _) -> cId = compId
         | InputPort (InputPortId p, _) | OutputPort (OutputPortId p, _) ->
             Map.tryFind p model.Wire.Symbol.Ports
-            |> Option.map (fun port -> CommonTypes.ComponentId port.HostId = compId)
+            |> Option.map (fun port -> port.HostId = compId)
             |> Option.defaultValue false
         | _ -> false
 

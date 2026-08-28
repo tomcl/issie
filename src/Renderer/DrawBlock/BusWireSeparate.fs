@@ -692,8 +692,8 @@ let adjustSegmentsInModel
         match Map.tryFind wid model.Wires with
         | None -> []
         | Some w ->
-            [ ComponentId model.Symbol.Ports[inputPortStr w.InputPort].HostId
-              ComponentId model.Symbol.Ports[outputPortStr w.OutputPort].HostId ]
+            [ model.Symbol.Ports[inputPortStr w.InputPort].HostId
+              model.Symbol.Ports[outputPortStr w.OutputPort].HostId ]
     /// the line own segment span - not line.B, which linking may have grown to a union
     let segSpan (line: Line) =
         match line.Seg1 with
@@ -1341,8 +1341,8 @@ let alignSameNetDepartures (wiresToRoute: ConnectionId list) (model: Model) : Mo
     /// Symbol boxes the wire passes across, its own endpoint symbols exempt.
     let wireBoxCrossings (wire: Wire) =
         let exempt =
-            [ ComponentId model.Symbol.Ports[inputPortStr wire.InputPort].HostId
-              ComponentId model.Symbol.Ports[outputPortStr wire.OutputPort].HostId ]
+            [ model.Symbol.Ports[inputPortStr wire.InputPort].HostId
+              model.Symbol.Ports[outputPortStr wire.OutputPort].HostId ]
         let boxed =
             model.Symbol.Symbols
             |> Map.toList

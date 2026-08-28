@@ -1,4 +1,4 @@
-/// Naming a saved selection in a way that survives being saved.
+﻿/// Naming a saved selection in a way that survives being saved.
 ///
 /// A `WaveIndexT` names a signal by component id and access path. Those are facts about one loaded
 /// design: ids are reallocated when a project is opened (`Helpers.remapLoadedComponent`), and a
@@ -47,7 +47,7 @@ let pathOfComponent (ldcs: LoadedComponent list) (topSheet: string) ((compId, ac
 
     let componentOn sheet (id: ComponentId) =
         Map.tryFind sheet sheets
-        |> Option.bind (List.tryFind (fun comp -> ComponentId comp.Id = id))
+        |> Option.bind (List.tryFind (fun comp -> comp.Id = id))
 
     // down the path, one custom component at a time, collecting the label each one is drawn with
     let rec walk sheet labels remaining =
@@ -71,12 +71,12 @@ let componentOfPath (ldcs: LoadedComponent list) (topSheet: string) (labels: str
     let rec walk sheet ids labels =
         match labels with
         | [] -> None // a path with no component at the end of it names nothing
-        | [ last ] -> componentOn sheet last |> Option.map (fun comp -> ComponentId comp.Id, List.rev ids)
+        | [ last ] -> componentOn sheet last |> Option.map (fun comp -> comp.Id, List.rev ids)
         | label :: rest ->
             componentOn sheet label
             |> Option.bind (fun comp ->
                 sheetInstantiatedBy comp
-                |> Option.bind (fun inner -> walk inner (ComponentId comp.Id :: ids) rest))
+                |> Option.bind (fun inner -> walk inner (comp.Id :: ids) rest))
 
     walk topSheet [] labels
 

@@ -216,7 +216,7 @@ let instanceBindingProblem
             |> Map.ofList
         ParameterTypes.slotsUsingParam name slots
         |> List.choose (fun (slot, exprSpec) ->
-            Map.tryFind slot.CompId typeOfComp
+            Map.tryFind (ComponentId slot.CompId) typeOfComp
             |> Option.map (fun compType ->
                 {exprSpec with Constraints = ComponentSlots.constraintsFor slot.CompSlot compType}))
         |> evaluateConstraints bindings
@@ -238,7 +238,7 @@ let updateComponentSlots dispatch (model: Model) (compIdStr: int) (slotValues: (
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
 
     let comp = model.Sheet.GetComponentById <| ComponentId compIdStr
-    let compId = ComponentId comp.Id
+    let compId = comp.Id
     let valueOf slot = slotValues |> List.tryPick (fun (s, v) -> if s = slot then Some v else None)
 
     /// A width, an index or a bit position is an int in the component and in the message that sets
@@ -463,7 +463,7 @@ let paramInputField
 
     /// Which box this is. The component id is part of it because slot names are shared: every
     /// component with a width has `Buswidth`, so without it one component's box read another's.
-    let boxKey = ParameterTypes.paramBoxKey (comp |> Option.map (fun c -> c.Id)) compSlotName
+    let boxKey = ParameterTypes.paramBoxKey (comp |> Option.map (fun c -> componentIdValue c.Id)) compSlotName
 
     let onChange inputExpr =
         let paramBindings = paramBindingsOfModel model
@@ -497,7 +497,7 @@ let paramInputField
             | Some c ->
                 // Update existing component
                 let exprSpec = {Expression = expr; Constraints = constraints}
-                let slot = {CompId = c.Id; CompSlot = compSlotName}
+                let slot = {CompId = componentIdValue c.Id; CompSlot = compSlotName}
                 updateComponent dispatch model slot value
                 dispatch <| UpdateModel (updateParamSlot slot exprSpec)
             | None -> ()
@@ -535,7 +535,8 @@ let paramInputField
         // stored under the old label and is still this field's slot, so a rename must not blank
         // the expression out of the box. See ParameterTypes.sameSlot.
         comp
-        |> Option.bind (fun c -> ParameterTypes.tryFindSlot {CompId = c.Id; CompSlot = compSlotName} slots)
+        |> Option.bind (fun c ->
+            ParameterTypes.tryFindSlot {CompId = componentIdValue c.Id; CompSlot = compSlotName} slots)
         |> Option.map (fun exprSpec -> exprSpec.Expression)
         // a custom component instance may hold its binding on the instance rather than in a slot
         // of the sheet it sits on, and the box must show what the value IS either way: a binding
@@ -698,7 +699,7 @@ let propagateParameters (model: Model) (dispatch: Msg -> unit) : unit =
 /// A slot is only copied when every parameter it refers to is declared on this sheet: pasting
 /// into a sheet that does not declare them would otherwise leave a slot referring to nothing,
 /// which breaks the invariant that every parameter used on a sheet is defined on it.
-let copyParamSlotsToPastedComponents (pairs: (int * int) list) (model: Model) : Model =
+let copyParamSlotsToPastedComponents (pairs: (ComponentId * ComponentId) list) (model: Model) : Model =
     let slots = model |> get paramSlotsOfModel_ |> Option.defaultValue Map.empty
     let declared = model |> get defaultBindingsOfModel_ |> Option.defaultValue Map.empty
     let isDeclaredHere name = Map.containsKey name declared
@@ -711,9 +712,9 @@ let copyParamSlotsToPastedComponents (pairs: (int * int) list) (model: Model) : 
             slots
             |> Map.toList
             |> List.filter (fun (slot, exprSpec) ->
-                slot.CompId = sourceId
+                slot.CompId = componentIdValue sourceId
                 && ParameterTypes.paramNamesOfSlot exprSpec |> List.forall isDeclaredHere)
-            |> List.map (fun (slot, exprSpec) -> {slot with CompId = pastedId}, exprSpec))
+            |> List.map (fun (slot, exprSpec) -> {slot with CompId = componentIdValue pastedId}, exprSpec))
     let withSlots =
         match copied with
         | [] -> model
@@ -1114,7 +1115,7 @@ let removeParamFromInstances (sheetName: string) (name: ParamName) (model: Model
             slots
             |> Map.filter (fun (slot: ParamSlot) _ ->
                 match slot.CompSlot with
-                | CustomCompParam p -> not (p = paramString && Set.contains slot.CompId instanceIds)
+                | CustomCompParam p -> not (p = paramString && Set.contains (ComponentId slot.CompId) instanceIds)
                 | _ -> true)
         let ldc' =
             {ldc with
@@ -1342,7 +1343,7 @@ let private applyChainActionToLdc (action: ParameterAnalysis.ChainAction) (ldc: 
     | ParameterAnalysis.BindInstance (sheet, instId, _, _, name) when sheet = ldc.Name ->
         let (ParamName nameStr) = name
         let defs = Option.defaultValue emptyParamDefs ldc.LCParameterSlots
-        let slot = {CompId = instId; CompSlot = CustomCompParam nameStr}
+        let slot = {CompId = componentIdValue instId; CompSlot = CustomCompParam nameStr}
         let defs' = {defs with ParamSlots = Map.add slot {Expression = PParameter name; Constraints = []} defs.ParamSlots}
         let comps, conns = ldc.CanvasState
         let comps' =
@@ -1406,7 +1407,7 @@ let applyBindOffers (offers: ParameterAnalysis.BindOffer list) (model: Model) (d
         |> List.groupBy fst
         |> List.iter (fun ((instId, childSheet), namedBinds) ->
             let names = namedBinds |> List.map snd |> List.distinct
-            match Map.tryFind (ComponentId instId) model.Sheet.Wire.Symbol.Symbols with
+            match Map.tryFind instId model.Sheet.Wire.Symbol.Symbols with
             | None -> ()
             | Some symbol ->
                 let comp = symbol.Component
@@ -1420,7 +1421,7 @@ let applyBindOffers (offers: ParameterAnalysis.BindOffer list) (model: Model) (d
                     let labelToEval =
                         portWidthsOfInstance ldcs' openDefaults childSheet newBindings
                     let updated = updateCustomComponent labelToEval newBindings comp
-                    dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeCustom (ComponentId comp.Id, comp, updated.Type))))
+                    dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeCustom (comp.Id, comp, updated.Type))))
                 | _ -> ())
         let sheetDispatch sMsg = dispatch (Sheet sMsg)
         model.Sheet.DoBusWidthInference sheetDispatch
@@ -1473,7 +1474,7 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
     /// the binding held on the instance itself. Every instance sets every property its sheet
     /// declares - repaired on load where an old project does not - so there is always one.
     let exprOf (paramName: string) (key: ParamName) : ParamExpression option =
-        Map.tryFind {CompId = comp.Id; CompSlot = CustomCompParam paramName} slots
+        Map.tryFind {CompId = componentIdValue comp.Id; CompSlot = CustomCompParam paramName} slots
         |> Option.map (fun spec -> spec.Expression)
         |> Option.orElse (Map.tryFind key ccParams)
 
@@ -1487,7 +1488,7 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
     let boxIsEmptyFor (ParamName nameStr) =
         model.PopupDialogData.DialogState
         |> Option.defaultValue Map.empty
-        |> Map.tryFind (ParameterTypes.paramBoxKey (Some comp.Id) (CustomCompParam nameStr))
+        |> Map.tryFind (ParameterTypes.paramBoxKey (Some(componentIdValue comp.Id)) (CustomCompParam nameStr))
         |> function
            | Some state -> state.Text = ""
            | None -> false
@@ -1532,7 +1533,7 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
                     // works out to beside it. An ordinary dispatch: the box's text is model state,
                     // and nothing here needs to know it is a DOM element.
                     dispatch <| ClearPopupDialogParamSpec
-                        (ParameterTypes.paramBoxKey (Some comp.Id) (CustomCompParam nameStr)))
+                        (ParameterTypes.paramBoxKey (Some(componentIdValue comp.Id)) (CustomCompParam nameStr)))
                   Fulma.Button.Color IsSuccess
                   Fulma.Button.IsLight
                 ]

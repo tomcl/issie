@@ -513,7 +513,7 @@ module IdAllocator =
         reset connections
 
     /// A fresh component id, unique across the open design.
-    let newComponentId () = next components
+    let newComponentId () = ComponentId(next components)
 
     /// A fresh port id. Unique across the design in practice (one allocator serves every
     /// sheet), though only uniqueness within a sheet is required of it.
@@ -522,10 +522,10 @@ module IdAllocator =
     /// A fresh connection id; as newPortId, over-unique by construction.
     let newConnectionId () = ConnectionId(next connections)
 
-    let reserveComponentId (id: int) = reserve components id
+    let reserveComponentId (ComponentId id) = reserve components id
     let reservePortId (id: int) = reserve ports id
     let reserveConnectionId (ConnectionId id) = reserve connections id
-    let componentIdUsed (id: int) = isUsed components id
+    let componentIdUsed (ComponentId id) = isUsed components id
 
 /// Rewriting the ids a sheet holds - when a sheet is copied into a project, and when a loaded
 /// sheet breaks an id invariant.
@@ -547,11 +547,14 @@ module RegenerateIds =
         |> Optic.map portOrientation_ (Map.toList >> List.map (fun (id, edge) -> sub portMap id, edge) >> Map.ofList)
         |> Optic.map portOrder_ (Map.map (fun _ ids -> List.map (sub portMap) ids))
 
-    /// ComponentSlotExpr is keyed by ParamSlot, which holds the component id.
-    let private remapSlots compMap (slots: ComponentSlotExpr) =
+    /// ComponentSlotExpr is keyed by ParamSlot, which holds the component id as a bare integer:
+    /// those types compile before the id types, so the map has to be unwrapped to use it here.
+    let private remapSlots (compMap: Map<ComponentId, ComponentId>) (slots: ComponentSlotExpr) =
+        let subInt n = sub compMap (ComponentId n) |> componentIdValue
+
         slots
         |> Map.toList
-        |> List.map (fun (slot, expr) -> Optic.map compId_ (sub compMap) slot, expr)
+        |> List.map (fun (slot, expr) -> Optic.map compId_ subInt slot, expr)
         |> Map.ofList
 
     let private remapComp compMap portMap (comp: Component) =
@@ -585,7 +588,7 @@ module RegenerateIds =
         { wi with
             SelectedRams =
                 wi.SelectedRams
-                |> Option.map (Map.toList >> List.map (fun (ComponentId cid, v) -> ComponentId(sub compMap cid), v) >> Map.ofList) }
+                |> Option.map (Map.toList >> List.map (fun (cid, v) -> sub compMap cid, v) >> Map.ofList) }
 
     /// Apply id maps to everything a LoadedComponent holds: the canvas, the parameter slots and
     /// the saved waveform selection, which live on the LoadedComponent rather than in its
@@ -639,7 +642,7 @@ module RegenerateIds =
             List.exists (fun id -> value id <= 0) ids
             || List.length (List.distinct ids) <> List.length ids
 
-        if broken id compIds || broken id portIds || broken (fun (ConnectionId n) -> n) connIds then
+        if broken componentIdValue compIds || broken id portIds || broken (fun (ConnectionId n) -> n) connIds then
             // a sentinel or an internal duplicate: a malformed sheet - renumber it wholesale
             regenerateSheetIds ldc, true
         else
@@ -734,7 +737,8 @@ let sheetOfJson
             | Some n -> n
             | None -> Map.tryFind id assigned |> Option.defaultValue 0
 
-    let mapCompId = jsonComps |> List.map (fun comp -> comp.Id) |> makeMapping
+    let mapCompIdInt = jsonComps |> List.map (fun comp -> comp.Id) |> makeMapping
+    let mapCompId = mapCompIdInt >> ComponentId
 
     let mapPortId =
         jsonComps
@@ -742,7 +746,7 @@ let sheetOfJson
         |> List.map (fun port -> port.Id)
         |> makeMapping
 
-    let mapConnId = jsonConns |> List.map (fun conn -> conn.Id) |> makeMapping
+    let mapConnId = (jsonConns |> List.map (fun conn -> conn.Id) |> makeMapping) >> ConnectionId
 
     let comps = jsonComps |> List.map (convertFromJSONComponent mapCompId mapPortId)
     let conns = jsonConns |> List.map (convertFromJSONConnection mapConnId mapCompId mapPortId)

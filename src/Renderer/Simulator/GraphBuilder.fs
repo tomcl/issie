@@ -72,7 +72,7 @@ let private buildSourceToTargetPortMap
     (Map.empty, connections)
     ||> List.fold (fun map conn ->
         let key = OutputPortId conn.Source.Id
-        let target = ComponentId conn.Target.HostId, InputPortId conn.Target.Id
+        let target = conn.Target.HostId, InputPortId conn.Target.Id
         // Append the new target to the list associated with the key.
         let newValue =
             match map.TryFind key with
@@ -183,7 +183,8 @@ let private buildSimulationComponent
         |> List.collect (fun port ->
             match sourceToTargetPort.TryFind <| OutputPortId port.Id with
             | None when comp.Type = IOLabel -> [] // IOLabels are allowed to be connected to nothing
-            | None -> failwithf "what? Unconnected output port %d in comp %d" port.Id comp.Id
+            | None ->
+                failwithf "what? Unconnected output port %d in comp %d" port.Id (componentIdValue comp.Id)
             | Some targets ->
                 [ OutputPortNumber
                   <| getPortNumberOrFail port.PortNumber,
@@ -199,7 +200,7 @@ let private buildSimulationComponent
         |> (fun inputs ->
                 match comp.Type with
                 | Output width ->
-                    ((ComponentId comp.Id, InputPortNumber 0),1) :: inputs
+                    ((comp.Id, InputPortNumber 0),1) :: inputs
                 | _ -> inputs)
       
 
@@ -209,7 +210,7 @@ let private buildSimulationComponent
         | Viewer width -> [| width |]
         | _ -> outputWidths
 
-    { Id = ComponentId comp.Id
+    { Id = comp.Id
       Type = comp.Type
       Label = ComponentLabel comp.Label
       DrivenInputWidths = drivenInputs
@@ -224,17 +225,17 @@ let getLabelConnections (comps: Component list) (conns: Connection list) =
 
     let compIdMap =
         labels
-        |> List.map (fun co -> ComponentId co.Id, co)
+        |> List.map (fun co -> co.Id, co)
         |> Map.ofList
 
     let getComp n = compIdMap[n]
 
     let targetMap =
         conns
-        |> List.map (fun conn -> ComponentId conn.Target.HostId, conn)
+        |> List.map (fun conn -> conn.Target.HostId, conn)
         |> Map.ofList
 
-    let getConnection (compTarget: Component) = targetMap[ComponentId compTarget.Id]
+    let getConnection (compTarget: Component) = targetMap[compTarget.Id]
 
     let copyConnection (conn: Connection) (compTarget: Component) (tagNum: int) =
         // a synthetic id for the duplicated connection, unique among the copies and negative so
@@ -247,11 +248,11 @@ let getLabelConnections (comps: Component list) (conns: Connection list) =
     let getDriverConnection (comps: Component list) =
         comps
         |> List.tryFind (fun co ->
-            (Map.tryFind (ComponentId co.Id) targetMap)
+            (Map.tryFind (co.Id) targetMap)
             <> None)
         |> function
             | None -> failwithf "What? component cannot be found in %A" targetMap
-            | Some comp -> targetMap[ComponentId comp.Id]
+            | Some comp -> targetMap[comp.Id]
 
     labels
     |> List.groupBy (fun co -> co.Label)
@@ -292,7 +293,7 @@ let private buildSimulationGraph (canvasState: CanvasState) outputWidths : (Simu
             |> Array.map (fun ((_, pn), w) -> (pn, w))
             |> Array.sortBy fst
             |> Array.map snd
-        ComponentId comp.Id, mapper comp ws)
+        comp.Id, mapper comp ws)
     |> Map.ofList
     |> addInputWidthsToInputs
 // Find out width of outputs of components from ConnectionsWidth map. Map<ConnectionId, "Width" option> -> Map<(ComponentId * "PortNumber"), "Width">
@@ -305,7 +306,7 @@ let private findOutputWidths (canvasState: CanvasState) (connsWidth: Connections
         |> Map.toList
         |> List.map (fun (k, w) -> k, (w |> Option.get))
 
-    let inline findComp (id: int) =
+    let inline findComp (id: ComponentId) =
         comps
         |> List.tryFind (fun c -> c.Id = id)
         |> Option.get
@@ -371,12 +372,12 @@ let getSimulationIOs (components: Component list) : SimulationIO list * Simulati
     ||> List.fold (fun (inputs, outputs) comp ->
         match comp.Type with
         | Input1(w, _) ->
-            ((ComponentId comp.Id, ComponentLabel comp.Label, w)
+            ((comp.Id, ComponentLabel comp.Label, w)
              :: inputs,
              outputs)
         | Output w ->
             (inputs,
-             (ComponentId comp.Id, ComponentLabel comp.Label, w)
+             (comp.Id, ComponentLabel comp.Label, w)
              :: outputs)
         | _ -> (inputs, outputs))
 

@@ -291,7 +291,7 @@ let tidyParamSlots ((comps, _): CanvasState) (paramDefs: ParameterTypes.Paramete
         defs.ParamSlots
         |> Map.toList
         |> List.choose (fun (slot, exprSpec) ->
-            match Map.tryFind slot.CompId labelOf, slot.CompSlot with
+            match Map.tryFind (ComponentId slot.CompId) labelOf, slot.CompSlot with
             | None, _ -> None
             | Some label, IO _ -> Some ({slot with CompSlot = IO label}, exprSpec)
             | Some _, _ -> Some (slot, exprSpec))
@@ -532,9 +532,10 @@ let simpleSheetOfLoadedComponent (ldc: LoadedComponent) : SimpleSheet =
         |> List.collect (fun comp ->
             let entry (port: Port) =
                 match port.PortNumber with
-                | Some n -> port.Id, (comp.Id, n)
+                | Some n -> port.Id, (componentIdValue comp.Id, n)
                 | None ->
-                    failwithf "simpleSheet: port %d on component %d of %s has no port number" port.Id comp.Id ldc.Name
+                    failwithf "simpleSheet: port %d on component %d of %s has no port number"
+                        port.Id (componentIdValue comp.Id) ldc.Name
 
             List.map entry comp.InputPorts @ List.map entry comp.OutputPorts)
         |> Map.ofList
@@ -546,7 +547,7 @@ let simpleSheetOfLoadedComponent (ldc: LoadedComponent) : SimpleSheet =
             failwithf "simpleSheet: the %s of a connection on %s names port %d, which no component has" which ldc.Name port.Id
 
     let simpleComp (comp: Component) : SimpleComponent =
-        { CompId = comp.Id
+        { CompId = componentIdValue comp.Id
           TypeS = comp.Type
           Label = comp.Label }
 

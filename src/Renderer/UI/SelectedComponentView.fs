@@ -412,25 +412,25 @@ let private changeAdderType model (comp:Component) dispatch =
             fun _ ->
                 match comp.Type with
                 |NbitsAdder w ->
-                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCin w)
+                    model.Sheet.ChangeAdderComp sheetDispatch (comp.Id) (NbitsAdderNoCin w)
                 |NbitsAdderNoCout w ->
-                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCinCout w)
+                    model.Sheet.ChangeAdderComp sheetDispatch (comp.Id) (NbitsAdderNoCinCout w)
                 |NbitsAdderNoCin w ->
-                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdder w)
+                    model.Sheet.ChangeAdderComp sheetDispatch (comp.Id) (NbitsAdder w)
                 |NbitsAdderNoCinCout w ->
-                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCout w)
+                    model.Sheet.ChangeAdderComp sheetDispatch (comp.Id) (NbitsAdderNoCout w)
                 | _ -> failwithf "Cannot change adder type from non-adder component"
         let buttonActionCout =
             fun _ ->
                 match comp.Type with
                 |NbitsAdder w ->
-                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCout w)
+                    model.Sheet.ChangeAdderComp sheetDispatch (comp.Id) (NbitsAdderNoCout w)
                 |NbitsAdderNoCin w ->
-                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCinCout w)
+                    model.Sheet.ChangeAdderComp sheetDispatch (comp.Id) (NbitsAdderNoCinCout w)
                 |NbitsAdderNoCout w ->
-                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdder w)
+                    model.Sheet.ChangeAdderComp sheetDispatch (comp.Id) (NbitsAdder w)
                 |NbitsAdderNoCinCout w ->
-                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCin w)
+                    model.Sheet.ChangeAdderComp sheetDispatch (comp.Id) (NbitsAdderNoCin w)
                 |_ -> failwithf "Cannot change adder type from non-adder component"
 
         div [] [
@@ -472,25 +472,25 @@ let private changeCounterType model (comp:Component) dispatch =
             fun _ ->
                 match comp.Type with
                 |Counter w ->
-                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoLoad w)
+                    model.Sheet.ChangeCounterComp sheetDispatch (comp.Id) (CounterNoLoad w)
                 |CounterNoEnable w ->
-                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoEnableLoad w)
+                    model.Sheet.ChangeCounterComp sheetDispatch (comp.Id) (CounterNoEnableLoad w)
                 |CounterNoLoad w ->
-                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (Counter w)
+                    model.Sheet.ChangeCounterComp sheetDispatch (comp.Id) (Counter w)
                 |CounterNoEnableLoad w ->
-                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoEnable w)
+                    model.Sheet.ChangeCounterComp sheetDispatch (comp.Id) (CounterNoEnable w)
                 | _ -> failwithf "Cannot change adder type from non-adder component"
         let buttonActionEnable =
             fun _ ->
                 match comp.Type with
                 |Counter w ->
-                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoEnable w)
+                    model.Sheet.ChangeCounterComp sheetDispatch (comp.Id) (CounterNoEnable w)
                 |CounterNoLoad w ->
-                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoEnableLoad w)
+                    model.Sheet.ChangeCounterComp sheetDispatch (comp.Id) (CounterNoEnableLoad w)
                 |CounterNoEnable w ->
-                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (Counter w)
+                    model.Sheet.ChangeCounterComp sheetDispatch (comp.Id) (Counter w)
                 |CounterNoEnableLoad w ->
-                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoLoad w)
+                    model.Sheet.ChangeCounterComp sheetDispatch (comp.Id) (CounterNoLoad w)
                 |_ -> failwithf "Cannot change adder type from non-adder component"
 
         div [] [
@@ -536,7 +536,7 @@ let private makeScaleAdjustmentField model (comp:Component) dispatch =
                     let props = errorPropsNotification "A scale factor cannot be negative."
                     dispatch <| SetPropertiesNotification props
                 else
-                    model.Sheet.ChangeScale sheetDispatch (ComponentId comp.Id) newWidth Horizontal
+                    model.Sheet.ChangeScale sheetDispatch (comp.Id) newWidth Horizontal
                     dispatch ClosePropertiesNotification
         )
         floatFormField "Height Scale" "60px" texth 0.0 (
@@ -546,7 +546,7 @@ let private makeScaleAdjustmentField model (comp:Component) dispatch =
                     let props = errorPropsNotification "A scale factor cannot be negative."
                     dispatch <| SetPropertiesNotification props
                 else
-                    model.Sheet.ChangeScale sheetDispatch (ComponentId comp.Id) newWidth Vertical
+                    model.Sheet.ChangeScale sheetDispatch (comp.Id) newWidth Vertical
                     dispatch ClosePropertiesNotification
         )
     ]
@@ -605,7 +605,7 @@ let private makeNumberOfInputsField model (comp: Component) dispatch =
             Input.DefaultValue (string nInp)
             Input.OnChange (getIntEventValue >> fun newNum ->
                 match newNum >= 2 && newNum <= maxGateInputs with
-                | true -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) gateType newNum
+                | true -> model.Sheet.ChangeGate sheetDispatch (comp.Id) gateType newNum
                 | false -> ())
         ]
     ]
@@ -643,7 +643,7 @@ let private changeMergeN model (comp:Component) dispatch =
                 Input.DefaultValue (string nInp)
                 Input.OnChange (getIntEventValue >> fun newNum ->
                     match newNum >= 2 && newNum <= Constants.maxSplitMergeBranches with
-                    | true -> model.Sheet.ChangeMergeN sheetDispatch (ComponentId comp.Id) newNum
+                    | true -> model.Sheet.ChangeMergeN sheetDispatch (comp.Id) newNum
                     | false -> ())
             ]
         ]
@@ -701,7 +701,7 @@ let private changeSplitN model (comp:Component) dispatch =
                 Input.OnChange (getIntEventValue >> fun newNum ->
                     let newWidths = changeWidths widths newNum 1
                     let newLsbs = changeLsbs lsbs newWidths newNum
-                    model.Sheet.ChangeSplitN sheetDispatch (ComponentId comp.Id) newNum newWidths newLsbs)
+                    model.Sheet.ChangeSplitN sheetDispatch (comp.Id) newNum newWidths newLsbs)
             ]
         ]
 
@@ -802,8 +802,8 @@ let makeConstantDialog (model:Model) (comp: Component) (text:string) (dispatch: 
         | Some _ when ModelHelpers.openSheetIsReadOnly model -> ()
         | Some (Constant1(w,cVal,cText) as compT) ->
             if compT <> comp.Type then
-                model.Sheet.ChangeWidth (Sheet >> dispatch) (ComponentId comp.Id) w
-                symbolDispatch <| SymbolT.ChangeConstant (ComponentId comp.Id, cVal, cText)
+                model.Sheet.ChangeWidth (Sheet >> dispatch) (comp.Id) w
+                symbolDispatch <| SymbolT.ChangeConstant (comp.Id, cVal, cText)
                 dispatch (ReloadSelectedComponent w)
                 dispatch ClosePropertiesNotification
         | _ -> failwithf "What? impossible"
@@ -836,8 +836,8 @@ let makeBusCompareDialog (model:Model) (comp: Component) (text:string) (dispatch
         | Some _ when ModelHelpers.openSheetIsReadOnly model -> ()
         | Some (BusCompare1(w,cVal,cText) as compT) ->
             if compT <> comp.Type then
-                model.Sheet.ChangeWidth (Sheet >> dispatch) (ComponentId comp.Id) w
-                symbolDispatch <| SymbolT.ChangeBusCompare (ComponentId comp.Id, cVal, cText)
+                model.Sheet.ChangeWidth (Sheet >> dispatch) (comp.Id) w
+                symbolDispatch <| SymbolT.ChangeBusCompare (comp.Id, cVal, cText)
                 dispatch (ReloadSelectedComponent w)
                 dispatch ClosePropertiesNotification
         | _ -> failwithf "What? impossible"
@@ -1112,14 +1112,14 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
         Button.button [
             Button.Color IsPrimary
             Button.OnClick (fun _ -> dispatch <| ExecFuncInMessage(
-                (fun model _ -> model.Sheet.ChangeReversedInputs (Sheet >> dispatch) (ComponentId comp.Id)),dispatch))
+                (fun model _ -> model.Sheet.ChangeReversedInputs (Sheet >> dispatch) (comp.Id)),dispatch))
             ] [str "Reverse Inputs"]
     // The memory buttons are the reason for selecting a RAM, so they stay in the body of the pane
     // while the shape and data source of the memory go to About with the rest of the prose.
     | AsyncROM1 mem | ROM1 mem | RAM1 mem | AsyncRAM1 mem ->
         div [] [
             makeMemoryWidthFields model comp mem dispatch
-            memoryActions mem (ComponentId comp.Id) comp.Type model dispatch
+            memoryActions mem (comp.Id) comp.Type model dispatch
         ]
     // A custom component had no case here at all: everything it could be asked to do lived inside
     // the read-only description. Its parameter values are now edited exactly as a built-in width is.

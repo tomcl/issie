@@ -166,6 +166,11 @@ type PortId = | PortId of int
 [<Erase>]
 type ComponentId = | ComponentId of int
 
+/// The integer inside a component id. For the seams that must speak in bare ids - the file
+/// writers, the SimpleDesign wire format, and the parameter types, which compile before this file
+/// and so cannot name the type - and nowhere else: in between, the type is the point.
+let componentIdValue (ComponentId n) = n
+
 let componentIdEncoder (cid: ComponentId) =
     match cid with
     | ComponentId n -> Encode.int n
@@ -276,7 +281,7 @@ type Port = {
     // If the port is used in a Connection record as Source or Target, the Number is None. 
     PortNumber : int option
     PortType : PortType 
-    HostId : int
+    HostId : ComponentId
 }
 
     
@@ -630,7 +635,7 @@ type SimpleDesign = {
 /// Id uniquely identifies the component within a sheet.
 /// Label is optional descriptor displayed on schematic.
 type Component = {
-    Id : int
+    Id : ComponentId
     Type : ComponentType
     /// All components have a label that may be empty: label is not unique
     Label : string 
@@ -810,7 +815,7 @@ module JSONComponent =
 /// Transforms JSON components (parsed from JSON) to current components: legacy ComponentType
 /// cases are upgraded, and the file's string ids become integers through the mapping functions
 /// the loader supplies - which is where a uuid in an old file gets its integer allocated.
-let convertFromJSONComponent (mapCompId: string -> int) (mapPortId: string -> int) (comp: JSONComponent.Component) : Component =
+let convertFromJSONComponent (mapCompId: string -> ComponentId) (mapPortId: string -> int) (comp: JSONComponent.Component) : Component =
     let newType (ct: JSONComponent.ComponentType) : ComponentType = 
         match ct with
         | JSONComponent.ComponentType.Input1 (a,b) -> Input1 (a,b)
@@ -895,7 +900,7 @@ let convertFromJSONComponent (mapCompId: string -> int) (mapPortId: string -> in
       Label = comp.Label
       InputPorts = List.map newPort comp.InputPorts
       OutputPorts = List.map newPort comp.OutputPorts
-      SlotInfo = comp.SlotInfo |> Option.map (ParameterTypes.slotsOfJson mapCompId)
+      SlotInfo = comp.SlotInfo |> Option.map (ParameterTypes.slotsOfJson (mapCompId >> componentIdValue))
       X = comp.X
       Y = comp.Y
       H = comp.H
@@ -904,8 +909,8 @@ let convertFromJSONComponent (mapCompId: string -> int) (mapPortId: string -> in
 
 /// A file connection to a live one, through the same id mappings.
 let convertFromJSONConnection
-    (mapConnId: string -> int)
-    (mapCompId: string -> int)
+    (mapConnId: string -> ConnectionId)
+    (mapCompId: string -> ComponentId)
     (mapPortId: string -> int)
     (conn: JSONComponent.Connection)
     : Connection =
@@ -915,7 +920,7 @@ let convertFromJSONConnection
           PortType = port.PortType
           HostId = mapCompId port.HostId }
 
-    { Id = ConnectionId(mapConnId conn.Id)
+    { Id = mapConnId conn.Id
       Source = newPort conn.Source
       Target = newPort conn.Target
       Vertices = conn.Vertices }
@@ -985,7 +990,7 @@ let convertToJSONComponent (comp: Component) : JSONComponent.Component =
         { Id = string port.Id
           PortNumber = port.PortNumber
           PortType = port.PortType
-          HostId = string port.HostId }
+          HostId = string (componentIdValue port.HostId) }
 
     let jsonSymbolInfo (info: SymbolInfo) : JSONComponent.SymbolInfo =
         { LabelBoundingBox = info.LabelBoundingBox
@@ -1000,7 +1005,7 @@ let convertToJSONComponent (comp: Component) : JSONComponent.Component =
 
     // explicit construction, not unbox: the records only share a JS runtime representation,
     // and this code also runs under dotnet where unboxing between them is an invalid cast
-    { Id = string comp.Id
+    { Id = string (componentIdValue comp.Id)
       Type = newType
       Label = comp.Label
       InputPorts = List.map jsonPort comp.InputPorts
@@ -1018,10 +1023,10 @@ let convertToJSONConnection (conn: Connection) : JSONComponent.Connection =
         { Id = string port.Id
           PortNumber = port.PortNumber
           PortType = port.PortType
-          HostId = string port.HostId }
+          HostId = string (componentIdValue port.HostId) }
 
-    // the INTEGER, written as a string: `string` of the id itself is the wrapper's name under
-    // .NET and the bare number under Fable, which would put two different things in the file
+    // the INTEGER, written as a string: `string` of an id is the wrapper's name under .NET and
+    // the bare number under Fable, which would put two different things in the file
     let (ConnectionId connId) = conn.Id
 
     { Id = string connId
@@ -1310,13 +1315,13 @@ let waveInfoToJson (wi: SavedWaveInfo) : JSONWave.SavedWaveInfo =
       LastClk = wi.LastClk
       DisplayedPortIds = wi.DisplayedPortIds }
 
-let waveInfoOfJson (mapCompId: string -> int) (wi: JSONWave.SavedWaveInfo) : SavedWaveInfo =
+let waveInfoOfJson (mapCompId: string -> ComponentId) (wi: JSONWave.SavedWaveInfo) : SavedWaveInfo =
     { SelectedWaves = wi.SelectedWaves
       Radix = wi.Radix
       WaveformColumnWidth = wi.WaveformColumnWidth
       SelectedRams =
         wi.SelectedRams
-        |> Option.map (Map.toList >> List.map (fun (cid, v) -> ComponentId(mapCompId cid), v) >> Map.ofList)
+        |> Option.map (Map.toList >> List.map (fun (cid, v) -> mapCompId cid, v) >> Map.ofList)
       SelectedFRams = wi.SelectedFRams
       WSConfig = wi.WSConfig
       ClkWidth = wi.ClkWidth
@@ -1330,10 +1335,10 @@ let sheetInfoToJson (si: SheetInfo) : JSONWave.SheetInfo =
       ParameterDefinitions = si.ParameterDefinitions |> Option.map ParameterTypes.paramDefsToJson
       IsTopSheet = si.IsTopSheet }
 
-let sheetInfoOfJson (mapCompId: string -> int) (si: JSONWave.SheetInfo) : SheetInfo =
+let sheetInfoOfJson (mapCompId: string -> ComponentId) (si: JSONWave.SheetInfo) : SheetInfo =
     { Form = si.Form
       Description = si.Description
-      ParameterDefinitions = si.ParameterDefinitions |> Option.map (ParameterTypes.paramDefsOfJson mapCompId)
+      ParameterDefinitions = si.ParameterDefinitions |> Option.map (ParameterTypes.paramDefsOfJson (mapCompId >> componentIdValue))
       IsTopSheet = si.IsTopSheet }
 
 (*--------------------------------------------------------------------------------------------------*)

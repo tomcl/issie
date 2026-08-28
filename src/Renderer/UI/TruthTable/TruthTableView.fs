@@ -139,13 +139,13 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
         Id = -1
         PortNumber = None
         PortType = PortType.Input
-        HostId = -2
+        HostId = ComponentId -2
     }
     let dummyOutputPort = {
         Id = -3
         PortNumber = None
         PortType = PortType.Output
-        HostId = -4
+        HostId = ComponentId -4
     }
 
     // Mapping between PortIds and their corresponding port widths.
@@ -386,7 +386,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         let error = {
                             ErrType = InferConnWidths "Could not infer the width for an input into the selected logic."
                             InDependency = None
-                            ComponentsAffected = [ComponentId(con.Target.HostId)]
+                            ComponentsAffected = [con.Target.HostId]
                             ConnectionsAffected = []
                         }
                         Ok con, acc @ [Error error]
@@ -427,7 +427,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         let error = {
                             ErrType = InferConnWidths "Could not infer the width for an output produced by the selected logic."
                             InDependency = None
-                            ComponentsAffected = [ComponentId(con.Source.HostId)]
+                            ComponentsAffected = [con.Source.HostId]
                             ConnectionsAffected = []
                         }
                         Ok con, acc @ [Error error]

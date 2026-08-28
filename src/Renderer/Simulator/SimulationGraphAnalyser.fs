@@ -90,7 +90,7 @@ let private calculateConnectionsAffected (connections: Connection list) (cycle: 
         match connections with
         | [] -> failwithf "what? Could not find connection among %A and %A" compIdFrom compIdTo
         | conn :: connections' ->
-            match ComponentId conn.Source.HostId = compIdFrom, ComponentId conn.Target.HostId = compIdTo with
+            match conn.Source.HostId = compIdFrom, conn.Target.HostId = compIdTo with
             | true, true -> conn.Id
             | _ -> findConnection connections' (compIdFrom, compIdTo)
 

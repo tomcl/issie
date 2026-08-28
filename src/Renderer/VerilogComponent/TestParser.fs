@@ -1,4 +1,4 @@
-// to run this script do: 
+﻿// to run this script do: 
 // dotnet fable --noCache
 // node .\testParser.fs.js
 
@@ -236,7 +236,7 @@ let simulateAST ast src dst loadedComps=
         |> List.unzip
     let outputCompIds = 
         outputs
-        |> List.map (fun output -> output.Label, ComponentId output.Id)
+        |> List.map (fun output -> output.Label, output.Id)
         |> Map.ofList
 
     let (topCanvas:CanvasState) =

@@ -149,7 +149,7 @@ let connectedPorts (fs: FastSimulation) sheetPort =
 /// given an IOlabel port, get all same-name IOLabels on the same sheet
 let connectedIOs (fs: FastSimulation) (sp: SheetPort) =
     let comps = fs.ComponentsById[sp.Sheet]
-    match comps[ComponentId sp.PortOnComp.HostId] with
+    match comps[sp.PortOnComp.HostId] with
     | {Type = IOLabel} as comp -> 
         let sheet = sp.Sheet
         comps

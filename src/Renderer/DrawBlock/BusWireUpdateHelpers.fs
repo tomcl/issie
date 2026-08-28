@@ -827,10 +827,12 @@ let deleteWiresWithPort (delPorts: Port option list) (model: Model) =
                             |> List.filter (fun (connId,wire) -> wire.InputPort = InputPortId port.Id || wire.OutputPort = OutputPortId port.Id)
                             |> List.map fst
                         let symbols =
-                            Map.tryFind (ComponentId port.HostId) symbols 
+                            Map.tryFind (port.HostId) symbols 
                             |> Option.map (fun sym ->
-                                let sym' = {sym with PortMaps = Symbol.deletePortFromMaps port.HostId sym.PortMaps}
-                                Map.add (ComponentId port.HostId) sym' symbols)
+                                // the PORT's id, not its host's: PortMaps is keyed by port, and
+                                // while both ids were bare integers this removed nothing
+                                let sym' = {sym with PortMaps = Symbol.deletePortFromMaps port.Id sym.PortMaps}
+                                Map.add (port.HostId) sym' symbols)
                             |> Option.defaultValue symbols
                         let ports = Map.remove port.Id ports
                         ports, symbols, conns@localConns

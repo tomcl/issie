@@ -188,7 +188,7 @@ let getNewSymbolSnapInfo
             let portLocOffset = Symbol.getPortLocation None model.Wire.Symbol pId - movingSymbolCentre
             getAllConnectedPorts pId
             |> Array.collect (fun port ->
-                let symbol = symbolMap[ComponentId port.HostId]
+                let symbol = symbolMap[port.HostId]
                 let otherPortLoc = Symbol.getPortLocation None model.Wire.Symbol port.Id
                 match symbol.PortMaps.Orientation[port.Id], edge with
                 | Edge.Left, Edge.Right | Edge.Right, Edge.Left -> 

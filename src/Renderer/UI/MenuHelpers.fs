@@ -108,7 +108,7 @@ let formatLabel (comp:Component) (text:string) =
 let setComponentLabel model (sheetDispatch) (comp:Component) (text:string) =
     // let label = formatLabel comp text
     let label = text.ToUpper() // TODO
-    model.Sheet.ChangeLabel sheetDispatch (ComponentId comp.Id) label
+    model.Sheet.ChangeLabel sheetDispatch (comp.Id) label
     match comp.Type with
     | IOLabel ->
         // need to redo bus width inference after IoLabel component change because this cabn alter circuit correctness
@@ -119,7 +119,7 @@ let setComponentLabel model (sheetDispatch) (comp:Component) (text:string) =
 let updateSymbolRAMs (ramCheck: Component list) (sModel: SymbolT.Model) =
     (sModel, ramCheck)
     ||> List.fold (fun sModel comp ->
-            let cId = (ComponentId comp.Id)
+            let cId = (comp.Id)
             if Map.containsKey cId sModel.Symbols then 
                 SymbolUpdate.writeMemoryType sModel cId comp.Type
             else
@@ -410,7 +410,7 @@ let getSheetShapes (showLibrarySheet: string -> bool) (ldcs: LoadedComponent lis
         |> List.choose (fun comp ->
             match comp.Type with
             | Custom ct when not (hidden ct.Name) ->
-                Some { InstLabel = comp.Label; InstId = ComponentId comp.Id; InstSheet = ct.Name }
+                Some { InstLabel = comp.Label; InstId = comp.Id; InstSheet = ct.Name }
             | _ -> None))
     |> Map.ofList
 
@@ -1363,7 +1363,7 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
                             match List.tryFind (fun (c:Component) -> c.Id=comp.Id) ramCheck with
                             | Some newRam -> 
                                 // TODO: create consistent helpers for messages
-                                dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.WriteMemoryType (ComponentId comp.Id, newRam.Type))))
+                                dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.WriteMemoryType (comp.Id, newRam.Type))))
                                 newRam
                             | _ -> comp), conns)
             writeComponentToBackupFile 4 1. newLdc dispatch
@@ -1408,7 +1408,7 @@ let saveOpenFileToModel model =
                         match List.tryFind (fun (c:Component) -> c.Id=comp.Id) ramCheck with
                         | Some newRam -> 
                             // TODO: create consistent helpers for messages
-                            SymbolUpdate.writeMemoryType sModel (ComponentId comp.Id) (newRam.Type), (newRam :: newComps)                            
+                            SymbolUpdate.writeMemoryType sModel (comp.Id) (newRam.Type), (newRam :: newComps)                            
                         | _ -> sModel, comp :: newComps)
                 sModel, (comps,conns))
         writeComponentToBackupFileNow 4 1. newLdc

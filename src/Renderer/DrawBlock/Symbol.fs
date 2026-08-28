@@ -645,7 +645,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | Custom cct -> cct.InputLabels.Length, cct.OutputLabels.Length, 0., 0.
 
 /// make a completely new component
-let makeComponent (pos: XYPos) (compType: ComponentType) (id:int) (label:string) : Component =
+let makeComponent (pos: XYPos) (compType: ComponentType) (id: ComponentId) (label:string) : Component =
     let defaultSTransform = {Rotation = Degree0; flipped = false}
     // function that helps avoid dublicate code by initialising parameters that are the same for all component types and takes as argument the others
     let makeComponent' (n, nout, h, w) label : Component=
@@ -710,7 +710,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       InWidth0 = None // set by BusWire
       InWidth1 = None
       InWidths = None
-      Id = ComponentId id
+      Id = id
       Component = comp
       Moving = false
       PortMaps = initPortOrientation comp
@@ -839,14 +839,14 @@ let inline getPortPosToRender (sym: Symbol) (port: Port) : XYPos =
         getPortPos sym port
 
 let inline getPortPosModel (model: Model) (port:Port) =
-    getPortPos (Map.find (ComponentId port.HostId) model.Symbols) port
+    getPortPos (Map.find (port.HostId) model.Symbols) port
 
 /// Returns the location of a given portId, with good efficiency
 let getPortLocation (defPos: XYPos option) (model: Model) (portId : int) : XYPos=
     let portOpt = Map.tryFind portId model.Ports
     let symbolIdOpt = 
         portOpt
-        |> Option.map (fun port ->  ComponentId port.HostId)
+        |> Option.map (fun port ->  port.HostId)
     let symOpt = 
         symbolIdOpt
         |> Option.bind (fun symbolId -> Map.tryFind symbolId model.Symbols)

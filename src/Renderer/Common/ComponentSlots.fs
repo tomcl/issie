@@ -1,4 +1,4 @@
-module ComponentSlots
+﻿module ComponentSlots
 
 (*
     ComponentSlots.fs
@@ -219,8 +219,11 @@ let resolveCanvasAtBindings
         (slots: ComponentSlotExpr)
         ((comps, conns): CanvasState)
         : CanvasState =
-    let slotsOf compId =
-        slots |> Map.toList |> List.filter (fun (slot, _) -> slot.CompId = compId)
+    // ParamSlot names its component by bare integer - those types compile before the id types
+    let slotsOf (compId: ComponentId) =
+        slots
+        |> Map.toList
+        |> List.filter (fun (slot, _) -> slot.CompId = componentIdValue compId)
     let resolve (comp: Component) =
         (comp.Type, slotsOf comp.Id)
         ||> List.fold (fun compType (slot, exprSpec) ->

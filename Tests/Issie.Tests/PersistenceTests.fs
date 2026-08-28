@@ -40,8 +40,128 @@ let private nested () =
     let top = makeLdc "TOP" None ([ topIn; instance; ram ], [])
     [ top; mid ]
 
+//---------------------------------------------------------------------------------------------//
+// Whether an id survives being written and read back
+//
+// The whole point of ids being integers written into the file: a project saved and loaded with no
+// edit in between must come back with the ids it had. That is what lets anything - a wave
+// selection, a RAM the user picked, an error highlighted on the canvas - name a component by id
+// and still mean it after a reload. It failed for the uuid form, which is why WavePath names
+// signals by label instead.
+//---------------------------------------------------------------------------------------------//
+
+let private demo name =
+    System.IO.Path.GetFullPath(
+        System.IO.Path.Combine(__SOURCE_DIRECTORY__, "..", "..", "static", "demos", name))
+
+let private loadFrom (folder: string) =
+    match FilesIO.loadAllComponentFiles folder with
+    | Error msg -> failtest msg
+    | Ok statuses ->
+        statuses
+        |> List.map (function
+            | FilesIO.OkComp ldc
+            | FilesIO.OkAuto ldc
+            | FilesIO.Resolve(ldc, _) -> ldc)
+        |> Helpers.RegenerateIds.admitDesign
+
+/// every id a sheet holds, in one comparable shape
+let private idsOf (ldcs: LoadedComponent list) =
+    ldcs
+    |> List.map (fun ldc ->
+        let comps, conns = ldc.CanvasState
+        ldc.Name,
+        (comps |> List.map (fun c -> componentIdValue c.Id) |> List.sort),
+        (comps
+         |> List.collect (fun c -> c.InputPorts @ c.OutputPorts)
+         |> List.map (fun p -> portIdValue p.Id)
+         |> List.sort),
+        (conns |> List.map (fun (c: Connection) -> let (ConnectionId n) = c.Id in n) |> List.sort))
+    |> List.sortBy (fun (n, _, _, _) -> n)
+
+/// save every sheet the way the app saves one
+let private saveAll (folder: string) (ldcs: LoadedComponent list) =
+    ldcs
+    |> List.iter (fun ldc ->
+        let sheetInfo: SheetInfo =
+            { Form = ldc.Form
+              Description = ldc.Description
+              ParameterDefinitions = ldc.LCParameterSlots
+              IsTopSheet = Some ldc.IsTopSheet }
+
+        FilesIO.saveStateToFile folder ldc.Name (ldc.CanvasState, ldc.WaveInfo, Some sheetInfo)
+        |> function
+            | Ok() -> ()
+            | Error e -> failtest e)
+
 let tests =
     testList "Persistence" [
+
+        test "a new-form project keeps every id through save and load" {
+            let folder =
+                System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"issie-ids-{System.Guid.NewGuid()}")
+            System.IO.Directory.CreateDirectory folder |> ignore
+
+            try
+                System.IO.Directory.GetFiles(demo "3cpu", "*.dgm")
+                |> Array.iter (fun p ->
+                    System.IO.File.Copy(p, System.IO.Path.Combine(folder, System.IO.Path.GetFileName p)))
+
+                let first, changedOnFirst = loadFrom folder
+                printfn "  first load renumbered: %A" changedOnFirst
+
+                saveAll folder first
+                let second, changedOnSecond = loadFrom folder
+                printfn "  second load renumbered: %A" changedOnSecond
+
+                Expect.equal (idsOf second) (idsOf first)
+                    "save then load leaves every component, port and connection id as it was"
+
+                saveAll folder second
+                let third, changedOnThird = loadFrom folder
+                printfn "  third load renumbered: %A" changedOnThird
+
+                Expect.equal (idsOf third) (idsOf first) "and a second round changes nothing either"
+                Expect.isEmpty changedOnSecond "no sheet needs renumbering on reload"
+                Expect.isEmpty changedOnThird "nor on the round after that"
+            finally
+                try System.IO.Directory.Delete(folder, true) with _ -> ()
+        }
+
+        test "a legacy project is renumbered once, and is stable from then on" {
+            let folder =
+                System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"issie-legacy-{System.Guid.NewGuid()}")
+            System.IO.Directory.CreateDirectory folder |> ignore
+
+            try
+                // the fixture copy of 3cpu, still in the uuid form
+                let legacy =
+                    System.IO.Path.GetFullPath(
+                        System.IO.Path.Combine(__SOURCE_DIRECTORY__, "..", "fixtures", "3cpu"))
+
+                System.IO.Directory.GetFiles(legacy, "*.dgm")
+                |> Array.iter (fun p ->
+                    System.IO.File.Copy(p, System.IO.Path.Combine(folder, System.IO.Path.GetFileName p)))
+
+                let first, _ = loadFrom folder
+                Expect.all first (fun ldc -> ldc.LoadedComponentIsOutOfDate)
+                    "every sheet came out of an old-form file"
+
+                saveAll folder first
+                let second, changedOnSecond = loadFrom folder
+
+                Expect.all second (fun ldc -> not ldc.LoadedComponentIsOutOfDate)
+                    "and is written in the new form"
+                Expect.equal (idsOf second) (idsOf first)
+                    "the ids the conversion chose are the ids that come back"
+                Expect.isEmpty changedOnSecond "with nothing left to renumber"
+
+                saveAll folder second
+                let third, _ = loadFrom folder
+                Expect.equal (idsOf third) (idsOf first) "and they stay put"
+            finally
+                try System.IO.Directory.Delete(folder, true) with _ -> ()
+        }
 
         // Whether the open sheet differs from the saved one, which is what decides that it needs
         // saving or backing up. Rerouting a wire changes how many segments it has, so comparing

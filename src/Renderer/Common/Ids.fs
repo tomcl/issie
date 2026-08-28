@@ -42,21 +42,38 @@ open Fable.Core
 // made it a bare number there - this is a .NET question only, and .NET here means the sidecar,
 // which runs the whole build path (Sidecar/SimSession.build).
 //
-// Measured again after SimulationGraph became an encapsulated int-keyed map (SimGraph, in
-// SimGraphTypes) - 9 interleaved A/B pairs against a worktree of the commit before, fastest slice
-// of each, tiered compilation off. Making every int id below [<Struct>]:
+// The obvious next move is to add it to the ids whose maps are only DESIGN-sized, on the grounds
+// that those cannot grow with the expansion. That was measured and it is wrong, which is the thing
+// to know before trying it again.
 //
-//     3cpu build   +2.0% on the minimum, +3.6% on the mean, base ahead in 6 pairs of 9
-//     3cpu run     neutral - the run loop touches no id
-//     retained     unchanged
+// Which ids key which maps, all of them .NET-executed (Sidecar/SimSession.build runs the whole
+// build path):
 //
-// Inside the 5% gate, and still the wrong trade: it buys nothing measurable and costs a little,
-// because the id-keyed maps the .NET build still walks generically go on boxing both operands -
-// Map<OutputPortId,_> and Map<PortId,_> in WidthInferer, CanvasStateAnalyser and GraphBuilder,
-// Map<FComponentId,_> (a tuple holding a ComponentId and a list of them) and
-// Map<ComponentLabel * ComponentId list,_> in the fast simulation. Encapsulating SimulationGraph
-// took the largest one out of that set. Encapsulate the rest the same way and struct should become
-// free or positive; until then, do not add it without measuring.
+//   ComponentId       FIndexOf, FCustomOutputCompLookup, FIOActive - EXPANSION-sized, one entry
+//                     per component per instance - plus DesignComponentsById and the draw block
+//   OutputPortNumber  FCustomOutputCompLookup's key - EXPANSION-sized
+//   PortId, InputPortId, OutputPortId, ConnectionId, InputPortNumber
+//                     WidthInferer, GraphBuilder, CanvasStateAnalyser, SymbolInfo.PortOrientation
+//                     and the draw block - all DESIGN-sized, none expansion-sized
+//
+// So the last five look safe. Making exactly those five [<Struct>], 12 interleaved A/B pairs
+// against a worktree of the commit before, fastest build of each, tiered compilation off:
+//
+//     3cpu build    8.6 -> 10.5 ms on the minimum (+22%), 9.94 -> 11.50 on the mean (+16%),
+//                   base ahead in 11 pairs of 12
+//
+// DESIGN-SIZED IS NOT COLD. A build's time goes on inferring widths and building the graph, once
+// per sheet, and those per-sheet maps are hit hard enough while it happens that changing only the
+// representation of their keys moves the whole build by a sixth. Expansion-sized is what makes a
+// structure BIG; it is not what makes it hot.
+//
+// So: none of the ids above is [<Struct>], and the two below are, because they key nothing.
+// The way to make struct free here is not to pick ids more carefully - it is to take the hot maps
+// off generic comparison, as SimulationGraph already was (SimGraph, an encapsulated int-keyed map,
+// measured neutral). WidthInferer's Map<OutputPortId,int> and Map<InputPortId,ConnectionId> are the
+// next ones, and they can be ARRAYS rather than maps: port ids are allocated densely per sheet by
+// Helpers.IdAllocator, and those maps are built once and read. That is worth doing for the build
+// time on its own, whatever is decided about struct.
 //
 // The table also prices the wrappers themselves: a raw int key is 2.4x faster than the reference
 // DU. That is the standing cost of type-safe ids in an F# Map, it is already being paid, and

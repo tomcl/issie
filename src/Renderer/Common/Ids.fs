@@ -82,14 +82,35 @@ let componentIdValue (ComponentId n) = n
 [<Erase>]
 type SheetName = | SheetName of string
 
-/// The chain of custom-component instances from the simulated top sheet down to one instance,
-/// root first - so it names one ELABORATED copy of a sheet.
+/// The chain of custom-component instances between one instance and the simulated top sheet,
+/// INNERMOST FIRST - so it names one ELABORATED copy of a sheet.
 ///
 /// These are design-time ComponentIds, unique across the design, so a path is stable under
 /// relabelling and means the same thing whichever side computed it. It is not a new value: the
-/// simulator already builds exactly this as FastComponent.AccessPath (`ap @ [cid]` in
-/// FastCreate) and the design side already builds exactly this as SheetTree.SheetAccessPath
-/// (`accessPath @ [inst.InstId]` in MenuHelpers). This gives it a name.
+/// simulator builds exactly this as FastComponent.AccessPath and the design side builds exactly
+/// this as SheetTree.SheetAccessPath. This gives it a name.
+///
+/// Innermost first, although a path is READ the other way round - `top.alu.adder` - because that
+/// is where the work is. A path is only ever built by descending the design from the top sheet,
+/// and it is only ever taken apart at the deep end: the id of the instance itself, and the path
+/// of the sheet that instance is drawn on. Both are a cons here; root first they were an
+/// `@ [cid]` at seventeen sites and a `path[0 .. path.Length - 2]` at three.
+///
+/// FIVE places pay for it, and they are all of them: SheetOfInstance resolves a path against the
+/// design from the top down, so it folds back; SimulatedDesign.LabelsOfInstance and
+/// getFullSimName/getFullSimPath turn one into text; and WavePath.pathOfComponent reverses before
+/// walking. Anything else that needs a path root first should go through LabelsOfInstance rather
+/// than reverse one of its own.
+///
+/// Two consequences worth knowing before writing against it. The instances a path sits INSIDE are
+/// its tails, not its prefixes - so containment is a suffix test (WaveSimSelectHelpers.isSubSheetOf)
+/// and walking outwards is `List.tail`. And sorting is unaffected: the paths anything sorts are
+/// siblings sharing one parent, so both orders compare the single element that differs.
+///
+/// The string paths beside it - SheetTree.SheetPath and LabelPath, the wave selector's NodeKey,
+/// and WavePath.WPLabels, which is the form saved in a .dgm - stay ROOT first. They are read
+/// rather than taken apart, and one of them is in the file format. So the rule is: id paths
+/// innermost first, name paths root first, and the reversal happens where a path becomes text.
 [<Erase>]
 type InstancePath = | InstancePath of ComponentId list
 
@@ -101,8 +122,8 @@ type InstancePath = | InstancePath of ComponentId list
 type LabelPath = | LabelPath of string list
 
 /// Unique identifier for a fast component.
-/// The list is the access path, a list of all the containing custom components 
-/// from the top sheet of the simulation (root first)
+/// The list is the access path, a list of all the containing custom components between it and
+/// the top sheet of the simulation, innermost first - see InstancePath, which is the same list.
 type SimComponentId = ComponentId * ComponentId list
 
 /// The old name for SimComponentId, kept while the ~70 sites that destructure it as a bare tuple

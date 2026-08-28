@@ -759,7 +759,7 @@ let rec private flattenLevel
     |> List.iter (fun (comp, fc) ->
         match comp.Type, comp.CustomSimulationGraph with
         | Custom ct, Some csg ->
-            flattenLevel g sib maxArraySize (ap @ [ comp.Id ]) csg (Some(fastCompIndexValue fc.Index, ct))
+            flattenLevel g sib maxArraySize (comp.Id :: ap) csg (Some(fastCompIndexValue fc.Index, ct))
         | _ -> ())
 
 /// Flatten the SimulationGraph into the one index space the rest of the build works in, creating
@@ -902,7 +902,9 @@ let addWaveIndexAndDrivers (comps: FastComponent array) (f: FastSimulation) : Wa
 /// Called after the simulation has been fully constructed and linked.
 let linkFastCustomComponentsToDriverArrays (fs: FastSimulation) (fid: FComponentId) (fc: FastComponent) : Unit =
     let cid, ap' = fid
-    let ap = ap' @ [ cid ]
+    // the path of the instance this custom component introduces: its own id on the near end of
+    // the path of the sheet it is drawn on
+    let ap = cid :: ap'
 
     let ct =
         match fc.FType with

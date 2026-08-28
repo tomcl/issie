@@ -166,7 +166,7 @@ let private allInstances (fs: FastSimulation) =
     :: (fs.FCompsByIndex
         |> Array.toList
         |> List.filter (fun fc -> match fc.FType with Custom _ -> true | _ -> false)
-        |> List.map (fun fc -> InstancePath(fc.AccessPath @ [ fc.cId ])))
+        |> List.map (fun fc -> InstancePath(fc.cId :: fc.AccessPath)))
 
 /// How an instance reads, which is how these tests name one. The identity is a path of component
 /// ids; this is the path of LABELS it renders as, which is what a user sees and what the identity
@@ -1232,7 +1232,10 @@ let tests =
               Expect.isFalse
                   (List.contains (instanceNamed fs "MID1") slice)
                   "and the one it replaced is not"
+              // a path is innermost first, so the instances it sits inside are its TAILS
               Expect.all
                   (slice |> List.filter (fun i -> fs.Design.SheetOfInstance i = "leaf"))
-                  (fun (InstancePath ap) -> let (InstancePath chosen) = second in List.truncate chosen.Length ap = chosen)
+                  (fun (InstancePath ap) ->
+                      let (InstancePath chosen) = second
+                      chosen.Length <= ap.Length && List.skip (ap.Length - chosen.Length) ap = chosen)
                   "and the leaf shown is one inside it" ]

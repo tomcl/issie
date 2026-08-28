@@ -187,7 +187,9 @@ type FastComponent =
       Outputs: IOArray array
       /// the legacy SimulationConmponent from which this FastComponent is generated.
       SimComponent: SimulationComponent
-      /// Path from thsi component to root of simulation, if it is in a subsheet.
+      /// The custom component instances between this component and the root of the simulation,
+      /// INNERMOST FIRST - empty if it is on the top sheet. The same list as InstancePath, whose
+      /// comment says why it runs this way round.
       AccessPath: ComponentId list
       /// for human use: long name of component
       FullName: string
@@ -323,13 +325,13 @@ type SimulatedDesign =
     } with
 
     /// The custom component that introduces an instance, or None for the top sheet, which nothing
-    /// introduces. A step off the end of the path: the last id on it IS that component, and the
-    /// rest of the path says which sheet it is drawn on.
+    /// introduces. A step off the near end of the path: the head IS that component, and the tail
+    /// says which sheet it is drawn on.
     member this.CustomOfInstance(InstancePath ap) : Component option =
-        match List.tryLast ap with
-        | None -> None
-        | Some cid ->
-            this.SheetOfInstance(InstancePath ap[0 .. ap.Length - 2])
+        match ap with
+        | [] -> None
+        | cid :: outer ->
+            this.SheetOfInstance(InstancePath outer)
             |> fun sheet -> Map.tryFind sheet this.DesignComponentsById
             |> Option.bind (Map.tryFind cid)
 
@@ -337,12 +339,13 @@ type SimulatedDesign =
     /// what they see in the Sheets menu.
     ///
     /// Walked from the top sheet down, each id read as a custom component on the sheet reached so
-    /// far. A path that does not lead anywhere in this design - one left over from a simulation of
-    /// an earlier version of it - stops at the sheet it got to, which is the same answer the
-    /// expansion-sized version gave for an instance it did not hold.
+    /// far - so foldBack, the path being innermost first. A path that does not lead anywhere in
+    /// this design - one left over from a simulation of an earlier version of it - stops at the
+    /// sheet it got to, which is the same answer the expansion-sized version gave for an instance
+    /// it did not hold.
     member this.SheetOfInstance(InstancePath ap) : string =
-        (this.DesignTopSheet, ap)
-        ||> List.fold (fun sheet cid ->
+        (ap, this.DesignTopSheet)
+        ||> List.foldBack (fun cid sheet ->
             Map.tryFind sheet this.DesignComponentsById
             |> Option.bind (Map.tryFind cid)
             |> Option.bind (fun comp ->
@@ -357,12 +360,25 @@ type SimulatedDesign =
     member this.LabelOfInstance(instance: InstancePath) : string option =
         this.CustomOfInstance instance |> Option.map (fun comp -> comp.Label)
 
+    /// The labels of the custom component instances a path passes through, ROOT FIRST - which is
+    /// the order a path is read in, and so the one place the innermost-first order is turned round.
+    ///
+    /// The ancestors of an instance are the tails of its path, which is what makes this a walk
+    /// rather than a prefix per level. `missing` stands for an instance the design no longer holds.
+    member this.LabelsOfInstance(InstancePath ap, missing: string) : string list =
+        let rec walk ap =
+            match ap with
+            | [] -> []
+            | _ :: outer -> (this.LabelOfInstance(InstancePath ap) |> Option.defaultValue missing) :: walk outer
+
+        walk ap |> List.rev
+
     /// The instances of `sheet` directly inside `parent`, alphabetically by id - so the head is
     /// what a selector node with nothing recorded about it shows.
     ///
     /// Read off the custom components of the parent's own sheet: one of those IS an instance of
-    /// the sheet it names, and its id extends the parent's path to name the instance it
-    /// introduces. One sheet's components, whatever the parent is an instance number of.
+    /// the sheet it names, and its id goes on the near end of the parent's path to name the
+    /// instance it introduces. One sheet's components, whatever the parent is an instance of.
     member this.InstancesInside(InstancePath ap as parent, sheet: string) : InstancePath list =
         Map.tryFind (this.SheetOfInstance parent) this.DesignComponentsById
         |> Option.defaultValue Map.empty
@@ -371,7 +387,7 @@ type SimulatedDesign =
             match comp.Type with
             | Custom ct -> ct.Name = sheet
             | _ -> false)
-        |> List.map (fun (cid, _) -> InstancePath(ap @ [ cid ]))
+        |> List.map (fun (cid, _) -> InstancePath(cid :: ap))
         |> List.sort
 
     /// The design component one component of one instance is a copy of.
@@ -461,7 +477,7 @@ type SimulatedDesign =
                 this.SubSheetsOf sheet
                 |> List.sortBy fst
                 |> List.filter (fun (_, child) -> Set.contains child holding)
-                |> List.collect (fun (cid, child) -> walk (InstancePath(ap @ [ cid ])) child)
+                |> List.collect (fun (cid, child) -> walk (InstancePath(cid :: ap)) child)
 
             here @ below
 
@@ -475,10 +491,8 @@ type SimulatedDesign =
     ///
     /// This is what `FastComponent.FullName` holds, and what the RAM selector lists RAMs under, so
     /// it must stay the same string: the selection saved against it is keyed by it.
-    member this.FullNameOf(comp: Component, InstancePath ap) : string =
-        (List.init ap.Length (fun i -> this.LabelOfInstance(InstancePath ap[0 .. i]) |> Option.defaultValue "*")
-         @ [ comp.Label ])
-        |> String.concat "."
+    member this.FullNameOf(comp: Component, instance: InstancePath) : string =
+        this.LabelsOfInstance(instance, "*") @ [ comp.Label ] |> String.concat "."
 
     /// How many instances of each sheet the design expands to.
     ///
@@ -533,7 +547,7 @@ type SimulatedDesign =
                 this.SubSheetsOf current
                 |> List.tryPick (fun (cid, name) ->
                     if Map.tryFind name counts = Some 1 then
-                        find (InstancePath(ap @ [ cid ])) name
+                        find (InstancePath(cid :: ap)) name
                     else
                         None)
 
@@ -548,14 +562,10 @@ type SimulatedDesign =
     /// A rendering, not an identity - which is why it may be ambiguous without consequence. Two
     /// instances can share a label path only if a label repeats on one canvas, and what decides
     /// which wave is which is the path itself.
-    member this.LabelPathOfInstance(InstancePath ap) : string =
+    member this.LabelPathOfInstance(InstancePath ap as instance) : string =
         match ap with
         | [] -> this.DesignTopSheet
-        | _ ->
-            [ 1 .. ap.Length ]
-            |> List.map (fun i ->
-                this.LabelOfInstance(InstancePath ap[0 .. i - 1]) |> Option.defaultValue "?")
-            |> String.concat "."
+        | _ -> this.LabelsOfInstance(instance, "?") |> String.concat "."
 
 /// A design with nothing in it: what a renderer holds before anything has been simulated.
 let emptySimulatedDesign =
@@ -891,14 +901,14 @@ and GatherData =
     /// human readable dot-separated name of component in simulation.
     /// This uses the component labels to the root of the simulation and therefore is unique.
     member this.getFullSimName ((cid, ap):FComponentId) =
-        List.map (fun cid -> this.labelOf cid) (ap @ [ cid ])
+        cid :: ap |> List.rev |> List.map (fun cid -> this.labelOf cid)
         |> String.concat "."
 
     /// The same path as getFullSimName, upper-cased and as a list rather than dot-separated.
     /// These are component labels, not sheet names: it becomes FastComponent.SheetName, whose
     /// name is misleading.
     member this.getFullSimPath((cid, ap):FComponentId) =
-        List.map (fun cid -> (this.labelOf cid).ToUpper()) (ap @ [ cid ])
+        cid :: ap |> List.rev |> List.map (fun cid -> (this.labelOf cid).ToUpper())
 
 
 

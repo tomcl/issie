@@ -90,17 +90,17 @@ let wavesToIds (waves: Wave list) =
 
 /// The name of the sheet a wave's component sits on, which is how ComponentsById and
 /// ConnectionsByPort are both keyed.
-/// A component's access path names the custom component instances it sits inside, and the innermost
-/// of those is an instance of the sheet wanted. It is that instance's TYPE which names the sheet:
-/// its LABEL is chosen by whoever placed it, and only happens to be the sheet's name until someone
-/// renames the instance. Asking the label instead left every wave in a renamed subsheet - REGFILE
-/// for reg16x8, say - with no connections found, and so with no wires highlighted on hover.
+/// A component's access path names the custom component instances it sits inside, innermost first,
+/// so its head is an instance of the sheet wanted. It is that instance's TYPE which names the
+/// sheet: its LABEL is chosen by whoever placed it, and only happens to be the sheet's name until
+/// someone renames the instance. Asking the label instead left every wave in a renamed subsheet -
+/// REGFILE for reg16x8, say - with no connections found, and so no wires highlighted on hover.
 let sheetOfWave (fs: FastSimulation) (wave: Wave) : string option =
     match snd wave.WaveId.Id with
     | [] ->
         Some fs.SimulatedTopSheet
-    | path ->
-        fs.ComponentOf(path[path.Length - 1], path[0 .. path.Length - 2])
+    | cid :: outer ->
+        fs.ComponentOf(cid, outer)
         |> Option.bind (fun instance ->
             match instance.FType with
             | Custom cc -> Some cc.Name
@@ -363,10 +363,15 @@ let librarySheetsOf: FastSimulation -> Set<string> =
 let isInsideLibraryComponent (fs: FastSimulation) (InstancePath ap) =
     let librarySheets = librarySheetsOf fs
 
-    not (Set.isEmpty librarySheets)
-    // every sheet entered on the way down, which is the sheet of each prefix of the path
-    && [ 1 .. ap.Length ]
-       |> List.exists (fun i -> Set.contains (fs.Design.SheetOfInstance(InstancePath ap[0 .. i - 1])) librarySheets)
+    // every sheet entered on the way down, which is the sheet of each non-empty TAIL of the path -
+    // the path being innermost first, its tails are the instances it sits inside
+    let rec entersLibrary ap =
+        match ap with
+        | [] -> false
+        | _ :: outer ->
+            Set.contains (fs.Design.SheetOfInstance(InstancePath ap)) librarySheets || entersLibrary outer
+
+    not (Set.isEmpty librarySheets) && entersLibrary ap
 
 /// The ports of one elaborated component that carry a waveform, as wave indices into the
 /// simulation as it is now. Read off the instance's port view - the one derivation of what

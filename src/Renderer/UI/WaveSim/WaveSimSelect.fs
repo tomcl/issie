@@ -222,12 +222,12 @@ let private copiesOfCanvasComp (fs: FastSimulation) (compId: ComponentId) : Resu
     canvasCompCopies fs compId
 
 /// The custom component instance a component sits directly inside, if any.
-/// An access path is ordered from the root of the simulation, so its last element is the instance
-/// the component is immediately within.
+/// An access path is ordered innermost first, so its head is the instance the component is
+/// immediately within and its tail is the path of the sheet that instance is drawn on.
 let enclosingInstance (accessPath: ComponentId list) : FComponentId option =
     match accessPath with
     | [] -> None
-    | path -> Some (path[path.Length - 1], path[0 .. path.Length - 2])
+    | cid :: outer -> Some(cid, outer)
 
 /// An Input or Output inside a subsheet drives no wave of its own: the signal belongs to the port
 /// of the custom component instance that the sheet sits in, and is named after that port. Return

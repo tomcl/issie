@@ -728,7 +728,7 @@ let tests =
                 inst
                 :: (localFs.Design.SubSheetsOf sheet
                     |> List.collect (fun (cid, child) ->
-                        instances (InstancePath(ap @ [ cid ])) child))
+                        instances (InstancePath(cid :: ap)) child))
 
             let all = instances (InstancePath []) design.TopSheet
             Expect.isGreaterThan (List.length all) 10 "3cpu should have many instances"
@@ -793,7 +793,7 @@ let tests =
                 inst
                 :: (fs.Design.SubSheetsOf sheet
                     |> List.collect (fun (cid, child) ->
-                        instances (InstancePath(ap @ [ cid ])) child))
+                        instances (InstancePath(cid :: ap)) child))
 
             let mutable checkedPorts = 0
 
@@ -839,7 +839,7 @@ let tests =
                 inst
                 :: (fs.Design.SubSheetsOf sheet
                     |> List.collect (fun (cid, child) ->
-                        instances (InstancePath(ap @ [ cid ])) child))
+                        instances (InstancePath(cid :: ap)) child))
 
             let mutable groups = 0
 

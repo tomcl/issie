@@ -138,15 +138,16 @@ let consistentSelectedWaves (ws: WaveSimModel) =
 
 /// Whether a sheet instance is one of `sheets`, or lies inside one.
 ///
-/// An instance is the path of custom components down to it, so "inside" is "has that path as a
-/// prefix" and containment is answered without consulting the simulation at all. This used to
-/// walk a stored instance-to-parent map one level at a time, and needed a note about instances
-/// the simulation no longer holds; a prefix test has nothing to look up and so nothing to miss.
+/// An instance is the path of custom components between it and the root, innermost first, so an
+/// enclosing instance is a SUFFIX of it - the same path with the inner steps taken off - and
+/// containment is answered without consulting the simulation at all. This used to walk a stored
+/// instance-to-parent map one level at a time, and needed a note about instances the simulation no
+/// longer holds; a suffix test has nothing to look up and so nothing to miss.
 let isSubSheetOf (InstancePath sub) (sheets: Set<InstancePath>) =
-    let isPrefix (InstancePath outer) =
-        outer.Length <= sub.Length && List.forall2 (=) outer sub[0 .. outer.Length - 1]
+    let isAncestor (InstancePath outer) =
+        outer.Length <= sub.Length && List.skip (sub.Length - outer.Length) sub = outer
 
-    sheets |> Set.exists isPrefix
+    sheets |> Set.exists isAncestor
 
 let updateSheetString (newSheetName: string) (ws: WaveSimModel) =
     let s = ws.SheetSearchString.Trim().ToUpperInvariant()

@@ -49,7 +49,10 @@ let pathOfComponent (ldcs: LoadedComponent list) (topSheet: string) ((compId, ac
         Map.tryFind sheet sheets
         |> Option.bind (List.tryFind (fun comp -> comp.Id = id))
 
-    // down the path, one custom component at a time, collecting the label each one is drawn with
+    // down the path, one custom component at a time, collecting the label each one is drawn with.
+    // Reversed first: an access path is innermost first and this reads it from the top sheet down,
+    // which is the one direction it can be resolved in - each id names a component on the sheet the
+    // one before it led to.
     let rec walk sheet labels remaining =
         match remaining with
         | [] -> componentOn sheet compId |> Option.map (fun comp -> List.rev (comp.Label :: labels))
@@ -58,7 +61,7 @@ let pathOfComponent (ldcs: LoadedComponent list) (topSheet: string) ((compId, ac
             |> Option.bind (fun comp ->
                 sheetInstantiatedBy comp |> Option.bind (fun inner -> walk inner (comp.Label :: labels) rest))
 
-    walk topSheet [] accessPath
+    walk topSheet [] (List.rev accessPath)
 
 /// The component a label path names, or None where the design does not hold it - renamed or
 /// deleted since the selection was saved, which is a wave that is simply no longer offered.
@@ -68,10 +71,12 @@ let componentOfPath (ldcs: LoadedComponent list) (topSheet: string) (labels: str
     let componentOn sheet label =
         Map.tryFind sheet sheets |> Option.bind (List.tryFind (fun comp -> comp.Label = label))
 
+    // `ids` collects innermost first, because that is the order the descent produces and the order
+    // an access path is in - so there is nothing to reverse at the end of it
     let rec walk sheet ids labels =
         match labels with
         | [] -> None // a path with no component at the end of it names nothing
-        | [ last ] -> componentOn sheet last |> Option.map (fun comp -> comp.Id, List.rev ids)
+        | [ last ] -> componentOn sheet last |> Option.map (fun comp -> comp.Id, ids)
         | label :: rest ->
             componentOn sheet label
             |> Option.bind (fun comp ->

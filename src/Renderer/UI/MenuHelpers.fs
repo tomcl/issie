@@ -299,7 +299,9 @@ type SheetTree = {
     /// collapsed into a single node: unlike LabelPath it does not depend on which of them was
     /// kept, and unlike SheetName it tells apart the places one sheet is reached from.
     SheetPath: string list
-    /// path of sheet names to current sheet name - NB this is not unique
+    /// the custom component instances between this node and the root of the tree, INNERMOST
+    /// FIRST - an InstancePath, and the same order the simulator's AccessPath is in. Unlike the
+    /// two paths above this one is ids, so it is unaffected by relabelling.
     SheetAccessPath: ComponentId list
     /// unique name to display on breadcrumbs
     /// this is usually the design-time name of sheet
@@ -474,7 +476,8 @@ let materialiseTree
                         inst.InstSheet
                         (sheetPath @ [inst.InstSheet])
                         (labelPath @ [inst.InstLabel])
-                        (accessPath @ [inst.InstId]))
+                        // ids innermost first, names root first: see InstancePath in Ids.fs
+                        (inst.InstId :: accessPath))
             |> nameChildrenUniquely
             |> leaf
 

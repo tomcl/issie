@@ -176,7 +176,7 @@ let noWaveTablesTest (projectName: string) (topSheet: string) (ticks: int) =
 let rec private allInstances (fs: FastSimulation) (InstancePath ap as inst) sheet =
     inst
     :: (fs.Design.SubSheetsOf sheet
-        |> List.collect (fun (cid, child) -> allInstances fs (InstancePath(ap @ [ cid ])) child))
+        |> List.collect (fun (cid, child) -> allInstances fs (InstancePath(cid :: ap)) child))
 
 /// What the ports of an instance are, as a comparable string - everything a waveform takes from
 /// PortView, so that two builds agreeing on this agree on every wave they offer.

@@ -30,7 +30,7 @@ let tests =
 
             // the design enumeration the harness selects with
             let rec instances (InstancePath ap as inst) sheet =
-                inst :: (cfs.Design.SubSheetsOf sheet |> List.collect (fun (cid, c) -> instances (InstancePath(ap @ [cid])) c))
+                inst :: (cfs.Design.SubSheetsOf sheet |> List.collect (fun (cid, c) -> instances (InstancePath(cid :: ap)) c))
             let waves =
                 instances (InstancePath []) "eep1"
                 |> List.collect (PortView.waveIndicesOfDesign cfs.Design)

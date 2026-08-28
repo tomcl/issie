@@ -529,7 +529,7 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
               let rec instances (InstancePath ap as inst) sheet =
                   inst
                   :: (design.SubSheetsOf sheet
-                      |> List.collect (fun (cid, child) -> instances (InstancePath(ap @ [ cid ])) child))
+                      |> List.collect (fun (cid, child) -> instances (InstancePath(cid :: ap)) child))
 
               let waves =
                   instances (InstancePath []) design.DesignTopSheet
@@ -915,7 +915,7 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
                       inst
                       :: (localFs.Design.SubSheetsOf sheet
                           |> List.collect (fun (cid, child) ->
-                              instances (InstancePath(ap @ [ cid ])) child))
+                              instances (InstancePath(cid :: ap)) child))
 
                   let all = instances (InstancePath []) design.TopSheet
                   let sheetJsons = design.Sheets |> List.map Json.serialize<SimpleSheet>

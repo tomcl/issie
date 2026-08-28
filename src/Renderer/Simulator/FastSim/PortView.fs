@@ -217,10 +217,7 @@ let ofSlice (design: SimulatedDesign) (InstancePath ap as instance) (slice: Comp
                 portsOf PortType.Output slots.SlotsOuts @ portsOf PortType.Input slots.SlotsIns)
 
     { ViewSheet = sheet
-      ViewSubSheet =
-        [ 1 .. ap.Length ]
-        |> List.map (fun i ->
-            (design.LabelOfInstance(InstancePath ap[0 .. i - 1]) |> Option.defaultValue "?").ToUpper())
+      ViewSubSheet = design.LabelsOfInstance(instance, "?") |> List.map (fun label -> label.ToUpper())
       ViewPorts = ports }
 
 /// Where wire-fetched slices are read from, when the simulation is NOT in this process.

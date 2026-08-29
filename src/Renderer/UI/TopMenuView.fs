@@ -903,7 +903,7 @@ let viewTopMenu model dispatch =
                         div [Style [TextAlign TextAlignOptions.Center; FontSize "15px"
                                     PaddingBottom "10px"; Position PositionOptions.Relative]]
                             [ pin
-                              str "Sheets with Design Hierarchy" ]
+                              str "Sheets with Hierarchy" ]
                         MiscMenuView.allRootHierarchiesFromProjectBreadcrumbs breadcrumbConfig dispatch updatedModel
                     ]]
 

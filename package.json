@@ -1,6 +1,6 @@
 {
   "name": "issie",
-  "version": "6.2.1",
+  "version": "6.2.2",
   "description": "Schematic editor and Simulator",
   "homepage": "https://github.com/tomcl/issie",
   "bugs": {
@@ -31,8 +31,8 @@
     "buildonly": "electron-builder",
     "sidecar:publish": "node scripts/publish-sidecar.js",
     "preversion": "node scripts/sync-version.js --preflight",
-    "version": "node scripts/sync-version.js && git add src/Renderer/Interface/Version.fs",
-    "postversion": "git push origin master --follow-tags",
+    "version": "node scripts/sync-version.js",
+    "postversion": "node scripts/sync-version.js --verify && git push origin master --follow-tags",
     "test": "dotnet run --project Tests/Issie.Tests -c Release",
     "typecheck": "dotnet build src/Renderer/Renderer.fsproj"
   },

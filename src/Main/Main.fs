@@ -323,6 +323,34 @@ let createMainWindow () =
 /// docs/mutableState.md).
 let mutable appStarted = false
 
+/// Set once the sidecar has been asked to start, for the same reason and in the same way as
+/// appStarted: the renderer finishing its load and a backstop timer both call for it, and it must
+/// happen once. Spawning a second sidecar is not harmless - each one listens on its own port and
+/// the renderer would connect to whichever reported in last.
+let mutable sidecarStarted = false
+
+/// Start the .NET sidecar, once.
+///
+/// SPAWNING IT COSTS 300ms OF BLOCKED MAIN PROCESS, measured on the packaged binary, and it used to
+/// be spent between Electron being ready and the splash window being created - so it was 300ms in
+/// front of the first thing the user sees. It is not the size of the executable: node.exe is about
+/// as large and spawns in 6ms; it is this binary, and CreateProcess does not come back until it has
+/// done whatever it does with it.
+///
+/// So it happens once the app is on screen instead, where the main process has nothing else to do
+/// and nobody is waiting for it. Deliberately not any earlier: between the window being created and
+/// its bundle being loaded, the preload asks the main process for its bootstrap over a SYNCHRONOUS
+/// channel, and blocking there would hand the 300ms straight back to the renderer.
+///
+/// Nothing needs the sidecar until a simulation is run. It reports its port when it is ready and
+/// SidecarClient polls for that at the moment it connects, against a 60s budget - so arriving a
+/// second later than it used to is a second of a budget nothing has ever come close to spending.
+let startSidecarOnce () =
+    if not sidecarStarted then
+        sidecarStarted <- true
+        Bridge.startSidecar ()
+        stampStartup "sidecar started"
+
     // This method will be called when Electron has finished
     // initialization and is ready to create browser windows.
 let startRenderer (doAfterReady: BrowserWindow -> Unit) =
@@ -345,10 +373,6 @@ let startRenderer (doAfterReady: BrowserWindow -> Unit) =
         // Before any window exists, so that the preload's own bootstrap call - which runs as the
         // window's contents start loading - always finds a handler waiting.
         Bridge.register ()
-
-        // The dotnet sidecar starts with the app; its port is answered by issie:sidecarPort
-        // once the process has reported in.
-        Bridge.startSidecar ()
 
         let startApp () =
             if not appStarted then
@@ -401,10 +425,17 @@ let loadAppIntoWidowWhenReady (window: BrowserWindow) =
     loadWindowContent window
     window.webContents.on("did-finish-load", ( fun () ->
         stampStartup "renderer loaded"
-        revealMainWindow window))
+        revealMainWindow window
+        // Last, and only now: see startSidecarOnce for why 300ms of blocked main process belongs
+        // here and not in front of the splash.
+        startSidecarOnce ()))
     |> ignore
     // Backstop: whatever happens to the load, the splash comes down and the window appears.
     JS.setTimeout (fun () -> revealMainWindow window) 20000 |> ignore
+    // And whatever happens to the load, the sidecar starts: a renderer that never finishes must
+    // not leave the app unable to simulate. Well past the ~3s a good start takes, so a good start
+    // is never the one that fires this.
+    JS.setTimeout startSidecarOnce 10000 |> ignore
 
   
    

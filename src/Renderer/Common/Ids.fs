@@ -42,9 +42,7 @@ open Fable.Core
 // made it a bare number there - this is a .NET question only, and .NET here means the sidecar,
 // which runs the whole build path (Sidecar/SimSession.build).
 //
-// The obvious next move is to add it to the ids whose maps are only DESIGN-sized, on the grounds
-// that those cannot grow with the expansion. That was measured and it is wrong, which is the thing
-// to know before trying it again.
+// Which ids should have it is decided by WHICH DESIGN you measure, and by nothing else.
 //
 // Which ids key which maps, all of them .NET-executed (Sidecar/SimSession.build runs the whole
 // build path):
@@ -56,24 +54,37 @@ open Fable.Core
 //                     WidthInferer, GraphBuilder, CanvasStateAnalyser, SymbolInfo.PortOrientation
 //                     and the draw block - all DESIGN-sized, none expansion-sized
 //
-// So the last five look safe. Making exactly those five [<Struct>], 12 interleaved A/B pairs
-// against a worktree of the commit before, fastest build of each, tiered compilation off:
+// So the last five are safe from the expansion, and they are the five marked [<Struct>] below.
+// Making exactly those five struct, interleaved A/B pairs against a worktree of the commit before,
+// fastest build of each, tiered compilation off, the SAME binaries for both designs:
 //
-//     3cpu build    8.6 -> 10.5 ms on the minimum (+22%), 9.94 -> 11.50 on the mean (+16%),
-//                   base ahead in 11 pairs of 12
+//     3cpu/eep1     378 fast components   10.98 -> 12.65 ms  +15%, struct lost 6 pairs of 6
+//     largeTest/main4   30,020 fast comps  354.9 -> 348.0 ms  -1.9%, struct won 9 pairs of 10
 //
-// DESIGN-SIZED IS NOT COLD. A build's time goes on inferring widths and building the graph, once
-// per sheet, and those per-sheet maps are hit hard enough while it happens that changing only the
-// representation of their keys moves the whole build by a sixth. Expansion-sized is what makes a
-// structure BIG; it is not what makes it hot.
+// Opposite signs, and both are real. A small design's build IS its per-sheet work - inferring
+// widths, building the graph - and those per-sheet maps are keyed by exactly these five, so making
+// their keys box costs a sixth of the whole build. A design that EXPANDS spends its build making
+// hundreds of thousands of FastComponents instead, where these ids are values and array elements
+// rather than map keys, so not allocating one per id wins more than the maps lose. The per-sheet
+// penalty is the same 1.6 ms in both; it is simply invisible beside 350.
 //
-// So: none of the ids above is [<Struct>], and the two below are, because they key nothing.
-// The way to make struct free here is not to pick ids more carefully - it is to take the hot maps
-// off generic comparison, as SimulationGraph already was (SimGraph, an encapsulated int-keyed map,
-// measured neutral). WidthInferer's Map<OutputPortId,int> and Map<InputPortId,ConnectionId> are the
-// next ones, and they can be ARRAYS rather than maps: port ids are allocated densely per sheet by
-// Helpers.IdAllocator, and those maps are built once and read. That is worth doing for the build
-// time on its own, whatever is decided about struct.
+// Taken, because .NET here is the sidecar and the sidecar exists for the designs that expand.
+// DESIGN-SIZED IS NOT COLD, though, which is the thing to know before trusting the audit above on
+// its own: expansion-sized is what makes a structure big, not what makes it hot.
+//
+// ComponentId and OutputPortNumber are NOT struct: they key FIndexOf, FCustomOutputCompLookup and
+// FIOActive, which do grow with the expansion, and boxing those would be paid per component per
+// instance. The way to free them is to take those maps off generic comparison, as SimulationGraph
+// already was (SimGraph, an encapsulated int-keyed map, measured neutral). WidthInferer's
+// Map<OutputPortId,int> and Map<InputPortId,ConnectionId> are the other candidates, and can be
+// ARRAYS rather than maps - Helpers.IdAllocator allocates port ids densely per sheet, and both are
+// built once and read. That would take the +15% off the small-design case as well.
+//
+// On unwrapping at those boundaries: a member (`port.Id.PToInt`) and a function (`portIdValue
+// port.Id`) compile to the SAME thing under Fable - both become a free function returning their
+// argument - so the choice is F#'s type inference, and it decides for the function. A member on an
+// unannotated lambda parameter is FS0072, "the type of this expression could not be inferred before
+// accessing its members"; `List.map portIdValue` infers. Hence one named function per id type.
 //
 // The table also prices the wrappers themselves: a raw int key is 2.4x faster than the reference
 // DU. That is the standing cost of type-safe ids in an F# Map, it is already being paid, and
@@ -84,7 +95,7 @@ open Fable.Core
 
 /// The id of a port, undirected: see InputPortId and OutputPortId below for the directed
 /// forms the code uses where it knows which side of a connection it is on.
-[<Erase>]
+[<Erase; Struct>]
 type PortId = | PortId of int
 
 /// The integer inside a port id, for the seams that must speak in bare ids - the file writers and
@@ -184,7 +195,7 @@ type FComponentId = ComponentId * ComponentId list
 
 /// Unique integer id of a connection, unique within its SHEET only - nothing resolves a
 /// connection id outside the sheet it belongs to (error highlighting is sheet-guarded).
-[<Erase>]
+[<Erase; Struct>]
 type ConnectionId     = | ConnectionId of int
 
 /// type to uniquely identify a segment
@@ -200,19 +211,19 @@ type ComponentLabel   = | ComponentLabel of string
 /// Connection ports and connected component ports have the same port Id
 /// InputPortId and OutputPortID wrap the id to distinguish component
 /// inputs and outputs some times (e.g. in simulation)
-[<Erase>]
+[<Erase; Struct>]
 type InputPortId      = | InputPortId of PortId
 
 /// Integer id of a component port, unique within its SHEET.
 /// Connection ports and connected component ports have the same port Id
 /// InputPortId and OutputPortID wrap the id to distinguish component
 /// inputs and outputs some times (e.g. in simulation)
-[<Erase>]
+[<Erase; Struct>]
 type OutputPortId     = | OutputPortId of PortId
 
 /// Port numbers are sequential unique with port lists.
 /// Inputs and Outputs are both numberd from 0 up.
-[<Erase>]
+[<Erase; Struct>]
 type InputPortNumber  = | InputPortNumber of int
 
 /// Port numbers are sequential unique with port lists.

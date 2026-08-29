@@ -211,7 +211,10 @@ teach.)
   is **total** — it uses the flagged sheet, else the single instance-forest root containing the
   sheet asked about, else that sheet itself — which is what lets every other value be derived
   rather than guessed. "Set as top" is on
-  the sheet-pill right-click menu (`MenuHelpers.setTopSheetState`); pills colour the top green
+  the sheet-pill right-click menu (`MenuHelpers.setTopSheetState`), and only where it would settle
+  something: `ParameterAnalysis.topSheetChoiceMatters` asks whether the sheet is a root, whether a
+  sheet it reaches is reached by another root, and whether the two disagree about that sheet's
+  values — all three, or the item is left off the menu. Pills colour the top green
   and grey out sheets outside its tree (only when the project uses parameters at all). When
   several candidate tops disagree about the sheet being opened and none is chosen, a
   non-blocking choice popup fires once (`ParameterView.topSheetChoiceCheck`).

@@ -542,6 +542,107 @@ let librarySheetsShown (model: Model) (sheet: string) =
 
 
 
+/// Which sheet a project opens at.
+///
+/// The most recently saved sheet says what the user was WORKING ON; it is rarely what they want to
+/// look at first. A subsheet opened on its own is a block out of context - the design it belongs to
+/// is not on screen, its parameters show whatever its own defaults give, and the first thing anyone
+/// does is climb back up. So the timestamp picks the DESIGN, and the design is opened at its top.
+///
+/// The top is the highest sheet EVERY route to the last-saved one passes through. Where the project
+/// is one tree, which is nearly all of them, that is simply its root. Where two roots both reach the
+/// sheet it belongs to two designs and there is no saying which was meant, so the answer is the
+/// highest sheet they have in common on the way to it - which may be the sheet itself.
+///
+/// Note that a sheet reached by two routes is not by itself an ambiguity: one design using a block
+/// twice still has one root, and that root is still what opens. Climbing while there was a single
+/// PARENT would stop at such a sheet and open a block out of context, which is the thing this
+/// exists to avoid.
+///
+/// Library sheets are left out of the graph entirely. A library component is one thing rather than
+/// a sheet with innards, so it is neither a design to open nor a route that makes one ambiguous.
+///
+/// Only a sheet the user made is a candidate for "last worked on" - a generated or protected sheet
+/// carries a timestamp from something the user did not do - but any of them can be climbed through,
+/// since a design is opened at its top whoever wrote the sheets in between.
+///
+/// The cost is a walk of the design graph per sheet above the one chosen, which is the project's
+/// own size squared and not its expansion - and it is paid once, while a project is being opened.
+///
+/// None only for a project with no user sheets at all.
+let sheetOpenedOnLoad (ldcs: LoadedComponent list) : string option =
+    let userSheets =
+        ldcs
+        |> List.filter (fun ldc ->
+            match ldc.Form with
+            | Some User | None -> true
+            | _ -> false)
+    let shapes = getSheetShapes (fun _ -> false) ldcs
+
+    let childrenOf sheet =
+        Map.tryFind sheet shapes
+        |> Option.map (List.map (fun inst -> inst.InstSheet) >> List.distinct)
+        |> Option.defaultValue []
+
+    /// Sheet -> the sheets holding an instance of it. A sheet named by nothing has none, which is
+    /// what makes it a root.
+    let parentsOf =
+        shapes
+        |> Map.toList
+        |> List.collect (fun (parent, instances) ->
+            instances |> List.map (fun inst -> inst.InstSheet, parent))
+        |> List.groupBy fst
+        |> List.map (fun (child, pairs) -> child, pairs |> List.map snd |> List.distinct)
+        |> Map.ofList
+
+    /// Everything reachable downwards from `starts` without entering `avoid`. Used both to walk
+    /// the design and to walk it with one sheet taken out.
+    let rec spread (avoid: string) (seen: Set<string>) (frontier: string list) =
+        match frontier with
+        | [] -> seen
+        | sheet :: rest ->
+            childrenOf sheet
+            |> List.filter (fun child -> child <> avoid && not (Set.contains child seen))
+            |> fun fresh -> spread avoid (List.fold (fun s c -> Set.add c s) seen fresh) (fresh @ rest)
+    let reachableFrom avoid starts =
+        let starts = starts |> List.filter (fun s -> s <> avoid)
+        spread avoid (Set.ofList starts) starts
+
+    /// The sheet a design is opened at, given the sheet in it that was last saved.
+    let designTopOver (sheet: string) =
+        // Every sheet the target is reachable from, itself included. A parent of one of them is one
+        // of them, so this needs no separate closure over parents.
+        let above =
+            shapes
+            |> Map.toList
+            |> List.map fst
+            |> List.filter (fun s -> s = sheet || Set.contains sheet (reachableFrom "" [s]))
+        let roots = above |> List.filter (fun s -> Map.tryFind s parentsOf = None)
+
+        match roots with
+        // Nothing above it is a root, so the only routes to it come round a cycle. There is no top
+        // to climb to and the sheet itself is the answer.
+        | [] -> sheet
+        | roots ->
+            // A sheet dominates the target when taking it out leaves no route from any root: every
+            // way in goes through it. The target dominates itself, so this is never empty, and the
+            // dominators lie on a single chain from the roots down - so the one that reaches most
+            // of the others is the highest.
+            above
+            |> List.filter (fun s -> not (Set.contains sheet (reachableFrom s roots)))
+            |> fun dominators ->
+                dominators
+                |> List.maxBy (fun d ->
+                    let below = reachableFrom "" [d]
+                    dominators |> List.filter (fun o -> o = d || Set.contains o below) |> List.length)
+
+    match userSheets with
+    | [] -> None
+    | _ ->
+        userSheets
+        |> List.maxBy (fun ldc -> ldc.TimeStamp)
+        |> fun ldc -> Some (designTopOver ldc.Name)
+
 let allRootSheets (sTrees:Map<string,SheetTree>) =
     let rec subSheetsOf path sh =
         match Map.tryFind sh sTrees with
@@ -1065,9 +1166,13 @@ let rec resolveComponentOpenPopup
         (resolves: LoadStatus list)
         (model: Model)
         (dispatch: Msg -> Unit) =
-    let chooseWhichToOpen comps =
-        let onlyUserCreated = List.filter (fun comp -> match comp.Form with |Some User |None -> true |_ ->false) comps
-        (List.maxBy (fun comp -> comp.TimeStamp) onlyUserCreated).Name
+    /// The sheet to open. sheetOpenedOnLoad answers None only for a project with nothing in it the
+    /// user can open, in which case any name will do: setupProjectFromComponents says what is
+    /// wrong with such a project better than a lookup failure here would.
+    let chooseWhichToOpen (comps: LoadedComponent list) =
+        sheetOpenedOnLoad comps
+        |> Option.orElse (comps |> List.tryHead |> Option.map (fun ldc -> ldc.Name))
+        |> Option.defaultValue ""
     dispatch ClosePopup
     match resolves with
     | [] ->

@@ -129,6 +129,69 @@ let tests =
                 "the two roots disagree about child"
         }
 
+        // --- is "Set as top" worth offering on this sheet? ---
+        //
+        // The same question as Gate B, asked of one root rather than of the project: naming THIS
+        // sheet as the top settles something only where a sheet it reaches is reached by another
+        // root too, and the two disagree about it. Everything else has no choice in it, and the
+        // item is left off the sheet's right-click menu.
+
+        test "a subsheet never offers to be the top" {
+            // Making a block the top would say the design it sits in is not the one being looked
+            // at, which is not what right-clicking a subsheet means.
+            let child = widthSheet "child"
+            let topA = sheetOf "topA" [ instance child 1 (Some (PInt 8I)) ]
+            let topB = sheetOf "topB" [ instance child 2 (Some (PInt 16I)) ]
+            Expect.isFalse (ParameterAnalysis.topSheetChoiceMatters [ topA; topB; child ] "child")
+                "child is not a root, however ambiguous it is"
+        }
+
+        test "a root with no design to disagree with it does not offer to be the top" {
+            let child = widthSheet "child"
+            let top = sheetOf "top" [ instance child 1 (Some (PInt 8I)) ]
+            Expect.isFalse (ParameterAnalysis.topSheetChoiceMatters [ top; child ] "top")
+                "one design owns all of its subsheets"
+        }
+
+        test "two roots sharing a sheet they agree about do not offer to be the top" {
+            let child = widthSheet "child"
+            let topA = sheetOf "topA" [ instance child 1 (Some (PInt 8I)) ]
+            let topB = sheetOf "topB" [ instance child 2 (Some (PInt 8I)) ]
+            Expect.isFalse (ParameterAnalysis.topSheetChoiceMatters [ topA; topB; child ] "topA")
+                "both designs draw child the same way, so choosing between them says nothing"
+        }
+
+        test "two roots sharing a sheet with no parameters do not offer to be the top" {
+            // The commonest shared subsheet there is. Nothing about it can differ between the two
+            // designs, so nothing about it is a choice.
+            let child = sheetOf "child" []
+            let topA = sheetOf "topA" [ makeComp 1 0 1 (customOf child [] [] None) "I1" ]
+            let topB = sheetOf "topB" [ makeComp 2 0 1 (customOf child [] [] None) "I2" ]
+            Expect.isFalse (ParameterAnalysis.topSheetChoiceMatters [ topA; topB; child ] "topA")
+                "there is no value for a top sheet to settle"
+        }
+
+        test "each root of a genuine disagreement offers to be the top" {
+            let child = widthSheet "child"
+            let topA = sheetOf "topA" [ instance child 1 (Some (PInt 8I)) ]
+            let topB = sheetOf "topB" [ instance child 2 (Some (PInt 16I)) ]
+            let project = [ topA; topB; child ]
+            Expect.isTrue (ParameterAnalysis.topSheetChoiceMatters project "topA")
+                "topA is one of the two answers"
+            Expect.isTrue (ParameterAnalysis.topSheetChoiceMatters project "topB")
+                "and so is topB - either way of settling it has to be reachable"
+        }
+
+        test "an unrelated root does not offer to be the top" {
+            // A scratch sheet is a second root, and used to make every root look like a choice.
+            let child = widthSheet "child"
+            let topA = sheetOf "topA" [ instance child 1 (Some (PInt 8I)) ]
+            let topB = sheetOf "topB" [ instance child 2 (Some (PInt 16I)) ]
+            let scratch = sheetOf "scratch" []
+            Expect.isFalse (ParameterAnalysis.topSheetChoiceMatters [ topA; topB; child; scratch ] "scratch")
+                "scratch reaches nothing the other designs reach"
+        }
+
         // --- what a parameter of a sheet is set to ---
         //
         // A parameter's value is what the instances of its sheet set it to. The stored value is a

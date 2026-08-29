@@ -36,6 +36,18 @@ let addWireWaveItem = "Add wave to viewer"
 let viewLibraryItem = "View library component"
 let hideLibraryItem = "Hide library component"
 
+/// The items on a sheet in the Sheets menu. `Set as top` is offered only where naming this sheet
+/// as the top would settle something - which is a question about the whole project's shape, not
+/// about the sheet, so the renderer decides by asking for a different menu. See
+/// ParameterAnalysis.topSheetChoiceMatters, and UpdateHelpers.getContextMenu for the choice.
+let private sheetItems (offerSetAsTop: bool) =
+    ["Rename"; "Duplicate"; "Delete"]
+    @ (if offerSetAsTop then ["Set as top"] else [])
+    @ ["Save as library component"; "Write design as Verilog"]
+
+/// What the developer build adds to a sheet's menu, whichever of the two it is.
+let private devSheetItems = ["Lock"; "Unlock"; "Lock Subtree"; "Unlock Subtree"]
+
 let private componentItems =
     ["Rotate Clockwise (Ctrl+Right)"; "Rotate AntiClockwise (Ctrl+Left)" ; "Flip Vertical (Ctrl+Up)"; "Flip Horizontal (Ctrl+Down)" ; "Delete (DEL)"; "Copy (Ctrl+C)"; "Properties"]
 
@@ -51,8 +63,10 @@ let private libraryInstanceItems (openItem: string) =
 /// menu and item names can be arbitrary strings
 /// add menus as here
 let contextMenus = [
-        "SheetMenuBreadcrumbDev", ["Rename"; "Duplicate"; "Delete"; "Set as top"; "Save as library component"; "Write design as Verilog"; "Lock"; "Unlock"; "Lock Subtree"; "Unlock Subtree"]
-        "SheetMenuBreadcrumb", ["Rename"; "Duplicate"; "Delete"; "Set as top"; "Save as library component"; "Write design as Verilog"]
+        "SheetMenuBreadcrumbDev", sheetItems true @ devSheetItems
+        "SheetMenuBreadcrumbDevNoTop", sheetItems false @ devSheetItems
+        "SheetMenuBreadcrumb", sheetItems true
+        "SheetMenuBreadcrumbNoTop", sheetItems false
         "ProjectPath", ["Copy path"; "Open directory"]
         "CustomComponent", customComponentItems
         "CustomComponentWaveSim", customComponentItems @ [addWavesItem]

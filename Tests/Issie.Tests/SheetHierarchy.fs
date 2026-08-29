@@ -34,6 +34,11 @@ let private instanceOf (id: int) (name: string) (label: string) =
                 { Name = name; InputLabels = []; OutputLabels = []
                   Form = None; Description = None; ParameterBindings = None } }
 
+/// The same sheet, saved `minutes` after the epoch these tests date from - so that "most recently
+/// saved" is a fact of the project rather than of how fast the test ran.
+let private savedAt (minutes: float) (ldc: LoadedComponent) =
+    { ldc with TimeStamp = System.DateTime(2020, 1, 1).AddMinutes minutes }
+
 /// A chain of `levels` sheets, each holding `instances` copies of the next one down.
 /// Sheet 0 is the top; sheet (levels-1) is empty. The design has `levels` sheets in it and
 /// expands to instances^(levels-1) instances of the bottom one.
@@ -350,5 +355,95 @@ let tests =
 
             let plain = clockedSheets (nested 3 2).LoadedComponents
             Expect.isEmpty plain "a design of nothing but custom components is not clocked"
+        }
+
+        //--------------------------------------------------------------------------------------//
+        // Which sheet a project opens at.
+        //
+        // The timestamp says which sheet was last worked on. What the user wants to see is the
+        // DESIGN that sheet belongs to, opened at its top - a block on its own is out of context,
+        // and climbing back up to the top was the first thing anyone did.
+        //--------------------------------------------------------------------------------------//
+
+        test "the root of the design the last-saved sheet belongs to is opened" {
+            let project =
+                [ ldc "top" ([ instanceOf 1 "mid" "M1" ], []) |> savedAt 0.
+                  ldc "mid" ([ instanceOf 1 "leaf" "L1" ], []) |> savedAt 1.
+                  ldc "leaf" ([], []) |> savedAt 2. ]
+            Expect.equal (sheetOpenedOnLoad project) (Some "top")
+                "the leaf was last saved, and the design it is part of tops out at top"
+        }
+
+        test "a root that was itself last saved is opened" {
+            let project =
+                [ ldc "top" ([ instanceOf 1 "leaf" "L1" ], []) |> savedAt 2.
+                  ldc "leaf" ([], []) |> savedAt 0. ]
+            Expect.equal (sheetOpenedOnLoad project) (Some "top") "a root is already its own top"
+        }
+
+        test "the last-saved of several unrelated sheets picks its own design" {
+            // Two designs in one project: the one that was worked on is the one that opens.
+            let project =
+                [ ldc "topA" ([ instanceOf 1 "leafA" "L1" ], []) |> savedAt 0.
+                  ldc "leafA" ([], []) |> savedAt 1.
+                  ldc "topB" ([ instanceOf 2 "leafB" "L2" ], []) |> savedAt 5.
+                  ldc "leafB" ([], []) |> savedAt 9. ]
+            Expect.equal (sheetOpenedOnLoad project) (Some "topB") "leafB was last saved"
+        }
+
+        test "two roots reaching one sheet open that sheet" {
+            // shared belongs to both designs and there is no saying which was meant, so the answer
+            // is the highest sheet every route to it passes through - which is shared itself.
+            let project =
+                [ ldc "topA" ([ instanceOf 1 "shared" "S1" ], []) |> savedAt 0.
+                  ldc "topB" ([ instanceOf 2 "shared" "S2" ], []) |> savedAt 0.
+                  ldc "shared" ([], []) |> savedAt 5. ]
+            Expect.equal (sheetOpenedOnLoad project) (Some "shared")
+                "neither root is the answer, so the sheet itself is"
+        }
+
+        test "the sheet two designs meet at is as high as it goes" {
+            // Both designs reach leaf, and both do so through shared. So shared is the highest
+            // sheet every route to leaf passes through, and neither root is.
+            let project =
+                [ ldc "topA" ([ instanceOf 1 "shared" "S1" ], []) |> savedAt 0.
+                  ldc "topB" ([ instanceOf 2 "shared" "S2" ], []) |> savedAt 0.
+                  ldc "shared" ([ instanceOf 3 "leaf" "L1" ], []) |> savedAt 0.
+                  ldc "leaf" ([], []) |> savedAt 5. ]
+            Expect.equal (sheetOpenedOnLoad project) (Some "shared") "the sheet the designs share, and no higher"
+        }
+
+        test "a sheet reached twice within one design still opens at the root" {
+            // Two routes from ONE top is not ambiguity: the design is the same either way. Both
+            // routes start at top, so top is what every route to leaf passes through - even though
+            // leaf itself has two parents, which a walk up single parents would have stopped at.
+            let project =
+                [ ldc "top" ([ instanceOf 1 "leaf" "L1"; instanceOf 2 "mid" "M1" ], []) |> savedAt 0.
+                  ldc "mid" ([ instanceOf 1 "leaf" "L2" ], []) |> savedAt 0.
+                  ldc "leaf" ([], []) |> savedAt 5. ]
+            Expect.equal (sheetOpenedOnLoad project) (Some "top")
+                "one design, so its root is the answer whatever the routes inside it are"
+        }
+
+        test "a sheet that contains itself has no root above it and is opened as it is" {
+            Expect.equal (sheetOpenedOnLoad selfContaining.LoadedComponents) (Some "top")
+                "nothing above the cycle is a root, so there is nothing to climb to"
+        }
+
+        test "a library sheet is neither opened nor climbed through" {
+            // A library component is one thing rather than a sheet with innards, so its instance
+            // does not make the sheet holding it a subsheet of anything.
+            let library name canvas =
+                { ldc name canvas with Form = Some (Library("stdlib", name)) }
+            let project =
+                [ ldc "top" ([ instanceOf 1 "L1_reg" "R1" ], []) |> savedAt 5.
+                  library "L1_reg" ([], []) |> savedAt 9. ]
+            Expect.equal (sheetOpenedOnLoad project) (Some "top")
+                "the library sheet is not a candidate, and top is still a root"
+        }
+
+        test "a project with nothing the user can open has no sheet to open" {
+            let library name = { ldc name ([], []) with Form = Some (Library("stdlib", name)) }
+            Expect.equal (sheetOpenedOnLoad [ library "L1_reg" ]) None "nothing to choose"
         }
     ]

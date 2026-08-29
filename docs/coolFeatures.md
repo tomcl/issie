@@ -52,7 +52,7 @@ ISSIE features developed over several years to help you create readable schemati
 | :---- | :---- | :---- |
 | **Custom components** | Catalogue → `This project` | Any design sheet can be placed in another sheet, any number of times |
 | **Design hierarchy tree** | The **Sheet** menu | The whole project drawn as a tree with connector lines, showing which sheet contains which. The same tree appears in the waveform simulator |
-| **Sheet right-click menu** | Right-click a sheet in that tree | *Rename*, *Duplicate*, *Delete*, *Set as top*, *Save as library component*, *Write design as Verilog* |
+| **Sheet right-click menu** | Right-click a sheet in that tree | *Rename*, *Duplicate*, *Delete*, *Save as library component*, *Write design as Verilog* — and *Set as top* only where two designs share a sheet and disagree about its parameter values, which is the one case where the choice settles anything |
 | **Add a description to a sheet** | De-select everything, open **Properties**, click `Add Description` | The description appears against the sheet as an &#9432; button, and is shown in Properties wherever the sheet is used as a custom component |
 | **Sheet parameters** | **Properties** with nothing selected → `Add Parameter` | Named integer parameters, used in arithmetic expressions for bus widths and constants. Each instance of the sheet supplies its own values. Memory address and word widths are not yet parameterisable. See [Parameter System](parameterSystem.html) |
 | **Component libraries** | Catalogue → `Library` | Ready-made parameterised components. Choosing one copies its sheet into your project and asks for its parameter values, so it stays an ordinary editable sheet |

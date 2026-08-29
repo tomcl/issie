@@ -115,6 +115,11 @@ let private bootstrap () =
 //   the user data directory      read/write - Issie's own store: settings, demo copies, libraries
 //   project directories          read/write - wherever the user keeps their work
 //
+// A development run adds a fourth, the checkout, and makes the static assets writable with it - so
+// a shipped demo or library sheet can be edited where it lives rather than through a copy. That is
+// a difference between developing Issie and running it, and it holds only where process.defaultApp
+// says the app was started from a checkout at all.
+//
 // The first two are fixed and main computes them itself. The third cannot be, so a directory becomes
 // a project root only when main has a reason of its own to believe the user chose it: either it came
 // back from a dialog main displayed, or it is listed in the recents file - which main reads itself,
@@ -180,23 +185,27 @@ let private recentProjects () =
     with _ ->
         []
 
-/// The Verilog test cases the Development > Verilog menu compiles, runs and writes output beside.
-/// They are addressed by paths relative to the checkout, so in a development run this has to be
-/// reachable; a packaged app has no equivalent and gets no such root.
+/// The checkout, reachable and writable in a development run and in no other.
 ///
-/// Deliberately this directory and not the working directory. The whole checkout was the first
-/// version, and it quietly made the static assets writable in development - they sit inside it -
-/// so the read-only root above held only in a packaged app, which is the wrong way round for a
-/// difference between what you test and what you ship. Every relative path these tools use is
-/// under here.
-let private verilogTestDirectory () =
-    path.join (cwd (), "src", "Renderer", "VerilogComponent", "test")
+/// Two things need it. The Development > Verilog menu compiles the test cases under
+/// src/Renderer/VerilogComponent/test and writes its output beside them, addressed by paths
+/// relative to the checkout. And the shipped demos and component libraries live in ./static, which
+/// is where they are MAINTAINED as well as where they are read from: without this they can only be
+/// opened through a copy in userData, so a sheet fixed there is a sheet fixed in a file that is
+/// thrown away, and the version that ships never changes.
+///
+/// That second one is why this is the whole checkout rather than the two directories. It overrides
+/// the read-only static root below - deliberately, and only here: a packaged app has no checkout,
+/// so what ships keeps its assets read-only, which is the whole reason they are a root of their own.
+let private developmentDirectory () = cwd ()
 
 let private computeRoots () =
     let fixedRoots =
-        [ staticDirectory (), false
+        [ // read-only in what ships; a development run has the checkout root below, which is
+          // writable and contains it
+          staticDirectory (), isDev ()
           tryGetPath AppGetPath.UserData, true
-          if isDev () then verilogTestDirectory (), true ]
+          if isDev () then developmentDirectory (), true ]
 
     let fromRecents =
         recentProjects ()

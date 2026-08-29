@@ -487,8 +487,17 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
     match rightClickElement with
     | SheetMenuBreadcrumb (sheet, _) when Set.contains sheet.SheetName model.OpenedLibrarySheets ->
         "SheetMenuBreadcrumbLibrary"
-    | SheetMenuBreadcrumb _ ->
-        if JSHelpers.debugLevel > 0 then "SheetMenuBreadcrumbDev" else "SheetMenuBreadcrumb"
+    | SheetMenuBreadcrumb (sheet, _) ->
+        // "Set as top" is dropped where it would settle nothing, which is every project without
+        // two designs disagreeing about a shared subsheet - so nearly all of them. Offering it
+        // there taught the user that a top sheet is something they have to think about.
+        let offersSetAsTop =
+            model.CurrentProj
+            |> Option.map (fun p -> ParameterAnalysis.topSheetChoiceMatters p.LoadedComponents sheet.SheetName)
+            |> Option.defaultValue false
+        "SheetMenuBreadcrumb"
+        + (if JSHelpers.debugLevel > 0 then "Dev" else "")
+        + (if offersSetAsTop then "" else "NoTop")
     | ProjectPathBreadcrumb _ ->
         "ProjectPath"
     | DBScalingBox _ ->

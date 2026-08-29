@@ -577,6 +577,19 @@ let everyInstanceBindsEveryParam (ldcs: LoadedComponent list) : bool =
                 declaredParams childLdc
                 |> Map.forall (fun name _ -> Map.containsKey name bound)))
 
+/// The values one root gives each sheet it reaches, and nothing for a sheet it does not reach.
+/// Shared by the two questions below, which differ only in which roots they compare.
+let private displayValuesUnderRoot (ldcs: LoadedComponent list) (root: string) =
+    let instancesBySheet = analyseUnderTop ldcs root
+    fun (ldc: LoadedComponent) ->
+        Map.tryFind ldc.Name instancesBySheet
+        |> Option.map (fun instances ->
+            displayValuesOfSheet ldc instances |> Map.map (fun _ display -> shownValue display))
+
+/// The sheets whose display values a top-sheet choice could settle: the ones the user can open.
+let private displayableSheets (ldcs: LoadedComponent list) =
+    ldcs |> List.filter (isFromLibrary >> not)
+
 /// Gate B: does this project need a top sheet?
 ///
 /// A top sheet exists to settle WHICH VALUES a sheet is drawn at when its instances disagree. The
@@ -599,18 +612,52 @@ let everyInstanceBindsEveryParam (ldcs: LoadedComponent list) : bool =
 /// of every root into one bag, as this used to, made the two indistinguishable and raised the
 /// top-sheet question for designs that had nothing to decide.
 let projectHasAmbiguousDisplay (ldcs: LoadedComponent list) : bool =
-    let byRoot = instanceForestRoots ldcs |> List.map (analyseUnderTop ldcs)
-    let valuesUnder (instancesBySheet: SheetInstances) (ldc: LoadedComponent) =
-        Map.tryFind ldc.Name instancesBySheet
-        |> Option.map (fun instances ->
-            displayValuesOfSheet ldc instances |> Map.map (fun _ display -> shownValue display))
-    ldcs
-    |> List.filter (isFromLibrary >> not)
+    let byRoot = instanceForestRoots ldcs |> List.map (displayValuesUnderRoot ldcs)
+    displayableSheets ldcs
     |> List.exists (fun ldc ->
         byRoot
-        |> List.choose (fun instancesBySheet -> valuesUnder instancesBySheet ldc)
+        |> List.choose (fun valuesUnder -> valuesUnder ldc)
         |> List.distinct
         |> List.length > 1)
+
+/// Whether naming this sheet as the top would settle anything - which is what decides whether the
+/// offer to do so is worth making.
+///
+/// Three things have to hold at once, and each of them alone is ordinary:
+///
+///   1. the sheet is a root. A sheet inside another one is not a design of its own; making it the
+///      top would say the design it sits in is not the one being looked at, which is not what
+///      anyone means by right-clicking a subsheet.
+///   2. a sheet it reaches is reached by a different root too. One design owning all of its
+///      subsheets has no second opinion to choose between.
+///   3. the two roots give that shared sheet different parameter values. This is the whole content
+///      of the choice: the top sheet exists to say WHICH VALUES a sheet is drawn at, so where the
+///      designs agree there is nothing to say. A shared sheet with no parameters agrees trivially,
+///      which is why an ordinary project never sees the offer at all.
+///
+/// Read off the roots rather than off the flag, so the sheet already flagged as top still offers
+/// it: the flag is how the choice is moved, and a project with a real choice in it has to keep
+/// every way of making it.
+let topSheetChoiceMatters (ldcs: LoadedComponent list) (sheetName: string) : bool =
+    let roots = instanceForestRoots ldcs
+    match List.contains sheetName roots with
+    | false -> false
+    | true ->
+        let valuesHere = displayValuesUnderRoot ldcs sheetName
+        let valuesElsewhere =
+            roots
+            |> List.filter ((<>) sheetName)
+            |> List.map (displayValuesUnderRoot ldcs)
+        displayableSheets ldcs
+        |> List.exists (fun ldc ->
+            match valuesHere ldc with
+            | None -> false
+            | Some mine ->
+                valuesElsewhere
+                |> List.exists (fun valuesUnder ->
+                    match valuesUnder ldc with
+                    | Some theirs -> theirs <> mine
+                    | None -> false))
 
 //------------------------------------------------------------------------------------------------//
 //----------------------------------- The bind-to-top offer --------------------------------------//

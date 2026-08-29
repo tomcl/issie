@@ -47,12 +47,34 @@ let private median (xs: float list) = xs |> List.sort |> List.item (List.length 
 /// median, the change is real.
 let private fastest (xs: float list) = List.min xs
 
-let private demo3cpu () =
-    let path =
-        Path.GetFullPath(Path.Combine(__SOURCE_DIRECTORY__, "..", "..", "static", "demos", "3cpu"))
+/// Which design to price. 3cpu/eep1 by default - the shipped 16-bit CPU, and the one the rest of
+/// the suite already prices - but a design where one sheet is placed many times is the only kind
+/// where design-sized and EXPANSION-sized structures differ, and 3cpu is not one. Point it at such
+/// a design with ISSIE_BENCH_PROJECT and ISSIE_BENCH_TOP:
+///
+///     ISSIE_BENCH_PROJECT=C:/Users/me/Desktop/largeTest/largeTest ISSIE_BENCH_TOP=main6
+///
+/// ISSIE_BENCH_ARRAY sets the step array size, which has to be small enough that the step arrays
+/// are not what is being measured - a design that expands needs it smaller than 3cpu does.
+let private envOr (name: string) (fallback: string) =
+    match Environment.GetEnvironmentVariable name with
+    | null
+    | "" -> fallback
+    | s -> s
+
+let private projectPath () =
+    envOr
+        "ISSIE_BENCH_PROJECT"
+        (Path.GetFullPath(Path.Combine(__SOURCE_DIRECTORY__, "..", "..", "static", "demos", "3cpu")))
+
+let private topSheet () = envOr "ISSIE_BENCH_TOP" "eep1"
+let private arraySizeOf () = int (envOr "ISSIE_BENCH_ARRAY" "1000")
+
+let private designUnderTest () =
+    let path = projectPath ()
 
     match FilesIO.loadAllComponentFiles path with
-    | Error msg -> failtestf "could not load the 3cpu demo: %s" msg
+    | Error msg -> failtestf "could not load the design at %s: %s" (projectPath ()) msg
     | Ok statuses ->
         statuses
         |> List.map (function
@@ -65,12 +87,17 @@ let private demo3cpu () =
 /// Build and run, timed apart: the build is what id representation touches most, and the run is
 /// what a change there must not have broken.
 let private measure () =
-    let ldcs = demo3cpu ()
-    let top = ldcs |> List.find (fun ldc -> ldc.Name = "eep1")
+    let ldcs = designUnderTest ()
+    let topName = topSheet ()
+
+    let top =
+        match ldcs |> List.tryFind (fun ldc -> ldc.Name = topName) with
+        | Some ldc -> ldc
+        | None -> failtestf "no sheet called %s in %s" topName (projectPath ())
     // Small enough that the step arrays are not what is being measured: a build sized for the
     // whole run allocates 113 MB of them, which swamps the structural work - the graph, the ids
     // and the lookups - that id representation actually touches. The run wraps the buffer.
-    let arraySize = 1000
+    let arraySize = arraySizeOf ()
 
     let buildOnce () =
         GC.Collect()
@@ -79,8 +106,8 @@ let private measure () =
         let sw = Diagnostics.Stopwatch.StartNew()
 
         let fs =
-            match Simulator.startCircuitSimulation arraySize "eep1" top.CanvasState ldcs with
-            | Error e -> failtestf "the 3cpu demo failed to build: %A" e
+            match Simulator.startCircuitSimulation arraySize topName top.CanvasState ldcs with
+            | Error e -> failtestf "%s failed to build: %A" topName e
             | Ok simData -> simData.FastSim
 
         sw.Stop()
@@ -114,15 +141,16 @@ let private measure () =
     let runTimes = runSlices fs 9
     let runMs = median runTimes
 
-    printfn "  3cpu/eep1 build: %.1f ms (fastest %.1f), %.1f MB retained (%d components reduced per clock)"
-        buildMs (fastest (builds |> List.map (fun (ms, _, _) -> ms))) buildMb
+    printfn "  %s build: %.1f ms (fastest %.1f), %.1f MB retained (%d fast components, %d reduced per clock)"
+        topName buildMs (fastest (builds |> List.map (fun (ms, _, _) -> ms))) buildMb
+        fs.FCompsByIndex.Length
         (fs.FClockedComps.Length + fs.FOrderedComps.Length)
-    printfn "  3cpu/eep1 run:   %d cycles in %.0f ms (fastest %.0f), %.1f cycles/ms"
-        cycles runMs (fastest runTimes) (float cycles / runMs)
+    printfn "  %s run:   %d cycles in %.0f ms (fastest %.0f), %.1f cycles/ms"
+        topName cycles runMs (fastest runTimes) (float cycles / runMs)
 
 let tests =
     testList "SimBenchmark" [
-        testCase "3cpu"
+        testCase "build and run"
         <| fun () ->
             if not benchEnabled then
                 skiptest "set ISSIE_BENCH=1 to run the build and run benchmark"

@@ -1,6 +1,17 @@
-// Publish the dotnet sidecar as self-contained single-file binaries, one per architecture of the
-// HOST operating system - dotnet publish cannot cross OS boundaries, and the dist pipeline is
-// already split one job per OS (build_dist.sh/.ps1, CI), so that is all any one machine needs.
+// Publish the dotnet sidecar as self-contained binaries, one per architecture of the HOST
+// operating system - dotnet publish cannot cross OS boundaries, and the dist pipeline is already
+// split one job per OS (build_dist.sh/.ps1, CI), so that is all any one machine needs.
+//
+// NOT single-file, and that is a performance decision rather than a packaging one. A single-file
+// build has to unpack itself before it runs, and on Windows that happens inside CreateProcess:
+// spawning the single-file sidecar blocked the caller for 265ms every time, against 6ms for the
+// same code published as a directory - and it reached its first line of managed code at 445ms
+// against 84ms. It is not the size (node.exe is comparably large and spawns in 5ms) and it is not
+// Defender (a fresh copy of node.exe costs 235ms ONCE and 5ms thereafter, while the single-file
+// build cost ~265ms on every run of every session).
+//
+// It costs nothing to ship: extraResources in package.json already copies this whole directory
+// with "**/*", so a directory of assemblies travels exactly as one file did.
 //
 // Output lands in build-sidecar/<os>-<arch>/, and those directory names deliberately spell
 // electron-builder's ${os}-${arch} macro values: the extraResources entry in package.json picks
@@ -34,7 +45,6 @@ for (const [rid, outName] of plans) {
       '-c', 'Release',
       '-r', rid,
       '--self-contained',
-      '-p:PublishSingleFile=true',
       '-o', outDir,
     ],
     { stdio: 'inherit' }

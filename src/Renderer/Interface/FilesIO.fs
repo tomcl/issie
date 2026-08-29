@@ -341,24 +341,36 @@ type ProjectDirectory =
     /// Holds sheets but no marker, so it was a project whose marker has been lost, or a folder
     /// somebody put sheets in. Loadable either way.
     | SheetsButNoMarker
+    /// Holds .ldgm files: a component library, which opens as a project of its components. It has
+    /// no marker and never gains one - a library is told by what is in it, and offering to write a
+    /// .dprj into somebody's library would be putting a project's furniture in it.
+    | IsLibrary
     /// Nothing here that Issie can open.
     | NotAProject
 
-/// Which combination of marker and sheets means what. The one place that rule lives: inspectFolder
-/// reads a folder to answer it, and the project browser is handed the same two facts by main
-/// without either of them having to agree about the meaning separately.
-let classifyFolder (hasMarker: bool) (sheetCount: int) : ProjectDirectory =
-    match hasMarker, sheetCount > 0 with
-    | true, _ -> IsProject
-    | false, true -> SheetsButNoMarker
-    | false, false -> NotAProject
+/// Which combination of marker, sheets and components means what. The one place that rule lives:
+/// inspectFolder reads a folder to answer it, and the project browser is handed the same facts by
+/// main without either of them having to agree about the meaning separately.
+///
+/// Sheets win over components where a folder somehow holds both: .dgm is what a project is made of,
+/// and a stray .ldgm beside them is a file somebody copied there rather than a library.
+let classifyFolder (hasMarker: bool) (sheetCount: int) (componentCount: int) : ProjectDirectory =
+    match hasMarker, sheetCount > 0, componentCount > 0 with
+    | true, _, _ -> IsProject
+    | false, true, _ -> SheetsButNoMarker
+    | false, false, true -> IsLibrary
+    | false, false, false -> NotAProject
 
-/// What a directory is to Issie, and how many sheets are in it, from the one read of it. The
-/// count is free once the classification has looked at the file names anyway.
+/// What a directory is to Issie, and how many things in it Issie can open - sheets for a project,
+/// components for a library - from the one read of it. The count is free once the classification
+/// has looked at the file names anyway.
 let inspectFolder (path: string) : ProjectDirectory * int =
     let files = readFilesFromDirectory path
     let sheets = files |> List.filter (hasExtn ".dgm") |> List.length
-    classifyFolder (files |> List.exists (hasExtn ".dprj")) sheets, sheets
+    let components = files |> List.filter (hasExtn ".ldgm") |> List.length
+    match classifyFolder (files |> List.exists (hasExtn ".dprj")) sheets components with
+    | IsLibrary -> IsLibrary, components
+    | kind -> kind, sheets
 
 let inspectProjectDirectory (path: string) : ProjectDirectory = inspectFolder path |> fst
 
@@ -374,7 +386,8 @@ let isFilesystemRoot (path: string) = dirName path = path
 type FolderEntry = {
     Path: string
     Kind: ProjectDirectory
-    /// .dgm files directly inside it: what a project is worth telling apart by, without opening it.
+    /// How many things in it Issie can open, without opening any of them: .dgm files for a
+    /// project, .ldgm components for a library. Which of the two it counts is what Kind says.
     SheetCount: int
 }
 
@@ -423,9 +436,10 @@ let browseFolderForOpening (path: string) : Result<FolderEntry list, string> =
         listing.entries
         |> Array.toList
         |> List.map (fun entry ->
+            let kind = classifyFolder entry.hasMarker entry.sheetCount entry.componentCount
             { Path = entry.path
-              Kind = classifyFolder entry.hasMarker entry.sheetCount
-              SheetCount = entry.sheetCount })
+              Kind = kind
+              SheetCount = (match kind with | IsLibrary -> entry.componentCount | _ -> entry.sheetCount) })
         |> forBrowsing
         |> Ok
     #else

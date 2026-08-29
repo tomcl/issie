@@ -240,6 +240,10 @@ let rec openChosenFolder (path: string) model dispatch =
     match inspectProjectDirectory path with
     | IsProject -> openProjectFromPath path model dispatch
 
+    // A library opens as a project of its components. openProjectFromPath knows the difference and
+    // refuses the ones that are Issie's rather than the user's - see ComponentLibraries.
+    | IsLibrary -> openProjectFromPath path model dispatch
+
     | SheetsButNoMarker ->
         // Loadable, and worth loading: the sheets are the project. The marker is what says so to
         // everything that has only the folder to go on, so offer to put it back rather than either
@@ -332,6 +336,8 @@ and private viewProjectBrowser (startFolder: string) model dispatch =
                                     let name = baseName entry.Path
                                     let sheets =
                                         if entry.SheetCount = 1 then "1 sheet" else $"{entry.SheetCount} sheets"
+                                    let components =
+                                        if entry.SheetCount = 1 then "1 component" else $"{entry.SheetCount} components"
                                     let label, note, act =
                                         match entry.Kind with
                                         | IsProject ->
@@ -339,6 +345,13 @@ and private viewProjectBrowser (startFolder: string) model dispatch =
                                         | SheetsButNoMarker ->
                                             b [] [str name],
                                             span [Style [Color "darkorange"]] [str $"{sheets}, no project file"],
+                                            openIt
+                                        // A library opens as a project of its components, and says
+                                        // so rather than calling them sheets: what you get is the
+                                        // library, and saving writes back into it.
+                                        | IsLibrary ->
+                                            b [] [str name],
+                                            span [Style [Color "grey"]] [str $"library, {components}"],
                                             openIt
                                         // an ordinary folder is not a dead end: it is where the
                                         // next level of browsing goes

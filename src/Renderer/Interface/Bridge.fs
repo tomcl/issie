@@ -92,12 +92,15 @@ let fsModifiedTimeMs (filePath: string) : float option = jsNative
 // folders already opened cannot be used to find a new one. See the browse channel in
 // src/Main/Bridge.fs for why that is safe: names and counts cross, never file contents.
 
-/// One subdirectory as main reports it: what is on the disk, not what it means. FilesIO turns the
-/// pair into a ProjectDirectory.
+/// One subdirectory as main reports it: what is on the disk, not what it means. FilesIO turns
+/// these facts into a ProjectDirectory.
 type BrowseEntry = {
     path: string
     hasMarker: bool
     sheetCount: int
+    /// .ldgm files: a folder of them is a component library, which opens as a project of its
+    /// components.
+    componentCount: int
 }
 
 /// `exists` is false when the folder is not there, which the caller must tell apart from a folder

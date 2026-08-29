@@ -1350,34 +1350,30 @@ let openDemoProjectFromPath (path:string) model dispatch =
 
     )
 
-/// Open a component library as a project, so that its components can be edited where they are.
+/// The sheets of the project in this directory, ready to be resolved and opened.
 ///
-/// Reached from the catalogue and from nowhere else. The project browser deliberately does not
-/// offer it: a library is not a folder of sheets a user would go looking for, and the catalogue is
-/// where they already are when they have a reason to open one.
+/// A directory of .ldgm components is a library, and opens as a project of them - which is how a
+/// library is maintained, since the alternative was keeping a non-library copy of every sheet and
+/// exporting it again after each change. Everything else is a directory of .dgm sheets.
 ///
-/// It goes through resolveComponentOpenPopup like any other project, so the sheets are admitted,
-/// their ids checked and the design opened at its top - and nothing downstream has to know that
-/// these sheets came out of .ldgm files rather than .dgm ones. What is NOT done is adding the
-/// library to the recent projects list: those rows open a project through the browser, which is
-/// the door this one is not behind.
-let openLibraryAsProject (library: ComponentLibraries.ComponentLibrary) model dispatch =
-    warnAppWidth dispatch (fun _ ->
-        Log.dbg Log.Files $"loading library {library.Path} as a project"
-        match ComponentLibraries.tryLoadLibraryProject library.Path with
-        | Error err ->
-            Log.error err
-            displayFileErrorNotification err dispatch
-        | Ok componentsToResolve ->
-            resolveComponentOpenPopup library.Path [] componentsToResolve model dispatch
-            Log.dbg Log.Files $"opened library {library.Name}")
+/// A library that is Issie's rather than the user's is refused here rather than further in. The
+/// shipped ones are what comes with the program; the user library directory is the STORE, where a
+/// library arrives - the copy written when a component is saved into one, and the copy an import
+/// leaves - and editing a copy in the form it arrived in produces a version that agrees with
+/// nothing. Both are editable in a development run, which is where the shipped ones are maintained.
+let private loadProjectDirectory (path: string) : Result<LoadStatus list, string> =
+    match inspectProjectDirectory path with
+    | IsLibrary when not (ComponentLibraries.libraryPathIsEditable path) ->
+        Error $"{baseName path} is one of Issie's own component libraries and is not edited in                 place. Save a component from it into a sheet, or keep your own library in a folder                 of your own."
+    | IsLibrary -> ComponentLibraries.tryLoadLibraryProject path
+    | _ -> loadAllComponentFiles path
 
 /// open an existing project from its path
 let openProjectFromPath (path:string) model dispatch =
     warnAppWidth dispatch (fun _ ->
     dispatch (ExecFuncAsynch <| fun () ->
         Log.dbg Log.Files $"loading project {path}"
-        match loadAllComponentFiles path with
+        match loadProjectDirectory path with
         | Error err ->
             Log.error err
             displayFileErrorNotification err dispatch
@@ -1394,7 +1390,11 @@ let openProjectFromPath (path:string) model dispatch =
                         }
         Elmish.Cmd.none))
 
-
+/// Open a component library as a project, so that its components can be edited where they are.
+/// The catalogue's door to what the project browser reaches by navigating to the folder: one open
+/// path, so the refusal above and the recent-projects entry are the same either way in.
+let openLibraryAsProject (library: ComponentLibraries.ComponentLibrary) model dispatch =
+    openProjectFromPath library.Path model dispatch
 
 /// returns a WaveSimModel option if a file is loaded, otherwise None
 let currWaveSimModel (model: Model) =

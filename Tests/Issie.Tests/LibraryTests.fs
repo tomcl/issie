@@ -295,4 +295,37 @@ let tests =
                         Expect.equal created.Name "helper" "named after its file"
                         Expect.equal created.Requires [] "an empty sheet instantiates nothing")
         }
+    
+
+        // Which libraries the user may edit in place.
+        //
+        // Writing a library component is: draw a sheet, save it into a library, place it and try
+        // it, change it. The last step must not need a second non-library copy of the sheet kept in
+        // step by hand - so a library IS editable. What is not is a library that arrived from
+        // somewhere else in the form it arrived in: the ones shipped with Issie, and the ones in
+        // the user library directory, which is the store a saved or imported library lands in.
+        test "a library in a folder of the user's own is theirs to edit" {
+            withTempLibrary (fun libPath ->
+                Expect.isFalse (ComponentLibraries.isManagedLibrary libPath)
+                    "a folder of their own is not one of Issie's"
+                Expect.isTrue (ComponentLibraries.libraryPathIsEditable libPath)
+                    "so it opens as a project and saves back into itself")
+        }
+
+        test "the libraries in Issie's own directories are not edited in place" {
+            match ComponentLibraries.tryUserLibrariesDirectory () with
+            | Error msg -> failtest msg
+            | Ok userRoot ->
+                let stored = FilesIO.pathJoin [| userRoot; "someLibrary" |]
+                Expect.isTrue (ComponentLibraries.isManagedLibrary stored)
+                    "the user library directory is where a saved or imported library ARRIVES"
+                Expect.isTrue (ComponentLibraries.isManagedLibrary userRoot)
+                    "the directory itself counts, not only what is under it"
+
+            // The shipped directory is empty under .NET - Bridge.staticDir has no Electron to ask -
+            // so what is checked here is that an empty root claims nothing, which is what stops
+            // every path in the world reading as a shipped library.
+            Expect.isFalse (ComponentLibraries.isManagedLibrary "/somewhere/else/adders")
+                "an unrelated path is not inside an empty shipped root"
+        }
     ]

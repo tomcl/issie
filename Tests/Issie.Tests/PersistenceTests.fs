@@ -219,6 +219,30 @@ let tests =
                     "the marker is what makes it a project")
         }
 
+        // A component library opens as a project of its components, which is how one is maintained.
+        // It is told by what is in it: a library never has a marker, and must never be offered one.
+        test "a folder of library components is a library" {
+            withTempDir (fun folder ->
+                touch folder "adder.ldgm"
+                touch folder "carry.ldgm"
+                Expect.equal (FilesIO.inspectProjectDirectory folder) FilesIO.IsLibrary
+                    "components with no sheets beside them are a library"
+                Expect.equal (FilesIO.inspectFolder folder) (FilesIO.IsLibrary, 2)
+                    "and the count is of components, not of sheets"
+
+                touch folder "main.dgm"
+                Expect.equal (FilesIO.inspectProjectDirectory folder) FilesIO.SheetsButNoMarker
+                    "a sheet beside them makes it a project with a stray file in it, not a library")
+        }
+
+        test "the marker still wins over anything else in the folder" {
+            withTempDir (fun folder ->
+                touch folder "adder.ldgm"
+                touch folder "anything.dprj"
+                Expect.equal (FilesIO.inspectProjectDirectory folder) FilesIO.IsProject
+                    "a folder somebody put a component in is still their project")
+        }
+
         // Backups accumulate one per few edits and are never removed, so a project worked on for a
         // term ends up with a backup folder far larger than the project. Closing is where they are
         // cleared out, and how old a file is comes from the filesystem: the date in a backup's NAME
@@ -277,6 +301,10 @@ let tests =
                 touch marked "alu.dgm"
                 let unmarked = sub "orphan"
                 touch unmarked "main.dgm"
+                let library = sub "adders"              // a library, which opens as a project too
+                touch library "fullAdd.ldgm"
+                touch library "halfAdd.ldgm"
+                touch library "carry.ldgm"
                 sub "notes" |> ignore                   // an ordinary folder: navigable, so listed
                 sub ".hidden" |> ignore                 // hidden: nobody keeps projects there
                 touch folder "loose.dgm"                // a file, so not a folder in the listing
@@ -287,13 +315,13 @@ let tests =
                         | Ok entries -> entries
                         | Error msg -> failtest $"a folder that is there should list: {msg}"
                 Expect.equal (listed |> List.map (fun e -> System.IO.Path.GetFileName e.Path))
-                    ["orphan"; "zebra"; "notes"]
+                    ["adders"; "orphan"; "zebra"; "notes"]
                     "openable folders first in name order, then ordinary ones; hidden and files omitted"
                 Expect.equal (listed |> List.map (fun e -> e.Kind))
-                    [FilesIO.SheetsButNoMarker; FilesIO.IsProject; FilesIO.NotAProject]
+                    [FilesIO.IsLibrary; FilesIO.SheetsButNoMarker; FilesIO.IsProject; FilesIO.NotAProject]
                     "each says what it is, so the browser can mark it"
-                Expect.equal (listed |> List.map (fun e -> e.SheetCount)) [1; 2; 0]
-                    "and how many sheets it holds, which is what tells two projects apart")
+                Expect.equal (listed |> List.map (fun e -> e.SheetCount)) [3; 1; 2; 0]
+                    "and how many things in it Issie can open - components for the library")
         }
 
         test "a folder holding nothing lists nothing, and says so as an empty listing" {

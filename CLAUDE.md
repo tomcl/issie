@@ -148,10 +148,14 @@ covered and what is not is in [docs/dev/verilogTesting.md](docs/dev/verilogTesti
 - `.ldgm` — one component of a library: an authored header and the text of a `.dgm`. **A sheet
   file is therefore either of two things**, which is why every sheet read and write goes through
   `ComponentLibraries.tryLoadSheetFile` / `writeSheetFile` rather than `FilesIO.saveStateToFile` —
-  a library directory opens as a project (Catalogue → a library → Edit) and its components are its
-  sheets, saved back in place. `ComponentLibraries.isLibraryProject` is how the two are told apart,
-  and it reads the sheets' own `FilePath`s.
-- `.dprj` — project marker, empty. A library has none: it is never opened from the browser.
+  a directory of them opens as a project and its components are its sheets, saved back in place.
+  `ComponentLibraries.isLibraryProject` is how the two are told apart, and it reads the sheets' own
+  `FilePath`s. **Which libraries may be edited is a question about where they are**: not the ones
+  shipped under `static/libraries`, and not the ones in the user library directory, which is the
+  store a saved or imported library ARRIVES in — a copy edited in the form it arrived in agrees
+  with nothing. Anywhere else is the user's own work. `ComponentLibraries.isManagedLibrary`.
+- `.dprj` — project marker, empty. A library has none and is never offered one: it is told by what
+  is in it.
 - `.ram` — memory initialisation data.
 
 Sheets are continuously auto-backed-up to a `backup/` subdirectory of the project, as plain `.dgm`

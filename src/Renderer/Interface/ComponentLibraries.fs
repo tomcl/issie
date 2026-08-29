@@ -424,21 +424,43 @@ let tryLoadLibraryProject (libPath: string) : Result<LoadStatus list, string> =
                         IsTopSheet = false }))
         |> Helpers.ResultList.sequence
 
-/// Whether a library may be opened as a project - which is to say, whether Issie could save it
-/// again afterwards.
+/// Where the libraries shipped with Issie live: inside the installation, and read-only for anyone
+/// who installed it.
+let shippedLibrariesDirectory () = pathJoin [| staticFileDirectory; Constants.librariesDirectory |]
+
+/// Whether a library is one Issie manages rather than one the user wrote.
 ///
-/// The libraries the user made or imported live in their own writable directory and always may be.
-/// The ones shipped with Issie sit inside the installation, which is read-only for anyone who
-/// installed it, and opening a library that could never be saved is worse than not offering it at
-/// all: the work is done before the refusal arrives. A development run has the checkout writable
-/// (see Main/Bridge.fs) and is where a shipped library is actually maintained, so there it may.
-let libraryIsEditable (library: ComponentLibrary) : bool =
-    match Bridge.isDev with
-    | true -> true
-    | false ->
-        match tryUserLibrariesDirectory () with
+/// Two directories are Issie's own. The shipped libraries under the installation are what comes
+/// with the program. The user library directory is the store: it is where a library ARRIVES - the
+/// copy made when a component is saved into a library from a sheet, and the copy an import will
+/// leave - and a copy is not the thing to edit. A library the user is actually working on lives
+/// wherever they keep their work, the way a project does.
+let isManagedLibrary (libPath: string) : bool =
+    let within (root: Result<string, string>) =
+        match root with
+        | Ok root -> PathHelpers.isWithin root libPath
         | Error _ -> false
-        | Ok userRoot -> PathHelpers.isWithin userRoot library.Path
+    within (Ok (shippedLibrariesDirectory ())) || within (tryUserLibrariesDirectory ())
+
+/// Whether the library in this directory may be opened as a project and saved again.
+///
+/// Not the standard libraries, and not the imported ones: what is in Issie's own directories
+/// arrived from somewhere else, and editing a copy in the form it arrived in produces a version
+/// that agrees with nothing. A library kept anywhere else is the user's own work and is theirs to
+/// change - including one somebody handed them, which they have to put somewhere first.
+///
+/// A development run may edit anything, the shipped libraries above all: that is where they are
+/// maintained, and the checkout is writable there (see Main/Bridge.fs).
+///
+/// Nothing here is prominent, and that is deliberate. Writing a library component is
+/// sheet -> save into a library -> place it and try it -> change it, and the last step must not
+/// need a second, non-library copy of the sheet kept in step by hand. But it is a thing to go and
+/// do rather than a thing to fall into: the catalogue only offers it where it applies, and
+/// otherwise a library is opened by navigating to the folder it is in.
+let libraryPathIsEditable (libPath: string) : bool =
+    Bridge.isDev || not (isManagedLibrary libPath)
+
+let libraryIsEditable (library: ComponentLibrary) : bool = libraryPathIsEditable library.Path
 
 //------------------------------------------------------------------------------------------------//
 //------------------------------ What a component will look like ---------------------------------//

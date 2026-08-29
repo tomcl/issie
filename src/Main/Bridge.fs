@@ -370,7 +370,10 @@ let private browseEntry (parent: string) (name: string) =
 
     {| path = full
        hasMarker = files |> Array.exists (fun (f: string) -> f.EndsWith ".dprj")
-       sheetCount = files |> Array.filter (fun (f: string) -> f.EndsWith ".dgm") |> Array.length |}
+       sheetCount = files |> Array.filter (fun (f: string) -> f.EndsWith ".dgm") |> Array.length
+       // a folder of library components opens as a project of them, so it is one of the things the
+       // browser has to be able to draw
+       componentCount = files |> Array.filter (fun (f: string) -> f.EndsWith ".ldgm") |> Array.length |}
 
 /// Every immediate subdirectory of a folder, for the project browser to draw. `exists` says whether
 /// the folder is there at all, so that a folder which is missing and one which cannot be read are
@@ -411,7 +414,12 @@ let private handleAdmitProject (request: obj) =
     else
         let files = fileNamesOf folderPath
         let looksLikeProject =
-            files |> Array.exists (fun (f: string) -> f.EndsWith ".dprj" || f.EndsWith ".dgm")
+            files
+            |> Array.exists (fun (f: string) ->
+                f.EndsWith ".dprj" || f.EndsWith ".dgm"
+                // a component library opens as a project of its components, so a folder of them is
+                // as much a project as a folder of sheets
+                || f.EndsWith ".ldgm")
 
         if looksLikeProject then
             allowProjectRoot folderPath

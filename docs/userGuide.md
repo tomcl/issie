@@ -364,14 +364,21 @@ are materialised with it when someone picks it.
 
 ### Changing a library
 
-Open a library in the Catalogue and press **Edit**: the library opens as a project of its own, with
-each of its components as a sheet. A component built from several sheets brings all of them, so it
-is the design it was authored as. Saving a sheet writes it back into the library where it is —
-there is no copy to keep in step, and everyone who places the component afterwards gets the change.
+A library folder opens as a project of its own, with each of its components as a sheet. A component
+built from several sheets brings all of them, so it is the design it was authored as, and saving a
+sheet writes it back into the library where it is — there is no second copy to keep in step, and
+everyone who places the component afterwards gets the change. That is what makes writing a
+component a whole job rather than half of one: draw a sheet, save it into a library, place it and
+try it, then change it *as a library component*.
 
-Only libraries you can save are offered this way. The ones shipped with ISSIE live inside the
-installation and are read-only, so **Edit** does not appear on them; libraries you made or imported
-are your own and always do.
+Keep a library you are working on in a folder of your own, next to the rest of your work, and open
+it from **Open project** the way you would open a project — Issie lists a folder of components as a
+library and says how many are in it.
+
+The two directories ISSIE looks after are not edited in place: the libraries shipped inside the
+installation, and your library directory, which is the store a component saved into a library — or
+a library somebody sent you — arrives in. A copy edited in the form it arrived in is a version that
+agrees with nothing. Put a library you mean to change in a folder of your own first.
 
 ## Now what?
 

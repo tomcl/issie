@@ -459,6 +459,47 @@ let backupFileData (path:string) (baseName: string) =
 
 
 
+/// The backup directory of a project: where every sheet's automatic backups are kept.
+let backupDirOf (projectPath: string) = pathJoin [| projectPath; "backup" |]
+
+/// Delete the backups in a project's backup directory that are older than `maxAgeHours`, and say
+/// how many went. Nothing at all when there is no backup directory, which is the ordinary case for
+/// a project nobody has edited.
+///
+/// Age is the file's modification time and not the date written into its name. The name is built
+/// from ToShortDateString, whose format is the user's locale, so it cannot be parsed back; the
+/// filesystem knows the answer already.
+///
+/// A backup exists to undo an accident that has just happened: the .dgm is the saved work, and the
+/// backup is what the last few edits were before it. Two days on it is a file nobody will open,
+/// and a term's worth of them is what a project directory silently fills with. Deliberately NOT
+/// "keep the newest of each sheet" - a sheet untouched for a week is one whose saved .dgm is what
+/// the user meant, and an old backup beside it only makes the folder harder to read.
+let removeBackupsOlderThan (maxAgeHours: float) (projectPath: string) : int =
+    let backupDir = backupDirOf projectPath
+    match isDirectory backupDir with
+    | false -> 0
+    | true ->
+        let nowMs = (System.DateTime.UtcNow - System.DateTime(1970, 1, 1)).TotalMilliseconds
+        let cutoff = nowMs - maxAgeHours * 60. * 60. * 1000.
+        readFilesFromDirectory backupDir
+        |> List.map (fun name -> pathJoin [| backupDir; name |])
+        |> List.filter (fun path ->
+            // a file whose time cannot be read is left alone: not knowing how old something is is
+            // not a reason to delete it
+            match modifiedTimeMs path with
+            | Some ms -> ms < cutoff
+            | None -> false)
+        |> List.fold
+            (fun gone path ->
+                try
+                    unlink path
+                    gone + 1
+                with e ->
+                    Log.warn $"could not remove the old backup '{path}': {e.Message}"
+                    gone)
+            0
+
 /// returns the sequence number and name of the most recent (highest sequence number) backup file
 let latestBackupFileData (path:string) (baseName: string) =
     backupFileData path baseName
@@ -468,22 +509,6 @@ let latestBackupFileData (path:string) (baseName: string) =
         | Some n, fn -> Some(n, fn))
 
 
-
-/// read canvas state from file found on filePath (which includes .dgm suffix etc).
-/// return Error if file does not exist or cannot be parsed.
-let private tryLoadStateFromPath (filePath: string) =
-    if not (exists filePath) then
-        Result.Error <| sprintf "Can't read file from %s because it does not seem to exist!" filePath      
-    else
-        try
-            Ok (readFile filePath)
-        with
-            | e -> Result.Error $"Error {e.Message} reading file '{filePath}'"
-
-        |> Result.map jsonStringToState
-        |> ( function
-            | Error msg  -> Result.Error <| sprintf "could not convert file '%s' to a valid issie design sheet. Details: %s" filePath msg
-            | Ok res -> Ok res)
 
 let makeData aWidth dWidth (makeFun: int -> int -> bigint) : Map<bigint,bigint>=
     let truncate n =
@@ -925,12 +950,17 @@ let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp w
 
 /// Make a loadedComponent from the file read from filePath.
 /// Return the component, or an Error string.
-let tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
-    match tryLoadStateFromPath filePath with
-    | Result.Error msg  
-    | Ok (Result.Error msg) ->
-        Error <| sprintf "Can't load component %s because of Error: %s" (getBaseNameNoExtension filePath)  msg
-    | Ok (Ok state) ->
+/// Build a sheet from the TEXT of a .dgm, naming it after the path it is to be saved back to.
+///
+/// Separate from tryLoadComponentFromPath because a .dgm's text does not only ever come from a
+/// .dgm: a library component holds one inside an .ldgm, and materialising one writes that text out
+/// before loading it. This is the whole of the decode, and the path is used only for the sheet's
+/// name and FilePath - nothing here reads it.
+let tryLoadComponentFromText (filePath: string) (contents: string) : Result<LoadedComponent, string> =
+    match jsonStringToState contents with
+    | Result.Error msg ->
+        Error <| sprintf "Can't load component %s because of Error: could not convert file '%s' to a                           valid issie design sheet. Details: %s" (getBaseNameNoExtension filePath) filePath msg
+    | Ok state ->
         // one conversion for canvas, wave info and sheet info together, so all three see the
         // same id mapping - wave selections reference canvas components
         let jsonCanvas = getLatestJsonCanvas state
@@ -953,23 +983,15 @@ let tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
         |> fun ldc -> { ldc with LoadedComponentIsOutOfDate = Helpers.jsonCanvasHasOldIds jsonCanvas }
         |> Result.Ok
 
-
-
-/// Copy a sheet from some source path to a destination path, giving every component, port and
-/// connection in it a fresh uuid so that it cannot clash with the sheet it was copied from.
-/// Falls back to a plain file copy if the source cannot be parsed.
-let copySheetWithNewIds (sourcePath: string) (newPath: string) =
-    match tryLoadComponentFromPath sourcePath with
-    | Error msg ->
-        Log.error msg
-        copyFile sourcePath newPath
-    | Ok ldc ->
-        let ldc' = RegenerateIds.regenerateSheetIds ldc
-        // a copied sheet never claims to be the top of the design it is copied into
-        let sheetInfo: SheetInfo = {Form = ldc'.Form; Description = ldc'.Description; ParameterDefinitions = ldc'.LCParameterSlots; IsTopSheet = None}
-        match saveStateToFile (dirName newPath) (baseNameWithoutExtension newPath) (ldc'.CanvasState, ldc'.WaveInfo, Some sheetInfo) with
-        | Ok _ -> ()
-        | Error msg -> Log.error msg
+let tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
+    if not (exists filePath) then
+        Result.Error <| sprintf "Can't read file from %s because it does not seem to exist!" filePath
+    else
+        try
+            Ok (readFile filePath)
+        with e ->
+            Result.Error $"Error {e.Message} reading file '{filePath}'"
+        |> Result.bind (tryLoadComponentFromText filePath)
 
 type LoadStatus =
     | Resolve  of LoadedComponent * LoadedComponent
@@ -1028,16 +1050,6 @@ let rec askForNewFile (projectPath: string) : string option =
     | "" -> Option.None
     | chosen -> Some chosen
         
-let saveAllProjectFilesFromLoadedComponentsToDisk (proj: Project) =
-    proj.LoadedComponents
-    |> List.iter (fun ldc ->
-        let name = ldc.Name
-        let state = ldc.CanvasState
-        let waveInfo = ldc.WaveInfo
-        let sheetInfo: SheetInfo = {Form=ldc.Form;Description=ldc.Description; ParameterDefinitions=ldc.LCParameterSlots; IsTopSheet = Some ldc.IsTopSheet}
-        saveStateToFile proj.ProjectPath name (state,waveInfo,Some sheetInfo) |> ignore
-        removeFileWithExtn ".dgmauto" proj.ProjectPath name)
-
 let openWriteDialogAndWriteMemory mem path =
     match askForNewFile path with
     | None -> 

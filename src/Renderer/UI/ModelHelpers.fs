@@ -21,6 +21,14 @@ module Constants =
     /// How tall the project browser's list of folders is. Fixed, and scrolling inside itself, so
     /// that a folder of 200 subfolders does not push the path bar off the top of the dialog.
     let projectBrowserListHeight = "300px"
+    /// How old a sheet backup has to be before closing the project deletes it.
+    ///
+    /// A backup is what the last few edits were before the save, and it is worth having for as
+    /// long as an accident might still be discovered - which is this session and the next one.
+    /// Beyond that the saved .dgm is what the user meant, and the backups are a folder of files
+    /// nobody will ever open. Two days keeps yesterday's work and clears out the term's.
+    let backupLifetimeHours = 48.
+
     /// How long after an edit the Simulation tab works out whether the design still builds.
     /// The check flattens the whole hierarchy, so this is what stops a burst of edits - drawing a
     /// run of wires, dragging out a selection - costing one flatten each. Long enough to cover the

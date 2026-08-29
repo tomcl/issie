@@ -197,6 +197,9 @@ type FileCommandType =
     | FileSaveOpenFile
     | FileAddFile
     | FileShowDemos of ((string * int * int) list)
+    /// Open a component library as a project, so that its components can be edited in place.
+    /// Offered from the catalogue and from nowhere else - see MenuHelpers.openLibraryAsProject.
+    | FileOpenLibrary of ComponentLibraries.ComponentLibrary
     
     
 //---------------------------------------------------------------

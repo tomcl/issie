@@ -219,6 +219,41 @@ let tests =
                     "the marker is what makes it a project")
         }
 
+        // Backups accumulate one per few edits and are never removed, so a project worked on for a
+        // term ends up with a backup folder far larger than the project. Closing is where they are
+        // cleared out, and how old a file is comes from the filesystem: the date in a backup's NAME
+        // is written with ToShortDateString, whose format is the user's locale.
+        test "closing a project removes the backups over the age limit and keeps the rest" {
+            withTempDir (fun folder ->
+                let backup = System.IO.Directory.CreateDirectory(System.IO.Path.Combine(folder, "backup"))
+                let aged (name: string) (hoursOld: float) =
+                    let path = System.IO.Path.Combine(backup.FullName, name)
+                    System.IO.File.WriteAllText(path, "")
+                    System.IO.File.SetLastWriteTimeUtc(path, System.DateTime.UtcNow.AddHours -hoursOld)
+                    path
+                let old1 = aged "main-000-old.dgm" 49.
+                let old2 = aged "main-001-older.dgm" 500.
+                let recent = aged "main-002-recent.dgm" 47.
+                touch folder "main.dgm"
+
+                Expect.equal (FilesIO.removeBackupsOlderThan 48. folder) 2 "the two over the limit"
+                Expect.isFalse (System.IO.File.Exists old1) "49 hours is over 48"
+                Expect.isFalse (System.IO.File.Exists old2) "and so is 500"
+                Expect.isTrue (System.IO.File.Exists recent) "47 hours is not"
+                Expect.isTrue (System.IO.File.Exists (System.IO.Path.Combine(folder, "main.dgm")))
+                    "the project's own sheets are not backups and are never touched")
+        }
+
+        test "a project with no backups to remove is left alone and says so" {
+            withTempDir (fun folder ->
+                touch folder "main.dgm"
+                Expect.equal (FilesIO.removeBackupsOlderThan 48. folder) 0
+                    "no backup directory is the ordinary case, not an error"
+
+                System.IO.Directory.CreateDirectory(System.IO.Path.Combine(folder, "backup")) |> ignore
+                Expect.equal (FilesIO.removeBackupsOlderThan 48. folder) 0 "nor is an empty one")
+        }
+
         test "a folder holding only the marker still counts as a project" {
             // an emptied project is still a project: it has a marker, and Issie must not offer to
             // create another one inside it

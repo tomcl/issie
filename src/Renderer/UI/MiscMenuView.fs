@@ -742,9 +742,9 @@ let copySheetIntoProjectPopup title placeholder buttonText notes nameOf oldPath 
         let buttonAction =
             fun (model': Model) ->
                 let newName = newNameOf model'.PopupDialogData
-                let newPath = pathJoin [|project.ProjectPath; newName + ".dgm"|]
+                let newPath = ComponentLibraries.sheetFilePath project newName
                 // fresh ids: a copied sheet must not share ids with the sheet it came from
-                copySheetWithNewIds oldPath newPath
+                ComponentLibraries.copySheetWithNewIds oldPath newPath
                 afterCopy newName model'
                 dispatch ClosePopup
 
@@ -825,7 +825,7 @@ let saveAsLibraryComponent (sheetName: string) (model: Model) dispatch =
                 sheets
                 |> List.map (fun name ->
                     let ldc = byName[name]
-                    match tryReadFileSync ldc.FilePath with
+                    match ComponentLibraries.trySheetFileBody ldc.FilePath with
                     | Error msg -> Error $"{name} could not be read: {msg}"
                     | Ok body ->
                         let header: ComponentLibraries.LibraryHeader = {
@@ -969,7 +969,7 @@ let importSheetPopup destProjectDir paths sourceProjectDir dispatch =
             |> List.iter (fun oldSheetPath ->
                 let newSheetPath = pathJoin [|destProjectDir; baseName oldSheetPath|]
 
-                copySheetWithNewIds oldSheetPath newSheetPath
+                ComponentLibraries.copySheetWithNewIds oldSheetPath newSheetPath
 
             )
 
@@ -977,7 +977,7 @@ let importSheetPopup destProjectDir paths sourceProjectDir dispatch =
             |> List.iter (fun (oldSheetPath, newSheetPath) ->
                         match newSheetPath with
                         | "" -> ()
-                        | path -> copySheetWithNewIds oldSheetPath path )
+                        | path -> ComponentLibraries.copySheetWithNewIds oldSheetPath path )
 
             Log.dbg Log.Files $"importing into {destProjectDir}"
 

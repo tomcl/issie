@@ -49,7 +49,7 @@ let updateVerilogFileAction newCS name model (dispatch: Msg -> Unit)=
         let sheetInfo: SheetInfo = {Form=Some (Verilog name);Description=None; ParameterDefinitions=None; IsTopSheet = wasTop} //only user defined sheets are editable and thus saveable
         let design = designWithSheet project name newCS
         let savedState = newCS, getSavedWave design model,(Some sheetInfo)
-        saveStateToFile project.ProjectPath name savedState
+        ComponentLibraries.writeSheetFile (ComponentLibraries.sheetFilePath project name) savedState
         |> displayAlertOnError dispatch
         removeFileWithExtn ".dgmauto" project.ProjectPath name
         let origLdComp =
@@ -176,7 +176,7 @@ let renameSheet oldName newName (model:Model) dispatch =
         setupProjectFromComponents false proj'.OpenFileName proj'.LoadedComponents model dispatch
         //printSheetNames {model with CurrentProj = Some proj'}
         // save all the other files
-        saveAllProjectFilesFromLoadedComponentsToDisk proj'
+        ComponentLibraries.writeAllSheetFiles proj'
         dispatch FinishUICmd
 
 
@@ -252,7 +252,9 @@ let addFileToProject model dispatch =
                     let dialogData = model'.PopupDialogData
                     // Create empty file.
                     let name = (getText dialogData).ToLower()
-                    createEmptyDgmFile project.ProjectPath name
+                    // a sheet added to a library opened as a project is another component of
+                    // that library, not a stray .dgm the library loader would never read
+                    ComponentLibraries.createEmptySheetFile project name
                     |> displayAlertOnError dispatch
                     // Add the file to the project.
                     let newComponent = {
@@ -260,7 +262,7 @@ let addFileToProject model dispatch =
                         LoadedComponentIsOutOfDate = false
                         TimeStamp = System.DateTime.Now
                         WaveInfo = None
-                        FilePath = pathJoin [|project.ProjectPath; name + ".dgm"|]
+                        FilePath = ComponentLibraries.sheetFilePath project name
                         CanvasState = [],[]
                         InputLabels = []
                         OutputLabels = []

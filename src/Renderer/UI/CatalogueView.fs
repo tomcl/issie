@@ -427,6 +427,15 @@ let private startPlacingLibraryComponent
         dispatch =
     match model.CurrentProj with
     | None -> ()
+    // A library opened as a project is being MAINTAINED, and materialising a component into it
+    // would write .dgm sheets into the library directory - files the library loader does not read,
+    // sitting beside the components they were meant to join. The library section stays in the
+    // catalogue, since it is also the way to open a DIFFERENT library for editing; what is refused
+    // is the one action that would make a mess. Its own sheets are still offered under "This
+    // project", which is how a multi-sheet component is built.
+    | Some project when ComponentLibraries.isLibraryProject project ->
+        dispatch <| SetFilesNotification (Notifications.errorFilesNotification
+            $"{listing.Header.Name} cannot be placed in a library. Sheets of this library are                offered under 'This project'.")
     | Some project ->
         let placed =
             ComponentLibraries.readComponentAndDependencies library.Path listing.Header.Name
@@ -1793,10 +1802,26 @@ let viewCatalogue model dispatch =
             Menu.menu [Props [Class "py-1"; Style ([Height "calc(100vh - 200px)"; OverflowY OverflowOptions.Auto] @ styles)]] [
                 div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; JustifyContent "space-between"; MarginBottom "6px"]] [
                     b [] [str $"{library.Name} library"]
-                    Button.button [
-                        Button.Size IsSmall
-                        Button.OnClick (fun _ -> dispatch <| UpdateModel (Optics.Optic.set openLibrary_ None))
-                    ] [str "Back"]
+                    div [] [
+                        // Editing the library opens it as a project, which closes this one - so it
+                        // goes through the same save-first dialog every other way of leaving a
+                        // project does. Only shown where the library could be saved again
+                        // afterwards: see ComponentLibraries.libraryIsEditable.
+                        if ComponentLibraries.libraryIsEditable {Name = library.Name; Path = library.Path} then
+                            Button.button [
+                                Button.Size IsSmall
+                                Button.Props [
+                                    HTMLAttr.Title "Open this library as a project, so that its                                                     components can be changed where they are. Each                                                     component is a sheet, and saving one writes it                                                     back into the library." ]
+                                Button.OnClick (fun _ ->
+                                    dispatch <| UpdateModel (Optics.Optic.set openLibrary_ None)
+                                    dispatch <| FileCommand (FileOpenLibrary {Name = library.Name; Path = library.Path}, dispatch))
+                            ] [str "Edit"]
+                        Button.button [
+                            Button.Size IsSmall
+                            Button.Props [Style [MarginLeft "4px"]]
+                            Button.OnClick (fun _ -> dispatch <| UpdateModel (Optics.Optic.set openLibrary_ None))
+                        ] [str "Back"]
+                    ]
                 ]
                 // a component that will not read costs that component, not the library: the rest
                 // are still offered, and the trouble is said out loud rather than swallowed

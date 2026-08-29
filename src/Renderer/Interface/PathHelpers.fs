@@ -200,3 +200,21 @@ let extname (p: string) =
         match lastDot (b.Length - 1) with
         | -1 -> ""
         | i -> b.Substring i
+
+/// Whether `candidate` is `root` or sits somewhere under it.
+///
+/// The separator at the end of the root is what makes this an answer about containment rather than
+/// about spelling: without it "C:\proj" contains "C:\projects-elsewhere". Both sides are normalised
+/// first, so a `..` or a doubled separator cannot walk out of a root that textually still matches.
+///
+/// Case-folded on Windows, where the filesystem is, and not on POSIX, where it is not. Main has its
+/// own copy of this for the paths it confines (Main/Bridge.fs) - that one guards the process
+/// boundary and must not depend on anything the renderer compiles.
+let isWithin (root: string) (candidate: string) =
+    match root with
+    | "" -> false
+    | root ->
+        let fold (p: string) = if isWin then (normalise p).ToLowerInvariant() else normalise p
+        let r = (fold root).TrimEnd sepChar
+        let c = fold candidate
+        c = r || c.StartsWith(r + sepStr)

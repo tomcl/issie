@@ -312,7 +312,9 @@ and private viewProjectBrowser (startFolder: string) model dispatch =
             /// however many folders there are. The whole dialog used to scroll together, which put
             /// the path bar out of reach in any large folder.
             let contents =
-                div [Style [
+                // the class is what the selected row's styling hangs off: see extra.css
+                div [Class "projectBrowserList"
+                     Style [
                         Flex "1"; MinWidth "0"
                         Height Constants.projectBrowserListHeight
                         OverflowY OverflowOptions.Auto
@@ -434,6 +436,15 @@ let private openProject model dispatch =
 
 /// Close current project, if any.
 let forceCloseProject (model:Model) dispatch =
+    // Before the project goes: the backups it has accumulated. Closing is the one moment nothing
+    // is being edited, so nothing here can take away a file the app is about to write to, and it
+    // is where the user is already waiting for something to finish. Read from the model passed in
+    // rather than after the dispatch below, which clears CurrentProj.
+    model.CurrentProj
+    |> Option.iter (fun project ->
+        match removeBackupsOlderThan Constants.backupLifetimeHours project.ProjectPath with
+        | 0 -> ()
+        | gone -> Log.dbg Log.Files $"removed {gone} backup(s) over {Constants.backupLifetimeHours}h old from {project.ProjectPath}")
     dispatch (StartUICmd CloseProject)
     let sheetDispatch sMsg = dispatch (Sheet sMsg) 
     dispatch EndSimulation // End any running simulation.
@@ -493,6 +504,15 @@ let fileCommand (fc: FileCommandType) (dispatch: (Msg->Unit)) (model: Model) =
 
     | FileShowDemos demoOpts ->
         showDemoProjects model dispatch demoOpts
+        model, Cmd.none
+
+    | FileOpenLibrary library ->
+        // opening a library closes whatever project is open, so it asks to save first exactly as
+        // opening any other project does
+        doActionWithSaveFileDialog
+            $"Edit the {library.Name} library"
+            (ExecFuncInMessage ((fun model' dispatch' -> openLibraryAsProject library model' dispatch'), dispatch))
+            model dispatch ()
         model, Cmd.none
         
     

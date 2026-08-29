@@ -145,10 +145,18 @@ covered and what is not is in [docs/dev/verilogTesting.md](docs/dev/verilogTesti
 ## File formats
 
 - `.dgm` — one circuit diagram, JSON. Canvas state is `(Component list * Connection list)`.
-- `.dprj` — project marker, empty.
+- `.ldgm` — one component of a library: an authored header and the text of a `.dgm`. **A sheet
+  file is therefore either of two things**, which is why every sheet read and write goes through
+  `ComponentLibraries.tryLoadSheetFile` / `writeSheetFile` rather than `FilesIO.saveStateToFile` —
+  a library directory opens as a project (Catalogue → a library → Edit) and its components are its
+  sheets, saved back in place. `ComponentLibraries.isLibraryProject` is how the two are told apart,
+  and it reads the sheets' own `FilePath`s.
+- `.dprj` — project marker, empty. A library has none: it is never opened from the browser.
 - `.ram` — memory initialisation data.
 
-Sheets are continuously auto-backed-up to a `backup/` subdirectory of the project.
+Sheets are continuously auto-backed-up to a `backup/` subdirectory of the project, as plain `.dgm`
+whichever form the sheet itself is in. Closing the project deletes the backups over
+`ModelHelpers.Constants.backupLifetimeHours` old.
 
 ## Conventions that differ from the defaults
 

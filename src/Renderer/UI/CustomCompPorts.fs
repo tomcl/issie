@@ -65,7 +65,7 @@ let syncLoadedComponentsToDisk newProj oldProj =
         let state = ldc.CanvasState
         let waveInfo = ldc.WaveInfo
         let sheetInfo: SheetInfo = {Form=ldc.Form;Description=ldc.Description; ParameterDefinitions=ldc.LCParameterSlots; IsTopSheet = Some ldc.IsTopSheet}
-        saveStateToFile newProj.ProjectPath ldc.Name (state,waveInfo,Some sheetInfo)
+        ComponentLibraries.writeSheetFile (ComponentLibraries.sheetFilePath newProj ldc.Name) (state,waveInfo,Some sheetInfo)
         |> ignore
 
     let nameOf sheet (ldc:LoadedComponent) = ldc.Name = sheet
@@ -83,7 +83,7 @@ let syncLoadedComponentsToDisk newProj oldProj =
             saveToDisk ldcNew
         | Some _, Some _ -> ()
         | None, Some ldcOld -> 
-            removeFileWithExtn ".dgm" oldProj.ProjectPath ldcOld.Name
+            removeFileWithExtn (ComponentLibraries.sheetExtension oldProj) oldProj.ProjectPath ldcOld.Name
         | Some ldcNew, None -> 
             saveToDisk ldcNew
         | None, None -> failwithf "What? Can't happen")
@@ -649,7 +649,7 @@ let optCurrentSheetDependentsPopup (model: Model) =
                         let proj =
                             updateDependents instances p
                             |> (fun p ->
-                                saveAllProjectFilesFromLoadedComponentsToDisk p
+                                ComponentLibraries.writeAllSheetFiles p
                                 markProjectSaved p)
                         dispatch <| SetProject proj
 

@@ -362,6 +362,17 @@ Any sheet you write can go the other way: right-click it in the **Sheet** menu t
 and what the Catalogue tooltip should say about it. Sub-sheets it uses are saved alongside it, and
 are materialised with it when someone picks it.
 
+### Changing a library
+
+Open a library in the Catalogue and press **Edit**: the library opens as a project of its own, with
+each of its components as a sheet. A component built from several sheets brings all of them, so it
+is the design it was authored as. Saving a sheet writes it back into the library where it is —
+there is no copy to keep in step, and everyone who places the component afterwards gets the change.
+
+Only libraries you can save are offered this way. The ones shipped with ISSIE live inside the
+installation and are read-only, so **Edit** does not appear on them; libraries you made or imported
+are your own and always do.
+
 ## Now what?
 
 You now know how to use ISSIE to create & simulate digital designs. 

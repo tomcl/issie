@@ -684,13 +684,17 @@ let quantifyChanges (ldc1:LoadedComponent) (ldc2:LoadedComponent) =
 
 
 
+/// Write a sheet to the file it came from, whichever of the two forms that file is: an ordinary
+/// .dgm, or a component of a library opened as a project. See ComponentLibraries.writeSheetFile.
 let writeComponentToFile comp =
-    stateToJsonString (comp.CanvasState,comp.WaveInfo,Some {
-        Form=comp.Form;
-        Description=comp.Description
-        ParameterDefinitions = comp.LCParameterSlots
-        IsTopSheet = Some comp.IsTopSheet})
-    |> Result.bind (writeFile comp.FilePath)
+    ComponentLibraries.writeSheetFile
+        comp.FilePath
+        (comp.CanvasState,
+         comp.WaveInfo,
+         Some { Form = comp.Form
+                Description = comp.Description
+                ParameterDefinitions = comp.LCParameterSlots
+                IsTopSheet = Some comp.IsTopSheet })
 
 /// Drop library sheets that nothing instantiates any more, deleting their files.
 /// Run when the project is saved rather than when an instance is deleted: undo restores model
@@ -714,7 +718,7 @@ let sweepUnusedLibrarySheets (model: Model) : Model =
             toRemove
             |> Set.iter (fun name ->
                 match project.LoadedComponents |> List.tryFind (fun ldc -> ldc.Name = name) with
-                | Some ldc -> removeFileWithExtn ".dgm" project.ProjectPath ldc.Name
+                | Some ldc -> removeFileWithExtn (ComponentLibraries.sheetExtension project) project.ProjectPath ldc.Name
                 | None -> ())
             {model with
                 CurrentProj =
@@ -772,7 +776,7 @@ let setTopSheetState (sheetName: string) (model: Model) : Model =
 let readLastBackup comp =
     let path = pathWithoutExtension comp.FilePath 
     let baseN = baseName path
-    let backupDir = pathJoin [| dirName path ; "backup" |]
+    let backupDir = backupDirOf (dirName path)
     latestBackupFileData backupDir baseN
     |> Option.map (fun (seq, fName) -> seq, fName, backupDir)
   
@@ -784,7 +788,7 @@ let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp (d
     let nSeq, backupFileName, backFilePath =
         match readLastBackup comp with
         | Some( n, fp, path) -> n+1,fp, path
-        | None -> 0, "", pathJoin [|comp.FilePath; "backup"|]
+        | None -> 0, "", backupDirOf comp.FilePath
     let wantToWrite, oldFile =
         if backupFileName = "" then
             true, None
@@ -815,9 +819,9 @@ let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp (d
                 let baseN = baseName path
                 let ds = EEExtensions.String.replaceChar '/' '-' (timestamp.ToShortDateString())
                 let suffix = EEExtensions.String.replaceChar ' ' '-' (sprintf "%s-%02dh-%02dm" ds timestamp.Hour timestamp.Minute)
-                let backupDir = pathJoin [| dirName path ; "backup" |]
-                ensureDirectory <| pathJoin [| dirName path ; "backup" |]
-                pathJoin [| dirName path ; "backup" ; sprintf "%s-%03d-%s.dgm" baseN nSeq suffix |]
+                let backupDir = backupDirOf (dirName path)
+                ensureDirectory backupDir
+                pathJoin [| backupDir ; sprintf "%s-%03d-%s.dgm" baseN nSeq suffix |]
         // write the new backup file
         {comp with 
             TimeStamp = timestamp
@@ -844,7 +848,7 @@ let writeComponentToBackupFileNow (numCircuitChanges: int) (numHours:float) comp
     let nSeq, backupFileName, backFilePath =
         match readLastBackup comp with
         | Some( n, fp, path) -> n+1,fp, path
-        | None -> 0, "", pathJoin [|comp.FilePath; "backup"|]
+        | None -> 0, "", backupDirOf comp.FilePath
     let wantToWrite, oldFile =
         if backupFileName = "" then
             true, None
@@ -875,9 +879,9 @@ let writeComponentToBackupFileNow (numCircuitChanges: int) (numHours:float) comp
                 let baseN = baseName path
                 let ds = EEExtensions.String.replaceChar '/' '-' (timestamp.ToShortDateString())
                 let suffix = EEExtensions.String.replaceChar ' ' '-' (sprintf "%s-%02dh-%02dm" ds timestamp.Hour timestamp.Minute)
-                let backupDir = pathJoin [| dirName path ; "backup" |]
-                ensureDirectory <| pathJoin [| dirName path ; "backup" |]
-                pathJoin [| dirName path ; "backup" ; sprintf "%s-%03d-%s.dgm" baseN nSeq suffix |]
+                let backupDir = backupDirOf (dirName path)
+                ensureDirectory backupDir
+                pathJoin [| backupDir ; sprintf "%s-%03d-%s.dgm" baseN nSeq suffix |]
         // write the new backup file
         {comp with 
             TimeStamp = timestamp
@@ -1110,8 +1114,10 @@ let private writeComponentKeepingTimeStamp (comp: LoadedComponent) =
           ParameterDefinitions = comp.LCParameterSlots
           IsTopSheet = Some comp.IsTopSheet }
 
-    stateToJsonStringAt comp.TimeStamp (comp.CanvasState, comp.WaveInfo, Some sheetInfo)
-    |> Result.bind (writeFile comp.FilePath)
+    ComponentLibraries.writeSheetFileAt
+        comp.TimeStamp
+        comp.FilePath
+        (comp.CanvasState, comp.WaveInfo, Some sheetInfo)
 
 /// Put a project's files into the current id form when they were read in the old one.
 ///
@@ -1344,6 +1350,28 @@ let openDemoProjectFromPath (path:string) model dispatch =
 
     )
 
+/// Open a component library as a project, so that its components can be edited where they are.
+///
+/// Reached from the catalogue and from nowhere else. The project browser deliberately does not
+/// offer it: a library is not a folder of sheets a user would go looking for, and the catalogue is
+/// where they already are when they have a reason to open one.
+///
+/// It goes through resolveComponentOpenPopup like any other project, so the sheets are admitted,
+/// their ids checked and the design opened at its top - and nothing downstream has to know that
+/// these sheets came out of .ldgm files rather than .dgm ones. What is NOT done is adding the
+/// library to the recent projects list: those rows open a project through the browser, which is
+/// the door this one is not behind.
+let openLibraryAsProject (library: ComponentLibraries.ComponentLibrary) model dispatch =
+    warnAppWidth dispatch (fun _ ->
+        Log.dbg Log.Files $"loading library {library.Path} as a project"
+        match ComponentLibraries.tryLoadLibraryProject library.Path with
+        | Error err ->
+            Log.error err
+            displayFileErrorNotification err dispatch
+        | Ok componentsToResolve ->
+            resolveComponentOpenPopup library.Path [] componentsToResolve model dispatch
+            Log.dbg Log.Files $"opened library {library.Name}")
+
 /// open an existing project from its path
 let openProjectFromPath (path:string) model dispatch =
     warnAppWidth dispatch (fun _ ->
@@ -1448,7 +1476,7 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
             failwithf "Auto saving is no longer used"
             None
         else 
-            saveStateToFile project.ProjectPath project.OpenFileName savedState
+            ComponentLibraries.writeSheetFile (ComponentLibraries.sheetFilePath project project.OpenFileName) savedState
             |> displayAlertOnError dispatch
             removeFileWithExtn ".dgmauto" project.ProjectPath project.OpenFileName
             let origLdComp =
@@ -1494,7 +1522,7 @@ let saveOpenFileToModel model =
         let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description; ParameterDefinitions= CanvasExtractor.tidyParamSlots canvasState ldc.LCParameterSlots; IsTopSheet = Some ldc.IsTopSheet} //only user defined sheets are editable and thus saveable
         let design = designWithSheet project project.OpenFileName canvasState
         let savedState = canvasState, getSavedWave design model,(Some sheetInfo)
-        saveStateToFile project.ProjectPath project.OpenFileName savedState |> ignore
+        ComponentLibraries.writeSheetFile (ComponentLibraries.sheetFilePath project project.OpenFileName) savedState |> ignore
         removeFileWithExtn ".dgmauto" project.ProjectPath project.OpenFileName
         let origLdComp =
             project.LoadedComponents
@@ -1648,7 +1676,7 @@ let removeAllCustomComps (name:string) project =
 
 /// Remove file.
 let removeFileInProject name project model dispatch =
-    removeFile project.ProjectPath name
+    removeFileWithExtn (ComponentLibraries.sheetExtension project) project.ProjectPath name
     // Remove the file from the dependencies and update project.
     let newComponents = List.filter (fun (lc: LoadedComponent) -> lc.Name.ToLower() <> name.ToLower()) project.LoadedComponents
     // Make sure there is at least one file in the project.

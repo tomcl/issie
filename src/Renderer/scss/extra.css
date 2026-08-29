@@ -525,3 +525,32 @@ th, td {
   padding: 0 2px;
   border-radius: 2px;
 }
+
+
+/* ---------------------------------------------------------------------------
+   Project browser: the row the keyboard is on.
+
+   Bulma's is-active for a menu row is a solid #485fc7 with white text, which
+   assumes the row is one piece of plain text. These rows are not: the name, the
+   sheet count and the "no project file" warning each carry their own colour, and
+   those colours are the information - dimgrey says "ordinary folder, you can go
+   in", orange says "loadable, but the marker is missing". Bulma's rule recolours
+   only what inherits, so the name went white while the notes stayed grey and
+   orange on dark blue, at which point the row that was meant to stand out was
+   the one hardest to read.
+
+   A pale wash keeps every one of those colours legible and still reads as
+   selected; the bar down the left says which row it is without depending on
+   telling two near-white backgrounds apart.
+   --------------------------------------------------------------------------- */
+.projectBrowserList .menu-list a.is-active {
+  background-color: #eaf0fb;
+  color: #363636;
+  box-shadow: inset 3px 0 0 #485fc7;
+}
+
+/* Hover must not cancel the selection: whitesmoke over the wash would make the
+   selected row look unselected for as long as the pointer sat on it. */
+.projectBrowserList .menu-list a.is-active:hover {
+  background-color: #dfe8f8;
+}

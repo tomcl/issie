@@ -43,6 +43,37 @@ let private namesIn (trees: Map<string, SheetTree>) =
     let rec walk (t: SheetTree) = t.SheetName :: List.collect walk t.SubSheets
     trees |> Map.toList |> List.collect (fun (name, tree) -> name :: walk tree) |> Set.ofList
 
+
+/// Run `body` against a fresh empty directory standing in for a library, removed afterwards.
+let private withTempLibrary (body: string -> unit) =
+    let folder =
+        System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"issie-libproj-{System.Guid.NewGuid()}")
+    System.IO.Directory.CreateDirectory folder |> ignore
+    try body folder
+    finally try System.IO.Directory.Delete(folder, true) with _ -> ()
+
+let private header (name: string) (offered: bool) (requires: string list) : ComponentLibraries.LibraryHeader =
+    { FormatVersion = ComponentLibraries.Constants.currentFormatVersion
+      Name = name
+      Description = $"test component {name}"
+      Section = ComponentLibraries.Constants.defaultSection
+      OfferedInCatalogue = offered
+      Requires = requires }
+
+/// The text of a .dgm holding these components - what an .ldgm carries as its body.
+let private bodyOf (name: string) (comps: Component list) =
+    let sheetInfo: SheetInfo =
+        {Form = Some User; Description = Some $"test component {name}"
+         ParameterDefinitions = None; IsTopSheet = Some false}
+    match Helpers.JsonHelpers.stateToJsonString ((comps, []), None, Some sheetInfo) with
+    | Ok json -> json
+    | Error msg -> failwithf "%s" msg
+
+let private writeComponent (libPath: string) (h: ComponentLibraries.LibraryHeader) (body: string) =
+    match ComponentLibraries.writeComponentFile libPath h body with
+    | Ok () -> ()
+    | Error msg -> failwithf "%s" msg
+
 let tests =
     testList "Library" [
         test "hidden library sheets leave no trace in the sheet trees" {
@@ -155,5 +186,113 @@ let tests =
             let viewed = getSheetTreesFiltered (fun name -> name = "L1_fullAdd") false project |> namesIn
             Expect.equal viewed (Set.ofList [ "top"; "L1_fullAdd" ])
                 "the component being looked at is there; the sheet it is built from is not"
+        }
+    
+
+        //------------------------------------------------------------------------------------//
+        // A library opened as a project.
+        //
+        // The library IS the project and its .ldgm files ARE its sheets, so a multi-sheet
+        // component opens as the several sheets it was authored as, and saving one writes it back
+        // into the library it came from rather than producing a copy somewhere else.
+        //------------------------------------------------------------------------------------//
+
+        test "a library opens as a project of its components, dependencies included" {
+            withTempLibrary (fun libPath ->
+                writeComponent libPath (header "adder" true [ "carry" ]) (bodyOf "adder" [ instanceOf 1 "carry" "C1" ])
+                writeComponent libPath (header "carry" false []) (bodyOf "carry" [])
+
+                match ComponentLibraries.tryLoadLibraryProject libPath with
+                | Error msg -> failtest msg
+                | Ok statuses ->
+                    let ldcs = statuses |> List.map (function | FilesIO.OkComp ldc -> ldc | _ -> failtest "resolve")
+                    Expect.equal (ldcs |> List.map (fun ldc -> ldc.Name) |> List.sort) [ "adder"; "carry" ]
+                        "the component and the helper it requires are both sheets"
+                    Expect.all ldcs (fun ldc -> ldc.Form = Some User)
+                        "every sheet is the user's to edit - a Library form would open it read-only"
+                    Expect.all ldcs (fun ldc -> not ldc.IsTopSheet)
+                        "a library does not say which of its components is the design"
+                    Expect.all ldcs (fun ldc -> FilesIO.hasExtn ".ldgm" ldc.FilePath)
+                        "each sheet is saved back to the component file it came from")
+        }
+
+        test "a library project is told from an ordinary one by its sheets' files" {
+            let libraryProject =
+                { project with
+                    LoadedComponents =
+                        project.LoadedComponents
+                        |> List.map (fun ldc -> {ldc with FilePath = ldc.Name + ".ldgm"}) }
+            Expect.isTrue (ComponentLibraries.isLibraryProject libraryProject) "its sheets are .ldgm"
+            Expect.isFalse (ComponentLibraries.isLibraryProject project) "and an ordinary project's are not"
+            Expect.equal (ComponentLibraries.sheetExtension libraryProject) ".ldgm"
+                "a sheet added to a library becomes another component of it"
+            Expect.equal (ComponentLibraries.sheetExtension project) ".dgm" "and not otherwise"
+        }
+
+        test "saving a component keeps what the author declared and refreshes what the canvas says" {
+            withTempLibrary (fun libPath ->
+                let path = ComponentLibraries.componentPath libPath "adder"
+                writeComponent libPath
+                    {header "adder" true [ "carry" ] with Section = "Arithmetic"; Description = "ripple-carry adder"}
+                    (bodyOf "adder" [ instanceOf 1 "carry" "C1" ])
+
+                // saved with a different sub-sheet on the canvas, and no description of its own
+                let canvas: CanvasState = [ instanceOf 1 "lookahead" "L1" ], []
+                let sheetInfo: SheetInfo =
+                    {Form = Some User; Description = None; ParameterDefinitions = None; IsTopSheet = Some false}
+                match ComponentLibraries.writeSheetFile path (canvas, None, Some sheetInfo) with
+                | Error msg -> failtest msg
+                | Ok () ->
+                    match ComponentLibraries.tryReadHeader path with
+                    | Error msg -> failtest msg
+                    | Ok saved ->
+                        Expect.equal saved.Section "Arithmetic" "the catalogue section is the author's"
+                        Expect.isTrue saved.OfferedInCatalogue "and so is being offered at all"
+                        Expect.equal saved.Description "ripple-carry adder"
+                            "a sheet with no description of its own keeps the one in the file"
+                        Expect.equal saved.Requires [ "lookahead" ]
+                            "Requires is what the canvas now instantiates, or the component is \
+                             placed missing a sheet")
+        }
+
+        test "a component edited and saved comes back as what was saved" {
+            withTempLibrary (fun libPath ->
+                let path = ComponentLibraries.componentPath libPath "adder"
+                writeComponent libPath (header "adder" true []) (bodyOf "adder" [])
+                let canvas: CanvasState = [ instanceOf 7 "carry" "C1" ], []
+                let sheetInfo: SheetInfo =
+                    {Form = Some User; Description = Some "now with carry"; ParameterDefinitions = None; IsTopSheet = Some false}
+                ComponentLibraries.writeSheetFile path (canvas, None, Some sheetInfo) |> Result.isOk
+                |> fun ok -> Expect.isTrue ok "the save succeeded"
+
+                match ComponentLibraries.tryLoadLibraryProject libPath with
+                | Error msg -> failtest msg
+                | Ok [ FilesIO.OkComp ldc ] ->
+                    Expect.equal (fst ldc.CanvasState |> List.map (fun c -> c.Label)) [ "C1" ]
+                        "the canvas written is the canvas read back"
+                    Expect.equal ldc.Description (Some "now with carry")
+                        "the sheet's description is the header's, in both directions"
+                | Ok _ -> failtest "expected exactly one component")
+        }
+
+        test "a sheet added to a library becomes a helper, not a catalogue entry" {
+            // What the catalogue offers is something the author declares, and nothing in the
+            // editor asks for it - so a new sheet is a helper until "Save as library component"
+            // says otherwise.
+            withTempLibrary (fun libPath ->
+                let libProject: Project =
+                    { ProjectPath = libPath
+                      OpenFileName = "adder"
+                      WorkingFileName = Some "adder"
+                      LoadedComponents = [ {ldc "adder" User ([], []) with FilePath = ComponentLibraries.componentPath libPath "adder"} ] }
+                match ComponentLibraries.createEmptySheetFile libProject "helper" with
+                | Error msg -> failtest msg
+                | Ok () ->
+                    match ComponentLibraries.tryReadHeader (ComponentLibraries.componentPath libPath "helper") with
+                    | Error msg -> failtest msg
+                    | Ok created ->
+                        Expect.isFalse created.OfferedInCatalogue "not offered until it is declared to be"
+                        Expect.equal created.Name "helper" "named after its file"
+                        Expect.equal created.Requires [] "an empty sheet instantiates nothing")
         }
     ]

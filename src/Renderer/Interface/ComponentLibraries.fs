@@ -132,9 +132,9 @@ let tryReadComponentFile (path: string) : Result<LibraryFile, string> =
 let tryReadHeader (path: string) : Result<LibraryHeader, string> =
     tryReadComponentFile path |> Result.map fst
 
-/// Write a component file. Used by "save as library component". `body` must be the text of a .dgm
+/// Write a component file to a path chosen by the caller. `body` must be the text of a .dgm
 /// exactly as the sheet was saved, since that is what is written back out when it is used.
-let writeComponentFile (libPath: string) (header: LibraryHeader) (body: string) : Result<unit, string> =
+let writeComponentFileAt (path: string) (header: LibraryHeader) (body: string) : Result<unit, string> =
     let file: LibraryFile = header, body
     #if FABLE_COMPILER
     let json = Json.stringify file
@@ -146,7 +146,13 @@ let writeComponentFile (libPath: string) (header: LibraryHeader) (body: string) 
     // SimpleJsonDotNet's job.
     let json = Thoth.Json.Net.Encode.Auto.toString (0, file)
     #endif
-    writeFile (componentPath libPath header.Name) json
+    writeFile path json
+
+/// Write a component into a library, under the name its header carries. What "save as library
+/// component" uses; a library opened as a project writes to the file each sheet came from, which
+/// is writeComponentFileAt above.
+let writeComponentFile (libPath: string) (header: LibraryHeader) (body: string) : Result<unit, string> =
+    writeComponentFileAt (componentPath libPath header.Name) header body
 
 //------------------------------------------------------------------------------------------------//
 //--------------------------------------- Finding them -------------------------------------------//
@@ -227,6 +233,212 @@ let readComponentAndDependencies (libPath: string) (name: string) : Result<Libra
                 ||> Helpers.ResultList.fold read
                 |> Result.map (fun got -> got @ [header, body]))
     read [] name
+
+//------------------------------------------------------------------------------------------------//
+//----------------------------- A library opened as a project ------------------------------------//
+//------------------------------------------------------------------------------------------------//
+
+(*
+    A library is MAINTAINED as well as used, and the only way to change a component used to be to
+    place it in a project, edit it there and save it back out - which renames its sheets, gives them
+    new ids, and produces a copy rather than a change. So a library directory opens as a project in
+    its own right: its .ldgm files are its sheets, kept where they are.
+
+    A multi-sheet component needs nothing special. Its helper sheets are .ldgm files in the same
+    directory, named by its header's Requires, so opening the directory brings them in with it and
+    the component is a design of several sheets exactly as it was authored.
+
+    What makes this work with the rest of Issie is that an .ldgm holds the text of a .dgm. Loading
+    one unwraps it and hands the text to the ordinary sheet decode; saving one wraps it back up
+    beside the header the file already had. Nothing in between knows which of the two it is looking
+    at, and a sheet's FilePath is where that fact lives.
+*)
+
+/// Whether a sheet's file is a library component rather than an ordinary .dgm.
+let isLibraryComponentFile (filePath: string) = hasExtn Constants.componentExtension filePath
+
+/// Whether this project IS a library, opened to be edited in place.
+///
+/// Read off the sheets' own files rather than carried in the model: the two forms differ only in
+/// how each sheet is stored, so the files are where the difference actually is.
+let isLibraryProject (project: Project) =
+    project.LoadedComponents |> List.exists (fun ldc -> isLibraryComponentFile ldc.FilePath)
+
+/// The extension a project's sheets are stored with. A project is all of one form or all of the
+/// other, so this is a fact about the project and not about each sheet.
+let sheetExtension (project: Project) =
+    match isLibraryProject project with
+    | true -> Constants.componentExtension
+    | false -> ".dgm"
+
+/// The file one sheet of a project is kept in - including a sheet that is about to be added, which
+/// takes the form its siblings are in rather than becoming a stray .dgm the library loader would
+/// never read.
+let sheetFilePath (project: Project) (sheetName: string) : string =
+    pathJoin [| project.ProjectPath; sheetName + sheetExtension project |]
+
+/// The sheets a canvas instantiates, by name and without duplicates: a component's Requires.
+let private customSheetsOnCanvas ((comps, _): CanvasState) =
+    comps
+    |> List.choose (fun comp -> match comp.Type with | Custom cc -> Some cc.Name | _ -> None)
+    |> List.distinct
+
+/// The header to write beside a sheet being saved into a library.
+///
+/// Everything the author declared is kept: which section the catalogue files it under, and whether
+/// it is offered there at all. Those are decisions about the LIBRARY rather than about the sheet,
+/// and nothing in the editor asks for them - so a sheet newly added to a library is a helper, and
+/// becomes a component in its own right when "Save as library component" says so.
+///
+/// Requires is the exception, and has to be: it is what the sheet instantiates, so it is a fact
+/// about the canvas being saved and is recomputed from it. Left alone, a component that gained a
+/// sub-sheet would be placed missing it.
+let private headerForSheet (path: string) (description: string option) (canvas: CanvasState) : LibraryHeader =
+    let existing = tryReadHeader path
+    let orExisting (pick: LibraryHeader -> 'a) (fallback: 'a) =
+        match existing with
+        | Ok header -> pick header
+        | Error _ -> fallback
+    let name = baseNameWithoutExtension path
+    { FormatVersion = Constants.currentFormatVersion
+      Name = name
+      Description = description |> Option.defaultValue (orExisting (fun h -> h.Description) name)
+      Section = orExisting (fun h -> h.Section) Constants.defaultSection
+      OfferedInCatalogue = orExisting (fun h -> h.OfferedInCatalogue) false
+      Requires = customSheetsOnCanvas canvas }
+
+/// Put the serialised sheet in the file, in whichever of the two forms that file is. An ordinary
+/// .dgm is the text and nothing more; an .ldgm is that same text wrapped in the header the file
+/// already carried.
+let private putSheetInFile
+        (filePath: string)
+        ((canvas, _, sheetInfo): CanvasState * SavedWaveInfo option * SheetInfo option)
+        (json: string)
+        : Result<unit, string> =
+    match isLibraryComponentFile filePath with
+    | false -> writeFile filePath json
+    | true ->
+        let description = sheetInfo |> Option.bind (fun si -> si.Description)
+        writeComponentFileAt filePath (headerForSheet filePath description canvas) json
+
+/// Write one sheet to its own file. The single funnel every sheet save goes through, so that
+/// "which kind of project is this" is asked once and in one place.
+let writeSheetFile
+        (filePath: string)
+        (state: CanvasState * SavedWaveInfo option * SheetInfo option)
+        : Result<unit, string> =
+    Helpers.JsonHelpers.stateToJsonString state
+    |> Result.bind (putSheetInFile filePath state)
+
+/// As writeSheetFile, keeping a timestamp the caller already has rather than stamping the moment
+/// of writing. For a rewrite the user did not ask for - the id conversion done on load - where the
+/// stamp is what says which sheet they were last working on.
+let writeSheetFileAt
+        (timeStamp: System.DateTime)
+        (filePath: string)
+        (state: CanvasState * SavedWaveInfo option * SheetInfo option)
+        : Result<unit, string> =
+    Helpers.JsonHelpers.stateToJsonStringAt timeStamp state
+    |> Result.bind (putSheetInFile filePath state)
+
+/// The text of the .dgm a sheet's file holds, unwrapped from its header where it has one. What
+/// "save as library component" copies: an .ldgm's body IS a .dgm, so a component can be written
+/// into another library from a library opened as a project as readily as from an ordinary sheet.
+let trySheetFileBody (filePath: string) : Result<string, string> =
+    match isLibraryComponentFile filePath with
+    | false -> tryReadFileSync filePath
+    | true -> tryReadComponentFile filePath |> Result.map snd
+
+/// Read a sheet from its file, in whichever of the two forms that file is.
+let tryLoadSheetFile (filePath: string) : Result<LoadedComponent, string> =
+    match isLibraryComponentFile filePath with
+    | false -> tryLoadComponentFromPath filePath
+    | true ->
+        tryReadComponentFile filePath
+        |> Result.bind (fun (_, body) -> tryLoadComponentFromText filePath body)
+
+/// Create the file for a sheet a project does not have yet, empty.
+let createEmptySheetFile (project: Project) (name: string) =
+    writeSheetFile
+        (sheetFilePath project name)
+        (([], []), None, Some {Form = Some User; Description = None; ParameterDefinitions = None; IsTopSheet = None})
+
+/// Write every sheet of a project to disk. Used where a change reaches sheets other than the open
+/// one - a custom component's ports changing shape, and a project being renamed.
+let writeAllSheetFiles (project: Project) =
+    project.LoadedComponents
+    |> List.iter (fun ldc ->
+        let sheetInfo: SheetInfo =
+            {Form = ldc.Form; Description = ldc.Description
+             ParameterDefinitions = ldc.LCParameterSlots; IsTopSheet = Some ldc.IsTopSheet}
+        writeSheetFile (sheetFilePath project ldc.Name) (ldc.CanvasState, ldc.WaveInfo, Some sheetInfo) |> ignore
+        removeFileWithExtn ".dgmauto" project.ProjectPath ldc.Name)
+
+/// Copy a sheet from some source path to a destination path, giving every component, port and
+/// connection in it a fresh id so that it cannot clash with the sheet it was copied from. Either
+/// path may be a library component or an ordinary sheet, so this is also how a component is copied
+/// out of a library into a project and back.
+/// Falls back to a plain file copy if the source cannot be read as a sheet.
+let copySheetWithNewIds (sourcePath: string) (newPath: string) =
+    match tryLoadSheetFile sourcePath with
+    | Error msg ->
+        Log.error msg
+        copyFile sourcePath newPath
+    | Ok ldc ->
+        let ldc' = Helpers.RegenerateIds.regenerateSheetIds ldc
+        // a copied sheet never claims to be the top of the design it is copied into
+        let sheetInfo: SheetInfo =
+            {Form = ldc'.Form; Description = ldc'.Description
+             ParameterDefinitions = ldc'.LCParameterSlots; IsTopSheet = None}
+        match writeSheetFile newPath (ldc'.CanvasState, ldc'.WaveInfo, Some sheetInfo) with
+        | Ok () -> ()
+        | Error msg -> Log.error msg
+
+/// Load a library directory as a project: every component in it becomes a sheet, and the file it
+/// came from is where it is saved back to.
+///
+/// The sheets come back as User whatever the .ldgm says. A library sheet materialised INTO a
+/// project is marked Library so that it is hidden and held read-only - it is one thing the user
+/// placed, not a sheet of their own design. Here the sheets ARE the design, and marking them that
+/// way would open the library into an editor that refuses to edit it.
+///
+/// Nor is any of them the top: which component of a library is "the" design is not a question a
+/// library answers, and a flag left over from the project a component was authored in would make
+/// one of them the answer at random.
+let tryLoadLibraryProject (libPath: string) : Result<LoadStatus list, string> =
+    match readFilesFromDirectoryWithExtn libPath Constants.componentExtension with
+    | [] -> Error $"{baseName libPath} holds no library components"
+    | fileNames ->
+        fileNames
+        |> List.map (fun fileName ->
+            let path = pathJoin [| libPath; fileName |]
+            tryReadComponentFile path
+            |> Result.bind (fun (header, body) ->
+                tryLoadComponentFromText path body |> Result.map (fun ldc -> header, ldc))
+            |> Result.map (fun (header, ldc) ->
+                OkComp
+                    { ldc with
+                        Name = header.Name
+                        Description = Some header.Description
+                        Form = Some User
+                        IsTopSheet = false }))
+        |> Helpers.ResultList.sequence
+
+/// Whether a library may be opened as a project - which is to say, whether Issie could save it
+/// again afterwards.
+///
+/// The libraries the user made or imported live in their own writable directory and always may be.
+/// The ones shipped with Issie sit inside the installation, which is read-only for anyone who
+/// installed it, and opening a library that could never be saved is worse than not offering it at
+/// all: the work is done before the refusal arrives. A development run has the checkout writable
+/// (see Main/Bridge.fs) and is where a shipped library is actually maintained, so there it may.
+let libraryIsEditable (library: ComponentLibrary) : bool =
+    match Bridge.isDev with
+    | true -> true
+    | false ->
+        match tryUserLibrariesDirectory () with
+        | Error _ -> false
+        | Ok userRoot -> PathHelpers.isWithin userRoot library.Path
 
 //------------------------------------------------------------------------------------------------//
 //------------------------------ What a component will look like ---------------------------------//

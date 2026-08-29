@@ -99,6 +99,48 @@ let tests =
             }
         ]
 
+
+        // Which directory a path belongs to. Issie asks it of a library, to decide whether that
+        // library is the user's own and so may be opened and saved; main asks the same question of
+        // every path the renderer names, with its own copy for the process boundary.
+        testList "isWithin" [
+            test "a path is within the directory holding it, at any depth" {
+                let root = j [ "home"; "libs" ]
+                Expect.isTrue (isWithin root root) "a directory is within itself"
+                Expect.isTrue (isWithin root (j [ "home"; "libs"; "adders" ])) "one level down"
+                Expect.isTrue (isWithin root (j [ "home"; "libs"; "adders"; "x.ldgm" ])) "and further"
+            }
+
+            test "a sibling whose name merely starts the same is not within" {
+                // The separator is what makes this an answer about containment: without it
+                // "libs" would contain "libs-elsewhere".
+                Expect.isFalse (isWithin (j [ "home"; "libs" ]) (j [ "home"; "libs-elsewhere" ]))
+                    "a longer name is not a deeper path"
+                Expect.isFalse (isWithin (j [ "home"; "libs" ]) (j [ "home" ])) "nor is the parent"
+            }
+
+            test "a path that walks back out is not within" {
+                Expect.isFalse (isWithin (j [ "home"; "libs" ]) (j [ "home"; "libs"; ".."; "other" ]))
+                    "normalised first, so .. cannot leave a root it textually still matches"
+            }
+
+            test "an empty root contains nothing" {
+                Expect.isFalse (isWithin "" (j [ "home"; "libs" ]))
+                    "no directory is not every directory"
+            }
+
+            test "a trailing separator on the root makes no difference" {
+                Expect.isTrue (isWithin (j [ "home"; "libs" ] + sep) (j [ "home"; "libs"; "adders" ]))
+                    "however the root was spelled"
+            }
+
+            if sepChar = '\\' then
+                test "case does not matter where the filesystem does not care" {
+                    Expect.isTrue (isWithin "C:\\Home\\Libs" "c:\\home\\libs\\adders")
+                        "Windows paths are compared case-folded"
+                }
+        ]
+
         testList "roots" [
             test "a bare name is not absolute" {
                 Expect.isFalse (isAbsolute "a") "relative"

@@ -29,9 +29,24 @@ so the window appears, stays blank, and the log says `ready`. A stale Electron o
 still — `inspect-canvas` connects to it and reports the previous run's canvas. Whoever holds the
 port is killed, whatever it is; that is a more reliable test than matching command lines.
 
+A `fable watch` holds no port, so nothing above reaches it — and it is the leftover that matters
+most, because it is still watching: it recompiles on the next file change and can flip the tree's
+build mode under whoever runs the app next. Every entry point above therefore starts by removing
+the watchers an interrupted session left ([`scripts/free-watchers.js`](../scripts/free-watchers.js)).
+
+That check has to be nearly free, since it runs before a `dev:once` that is otherwise instant on an
+unchanged tree, and Windows cannot list processes without spawning PowerShell — 250ms before it has
+done anything, 640ms for the query. So a watch session leaves a note in `build-fable` saying it
+started and who owned it, and removes the note when it ends properly. No note, or a note whose
+owner is still alive, means there is nothing to look for: about 10ms, and the usual answer. Only a
+note left by a session that was killed is worth the listing, and then a leftover is identified by
+its PARENT being gone rather than by its pid — the shell `dev.js` spawns it through dies with the
+session while the Fable process under it does not, which is the whole problem.
+
 [`scripts/clean-dev.js`](../scripts/clean-dev.js) is still the tool for sweeping a whole abandoned
-session, because it also catches a `fable watch` that holds no port at all and can still recompile
-the tree under you.
+session on request. It matches command lines rather than parentage, so it catches a watcher started
+some other way — and it will kill a running app, which is why it is a command you run and not
+something that happens at startup.
 
 ## How Fable decides it can start fast
 

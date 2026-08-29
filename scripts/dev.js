@@ -1,6 +1,9 @@
 // Development launcher: compiles src/Main and src/Renderer with Fable in parallel, then
 // starts Electron (webpack dev server + app) via scripts/start.js.
 //
+// Fable watchers orphaned by an earlier interrupted session are removed first, whichever of these
+// is used - see scripts/free-watchers.js.
+//
 //   node scripts/dev.js            fable watch, hot reload         (npm run dev)
 //   node scripts/dev.js --once     one-shot compile, no watching   (npm run dev:once)
 //   node scripts/dev.js --asserts  watch with ASSERTS define       (npm run debug)
@@ -16,6 +19,7 @@ const path = require('path');
 const { reportRefreshStaleOutput } = require('./refresh-stale-output');
 const { outDirOf, outPathOf } = require('./fable-output');
 const { ensureRestored } = require('./fable-restore');
+const { freeOrphanedWatchers, recordWatchers, forgetWatchers } = require('./free-watchers');
 
 const root = path.join(__dirname, '..');
 const once = process.argv.includes('--once');
@@ -37,6 +41,9 @@ let shuttingDown = false;
 function shutdown(code) {
   if (shuttingDown) return;
   shuttingDown = true;
+  // Ours are about to die, so the record they are in must not outlive them: left behind, it would
+  // cost the next session the process listing to work out that there is nothing to do.
+  forgetWatchers();
   for (const proc of fableProcs) proc.kill();
   if (appProc) appProc.kill();
   process.exit(code);
@@ -80,6 +87,13 @@ function onReady(p) {
   }
 }
 
+// Before anything else: a `fable watch` left over from an interrupted session is still watching,
+// so it recompiles on a file change and can flip the tree's build mode under the compile about to
+// start here. Only the ones nothing owns any more - a session still running keeps its own. Every
+// way into this script gets it, which is every way the app is started in development:
+// `npm run dev`, `dev:once`, `debug`, and `npm run app`, which spawns this. See free-watchers.js.
+freeOrphanedWatchers();
+
 // Restore here, once, rather than letting the two Fable processes below each do it as a side
 // effect of cracking their project: started together they race to write src/Shared's
 // project.assets.json and one of them aborts. See scripts/fable-restore.js.
@@ -106,6 +120,9 @@ for (const p of projects) {
 
   const proc = spawn('dotnet', args, { cwd: root, shell: true });
   fableProcs.push(proc);
+  // Noted as they start, because what the note has to survive is this process being KILLED - and a
+  // kill leaves no chance to write anything on the way out. See free-watchers.js.
+  if (!once) recordWatchers();
 
   const forward = (write) => (data) => {
     for (const line of data.toString().split('\n')) {

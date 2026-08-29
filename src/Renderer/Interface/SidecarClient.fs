@@ -648,7 +648,7 @@ let simReadDrivers
     (drivers: DriverIndex list)
     : JS.Promise<obj> =
     let args =
-        [ epoch; startCycle; rep; samples; List.length drivers ] @ List.map driverIndexValue drivers
+        [ epoch; startCycle; rep; samples; List.length drivers ] @ List.map dToInt drivers
     let payload = makeBytes (4 * List.length args)
     args |> List.iteri (fun i value -> writeUint32At payload (4 * i) (float value))
     request Constants.simReadDriversCmd payload

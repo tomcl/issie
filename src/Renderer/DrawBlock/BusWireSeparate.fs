@@ -215,7 +215,7 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
     // incidental order lines are generated in.
     symLines @ segLines
     |> List.toArray
-    |> Array.sortBy (fun line -> line.P, line.B.MinB, line.B.MaxB, connectionIdStr line.Wid)
+    |> Array.sortBy (fun line -> line.P, line.B.MinB, line.B.MaxB, connToInt line.Wid)
     |> Array.mapi (fun i line -> line.Lid <- LineId i; line) // rewrite Lid
 
 
@@ -692,8 +692,8 @@ let adjustSegmentsInModel
         match Map.tryFind wid model.Wires with
         | None -> []
         | Some w ->
-            [ model.Symbol.Ports[inputPortStr w.InputPort].HostId
-              model.Symbol.Ports[outputPortStr w.OutputPort].HostId ]
+            [ model.Symbol.Ports[portIdOfInput w.InputPort].HostId
+              model.Symbol.Ports[portIdOfOutput w.OutputPort].HostId ]
     /// the line own segment span - not line.B, which linking may have grown to a union
     let segSpan (line: Line) =
         match line.Seg1 with
@@ -1341,8 +1341,8 @@ let alignSameNetDepartures (wiresToRoute: ConnectionId list) (model: Model) : Mo
     /// Symbol boxes the wire passes across, its own endpoint symbols exempt.
     let wireBoxCrossings (wire: Wire) =
         let exempt =
-            [ model.Symbol.Ports[inputPortStr wire.InputPort].HostId
-              model.Symbol.Ports[outputPortStr wire.OutputPort].HostId ]
+            [ model.Symbol.Ports[portIdOfInput wire.InputPort].HostId
+              model.Symbol.Ports[portIdOfOutput wire.OutputPort].HostId ]
         let boxed =
             model.Symbol.Symbols
             |> Map.toList
@@ -1464,7 +1464,7 @@ let alignSameNetDepartures (wiresToRoute: ConnectionId list) (model: Model) : Mo
     let improveNet (model: Model) (netWires: Wire list) : Model option =
         let current = netDrawnLength netWires
         List.allPairs netWires netWires
-        |> List.filter (fun (a, b) -> connectionIdStr a.WId < connectionIdStr b.WId)
+        |> List.filter (fun (a, b) -> connToInt a.WId < connToInt b.WId)
         |> List.tryPick (fun (a, b) ->
             List.allPairs (departures a) (departures b)
             |> List.tryPick (fun ((iA, rA, tA), (iB, rB, tB)) ->

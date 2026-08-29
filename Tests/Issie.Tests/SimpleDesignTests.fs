@@ -98,7 +98,7 @@ let tests =
         test "admission produces dense design-unique component ids and per-sheet invariants" {
             let admitted = loadProject "3cpu"
 
-            let allCompIds = admitted |> List.collect compIds |> List.map componentIdValue
+            let allCompIds = admitted |> List.collect compIds |> List.map cToInt
             allCompIds |> List.iter (fun id -> Expect.isTrue (id > 0) $"component id {id} is not positive")
 
             Expect.equal (List.length (List.distinct allCompIds)) (List.length allCompIds)
@@ -112,7 +112,7 @@ let tests =
                 let conns = connIds ldc
                 Expect.equal (List.length (List.distinct ports)) (List.length ports) $"{ldc.Name}: port ids collide"
                 Expect.equal (List.length (List.distinct conns)) (List.length conns) $"{ldc.Name}: connection ids collide"
-                (List.map portIdValue ports @ List.map (fun (ConnectionId n) -> n) conns)
+                (List.map pToInt ports @ List.map (fun (ConnectionId n) -> n) conns)
                 |> List.iter (fun id -> Expect.isTrue (id > 0) $"{ldc.Name}: id {id} is not positive")
         }
 
@@ -193,7 +193,7 @@ let tests =
             match RegenerateIds.admitDesign [ big; clash ] with
             | [ _; clash' ], changed ->
                 Expect.equal changed [ "clash" ] "the colliding sheet renumbers"
-                Expect.equal (compIds clash' |> List.map componentIdValue) [ 12_001 ] "the next free id sits past the grown region"
+                Expect.equal (compIds clash' |> List.map cToInt) [ 12_001 ] "the next free id sits past the grown region"
             | _ -> failtest "admission changed the number of sheets"
         }
 

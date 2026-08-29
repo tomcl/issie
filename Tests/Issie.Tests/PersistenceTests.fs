@@ -71,10 +71,10 @@ let private idsOf (ldcs: LoadedComponent list) =
     |> List.map (fun ldc ->
         let comps, conns = ldc.CanvasState
         ldc.Name,
-        (comps |> List.map (fun c -> componentIdValue c.Id) |> List.sort),
+        (comps |> List.map (fun c -> cToInt c.Id) |> List.sort),
         (comps
          |> List.collect (fun c -> c.InputPorts @ c.OutputPorts)
-         |> List.map (fun p -> portIdValue p.Id)
+         |> List.map (fun p -> pToInt p.Id)
          |> List.sort),
         (conns |> List.map (fun (c: Connection) -> let (ConnectionId n) = c.Id in n) |> List.sort))
     |> List.sortBy (fun (n, _, _, _) -> n)

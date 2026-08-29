@@ -128,7 +128,7 @@ let symbolCrossingsOf (model: Model) =
     |> Map.toList
     |> List.sumBy (fun (_, w) ->
         let ends =
-            [ w.InputPort |> inputPortStr; w.OutputPort |> outputPortStr ]
+            [ w.InputPort |> portIdOfInput; w.OutputPort |> portIdOfOutput ]
             |> List.map (fun p -> model.Symbol.Ports[p].HostId)
         let segs = getAbsSegments w
         segs
@@ -914,7 +914,7 @@ let tests =
                 routed.Wires
                 |> Map.toList
                 |> List.find (fun (_, w) ->
-                    routed.Symbol.Ports[outputPortStr w.OutputPort].HostId
+                    routed.Symbol.Ports[portIdOfOutput w.OutputPort].HostId
                     |> fun hid -> routed.Symbol.Symbols[hid].Component.Label = "IA")
                 |> fst
             let local = BusWireSeparate.updateWireSegmentJumpsAndSeparations [ aWire ] routed

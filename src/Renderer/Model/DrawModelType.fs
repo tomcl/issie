@@ -69,8 +69,8 @@ module SymbolT =
     /// PortId, which this carries inside InputPortId or OutputPortId.
     type DirectedPortId = | InputId of InputPortId | OutputId of OutputPortId
 
-    /// data structures defining where ports are put on symbol boundary
-    /// strings here are used for port ids
+    /// data structures defining where ports are put on symbol boundary, by PortId - which is an
+    /// integer wrapper, not the string it was when this was written
     type PortMaps =
         {     
             /// Maps edge to list of ports on that edge, in correct order

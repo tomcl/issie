@@ -815,8 +815,8 @@ type FastSimulation =
 
     /// The component at one index of this build. Not valid across builds: an index names a slot
     /// in the store that made it, which is why what OUTLIVES a build is the design-time name.
-    member this.ComponentAt(index: FastCompIndex) : FastComponent =
-        this.FCompsByIndex[fastCompIndexValue index]
+    member this.ComponentAt(fci: FastCompIndex) : FastComponent =
+        this.FCompsByIndex[fcToInt fci]
 
     member this.ComponentOf(fId: FComponentId) : FastComponent option =
         Map.tryFind fId this.FIndexOf |> Option.map this.ComponentAt

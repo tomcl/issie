@@ -859,12 +859,12 @@ let getPortLocation (defPos: XYPos option) (model: Model) (portId: PortId) : XYP
 
 /// Returns the location of an input port based on their portId
 let inline getInputPortLocation defPos (model:Model) (portId: InputPortId)  = 
-    let id = getPortIdStr (InputId portId)
+    let id = portIdOfDirected (InputId portId)
     getPortLocation defPos model id
 
 /// Returns the location of an output port based on their portId
 let inline getOutputPortLocation defPos (model:Model) (portId : OutputPortId) =
-    let id = getPortIdStr (OutputId portId)
+    let id = portIdOfDirected (OutputId portId)
     getPortLocation defPos model id
 
 /// Returns the locations of a given input port and output port based on their portId

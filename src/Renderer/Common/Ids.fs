@@ -11,41 +11,32 @@ module Ids
 
 open Fable.Core
 
-// Why none of the id types here are [<Struct>], although they look like textbook cases for it.
+// [<Struct>] on an id: when it helps, when it costs, and how that was settled.
 //
-// Because F# Map BOXES a struct key on every comparison. Measured directly (.NET, 200,000
-// Map.containsKey lookups into a 10,000-entry map, keys built outside the timed loop, so the
-// only thing measured is the comparison):
+// Under FABLE it is a no-op. [<Erase>] has already made every id below a bare number in the
+// emitted JavaScript, so struct changes nothing there, ever. This is a .NET question only, and
+// .NET here means the sidecar, which runs the whole build path (Sidecar/SimSession.build).
 //
-//     raw int key                                 11.1 ms      0 MB
-//     RefId of int        (reference DU, as here) 26.5 ms      0 MB
-//     [<Struct>] StructId of int                  46.7 ms    113 MB
+// The mechanism is that F# Map BOXES a struct key on every comparison. Measured directly (.NET,
+// 200,000 Map.containsKey lookups into a 10,000-entry map, keys built outside the timed loop, so
+// the only thing measured is the comparison):
 //
-// That is about 570 bytes per lookup, roughly 44 bytes on each of the ~13 comparisons a tree of
-// that size needs - both operands boxed every time. It is also SLOWER than the reference wrapper,
-// not faster. The reason is that Map does not reach IComparable<'T> through a devirtualised
-// constrained call: it takes its comparer from LanguagePrimitives.FastGenericComparer<'T>, which
-// has hard-coded fast paths for genuine primitives and otherwise falls back to a path taking obj.
-// A struct wrapper gets neither the primitive fast path nor the reference type's property of
-// already being an object.
+//     raw int key                            11.1 ms      0 MB
+//     RefId of int          (reference DU)    26.5 ms      0 MB
+//     [<Struct>] StructId of int              46.7 ms    113 MB
 //
-// The same effect is visible in the application. Allocation per build of the 3cpu demo, from
-// SimLog's AllocMb, which repeats to within 0.1%:
+// About 570 bytes per lookup, roughly 44 bytes on each of the ~13 comparisons a tree that size
+// needs, both operands boxed every time - and SLOWER than the reference wrapper, not faster. Map
+// does not reach IComparable<'T> through a devirtualised constrained call: it takes its comparer
+// from LanguagePrimitives.FastGenericComparer<'T>, which has hard-coded fast paths for genuine
+// primitives and otherwise falls back to a path taking obj. A struct wrapper gets neither the
+// primitive fast path nor the reference type's property of already being an object. (The table
+// also prices the wrappers themselves: a raw int key is 2.4x faster than the reference DU. That
+// is the standing cost of type-safe ids in an F# Map, it is already being paid, and [<Struct>]
+// does not recover it.)
 //
-//     nothing struct (as here)                    270.26 MB
-//     port NUMBERS struct - never Map keys        270.44 MB   no change
-//     ComponentId struct - the dominant Map key   275.38 MB   +1.9%
-//     all seven struct                            278.11 MB   +2.9%
-//
-// So: [<Struct>] is free for an id that never becomes a Map key, and costs allocation and time
-// for one that does. It is also free under FABLE whatever the id does, since [<Erase>] has already
-// made it a bare number there - this is a .NET question only, and .NET here means the sidecar,
-// which runs the whole build path (Sidecar/SimSession.build).
-//
-// Which ids should have it is decided by WHICH DESIGN you measure, and by nothing else.
-//
-// Which ids key which maps, all of them .NET-executed (Sidecar/SimSession.build runs the whole
-// build path):
+// So struct pays off where an id is CONSTRUCTED a lot - no heap object per id - and costs where it
+// is a Map KEY. Which of those dominates depends on the design, and on nothing else:
 //
 //   ComponentId       FIndexOf, FCustomOutputCompLookup, FIOActive - EXPANSION-sized, one entry
 //                     per component per instance - plus DesignComponentsById and the draw block
@@ -54,41 +45,35 @@ open Fable.Core
 //                     WidthInferer, GraphBuilder, CanvasStateAnalyser, SymbolInfo.PortOrientation
 //                     and the draw block - all DESIGN-sized, none expansion-sized
 //
-// So the last five are safe from the expansion, and they are the five marked [<Struct>] below.
-// Making exactly those five struct, interleaved A/B pairs against a worktree of the commit before,
-// fastest build of each, tiered compilation off, the SAME binaries for both designs:
+// Making exactly those last five struct, interleaved A/B pairs against a worktree of the commit
+// before, fastest build of each, tiered compilation off, the same binaries for both designs:
 //
-//     3cpu/eep1     378 fast components   10.98 -> 12.65 ms  +15%, struct lost 6 pairs of 6
-//     largeTest/main4   30,020 fast comps  354.9 -> 348.0 ms  -1.9%, struct won 9 pairs of 10
+//     3cpu/eep1            378 fast components   10.98 -> 12.65 ms   +15%, lost 6 pairs of 6
+//     largeTest/main4   30,020 fast components   354.9 -> 348.0 ms   -1.9%, won 9 pairs of 10
 //
-// Opposite signs, and both are real. A small design's build IS its per-sheet work - inferring
-// widths, building the graph - and those per-sheet maps are keyed by exactly these five, so making
-// their keys box costs a sixth of the whole build. A design that EXPANDS spends its build making
-// hundreds of thousands of FastComponents instead, where these ids are values and array elements
-// rather than map keys, so not allocating one per id wins more than the maps lose. The per-sheet
-// penalty is the same 1.6 ms in both; it is simply invisible beside 350.
+// Opposite signs, both real, and the reason is the whole point. A small design's build IS its
+// per-sheet work - width inference, graph building - and those maps are keyed by exactly these
+// five, so boxing their keys costs a sixth of it. A design that EXPANDS spends its build making
+// hundreds of thousands of FastComponents, where these ids are values and array elements rather
+// than keys, and not allocating one per id wins more than the maps lose. The per-sheet penalty is
+// the same 1.6 ms in both cases; beside 350 ms it disappears.
 //
-// Taken, because .NET here is the sidecar and the sidecar exists for the designs that expand.
-// DESIGN-SIZED IS NOT COLD, though, which is the thing to know before trusting the audit above on
-// its own: expansion-sized is what makes a structure big, not what makes it hot.
+// Taken, because the sidecar exists for the designs that expand. But note what it cost to find
+// out: 3cpu places no sheet twice, so its design-sized and expansion-sized structures are the same
+// size and it cannot tell the two apart. DESIGN-SIZED IS NOT COLD - expansion-sized is what makes
+// a structure big, not what makes it hot - so measure a design that expands before trusting the
+// table above. SimBenchmark takes ISSIE_BENCH_PROJECT and ISSIE_BENCH_TOP for that.
 //
-// ComponentId and OutputPortNumber are NOT struct: they key FIndexOf, FCustomOutputCompLookup and
-// FIOActive, which do grow with the expansion, and boxing those would be paid per component per
-// instance. The way to free them is to take those maps off generic comparison, as SimulationGraph
-// already was (SimGraph, an encapsulated int-keyed map, measured neutral). WidthInferer's
-// Map<OutputPortId,int> and Map<InputPortId,ConnectionId> are the other candidates, and can be
-// ARRAYS rather than maps - Helpers.IdAllocator allocates port ids densely per sheet, and both are
-// built once and read. That would take the +15% off the small-design case as well.
+// ComponentId and OutputPortNumber stay reference DUs: their maps grow with the expansion, so
+// boxing would be paid per component per instance. Freeing them means taking those maps off
+// generic comparison, as SimulationGraph already is (SimGraph, an encapsulated int-keyed map,
+// measured neutral).
 //
-// On unwrapping at those boundaries: a member (`port.Id.PToInt`) and a function (`portIdValue
-// port.Id`) compile to the SAME thing under Fable - both become a free function returning their
-// argument - so the choice is F#'s type inference, and it decides for the function. A member on an
-// unannotated lambda parameter is FS0072, "the type of this expression could not be inferred before
-// accessing its members"; `List.map portIdValue` infers. Hence one named function per id type.
-//
-// The table also prices the wrappers themselves: a raw int key is 2.4x faster than the reference
-// DU. That is the standing cost of type-safe ids in an F# Map, it is already being paid, and
-// [<Struct>] does not recover it.
+// On unwrapping at a map boundary: a member (`port.Id.PToInt`) and a function (`pToInt port.Id`)
+// compile to the SAME thing under Fable - both to a free function returning its argument - so the
+// choice is F#'s type inference, and it decides for the function. A member on an unannotated
+// lambda parameter is FS0072, "the type of this expression could not be inferred before accessing
+// its members"; `List.map pToInt` infers. Hence one short named function per id type below.
 
 // The next types are not strictly necessary, but help in understanding what is what.
 // Used consistently they provide type protection that greatly reduces coding errors
@@ -100,7 +85,7 @@ type PortId = | PortId of int
 
 /// The integer inside a port id, for the seams that must speak in bare ids - the file writers and
 /// the generators that derive port ids from a component's.
-let portIdValue (PortId n) = n
+let pToInt (PortId n) = n
 
 /// Unique integer id of a component. Unique across the whole DESIGN - the one id namespace
 /// with a global invariant, allocated densely from 1 by Helpers.IdAllocator so a design's
@@ -111,7 +96,7 @@ type ComponentId = | ComponentId of int
 /// The integer inside a component id. For the seams that must speak in bare ids - the file
 /// writers, the SimpleDesign wire format, and the parameter types, which compile before this file
 /// and so cannot name the type - and nowhere else: in between, the type is the point.
-let componentIdValue (ComponentId n) = n
+let cToInt (ComponentId n) = n
 
 /// The DESIGN-time name of a sheet.
 ///
@@ -198,6 +183,10 @@ type FComponentId = ComponentId * ComponentId list
 [<Erase; Struct>]
 type ConnectionId     = | ConnectionId of int
 
+/// The integer inside a connection id, for the seams that must speak in bare ids - the file
+/// writers, and the sorts that need a total order over wires.
+let connToInt (ConnectionId n) = n
+
 /// type to uniquely identify a segment
 type SegmentId      = int * ConnectionId
 
@@ -243,14 +232,14 @@ type OutputPortNumber = | OutputPortNumber of int
 /// [<Struct>] as well as [<Erase>], and safely so: it is only ever an ARRAY index, never the key of
 /// an F# Map, never in a Set and never sorted - which are the things the note above prices a struct
 /// id at. It is a map VALUE (FIndexOf, FCustomOutputCompLookup), which costs nothing, since a value
-/// is never compared. Every read unwraps it to the bare int first - `FCompsByIndex[fastCompIndexValue
-/// index]`, `LookupArray.item (fastCompIndexValue i)` - and the -1 sentinel is tested as
-/// `fastCompIndexValue fc.CustomOutIndex < 0`, an int comparison. Keep it that way: a generic `=` on
+/// is never compared. Every read unwraps it to the bare int first - `FCompsByIndex[fcToInt
+/// index]`, `LookupArray.item (fcToInt i)` - and the -1 sentinel is tested as
+/// `fcToInt fc.CustomOutIndex < 0`, an int comparison. Keep it that way: a generic `=` on
 /// a struct DU boxes both sides.
 [<Erase; Struct>]
 type FastCompIndex = | FastCompIndex of int
 
-let fastCompIndexValue (FastCompIndex n) = n
+let fcToInt (FastCompIndex n) = n
 
 /// Where a driven signal sits in the build's array of drivers.
 ///
@@ -265,4 +254,4 @@ let fastCompIndexValue (FastCompIndex n) = n
 [<Erase; Struct>]
 type DriverIndex = | DriverIndex of int
 
-let driverIndexValue (DriverIndex n) = n
+let dToInt (DriverIndex n) = n

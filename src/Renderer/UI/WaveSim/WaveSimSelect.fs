@@ -319,7 +319,7 @@ let waveIndexOfWire
     match Map.tryFind cid wireModel.Wires with
     | None -> None
     | Some wire ->
-        match Map.tryFind (BlockHelpers.outputPortStr wire.OutputPort) wireModel.Symbol.Ports with
+        match Map.tryFind (BlockHelpers.portIdOfOutput wire.OutputPort) wireModel.Symbol.Ports with
         | None -> None
         | Some port ->
             match port.PortNumber with
@@ -357,7 +357,7 @@ let wireWaveToOffer (model: Model) (cid: ConnectionId) : WaveIndexT option =
 /// the other one. It goes through a provider when the step simulator gets one, which is also when
 /// this stops working by reaching into a FastSimulation that .NET mode will not have.
 let waveValueAt (fs: FastSimulation) (cycle: int) (radix: NumberBase) (wi: WaveIndexT) : string option =
-    match Array.tryItem (driverIndexValue wi.SimArrayIndex) fs.Drivers with
+    match Array.tryItem (dToInt wi.SimArrayIndex) fs.Drivers with
     | Some(Some driver) ->
         let index = if fs.MaxArraySize > 0 then cycle % fs.MaxArraySize else cycle
 

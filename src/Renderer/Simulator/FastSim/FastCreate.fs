@@ -695,7 +695,7 @@ let rec private flattenLevel
                 createFastComponent maxArraySize comp ap (g.getFullSimName fid)
                 |> fun fc -> LookupArray.addItem fc g.Comps
 
-            sib.Ix[i] <- fastCompIndexValue fc.Index
+            sib.Ix[i] <- fcToInt fc.Index
             comp, fc)
 
     // Sibling links. sComp.Outputs names design ids in this same instance, so they resolve to
@@ -740,7 +740,7 @@ let rec private flattenLevel
 
         ct.OutputLabels
         |> List.iteri (fun i labelled ->
-            let inner = LookupArray.item (fastCompIndexValue (indexOf outputs labelled)) g.Comps
+            let inner = LookupArray.item (fcToInt (indexOf outputs labelled)) g.Comps
             inner.CustomOutIndex <- FastCompIndex customIndex
             inner.CustomOutPort <- i)
 
@@ -755,7 +755,7 @@ let rec private flattenLevel
     |> List.iter (fun (comp, fc) ->
         match comp.Type, comp.CustomSimulationGraph with
         | Custom ct, Some csg ->
-            flattenLevel g sib maxArraySize (comp.Id :: ap) csg (Some(fastCompIndexValue fc.Index, ct))
+            flattenLevel g sib maxArraySize (comp.Id :: ap) csg (Some(fcToInt fc.Index, ct))
         | _ -> ())
 
 /// Flatten the SimulationGraph into the one index space the rest of the build works in, creating
@@ -772,7 +772,7 @@ let gatherSimulation (maxArraySize: int) (size: int) (graph: SimulationGraph) =
     let g =
         { Comps =
             LookupArray.create
-                (fun (fc: FastComponent) -> fastCompIndexValue fc.Index)
+                (fun (fc: FastComponent) -> fcToInt fc.Index)
                 // in place: FastComponent is [<ReferenceEquality>] and already carries mutable
                 // fields, so the stamp costs no record copy and the identity the simulator relies
                 // on survives it
@@ -856,7 +856,7 @@ let addComponentWaveDrivers (f: FastSimulation) (fc: FastComponent) (pType: Port
     | PortType.Output -> fc.Outputs
     | PortType.Input -> fc.InputLinks
     |> Array.mapi (fun pn stepA ->
-        let index = stepA.Index
+        let driver = stepA.Index
 
         // a DRIVER is registered more widely than a wave is offered: a Constant1's output has to
         // drive the things wired to it even though nobody watches it, and an inactive IOLabel
@@ -873,10 +873,10 @@ let addComponentWaveDrivers (f: FastSimulation) (fc: FastComponent) (pType: Port
             | _ -> true
 
         if pType = PortType.Output && addDriver then
-            addStepArray pn index stepA
+            addStepArray pn driver stepA
 
         if portCarriesWave f fc pType then
-            [| makeWaveIndex index pn pType stepA |]
+            [| makeWaveIndex driver pn pType stepA |]
         else
             [||])
 
@@ -998,10 +998,10 @@ let createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: FastS
     let customOutLookup =
         (Map.empty, all)
         ||> Array.fold (fun m fc ->
-            if fastCompIndexValue fc.CustomOutIndex < 0 then
+            if fcToInt fc.CustomOutIndex < 0 then
                 m
             else
-                let custom = LookupArray.item (fastCompIndexValue fc.CustomOutIndex) g.Comps
+                let custom = LookupArray.item (fcToInt fc.CustomOutIndex) g.Comps
                 Map.add (custom.fId, OutputPortNumber fc.CustomOutPort) fc.Index m)
 
     instrumentTime "createInitFastCompPhase" start
@@ -1057,21 +1057,21 @@ let linkFastComponents (g: GatherData) (f: FastSimulation) =
     /// Follow one component output across custom component boundaries to the real inputs it
     /// drives, as store indices. Every step of this used to be a map lookup; they are all array
     /// reads now, off links the flatten resolved while it had both ends in hand.
-    let rec getLinks (i: FastCompIndex) (opn: int) (ipnOpt: InputPortNumber option) : (FastCompIndex * InputPortNumber) array =
-        let fc = LookupArray.item (fastCompIndexValue i) store
+    let rec getLinks (fci: FastCompIndex) (opn: int) (ipnOpt: InputPortNumber option) : (FastCompIndex * InputPortNumber) array =
+        let fc = LookupArray.item (fcToInt fci) store
 
         match isOutput fc.FType, isCustom fc.FType, ipnOpt with
         | true, _, None when fc.AccessPath = [] -> [||] // no links in this case from global output
         | true, _, None ->
 #if ASSERTS
             assertThat
-                (isCustom (LookupArray.item (fastCompIndexValue fc.CustomOutIndex) store).FType)
+                (isCustom (LookupArray.item (fcToInt fc.CustomOutIndex) store).FType)
                 "What? this should be a custom component output"
 #endif
             getLinks fc.CustomOutIndex fc.CustomOutPort None // go from inner output to CC output and recurse
         | false, true, Some(InputPortNumber ipn) ->
             [| fc.CustomInLinks[ipn], InputPortNumber 0 |] // go from CC input to inner input: must be valid
-        | _, false, Some ipn -> [| i, ipn |] // must be a valid link
+        | _, false, Some ipn -> [| fci, ipn |] // must be a valid link
         | false, _, None -> fc.OutLinks[opn] |> Array.collect (fun (j, ipn) -> getLinks j opn (Some ipn))
         | x -> failwithf "Unexpected link match: %A" x
 
@@ -1095,7 +1095,7 @@ let linkFastComponents (g: GatherData) (f: FastSimulation) =
             |> Array.iteri (fun iOut _ ->
                 getLinks (FastCompIndex iDriver) iOut None
                 |> Array.iter (fun (iDriven, InputPortNumber ipn) ->
-                    let fDriven = LookupArray.item (fastCompIndexValue iDriven) store
+                    let fDriven = LookupArray.item (fcToInt iDriven) store
                     let inputKey = fDriven.InputLinks[ipn].Index
 
                     match driverOf[inputKey] with

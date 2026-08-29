@@ -236,7 +236,7 @@ let portViewWithoutTablesTest (projectName: string) (topSheet: string) =
                 (PortView.ofInstance full inst).ViewPorts
                 |> List.map (fun p ->
                     let viaDriver =
-                        match Array.tryItem (driverIndexValue p.PortArrayIndex) full.Drivers with
+                        match Array.tryItem (dToInt p.PortArrayIndex) full.Drivers with
                         | Some(Some d) -> d.DriverWidth
                         | _ -> 0
 

@@ -260,7 +260,7 @@ let ports (askedEpoch: int) (body: byte array) : Result<byte array, string> =
 
             for slot in Array.append c.SlotsIns c.SlotsOuts do
                 writeU32 slot.SlotWidth
-                writeU32 (driverIndexValue slot.SlotDriver)
+                writeU32 (dToInt slot.SlotDriver)
 
         Ok reply
 

@@ -81,7 +81,7 @@ let private reconcileWaves (fs: FastSimulation) (ws: WaveSimModel) : WaveSimMode
         |> List.choose (fun wi ->
             match Map.tryFind wi ws.WaveDetails with
             | Some wave -> Some(wi, wave)
-            | None when driverIndexValue wi.SimArrayIndex >= 0 -> Some(wi, WaveSimHelpers.makeWave ws fs wi)
+            | None when dToInt wi.SimArrayIndex >= 0 -> Some(wi, WaveSimHelpers.makeWave ws fs wi)
             | None -> None)
         |> WaveSimHelpers.makeWaveMap
 
@@ -566,7 +566,7 @@ let private missingForWaves (model: Model) (project: Project) : Missing option =
                 |> List.append addressWaves
                 // negative is unresolved; the local driver table bounds nothing here, because in
                 // this mode the handles were issued by the sidecar's own slices
-                |> List.filter (fun wi -> driverIndexValue wi.SimArrayIndex >= 0)
+                |> List.filter (fun wi -> dToInt wi.SimArrayIndex >= 0)
                 |> List.distinctBy (fun wi -> wi.SimArrayIndex)
 
             let missing =
@@ -693,7 +693,7 @@ let private dataViewportOf (model: Model) (epoch: int) : DataViewport =
                 |> List.append addressWaves
                 // negative is unresolved - nothing to read for it yet; its slice arriving
                 // resolves it, which changes this list, which is a new viewport and a fetch
-                |> List.filter (fun wi -> driverIndexValue wi.SimArrayIndex >= 0)
+                |> List.filter (fun wi -> dToInt wi.SimArrayIndex >= 0)
                 |> List.distinctBy (fun wi -> wi.SimArrayIndex)
                 |> List.sortBy (fun wi -> wi.SimArrayIndex)
 

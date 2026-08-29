@@ -61,8 +61,8 @@ let printComp (fs: FastSimulation) (step: int) (fc: FastComponent) =
     let ins =
         (fc.InputDrivers
          |> Array.map (
-             Option.map (fun (index, _) ->
-                 let fc = fs.ComponentAt index
+             Option.map (fun (fci, _) ->
+                 let fc = fs.ComponentAt fci
                  fc.FullName, fc.ShortId)
          ))
 

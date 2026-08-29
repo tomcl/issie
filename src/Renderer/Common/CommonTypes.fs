@@ -839,10 +839,10 @@ let convertToJSONComponent (comp: Component) : JSONComponent.Component =
         | Input w -> JSONComponent.ComponentType.Input w
         | Constant (w, v) -> JSONComponent.ComponentType.Constant (w, v)
     let jsonPort (port: Port) : JSONComponent.Port =
-        { Id = string (portIdValue port.Id)
+        { Id = string (pToInt port.Id)
           PortNumber = port.PortNumber
           PortType = port.PortType
-          HostId = string (componentIdValue port.HostId) }
+          HostId = string (cToInt port.HostId) }
 
     let jsonSymbolInfo (info: SymbolInfo) : JSONComponent.SymbolInfo =
         { LabelBoundingBox = info.LabelBoundingBox
@@ -857,7 +857,7 @@ let convertToJSONComponent (comp: Component) : JSONComponent.Component =
 
     // explicit construction, not unbox: the records only share a JS runtime representation,
     // and this code also runs under dotnet where unboxing between them is an invalid cast
-    { Id = string (componentIdValue comp.Id)
+    { Id = string (cToInt comp.Id)
       Type = newType
       Label = comp.Label
       InputPorts = List.map jsonPort comp.InputPorts
@@ -872,10 +872,10 @@ let convertToJSONComponent (comp: Component) : JSONComponent.Component =
 /// A live connection to its file form, ids written as decimal strings.
 let convertToJSONConnection (conn: Connection) : JSONComponent.Connection =
     let jsonPort (port: Port) : JSONComponent.Port =
-        { Id = string (portIdValue port.Id)
+        { Id = string (pToInt port.Id)
           PortNumber = port.PortNumber
           PortType = port.PortType
-          HostId = string (componentIdValue port.HostId) }
+          HostId = string (cToInt port.HostId) }
 
     // the INTEGER, written as a string: `string` of an id is the wrapper's name under .NET and
     // the bare number under Fable, which would put two different things in the file

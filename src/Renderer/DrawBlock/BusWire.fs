@@ -635,11 +635,11 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
     // nothing - once per render
     let rStart = TimeHelpers.getTimeMs()
     let wireProps wire =
-        let outPortId = getOutputPortIdStr wire.OutputPort
+        let outPortId = portIdOfOutput wire.OutputPort
         let outputPortLocation = Symbol.getPortLocation None model.Symbol outPortId
         let outputPortEdge = getOutputPortOrientation model.Symbol wire.OutputPort 
-        let stringInId = getInputPortIdStr wire.InputPort
-        let inputPortLocation = Symbol.getPortLocation None model.Symbol stringInId 
+        let inPortId = portIdOfInput wire.InputPort
+        let inputPortLocation = Symbol.getPortLocation None model.Symbol inPortId 
         let strokeWidthP =
             match wire.Width with
             | 1 -> 1.5

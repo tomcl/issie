@@ -114,10 +114,10 @@ let findWireSymbolIntersectionsBySegment (model: Model) (wire: Wire) : (int * Bo
         let segments = List.pairwise wireVertices.[1 .. wireVertices.Length - 2] // do not consider the nubs
         List.zip (List.truncate segments.Length indexes) segments
 
-    // NB inputPortStr, not `string`: InputPortId is [<Erase>], so `string` gives the bare id under
+    // NB portIdOfInput, not `string`: InputPortId is [<Erase>], so `string` gives the bare id under
     // Fable and "InputPortId \"...\"" under .NET, where the lookup then throws.
-    let inputCompId = model.Symbol.Ports.[inputPortStr wire.InputPort].HostId
-    let outputCompId = model.Symbol.Ports.[outputPortStr wire.OutputPort].HostId
+    let inputCompId = model.Symbol.Ports.[portIdOfInput wire.InputPort].HostId
+    let outputCompId = model.Symbol.Ports.[portIdOfOutput wire.OutputPort].HostId
 
     let componentIsMux (comp:Component) =
         match comp.Type with
@@ -129,7 +129,7 @@ let findWireSymbolIntersectionsBySegment (model: Model) (wire: Wire) : (int * Bo
         let inputSymbol = model.Symbol.Symbols.[inputCompId]
         let inputCompInPorts = inputSymbol.Component.InputPorts
         
-        componentIsMux inputSymbol.Component && (inputCompInPorts.[List.length inputCompInPorts - 1].Id = inputPortStr wire.InputPort)
+        componentIsMux inputSymbol.Component && (inputCompInPorts.[List.length inputCompInPorts - 1].Id = portIdOfInput wire.InputPort)
 
     let inputCompRotation =
         model.Symbol.Symbols.[inputCompId].STransform.Rotation
@@ -580,10 +580,10 @@ let generateEndSegments (startIndex: int) (numOfSegs: int) (wire: Wire) : Segmen
 let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
 
     let inputCompId =
-        model.Symbol.Ports[inputPortStr wireToRoute.InputPort].HostId
+        model.Symbol.Ports[portIdOfInput wireToRoute.InputPort].HostId
 
     let outputCompId =
-        model.Symbol.Ports[outputPortStr wireToRoute.OutputPort].HostId
+        model.Symbol.Ports[portIdOfOutput wireToRoute.OutputPort].HostId
 
     let isRotated =
         model.Symbol.Symbols[inputCompId].STransform.Rotation = Degree90

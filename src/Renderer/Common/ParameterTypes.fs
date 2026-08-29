@@ -352,7 +352,7 @@ let slotsToJson (slots: ComponentSlotExpr) : JSONParams.ComponentSlotExpr =
     slots
     |> Map.toList
     |> List.map (fun (slot, expr) ->
-        ({CompId = string (componentIdValue slot.CompId); CompSlot = slot.CompSlot}: JSONParams.ParamSlot), expr)
+        ({CompId = string (cToInt slot.CompId); CompSlot = slot.CompSlot}: JSONParams.ParamSlot), expr)
     |> Map.ofList
 
 /// A saved slot map read back, id strings mapped by the loader's rule.

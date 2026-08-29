@@ -184,7 +184,7 @@ let private buildSimulationComponent
             | None when comp.Type = IOLabel -> [] // IOLabels are allowed to be connected to nothing
             | None ->
                 failwithf "what? Unconnected output port %d in comp %d"
-                    (portIdValue port.Id) (componentIdValue comp.Id)
+                    (pToInt port.Id) (cToInt comp.Id)
             | Some targets -> mapPortIdsToPortNumbers targets
 
         // A component's position in OutputPorts IS its output port number (CommonTypes.Component
@@ -196,7 +196,7 @@ let private buildSimulationComponent
             | n when n = k -> targetsOf port
             | n ->
                 failwithf "what? output port at position %d of comp %d is numbered %d"
-                    k (componentIdValue comp.Id) n)
+                    k (cToInt comp.Id) n)
         |> List.toArray
     let drivenInputs =
         // determine the inputs driven by this components outputs, and their widths

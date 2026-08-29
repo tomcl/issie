@@ -39,7 +39,7 @@ type LookupArray<'T> =
 ///
 ///     // in place - no copy, the same object back. The store works in bare ints; a caller whose
 ///     // index is a wrapped one unwraps at this boundary and nowhere else.
-///     LookupArray.create (fun fc -> fastCompIndexValue fc.Index) (fun fc i -> fc.Index <- FastCompIndex i; fc) n maxInc
+///     LookupArray.create (fun fc -> fcToInt fc.Index) (fun fc i -> fc.Index <- FastCompIndex i; fc) n maxInc
 ///     // through a lens, where the type is immutable
 ///     LookupArray.create (Optic.get index_) (fun t i -> Optic.set index_ i t) n maxInc
 ///

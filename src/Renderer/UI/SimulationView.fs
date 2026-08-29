@@ -145,7 +145,7 @@ let private inputValueAt (model: Model) (fs: FastSimulation) (comp: Component) (
         | IData fd -> fd.GetBigInt
         | IAlg _ -> 0I
     else
-        StepPanelData.valueAt tick { Comp = componentIdValue comp.Id; Path = []; Port = 0 }
+        StepPanelData.valueAt tick { Comp = cToInt comp.Id; Path = []; Port = 0 }
         |> Option.defaultValue 0I
 
 let InputDefaultsEqualInputs fs (model:Model) (clocktick : int)=
@@ -582,7 +582,7 @@ let viewerValues (model: Model) (simData: SimulationData) =
                 panelValue
                     simData.ClockTickNumber
                     width
-                    { Comp = componentIdValue comp.Id
+                    { Comp = cToInt comp.Id
                       Path = ap |> List.map (fun (ComponentId p) -> p)
                       Port = 0 }
 
@@ -605,7 +605,7 @@ let statefulValues (model: Model) (simData: SimulationData) =
 
             let value =
                 StepPanelData.valueAt simData.ClockTickNumber
-                    { Comp = componentIdValue comp.Id; Path = []; Port = 0 }
+                    { Comp = cToInt comp.Id; Path = []; Port = 0 }
                 |> Option.defaultValue 0I
 
             comp.Label, comp.Type, RegisterState(convertBigintToFastData width value))
@@ -651,8 +651,8 @@ let openRemoteRamDiff (ram: Component) (cycle: int) (model: Model) (dispatch: Ms
                 SidecarClient.simReadRam
                     epoch
                     cycle
-                    (componentIdValue cid)
-                    (path |> List.map componentIdValue)
+                    (cToInt cid)
+                    (path |> List.map cToInt)
                     RamStore.Constants.maxSlotsForWholeRead
                     0I
                     0

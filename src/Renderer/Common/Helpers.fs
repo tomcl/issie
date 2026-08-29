@@ -639,8 +639,8 @@ module RegenerateIds =
             List.exists (fun id -> value id <= 0) ids
             || List.length (List.distinct ids) <> List.length ids
 
-        if broken componentIdValue compIds
-           || broken portIdValue portIds
+        if broken cToInt compIds
+           || broken pToInt portIds
            || broken (fun (ConnectionId n) -> n) connIds then
             // a sentinel or an internal duplicate: a malformed sheet - renumber it wholesale
             regenerateSheetIds ldc, true

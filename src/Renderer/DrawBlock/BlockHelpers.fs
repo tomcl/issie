@@ -59,9 +59,10 @@ let moveSymbols  (offset: XYPos) (model:SymbolT.Model) =
             |> Map.map (fun _ symbol -> moveSymbol offset symbol)
     }
 
-let inline inputPortStr (InputPortId s) = s
-let inline outputPortStr (OutputPortId s) = s
-let inline connectionIdStr (ConnectionId s) = s
+/// The undirected port id inside a directed one. This family was named ...Str while port ids were
+/// strings; what it strips is the DIRECTION, and what it returns is a PortId.
+let inline portIdOfInput (InputPortId portId) = portId
+let inline portIdOfOutput (OutputPortId portId) = portId
 
 /// Returns true if two 1D line segments intersect
 /// HLP23: Derek Lai (ddl20)
@@ -272,23 +273,23 @@ let inline inMiddleOrEndOf a x b =
     a - e < x && x < b + e
    
 let inline getSourcePort (model:Model) (wire:Wire) =
-    let portId = outputPortStr wire.OutputPort
+    let portId = portIdOfOutput wire.OutputPort
     let port = model.Symbol.Ports[portId]
     port
 
 let inline getTargetPort (model:Model) (wire:Wire) =
-    let portId = inputPortStr wire.InputPort
+    let portId = portIdOfInput wire.InputPort
     let port = model.Symbol.Ports[portId]
     port
 
 let inline getSourceSymbol (model:Model) (wire:Wire) =
-    let portId = outputPortStr wire.OutputPort
+    let portId = portIdOfOutput wire.OutputPort
     let port = model.Symbol.Ports[portId]
     let symbol = model.Symbol.Symbols[port.HostId]
     symbol
 
 let inline getTargetSymbol (model:Model) (wire:Wire) =
-    let portId = inputPortStr wire.InputPort
+    let portId = portIdOfInput wire.InputPort
     let port = model.Symbol.Ports[portId]
     let symbol = model.Symbol.Symbols[port.HostId]
     symbol
@@ -345,30 +346,21 @@ let inline getCompId (model: SymbolT.Model) (portId: PortId) =
     let symbol = getSymbol model portId
     symbol.Id
 
-/// Returns the string of a PortId
-let inline getPortIdStr (portId: DirectedPortId) = 
+/// The same, for a port id that carries its direction.
+let inline portIdOfDirected (portId: DirectedPortId) =
     match portId with
-    | InputId (InputPortId id) -> id
-    | OutputId (OutputPortId id) -> id
-
-let inline getInputPortIdStr (portId: InputPortId) = 
-    match portId with
-    | InputPortId s -> s
-
-let inline getOutputPortIdStr (portId: OutputPortId) = 
-    match portId with
-    | OutputPortId s -> s
+    | InputId id -> portIdOfInput id
+    | OutputId id -> portIdOfOutput id
 
 /// HLP23: AUTHOR dgs119
-let inline getPortOrientationFrmPortIdStr (model: SymbolT.Model) (portIdStr: PortId) : Edge = 
-    let port = model.Ports[portIdStr]
+let inline getPortOrientationOf (model: SymbolT.Model) (portId: PortId) : Edge =
+    let port = model.Ports[portId]
     let sId = port.HostId
-    model.Symbols[sId].PortMaps.Orientation[portIdStr]
+    model.Symbols[sId].PortMaps.Orientation[portId]
 
 /// returns what side of the symbol the port is on
 let inline getPortOrientation (model: SymbolT.Model)  (portId: DirectedPortId) : Edge =
-    let portIdStr = getPortIdStr portId
-    getPortOrientationFrmPortIdStr model portIdStr
+    getPortOrientationOf model (portIdOfDirected portId)
 
 let inline getInputPortOrientation (model: SymbolT.Model) (portId: InputPortId): Edge =
     getPortOrientation model (InputId portId)
@@ -438,7 +430,7 @@ let getConnSyms (wModel: BusWireT.Model) =
 /// HLP23: AUTHOR dgs119
 let isConnBtwnSyms (wire: Wire) (symA: Symbol) (symB: Symbol) : bool =
     let inId, outId =
-        getInputPortIdStr wire.InputPort, getOutputPortIdStr wire.OutputPort
+        portIdOfInput wire.InputPort, portIdOfOutput wire.OutputPort
 
     match inId, outId with
     | _ when (isPortInSymbol inId symA) && (isPortInSymbol outId symB) -> true
@@ -465,8 +457,8 @@ let filterPortBySym (ports: Port list) (sym: Symbol) =
 let portsOfWires (model: BusWireT.Model) (wires: Wire list) =
     wires
     |> List.map (fun wire ->
-        [ getPort model.Symbol (getInputPortIdStr wire.InputPort)
-          getPort model.Symbol (getOutputPortIdStr wire.OutputPort) ])
+        [ getPort model.Symbol (portIdOfInput wire.InputPort)
+          getPort model.Symbol (portIdOfOutput wire.OutputPort) ])
     |> List.concat
     |> List.distinct
 

@@ -34,7 +34,7 @@ let makeComp (compId: int) (nInputs: int) (nOutputs: int) (compType: ComponentTy
 /// Connection-end ports carry no port number, as in saved .dgm files. The id pairs the two
 /// port ids, so it is deterministic and unique for distinct endpoint pairs.
 let conn (src: Component) (srcPort: int) (tgt: Component) (tgtPort: int) : Connection =
-    let portNum (port: Port) = portIdValue port.Id
+    let portNum (port: Port) = pToInt port.Id
 
     { Id = ConnectionId(portNum src.OutputPorts[srcPort] * 1000 + portNum tgt.InputPorts[tgtPort] % 1000)
       Source = { src.OutputPorts[srcPort] with PortNumber = None }

@@ -533,7 +533,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Ids.ComponentId\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L63-63" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L94-94" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -562,7 +562,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Ids.ComponentLabel\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L140-140" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L197-197" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -590,7 +590,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Ids.ConnectionId\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L131-131" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L184-184" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -618,15 +618,17 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Ids.DriverIndex\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L175-175" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L255-255" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
                  Where a driven signal sits in the build's array of drivers.
 
- [<Struct>] as well as [<Erase>], and safely so: this is only ever an ARRAY index, never the key
- of an F# Map - which is the one thing the note above prices a struct id at. Erased to the bare
- integer under Fable, a value type carrying one under .NET, so it costs nothing on either.
+ [<Struct>] as well as [<Erase>]. Unlike FastCompIndex this one IS a Map key - WaveData's fetch
+ cache and WaveDrawn's memo of the SVGs, plus a Set of them for pruning - so the note above does
+ price it. It costs nothing as shipped because both of those are RENDERER stores, where [<Erase>]
+ has already made the key a bare number and the Map is an ordinary int-keyed one. Moving either
+ store to the .NET side would start paying for it; nothing else here would notice.
 
  SignalHandle is this index PLUS the build it belongs to: a handle can be quoted back by a
  reader, an index cannot, which is what stops one simulation's index reading another's data.
@@ -652,24 +654,73 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Ids.FComponentId\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L122-122" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L175-175" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
-                 The old name for SimComponentId, kept while the ~70 sites that destructure it as a bare tuple
- are still doing so.
+                 Unique identifier for a component of a running simulation: which component, and which
+ elaborated copy of its sheet it belongs to.
 
- Both are abbreviations of the same tuple today, so this costs nothing and changes nothing.
- Making the identity a tagged type is one line here - `[<Erase>] type SimComponentId =
- SimComponentId of ComponentId * ComponentId list` - and it was measured, on this branch, to
- break 71 sites, 38 of them in FastCreate and FastExtract. THAT is the reason to wait: it is
- worth doing with the change that needs it (the per-instance port enumeration, which factors a
- predicate out of FastCreate anyway) rather than as a sweep of the simulator core which buys
- nothing on its own.
+ The list is the access path - the containing custom component instances between it and the top
+ sheet of the simulation, innermost first. It is an InstancePath, the same list under the same
+ rule; a pair rather than one list because the component's own id always exists while the path
+ may be empty.
 
- When it is done, tag it [<Erase>] and NOT [<Struct>]: this is the key type of fs.FComps and
- the note above the id types prices what a struct key costs in an F# Map. A plain reference
- wrapper is what the rest of them are and what this should be.
+ THREE NAMES FOR A COMPONENT, AND NO OTHERS. ComponentId names one of the DESIGN - unique across
+ it, and the same one in every instance of its sheet. This names one of a SIMULATION: the design
+ component plus which copy. FastCompIndex names one inside a particular BUILD, and means nothing
+ in the next. This is the durable one, and so what the renderer holds, what a saved selection
+ resolves to, and what FIndexOf translates to a FastCompIndex. There used to be a fourth,
+ SimComponentId, which was an abbreviation of this same tuple under another name.
+
+ A bare tuple, deliberately. Tagging it is one line - `[<Erase>] type FComponentId = FComponentId
+ of ComponentId * ComponentId list` - and was measured on this branch to break 71 sites, 38 of
+ them in FastCreate and FastExtract, which destructure it as a tuple. Worth doing with a change
+ that needs it rather than as a sweep of the simulator core. If it is done, tag it [<Erase>] and
+ NOT [<Struct>]: it is the key type of FIndexOf, the one map a built simulation keeps, and the
+ note above the id types prices what a struct key costs in an F# Map.
+              </p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="FastCompIndex">
+                <a href="/issie/reference/ids-fastcompindex.html">
+                  FastCompIndex
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:Ids.FastCompIndex`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Ids.FastCompIndex\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L240-240" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 Where a FastComponent sits in the build that made it: the slot LookupArray stamped it with as
+ the flatten created it, and the identity of a fast component INSIDE a simulation.
+
+ The design-time name a component also has - its ComponentId and the access path of the instance
+ it belongs to - is carried by the FastComponent itself (cId, AccessPath) and read from there
+ when something needs it. That name is what survives a rebuild, so it is what the renderer holds
+ and what a saved selection resolves through; the index is what the simulation uses, and it is
+ meaningless in the next build.
+
+ [<Struct>] as well as [<Erase>], and safely so: it is only ever an ARRAY index, never the key of
+ an F# Map, never in a Set and never sorted - which are the things the note above prices a struct
+ id at. It is a map VALUE (FIndexOf, FCustomOutputCompLookup), which costs nothing, since a value
+ is never compared. Every read unwraps it to the bare int first - `FCompsByIndex[fcToInt
+ index]`, `LookupArray.item (fcToInt i)` - and the -1 sentinel is tested as
+ `fcToInt fc.CustomOutIndex < 0`, an int comparison. Keep it that way: a generic `=` on
+ a struct DU boxes both sides.
               </p>
             </div>
           </td>
@@ -692,7 +743,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Ids.InputPortId\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L147-147" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L204-204" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -722,7 +773,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Ids.InputPortNumber\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L159-159" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L216-216" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -750,18 +801,38 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Ids.InstancePath\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L94-94" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L145-145" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
-                 The chain of custom-component instances from the simulated top sheet down to one instance,
- root first - so it names one ELABORATED copy of a sheet.
+                 The chain of custom-component instances between one instance and the simulated top sheet,
+ INNERMOST FIRST - so it names one ELABORATED copy of a sheet.
 
  These are design-time ComponentIds, unique across the design, so a path is stable under
  relabelling and means the same thing whichever side computed it. It is not a new value: the
- simulator already builds exactly this as FastComponent.AccessPath (`ap @ [cid]` in
- FastCreate) and the design side already builds exactly this as SheetTree.SheetAccessPath
- (`accessPath @ [inst.InstId]` in MenuHelpers). This gives it a name.
+ simulator builds exactly this as FastComponent.AccessPath and the design side builds exactly
+ this as SheetTree.SheetAccessPath. This gives it a name.
+
+ Innermost first, although a path is READ the other way round - `top.alu.adder` - because that
+ is where the work is. A path is only ever built by descending the design from the top sheet,
+ and it is only ever taken apart at the deep end: the id of the instance itself, and the path
+ of the sheet that instance is drawn on. Both are a cons here; root first they were an
+ `@ [cid]` at seventeen sites and a `path[0 .. path.Length - 2]` at three.
+
+ FOUR places pay for it, and they are all of them: SheetOfInstance resolves a path against the
+ design from the top down, so it folds back; SimulatedDesign.LabelsOfInstance and getFullSimName
+ turn one into text; and WavePath.pathOfComponent reverses before walking. Anything else that
+ needs a path root first should go through LabelsOfInstance rather than reverse one of its own.
+
+ Two consequences worth knowing before writing against it. The instances a path sits INSIDE are
+ its tails, not its prefixes - so containment is a suffix test (WaveSimSelectHelpers.isSubSheetOf)
+ and walking outwards is `List.tail`. And sorting is unaffected: the paths anything sorts are
+ siblings sharing one parent, so both orders compare the single element that differs.
+
+ The string paths beside it - SheetTree.SheetPath and LabelPath, the wave selector's NodeKey,
+ and WavePath.WPLabels, which is the form saved in a .dgm - stay ROOT first. They are read
+ rather than taken apart, and one of them is in the file format. So the rule is: id paths
+ innermost first, name paths root first, and the reversal happens where a path becomes text.
               </p>
             </div>
           </td>
@@ -784,7 +855,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Ids.LabelPath\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L101-101" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L152-152" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -814,7 +885,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Ids.OutputPortId\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L154-154" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L211-211" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -844,7 +915,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Ids.OutputPortNumber\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L164-164" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L221-221" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -872,7 +943,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Ids.PortId\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L53-53" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L84-84" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -900,7 +971,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Ids.SegmentId\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L134-134" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L191-191" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -927,7 +998,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Ids.SheetName\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L83-83" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L114-114" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -943,35 +1014,6 @@
  LoadedComponent.Name, CustomComponentType.Name or SimpleSheet.SheetName: those cross the .dgm
  persistence boundary and the SimpleJsonDotNet wire boundary, and [<Erase>] does not mean the
  same thing under Fable as under .NET.
-              </p>
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-entity-name">
-            <p>
-              <a name="SimComponentId">
-                <a href="/issie/reference/ids-simcomponentid.html">
-                  SimComponentId
-                </a>
-              </a>
-            </p>
-          </td>
-          <td class="fsdocs-entity-xmldoc">
-            <div>
-              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:Ids.SimComponentId`')">
-                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
-              </div>
-              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Ids.SimComponentId\'/>')">
-                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
-              </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L106-106" class="fsdocs-source-link" title="Source on GitHub">
-                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-              </a>
-              <p class="fsdocs-summary">
-                 Unique identifier for a fast component.
- The list is the access path, a list of all the containing custom components 
- from the top sheet of the simulation (root first)
               </p>
             </div>
           </td>
@@ -998,19 +1040,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1250', 1250)" onmouseover="showTip(event, '1250', 1250)">
+              <code onmouseout="hideTip(event, '1247', 1247)" onmouseover="showTip(event, '1247', 1247)">
                 <p>
-                  <a id="componentIdValue">
-                    <a href="#componentIdValue">
-                      <code><span>componentIdValue&#32;<span>arg1</span></span></code>
+                  <a id="cToInt">
+                    <a href="#cToInt">
+                      <code><span>cToInt&#32;<span>arg1</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1250">
+              <div class="fsdocs-tip" id="1247">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>componentIdValue&#32;<span>arg1</span></span></code>
+                  <code><span>cToInt&#32;<span>arg1</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -1038,13 +1080,13 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Ids.componentIdValue`')">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Ids.cToInt`')">
                     <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
                   </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Ids.componentIdValue\'/>')">
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Ids.cToInt\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L68-68" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L99-99" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1079,19 +1121,99 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1251', 1251)" onmouseover="showTip(event, '1251', 1251)">
+              <code onmouseout="hideTip(event, '1248', 1248)" onmouseover="showTip(event, '1248', 1248)">
                 <p>
-                  <a id="driverIndexValue">
-                    <a href="#driverIndexValue">
-                      <code><span>driverIndexValue&#32;<span>arg1</span></span></code>
+                  <a id="connToInt">
+                    <a href="#connToInt">
+                      <code><span>connToInt&#32;<span>arg1</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1251">
+              <div class="fsdocs-tip" id="1248">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>driverIndexValue&#32;<span>arg1</span></span></code>
+                  <code><span>connToInt&#32;<span>arg1</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        arg0
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ids-connectionid.html">ConnectionId</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Ids.connToInt`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Ids.connToInt\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L188-188" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The integer inside a connection id, for the seams that must speak in bare ids - the file
+ writers, and the sorts that need a total order over wires.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arg0
+                  </span>
+                  :
+                  <code><a href="/issie/reference/ids-connectionid.html">ConnectionId</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1249', 1249)" onmouseover="showTip(event, '1249', 1249)">
+                <p>
+                  <a id="dToInt">
+                    <a href="#dToInt">
+                      <code><span>dToInt&#32;<span>arg1</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1249">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>dToInt&#32;<span>arg1</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -1140,19 +1262,80 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1252', 1252)" onmouseover="showTip(event, '1252', 1252)">
+              <code onmouseout="hideTip(event, '1250', 1250)" onmouseover="showTip(event, '1250', 1250)">
                 <p>
-                  <a id="portIdValue">
-                    <a href="#portIdValue">
-                      <code><span>portIdValue&#32;<span>arg1</span></span></code>
+                  <a id="fcToInt">
+                    <a href="#fcToInt">
+                      <code><span>fcToInt&#32;<span>arg1</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1252">
+              <div class="fsdocs-tip" id="1250">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>portIdValue&#32;<span>arg1</span></span></code>
+                  <code><span>fcToInt&#32;<span>arg1</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        arg0
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ids-fastcompindex.html">FastCompIndex</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  arg0
+                </span>
+                :
+                <code><a href="/issie/reference/ids-fastcompindex.html">FastCompIndex</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1251', 1251)" onmouseover="showTip(event, '1251', 1251)">
+                <p>
+                  <a id="pToInt">
+                    <a href="#pToInt">
+                      <code><span>pToInt&#32;<span>arg1</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1251">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>pToInt&#32;<span>arg1</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -1180,13 +1363,13 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Ids.portIdValue`')">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Ids.pToInt`')">
                     <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
                   </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Ids.portIdValue\'/>')">
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Ids.pToInt\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L57-57" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Ids.fs#L88-88" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

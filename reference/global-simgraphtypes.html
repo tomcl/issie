@@ -494,13 +494,13 @@
   </div>
   <div>
     <h3>
-      Types
+      Types and nested modules
     </h3>
     <table class="table outer-list fsdocs-entity-list">
       <thead>
         <tr>
           <td>
-            Type
+            Type/Module
           </td>
           <td>
             Description
@@ -508,6 +508,38 @@
         </tr>
       </thead>
       <tbody>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="SimGraph">
+                <a href="/issie/reference/simgraphtypes-simgraph.html">
+                  SimGraph
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:SimGraphTypes.SimGraph`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimGraphTypes.SimGraph\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L93-93" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 The one way in and out of a SimulationGraph, in ComponentIds.
+
+ The key-carrying functions WRAP on the way out, which is free under Fable ([<Erase>]) and free
+ under .NET only while ComponentId is a struct. So where a caller does not need the key there is
+ a value-only form beside each - `values`, `iterValues`, `foldValues`, `mapValues` - and the hot
+ iterations use those. Nothing outside this module names the int.
+              </p>
+            </div>
+          </td>
+        </tr>
         <tr>
           <td class="fsdocs-entity-name">
             <p>
@@ -526,7 +558,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimGraphTypes.AlgebraNotImplemented\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L934-934" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L998-998" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -554,7 +586,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimGraphTypes.BinaryOp\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L298-298" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L362-362" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -608,7 +640,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimGraphTypes.ComparisonOp\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L314-314" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L378-378" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -635,7 +667,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimGraphTypes.FSInterface\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L937-937" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L1001-1001" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -662,7 +694,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimGraphTypes.FastAlgExp\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L326-326" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L390-390" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -689,7 +721,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimGraphTypes.FastBits\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L250-250" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L314-314" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -716,7 +748,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimGraphTypes.FastData\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L254-254" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L318-318" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -743,7 +775,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimGraphTypes.JSCanvasState\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L239-239" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L303-303" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -770,7 +802,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimGraphTypes.JSComponent\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L231-231" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L295-295" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -797,7 +829,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimGraphTypes.JSConnection\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L236-236" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L300-300" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -824,7 +856,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimGraphTypes.PortRmInfo\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L109-109" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L173-173" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -914,7 +946,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimGraphTypes.SimulationError\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L103-103" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L167-167" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -942,7 +974,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimGraphTypes.SimulationErrorType\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L78-78" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L142-142" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -969,11 +1001,19 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimGraphTypes.SimulationGraph\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L68-68" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L84-84" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
-                 Map every ComponentId to its SimulationComponent.
+                 Every component of one sheet instance, by its design-time id.
+
+ Keyed by the bare int INSIDE a ComponentId, and reached only through the SimGraph module below,
+ which takes and returns the wrapped type. F#'s Map takes its comparer from
+ LanguagePrimitives.FastGenericComparer, which has hard-coded fast paths for genuine primitives
+ and a boxing fallback for everything else - so an int key is 2.4x faster than a reference
+ wrapper and a struct wrapper is slower than either, boxing BOTH operands on every comparison.
+ Unwrapping at this one boundary buys the primitive path and keeps the types at every call site,
+ which is what lets ComponentId be [<Struct>] without this map being the thing that pays.
               </p>
             </div>
           </td>
@@ -996,7 +1036,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimGraphTypes.SimulationIO\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L74-74" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L138-138" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -1026,7 +1066,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimGraphTypes.UnaryOp\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L307-307" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L371-371" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -1087,7 +1127,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2343', 2343)" onmouseover="showTip(event, '2343', 2343)">
+              <code onmouseout="hideTip(event, '2342', 2342)" onmouseover="showTip(event, '2342', 2342)">
                 <p>
                   <a id="allOnesLiteral">
                     <a href="#allOnesLiteral">
@@ -1096,7 +1136,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2343">
+              <div class="fsdocs-tip" id="2342">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>allOnesLiteral&#32;<span>width</span></span></code>
@@ -1148,7 +1188,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2344', 2344)" onmouseover="showTip(event, '2344', 2344)">
+              <code onmouseout="hideTip(event, '2343', 2343)" onmouseover="showTip(event, '2343', 2343)">
                 <p>
                   <a id="assembleArithmetic">
                     <a href="#assembleArithmetic">
@@ -1157,7 +1197,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2344">
+              <div class="fsdocs-tip" id="2343">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>assembleArithmetic&#32;<span>width&#32;expLst</span></span></code>
@@ -1225,7 +1265,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2345', 2345)" onmouseover="showTip(event, '2345', 2345)">
+              <code onmouseout="hideTip(event, '2344', 2344)" onmouseover="showTip(event, '2344', 2344)">
                 <p>
                   <a id="b2s">
                     <a href="#b2s">
@@ -1234,7 +1274,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2345">
+              <div class="fsdocs-tip" id="2344">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>b2s&#32;<span>b</span></span></code>
@@ -1286,7 +1326,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2346', 2346)" onmouseover="showTip(event, '2346', 2346)">
+              <code onmouseout="hideTip(event, '2345', 2345)" onmouseover="showTip(event, '2345', 2345)">
                 <p>
                   <a id="bigIntBitMask">
                     <a href="#bigIntBitMask">
@@ -1295,7 +1335,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2346">
+              <div class="fsdocs-tip" id="2345">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>bigIntBitMask&#32;<span>pos</span></span></code>
@@ -1332,7 +1372,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SimGraphTypes.bigIntBitMask\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L374-374" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L438-438" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1365,7 +1405,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2347', 2347)" onmouseover="showTip(event, '2347', 2347)">
+              <code onmouseout="hideTip(event, '2346', 2346)" onmouseover="showTip(event, '2346', 2346)">
                 <p>
                   <a id="bigIntBitMaskA">
                     <a href="#bigIntBitMaskA">
@@ -1374,7 +1414,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2347">
+              <div class="fsdocs-tip" id="2346">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>bigIntBitMaskA&#32;<span></span></span></code>
@@ -1404,7 +1444,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2348', 2348)" onmouseover="showTip(event, '2348', 2348)">
+              <code onmouseout="hideTip(event, '2347', 2347)" onmouseover="showTip(event, '2347', 2347)">
                 <p>
                   <a id="bigIntMask">
                     <a href="#bigIntMask">
@@ -1413,7 +1453,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2348">
+              <div class="fsdocs-tip" id="2347">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>bigIntMask&#32;<span>width</span></span></code>
@@ -1450,7 +1490,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SimGraphTypes.bigIntMask\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L367-367" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L431-431" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1483,7 +1523,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2349', 2349)" onmouseover="showTip(event, '2349', 2349)">
+              <code onmouseout="hideTip(event, '2348', 2348)" onmouseover="showTip(event, '2348', 2348)">
                 <p>
                   <a id="bigIntMaskA">
                     <a href="#bigIntMaskA">
@@ -1492,7 +1532,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2349">
+              <div class="fsdocs-tip" id="2348">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>bigIntMaskA&#32;<span></span></span></code>
@@ -1522,7 +1562,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2350', 2350)" onmouseover="showTip(event, '2350', 2350)">
+              <code onmouseout="hideTip(event, '2349', 2349)" onmouseover="showTip(event, '2349', 2349)">
                 <p>
                   <a id="bitsToBig">
                     <a href="#bitsToBig">
@@ -1531,7 +1571,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2350">
+              <div class="fsdocs-tip" id="2349">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>bitsToBig&#32;<span>lst</span></span></code>
@@ -1583,7 +1623,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2351', 2351)" onmouseover="showTip(event, '2351', 2351)">
+              <code onmouseout="hideTip(event, '2350', 2350)" onmouseover="showTip(event, '2350', 2350)">
                 <p>
                   <a id="bitsToInt">
                     <a href="#bitsToInt">
@@ -1592,7 +1632,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2351">
+              <div class="fsdocs-tip" id="2350">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>bitsToInt&#32;<span>lst</span></span></code>
@@ -1644,7 +1684,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2352', 2352)" onmouseover="showTip(event, '2352', 2352)">
+              <code onmouseout="hideTip(event, '2351', 2351)" onmouseover="showTip(event, '2351', 2351)">
                 <p>
                   <a id="doubleExp">
                     <a href="#doubleExp">
@@ -1653,7 +1693,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2352">
+              <div class="fsdocs-tip" id="2351">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>doubleExp&#32;<span>width&#32;exp</span></span></code>
@@ -1698,7 +1738,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SimGraphTypes.doubleExp\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L396-396" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L460-460" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1742,7 +1782,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2353', 2353)" onmouseover="showTip(event, '2353', 2353)">
+              <code onmouseout="hideTip(event, '2352', 2352)" onmouseover="showTip(event, '2352', 2352)">
                 <p>
                   <a id="errMsg">
                     <a href="#errMsg">
@@ -1751,7 +1791,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2353">
+              <div class="fsdocs-tip" id="2352">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>errMsg&#32;<span>errType</span></span></code>
@@ -1803,7 +1843,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2354', 2354)" onmouseover="showTip(event, '2354', 2354)">
+              <code onmouseout="hideTip(event, '2353', 2353)" onmouseover="showTip(event, '2353', 2353)">
                 <p>
                   <a id="evalExp">
                     <a href="#evalExp">
@@ -1812,7 +1852,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2354">
+              <div class="fsdocs-tip" id="2353">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>evalExp&#32;<span>exp</span></span></code>
@@ -1849,7 +1889,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SimGraphTypes.evalExp\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L678-678" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L742-742" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1882,7 +1922,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2355', 2355)" onmouseover="showTip(event, '2355', 2355)">
+              <code onmouseout="hideTip(event, '2354', 2354)" onmouseover="showTip(event, '2354', 2354)">
                 <p>
                   <a id="expToKatex">
                     <a href="#expToKatex">
@@ -1891,7 +1931,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2355">
+              <div class="fsdocs-tip" id="2354">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>expToKatex&#32;<span>exp</span></span></code>
@@ -1928,7 +1968,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SimGraphTypes.expToKatex\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L581-581" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L645-645" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1963,7 +2003,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2356', 2356)" onmouseover="showTip(event, '2356', 2356)">
+              <code onmouseout="hideTip(event, '2355', 2355)" onmouseover="showTip(event, '2355', 2355)">
                 <p>
                   <a id="fastBit">
                     <a href="#fastBit">
@@ -1972,7 +2012,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2356">
+              <div class="fsdocs-tip" id="2355">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>fastBit&#32;<span>n</span></span></code>
@@ -2024,7 +2064,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2357', 2357)" onmouseover="showTip(event, '2357', 2357)">
+              <code onmouseout="hideTip(event, '2356', 2356)" onmouseover="showTip(event, '2356', 2356)">
                 <p>
                   <a id="fastDataOne">
                     <a href="#fastDataOne">
@@ -2033,7 +2073,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2357">
+              <div class="fsdocs-tip" id="2356">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>fastDataOne&#32;<span></span></span></code>
@@ -2063,7 +2103,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2358', 2358)" onmouseover="showTip(event, '2358', 2358)">
+              <code onmouseout="hideTip(event, '2357', 2357)" onmouseover="showTip(event, '2357', 2357)">
                 <p>
                   <a id="fastDataZero">
                     <a href="#fastDataZero">
@@ -2072,7 +2112,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2358">
+              <div class="fsdocs-tip" id="2357">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>fastDataZero&#32;<span></span></span></code>
@@ -2102,7 +2142,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2359', 2359)" onmouseover="showTip(event, '2359', 2359)">
+              <code onmouseout="hideTip(event, '2358', 2358)" onmouseover="showTip(event, '2358', 2358)">
                 <p>
                   <a id="fastToWire">
                     <a href="#fastToWire">
@@ -2111,7 +2151,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2359">
+              <div class="fsdocs-tip" id="2358">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>fastToWire&#32;<span>f</span></span></code>
@@ -2148,7 +2188,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SimGraphTypes.fastToWire\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L976-976" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L1040-1040" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2181,7 +2221,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2360', 2360)" onmouseover="showTip(event, '2360', 2360)">
+              <code onmouseout="hideTip(event, '2359', 2359)" onmouseover="showTip(event, '2359', 2359)">
                 <p>
                   <a id="flattenNestedArithmetic">
                     <a href="#flattenNestedArithmetic">
@@ -2190,7 +2230,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2360">
+              <div class="fsdocs-tip" id="2359">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>flattenNestedArithmetic&#32;<span>exp</span></span></code>
@@ -2242,7 +2282,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2361', 2361)" onmouseover="showTip(event, '2361', 2361)">
+              <code onmouseout="hideTip(event, '2360', 2360)" onmouseover="showTip(event, '2360', 2360)">
                 <p>
                   <a id="foldAppends">
                     <a href="#foldAppends">
@@ -2251,7 +2291,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2361">
+              <div class="fsdocs-tip" id="2360">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>foldAppends&#32;<span>expressions</span></span></code>
@@ -2303,7 +2343,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2362', 2362)" onmouseover="showTip(event, '2362', 2362)">
+              <code onmouseout="hideTip(event, '2361', 2361)" onmouseover="showTip(event, '2361', 2361)">
                 <p>
                   <a id="getAlgExpWidth">
                     <a href="#getAlgExpWidth">
@@ -2312,7 +2352,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2362">
+              <div class="fsdocs-tip" id="2361">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getAlgExpWidth&#32;<span>exp</span></span></code>
@@ -2349,7 +2389,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SimGraphTypes.getAlgExpWidth\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L335-335" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L399-399" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2382,7 +2422,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2363', 2363)" onmouseover="showTip(event, '2363', 2363)">
+              <code onmouseout="hideTip(event, '2362', 2362)" onmouseover="showTip(event, '2362', 2362)">
                 <p>
                   <a id="getBits">
                     <a href="#getBits">
@@ -2391,7 +2431,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2363">
+              <div class="fsdocs-tip" id="2362">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getBits&#32;<span>msb&#32;lsb&#32;f</span></span></code>
@@ -2444,7 +2484,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SimGraphTypes.getBits\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L1008-1008" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L1072-1072" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2495,7 +2535,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2364', 2364)" onmouseover="showTip(event, '2364', 2364)">
+              <code onmouseout="hideTip(event, '2363', 2363)" onmouseover="showTip(event, '2363', 2363)">
                 <p>
                   <a id="getBitsFromBigInt">
                     <a href="#getBitsFromBigInt">
@@ -2504,7 +2544,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2364">
+              <div class="fsdocs-tip" id="2363">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getBitsFromBigInt&#32;<span>msb&#32;lsb&#32;x</span></span></code>
@@ -2588,7 +2628,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2365', 2365)" onmouseover="showTip(event, '2365', 2365)">
+              <code onmouseout="hideTip(event, '2364', 2364)" onmouseover="showTip(event, '2364', 2364)">
                 <p>
                   <a id="getBitsFromBigIntToUInt32">
                     <a href="#getBitsFromBigIntToUInt32">
@@ -2597,7 +2637,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2365">
+              <div class="fsdocs-tip" id="2364">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getBitsFromBigIntToUInt32&#32;<span>msb&#32;lsb&#32;x</span></span></code>
@@ -2681,7 +2721,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2366', 2366)" onmouseover="showTip(event, '2366', 2366)">
+              <code onmouseout="hideTip(event, '2365', 2365)" onmouseover="showTip(event, '2365', 2365)">
                 <p>
                   <a id="getBitsFromUInt32">
                     <a href="#getBitsFromUInt32">
@@ -2690,7 +2730,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2366">
+              <div class="fsdocs-tip" id="2365">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getBitsFromUInt32&#32;<span>msb&#32;lsb&#32;x</span></span></code>
@@ -2774,7 +2814,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2367', 2367)" onmouseover="showTip(event, '2367', 2367)">
+              <code onmouseout="hideTip(event, '2366', 2366)" onmouseover="showTip(event, '2366', 2366)">
                 <p>
                   <a id="reduceArithmetic">
                     <a href="#reduceArithmetic">
@@ -2783,7 +2823,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2367">
+              <div class="fsdocs-tip" id="2366">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>reduceArithmetic&#32;<span>expression</span></span></code>
@@ -2835,7 +2875,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2368', 2368)" onmouseover="showTip(event, '2368', 2368)">
+              <code onmouseout="hideTip(event, '2367', 2367)" onmouseover="showTip(event, '2367', 2367)">
                 <p>
                   <a id="tryBitwiseOperation">
                     <a href="#tryBitwiseOperation">
@@ -2844,7 +2884,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2368">
+              <div class="fsdocs-tip" id="2367">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>tryBitwiseOperation&#32;<span>expressions</span></span></code>
@@ -2896,7 +2936,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2369', 2369)" onmouseover="showTip(event, '2369', 2369)">
+              <code onmouseout="hideTip(event, '2368', 2368)" onmouseover="showTip(event, '2368', 2368)">
                 <p>
                   <a id="tryMergeBitRanges">
                     <a href="#tryMergeBitRanges">
@@ -2905,7 +2945,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2369">
+              <div class="fsdocs-tip" id="2368">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>tryMergeBitRanges&#32;<span><span>(<span>l1,&#32;u1,&#32;exp1</span>)</span>&#32;<span>(<span>l2,&#32;u2,&#32;exp2</span>)</span></span></span></code>
@@ -2982,7 +3022,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SimGraphTypes.tryMergeBitRanges\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L487-487" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L551-551" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3056,7 +3096,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2370', 2370)" onmouseover="showTip(event, '2370', 2370)">
+              <code onmouseout="hideTip(event, '2369', 2369)" onmouseover="showTip(event, '2369', 2369)">
                 <p>
                   <a id="valueLiteral">
                     <a href="#valueLiteral">
@@ -3065,7 +3105,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2370">
+              <div class="fsdocs-tip" id="2369">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>valueLiteral&#32;<span>width&#32;value</span></span></code>
@@ -3110,7 +3150,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SimGraphTypes.valueLiteral\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L382-382" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L446-446" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3152,7 +3192,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2371', 2371)" onmouseover="showTip(event, '2371', 2371)">
+              <code onmouseout="hideTip(event, '2370', 2370)" onmouseover="showTip(event, '2370', 2370)">
                 <p>
                   <a id="wireToFast">
                     <a href="#wireToFast">
@@ -3161,7 +3201,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2371">
+              <div class="fsdocs-tip" id="2370">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>wireToFast&#32;<span>wd</span></span></code>
@@ -3198,7 +3238,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SimGraphTypes.wireToFast\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L964-964" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L1028-1028" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3231,7 +3271,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2372', 2372)" onmouseover="showTip(event, '2372', 2372)">
+              <code onmouseout="hideTip(event, '2371', 2371)" onmouseover="showTip(event, '2371', 2371)">
                 <p>
                   <a id="zeroLiteral">
                     <a href="#zeroLiteral">
@@ -3240,7 +3280,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2372">
+              <div class="fsdocs-tip" id="2371">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>zeroLiteral&#32;<span>width</span></span></code>

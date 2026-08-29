@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="SimComponentId (issie)" />
+    <meta property="og:title" content="FastCompIndex (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="SimComponentId (issie)">
+    <meta name="twitter:title" content="FastCompIndex (issie)">
     
-    <title>SimComponentId (issie) | issie</title>
+    <title>FastCompIndex (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -472,7 +472,7 @@
     <div id="content">
         <div>
   <h2>
-    SimComponentId Type
+    FastCompIndex Type
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
@@ -491,49 +491,59 @@
       </a>
     </dt>
     <dt>
-      Abbreviation For: 
-      <code><span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;*&#32;<span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;list</span></span></code>
-    </dt>
-    <dt>
       Base Type: 
-      <code>obj</code>
+      <code><a href="https://learn.microsoft.com/dotnet/api/system.valuetype">ValueType</a></code>
     </dt>
     <dt>
       All Interfaces: 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralcomparable">IStructuralComparable</a></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/ids-fastcompindex.html">FastCompIndex</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
       , 
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/ids-fastcompindex.html">FastCompIndex</a>&gt;</span></code>
+      , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
       , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.runtime.compilerservices.ituple">ITuple</a></code>
+      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralcomparable">IStructuralComparable</a></code>
+    </dt>
+    <dt>
+      Kind: Struct
     </dt>
   </dl>
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         Unique identifier for a fast component.
- The list is the access path, a list of all the containing custom components 
- from the top sheet of the simulation (root first)
+         Where a FastComponent sits in the build that made it: the slot LookupArray stamped it with as
+ the flatten created it, and the identity of a fast component INSIDE a simulation.
+
+ The design-time name a component also has - its ComponentId and the access path of the instance
+ it belongs to - is carried by the FastComponent itself (cId, AccessPath) and read from there
+ when something needs it. That name is what survives a rebuild, so it is what the renderer holds
+ and what a saved selection resolves through; the index is what the simulation uses, and it is
+ meaningless in the next build.
+
+ [<Struct>] as well as [<Erase>], and safely so: it is only ever an ARRAY index, never the key of
+ an F# Map, never in a Set and never sorted - which are the things the note above prices a struct
+ id at. It is a map VALUE (FIndexOf, FCustomOutputCompLookup), which costs nothing, since a value
+ is never compared. Every read unwraps it to the bare int first - `FCompsByIndex[fcToInt
+ index]`, `LookupArray.item (fcToInt i)` - and the -1 sentinel is tested as
+ `fcToInt fc.CustomOutIndex < 0`, an int comparison. Keep it that way: a generic `=` on
+ a struct DU boxes both sides.
       </p>
     </div>
   </div>
   <div></div>
   <div></div>
   <div></div>
-  <div></div>
-  <div></div>
-  <div></div>
-  <div></div>
   <div>
     <h3>
-      Instance members
+      Union cases
     </h3>
     <table class="table outer-list fsdocs-member-list">
       <thead>
         <tr>
           <td class="fsdocs-member-list-header">
-            Instance member
+            Union case
           </td>
           <td class="fsdocs-member-list-header">
             Description
@@ -544,84 +554,57 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4800', 4800)" onmouseover="showTip(event, '4800', 4800)">
+              <code onmouseout="hideTip(event, '4807', 4807)" onmouseover="showTip(event, '4807', 4807)">
                 <p>
-                  <a id="Item1">
-                    <a href="#Item1">
-                      <code><span>this.Item1</span></code>
+                  <a id="FastCompIndex">
+                    <a href="#FastCompIndex">
+                      <code><span>FastCompIndex&#32;int</span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4800">
+              <div class="fsdocs-tip" id="4807">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>this.Item1</span></code>
+                  <code><span>FastCompIndex&#32;int</span></code>
                   <br/>
                   <br/>
-                  <span>
-                    Returns: 
-                    <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
-                  </span>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        Item
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                  </ul>
                   <br/>
                 </div>
               </div>
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  Item
                 </span>
-                <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
+                :
+                <code>int</code>
               </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4801', 4801)" onmouseover="showTip(event, '4801', 4801)">
-                <p>
-                  <a id="Item2">
-                    <a href="#Item2">
-                      <code><span>this.Item2</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4801">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.Item2</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;list</span></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code><span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;list</span></code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
+              <dd class="fsdocs-param-docs"></dd>
             </dl>
           </td>
         </tr>
       </tbody>
     </table>
   </div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
   <div></div>
 </div>
         

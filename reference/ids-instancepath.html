@@ -510,14 +510,34 @@
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         The chain of custom-component instances from the simulated top sheet down to one instance,
- root first - so it names one ELABORATED copy of a sheet.
+         The chain of custom-component instances between one instance and the simulated top sheet,
+ INNERMOST FIRST - so it names one ELABORATED copy of a sheet.
 
  These are design-time ComponentIds, unique across the design, so a path is stable under
  relabelling and means the same thing whichever side computed it. It is not a new value: the
- simulator already builds exactly this as FastComponent.AccessPath (`ap @ [cid]` in
- FastCreate) and the design side already builds exactly this as SheetTree.SheetAccessPath
- (`accessPath @ [inst.InstId]` in MenuHelpers). This gives it a name.
+ simulator builds exactly this as FastComponent.AccessPath and the design side builds exactly
+ this as SheetTree.SheetAccessPath. This gives it a name.
+
+ Innermost first, although a path is READ the other way round - `top.alu.adder` - because that
+ is where the work is. A path is only ever built by descending the design from the top sheet,
+ and it is only ever taken apart at the deep end: the id of the instance itself, and the path
+ of the sheet that instance is drawn on. Both are a cons here; root first they were an
+ `@ [cid]` at seventeen sites and a `path[0 .. path.Length - 2]` at three.
+
+ FOUR places pay for it, and they are all of them: SheetOfInstance resolves a path against the
+ design from the top down, so it folds back; SimulatedDesign.LabelsOfInstance and getFullSimName
+ turn one into text; and WavePath.pathOfComponent reverses before walking. Anything else that
+ needs a path root first should go through LabelsOfInstance rather than reverse one of its own.
+
+ Two consequences worth knowing before writing against it. The instances a path sits INSIDE are
+ its tails, not its prefixes - so containment is a suffix test (WaveSimSelectHelpers.isSubSheetOf)
+ and walking outwards is `List.tail`. And sorting is unaffected: the paths anything sorts are
+ siblings sharing one parent, so both orders compare the single element that differs.
+
+ The string paths beside it - SheetTree.SheetPath and LabelPath, the wave selector's NodeKey,
+ and WavePath.WPLabels, which is the form saved in a .dgm - stay ROOT first. They are read
+ rather than taken apart, and one of them is in the file format. So the rule is: id paths
+ innermost first, name paths root first, and the reversal happens where a path becomes text.
       </p>
     </div>
   </div>
@@ -543,7 +563,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4792', 4792)" onmouseover="showTip(event, '4792', 4792)">
+              <code onmouseout="hideTip(event, '4810', 4810)" onmouseover="showTip(event, '4810', 4810)">
                 <p>
                   <a id="InstancePath">
                     <a href="#InstancePath">
@@ -552,7 +572,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4792">
+              <div class="fsdocs-tip" id="4810">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>InstancePath&#32;<span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;list</span></span></code>

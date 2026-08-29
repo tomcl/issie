@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="ParamExpression (issie)" />
+    <meta property="og:title" content="SimGraph (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="ParamExpression (issie)">
+    <meta name="twitter:title" content="SimGraph (issie)">
     
-    <title>ParamExpression (issie) | issie</title>
+    <title>SimGraph (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -472,7 +472,7 @@
     <div id="content">
         <div>
   <h2>
-    ParamExpression Type
+    SimGraph Module
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
@@ -486,56 +486,32 @@
     </dt>
     <dt>
       Parent Module: 
-      <a href="/issie/reference/global-parametertypes.html">
-        ParameterTypes
+      <a href="/issie/reference/global-simgraphtypes.html">
+        SimGraphTypes
       </a>
-    </dt>
-    <dt>
-      Base Type: 
-      <code>obj</code>
-    </dt>
-    <dt>
-      All Interfaces: 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>&gt;</span></code>
-      , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
-      , 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>&gt;</span></code>
-      , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
-      , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralcomparable">IStructuralComparable</a></code>
     </dt>
   </dl>
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         An arithmetic expression containing symbolic parameters
- For MVP this could be limited to PInt and PParameter only.
- However, it would be useful to have a more general type definition so that
- functions that manipulate constraints, parameters, etc can be written in a more general way.
- The actual parameter value is customisable so that the same code can be used for int parameters (normal)
- and BigInt parameters (needed for constant values in N bit components).
- For MVP set 'PINT = int
- TODO: refactor this to use an enumeration DU for operators to reduce cases.
+         The one way in and out of a SimulationGraph, in ComponentIds.
 
- The built-in functions are already in that shape: PBinFunc names its operation with an
- enumeration rather than taking a case of its own per function.
+ The key-carrying functions WRAP on the way out, which is free under Fable ([<Erase>]) and free
+ under .NET only while ComponentId is a struct. So where a caller does not need the key there is
+ a value-only form beside each - `values`, `iterValues`, `foldValues`, `mapValues` - and the hot
+ iterations use those. Nothing outside this module names the int.
       </p>
     </div>
   </div>
-  <div></div>
-  <div></div>
-  <div></div>
   <div>
     <h3>
-      Union cases
+      Functions and values
     </h3>
     <table class="table outer-list fsdocs-member-list">
       <thead>
         <tr>
           <td class="fsdocs-member-list-header">
-            Union case
+            Function or value
           </td>
           <td class="fsdocs-member-list-header">
             Description
@@ -546,241 +522,53 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5907', 5907)" onmouseover="showTip(event, '5907', 5907)">
+              <code onmouseout="hideTip(event, '2372', 2372)" onmouseover="showTip(event, '2372', 2372)">
                 <p>
-                  <a id="PAdd">
-                    <a href="#PAdd">
-                      <code><span>PAdd(<span><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></span>)</span></code>
+                  <a id="add">
+                    <a href="#add">
+                      <code><span>SimGraph.add&#32;<span>arg1&#32;comp&#32;g</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5907">
+              <div class="fsdocs-tip" id="2372">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>PAdd(<span><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></span>)</span></code>
+                  <code><span>SimGraph.add&#32;<span>arg1&#32;comp&#32;g</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        Item1
+                        arg0
                       </b>
                       :
-                      <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
+                      <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
                     </span>
                     <br/>
                     <span>
                       <b>
-                        Item2
+                        comp
                       </b>
                       :
-                      <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
+                      <code><a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        g
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
                     </span>
                     <br/>
                   </ul>
                   <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item1
-                </span>
-                :
-                <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item2
-                </span>
-                :
-                <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5908', 5908)" onmouseover="showTip(event, '5908', 5908)">
-                <p>
-                  <a id="PBinFunc">
-                    <a href="#PBinFunc">
-                      <code><span>PBinFunc(<span><a href="/issie/reference/parametertypes-parambinfunc.html">ParamBinFunc</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></span>)</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5908">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>PBinFunc(<span><a href="/issie/reference/parametertypes-parambinfunc.html">ParamBinFunc</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></span>)</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        Item1
-                      </b>
-                      :
-                      <code><a href="/issie/reference/parametertypes-parambinfunc.html">ParamBinFunc</a></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        Item2
-                      </b>
-                      :
-                      <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        Item3
-                      </b>
-                      :
-                      <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item1
-                </span>
-                :
-                <code><a href="/issie/reference/parametertypes-parambinfunc.html">ParamBinFunc</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item2
-                </span>
-                :
-                <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item3
-                </span>
-                :
-                <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5909', 5909)" onmouseover="showTip(event, '5909', 5909)">
-                <p>
-                  <a id="PCLog2">
-                    <a href="#PCLog2">
-                      <code><span>PCLog2&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5909">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>PCLog2&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        Item
-                      </b>
-                      :
-                      <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L98-98" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     Bits needed to index the operand's value: ceil(log2 n). See clog2.
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-params">
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    Item
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
                   </span>
-                  :
-                  <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5910', 5910)" onmouseover="showTip(event, '5910', 5910)">
-                <p>
-                  <a id="PDivide">
-                    <a href="#PDivide">
-                      <code><span>PDivide(<span><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></span>)</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5910">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>PDivide(<span><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></span>)</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        Item1
-                      </b>
-                      :
-                      <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        Item2
-                      </b>
-                      :
-                      <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-                    </span>
-                    <br/>
-                  </ul>
                   <br/>
                 </div>
               </div>
@@ -790,431 +578,729 @@
             <dl class="fsdocs-params">
               <dt class="fsdocs-param">
                 <span class="fsdocs-param-name">
-                  Item1
+                  arg0
                 </span>
                 :
-                <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
+                <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
               </dt>
               <dd class="fsdocs-param-docs"></dd>
               <dt class="fsdocs-param">
                 <span class="fsdocs-param-name">
-                  Item2
+                  comp
                 </span>
                 :
-                <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
+                <code><a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></code>
               </dt>
               <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  g
+                </span>
+                :
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
             </dl>
           </td>
         </tr>
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5911', 5911)" onmouseover="showTip(event, '5911', 5911)">
+              <code onmouseout="hideTip(event, '2373', 2373)" onmouseover="showTip(event, '2373', 2373)">
                 <p>
-                  <a id="PInt">
-                    <a href="#PInt">
-                      <code><span>PInt&#32;<a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></span></code>
+                  <a id="containsKey">
+                    <a href="#containsKey">
+                      <code><span>SimGraph.containsKey&#32;<span>arg1&#32;g</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5911">
+              <div class="fsdocs-tip" id="2373">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>PInt&#32;<a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></span></code>
+                  <code><span>SimGraph.containsKey&#32;<span>arg1&#32;g</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        Item
+                        arg0
                       </b>
                       :
-                      <code><a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></code>
+                      <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        g
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
                     </span>
                     <br/>
                   </ul>
                   <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item
-                </span>
-                :
-                <code><a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5912', 5912)" onmouseover="showTip(event, '5912', 5912)">
-                <p>
-                  <a id="PMultiply">
-                    <a href="#PMultiply">
-                      <code><span>PMultiply(<span><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></span>)</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5912">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>PMultiply(<span><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></span>)</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        Item1
-                      </b>
-                      :
-                      <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        Item2
-                      </b>
-                      :
-                      <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item1
-                </span>
-                :
-                <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item2
-                </span>
-                :
-                <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5913', 5913)" onmouseover="showTip(event, '5913', 5913)">
-                <p>
-                  <a id="PParameter">
-                    <a href="#PParameter">
-                      <code><span>PParameter&#32;<a href="/issie/reference/parametertypes-paramname.html">ParamName</a></span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5913">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>PParameter&#32;<a href="/issie/reference/parametertypes-paramname.html">ParamName</a></span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        Item
-                      </b>
-                      :
-                      <code><a href="/issie/reference/parametertypes-paramname.html">ParamName</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item
-                </span>
-                :
-                <code><a href="/issie/reference/parametertypes-paramname.html">ParamName</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5914', 5914)" onmouseover="showTip(event, '5914', 5914)">
-                <p>
-                  <a id="PRemainder">
-                    <a href="#PRemainder">
-                      <code><span>PRemainder(<span><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></span>)</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5914">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>PRemainder(<span><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></span>)</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        Item1
-                      </b>
-                      :
-                      <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        Item2
-                      </b>
-                      :
-                      <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item1
-                </span>
-                :
-                <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item2
-                </span>
-                :
-                <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5915', 5915)" onmouseover="showTip(event, '5915', 5915)">
-                <p>
-                  <a id="PShiftLeft">
-                    <a href="#PShiftLeft">
-                      <code><span>PShiftLeft(<span><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></span>)</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5915">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>PShiftLeft(<span><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></span>)</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        Item1
-                      </b>
-                      :
-                      <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        Item2
-                      </b>
-                      :
-                      <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L91-91" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     Multiply by a power of two: `a<<b` is a * 2^b. Written and bound as in Verilog and C, so
- more loosely than `+`. See shiftLeftBy.
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-params">
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    Item1
+                  <span>
+                    Returns: 
+                    <code>bool</code>
                   </span>
-                  :
-                  <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    Item2
-                  </span>
-                  :
-                  <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5916', 5916)" onmouseover="showTip(event, '5916', 5916)">
-                <p>
-                  <a id="PShiftRight">
-                    <a href="#PShiftRight">
-                      <code><span>PShiftRight(<span><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></span>)</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5916">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>PShiftRight(<span><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></span>)</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        Item1
-                      </b>
-                      :
-                      <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        Item2
-                      </b>
-                      :
-                      <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-                    </span>
-                    <br/>
-                  </ul>
                   <br/>
                 </div>
               </div>
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterTypes.fs#L96-96" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     Divide by a power of two, rounding towards minus infinity: an ARITHMETIC shift, so a
- negative value stays negative and `-1>>1` is `-1`. There is no logical right shift to go
- with it: a parameter is a number rather than a bit pattern of some width, so there is no
- width for zeros to come in from. See shiftRightBy.
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-params">
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    Item1
-                  </span>
-                  :
-                  <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    Item2
-                  </span>
-                  :
-                  <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-              </dl>
-            </details>
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  arg0
+                </span>
+                :
+                <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  g
+                </span>
+                :
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>bool</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
           </td>
         </tr>
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5917', 5917)" onmouseover="showTip(event, '5917', 5917)">
+              <code onmouseout="hideTip(event, '2374', 2374)" onmouseover="showTip(event, '2374', 2374)">
                 <p>
-                  <a id="PSubtract">
-                    <a href="#PSubtract">
-                      <code><span>PSubtract(<span><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></span>)</span></code>
+                  <a id="count">
+                    <a href="#count">
+                      <code><span>SimGraph.count&#32;<span>g</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5917">
+              <div class="fsdocs-tip" id="2374">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>PSubtract(<span><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></span>)</span></code>
+                  <code><span>SimGraph.count&#32;<span>g</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        Item1
+                        g
                       </b>
                       :
-                      <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
+                      <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  g
+                </span>
+                :
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2375', 2375)" onmouseover="showTip(event, '2375', 2375)">
+                <p>
+                  <a id="empty">
+                    <a href="#empty">
+                      <code><span>SimGraph.empty&#32;<span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2375">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>SimGraph.empty&#32;<span></span></span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2376', 2376)" onmouseover="showTip(event, '2376', 2376)">
+                <p>
+                  <a id="filter">
+                    <a href="#filter">
+                      <code><span>SimGraph.filter&#32;<span>f&#32;g</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2376">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>SimGraph.filter&#32;<span>f&#32;g</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        f
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;->&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;->&#32;bool</span></code>
                     </span>
                     <br/>
                     <span>
                       <b>
-                        Item2
+                        g
                       </b>
                       :
-                      <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
+                      <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  f
+                </span>
+                :
+                <code><span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;->&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;->&#32;bool</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  g
+                </span>
+                :
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2377', 2377)" onmouseover="showTip(event, '2377', 2377)">
+                <p>
+                  <a id="filterValues">
+                    <a href="#filterValues">
+                      <code><span>SimGraph.filterValues&#32;<span>f&#32;g</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2377">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>SimGraph.filterValues&#32;<span>f&#32;g</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        f
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;->&#32;bool</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        g
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  f
+                </span>
+                :
+                <code><span><a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;->&#32;bool</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  g
+                </span>
+                :
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2378', 2378)" onmouseover="showTip(event, '2378', 2378)">
+                <p>
+                  <a id="find">
+                    <a href="#find">
+                      <code><span>SimGraph.find&#32;<span>arg1&#32;g</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2378">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>SimGraph.find&#32;<span>arg1&#32;g</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        arg0
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        g
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  arg0
+                </span>
+                :
+                <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  g
+                </span>
+                :
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2379', 2379)" onmouseover="showTip(event, '2379', 2379)">
+                <p>
+                  <a id="fold">
+                    <a href="#fold">
+                      <code><span>SimGraph.fold&#32;<span>f&#32;state&#32;g</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2379">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>SimGraph.fold&#32;<span>f&#32;state&#32;g</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        f
+                      </b>
+                      :
+                      <code><span>'S&#32;->&#32;<a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;->&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;->&#32;'S</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        state
+                      </b>
+                      :
+                      <code>'S</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        g
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>'S</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  f
+                </span>
+                :
+                <code><span>'S&#32;->&#32;<a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;->&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;->&#32;'S</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  state
+                </span>
+                :
+                <code>'S</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  g
+                </span>
+                :
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>'S</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2380', 2380)" onmouseover="showTip(event, '2380', 2380)">
+                <p>
+                  <a id="foldValues">
+                    <a href="#foldValues">
+                      <code><span>SimGraph.foldValues&#32;<span>f&#32;state&#32;g</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2380">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>SimGraph.foldValues&#32;<span>f&#32;state&#32;g</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        f
+                      </b>
+                      :
+                      <code><span>'S&#32;->&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;->&#32;'S</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        state
+                      </b>
+                      :
+                      <code>'S</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        g
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>'S</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  f
+                </span>
+                :
+                <code><span>'S&#32;->&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;->&#32;'S</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  state
+                </span>
+                :
+                <code>'S</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  g
+                </span>
+                :
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>'S</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2381', 2381)" onmouseover="showTip(event, '2381', 2381)">
+                <p>
+                  <a id="isEmpty">
+                    <a href="#isEmpty">
+                      <code><span>SimGraph.isEmpty&#32;<span>g</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2381">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>SimGraph.isEmpty&#32;<span>g</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        g
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bool</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  g
+                </span>
+                :
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>bool</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2382', 2382)" onmouseover="showTip(event, '2382', 2382)">
+                <p>
+                  <a id="iter">
+                    <a href="#iter">
+                      <code><span>SimGraph.iter&#32;<span>f&#32;g</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2382">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>SimGraph.iter&#32;<span>f&#32;g</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        f
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;->&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;->&#32;unit</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        g
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
                     </span>
                     <br/>
                   </ul>
@@ -1227,20 +1313,497 @@
             <dl class="fsdocs-params">
               <dt class="fsdocs-param">
                 <span class="fsdocs-param-name">
-                  Item1
+                  f
                 </span>
                 :
-                <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
+                <code><span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;->&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;->&#32;unit</span></code>
               </dt>
               <dd class="fsdocs-param-docs"></dd>
               <dt class="fsdocs-param">
                 <span class="fsdocs-param-name">
-                  Item2
+                  g
                 </span>
                 :
-                <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
               </dt>
               <dd class="fsdocs-param-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2383', 2383)" onmouseover="showTip(event, '2383', 2383)">
+                <p>
+                  <a id="iterValues">
+                    <a href="#iterValues">
+                      <code><span>SimGraph.iterValues&#32;<span>f&#32;g</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2383">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>SimGraph.iterValues&#32;<span>f&#32;g</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        f
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;->&#32;unit</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        g
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  f
+                </span>
+                :
+                <code><span><a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;->&#32;unit</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  g
+                </span>
+                :
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2384', 2384)" onmouseover="showTip(event, '2384', 2384)">
+                <p>
+                  <a id="map">
+                    <a href="#map">
+                      <code><span>SimGraph.map&#32;<span>f&#32;g</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2384">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>SimGraph.map&#32;<span>f&#32;g</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        f
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;->&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;->&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        g
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  f
+                </span>
+                :
+                <code><span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;->&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;->&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  g
+                </span>
+                :
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2385', 2385)" onmouseover="showTip(event, '2385', 2385)">
+                <p>
+                  <a id="mapValues">
+                    <a href="#mapValues">
+                      <code><span>SimGraph.mapValues&#32;<span>f&#32;g</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2385">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>SimGraph.mapValues&#32;<span>f&#32;g</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        f
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;->&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        g
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  f
+                </span>
+                :
+                <code><span><a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;->&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  g
+                </span>
+                :
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2386', 2386)" onmouseover="showTip(event, '2386', 2386)">
+                <p>
+                  <a id="ofList">
+                    <a href="#ofList">
+                      <code><span>SimGraph.ofList&#32;<span>pairs</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2386">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>SimGraph.ofList&#32;<span>pairs</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        pairs
+                      </b>
+                      :
+                      <code><span><span>(<span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;*&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span>)</span>&#32;list</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  pairs
+                </span>
+                :
+                <code><span><span>(<span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;*&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span>)</span>&#32;list</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2387', 2387)" onmouseover="showTip(event, '2387', 2387)">
+                <p>
+                  <a id="toList">
+                    <a href="#toList">
+                      <code><span>SimGraph.toList&#32;<span>g</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2387">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>SimGraph.toList&#32;<span>g</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        g
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><span>(<span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;*&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span>)</span>&#32;list</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  g
+                </span>
+                :
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><span><span>(<span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;*&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span>)</span>&#32;list</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2388', 2388)" onmouseover="showTip(event, '2388', 2388)">
+                <p>
+                  <a id="tryFind">
+                    <a href="#tryFind">
+                      <code><span>SimGraph.tryFind&#32;<span>arg1&#32;g</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2388">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>SimGraph.tryFind&#32;<span>arg1&#32;g</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        arg0
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        g
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;option</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  arg0
+                </span>
+                :
+                <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  g
+                </span>
+                :
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><span><a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&#32;option</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2389', 2389)" onmouseover="showTip(event, '2389', 2389)">
+                <p>
+                  <a id="values">
+                    <a href="#values">
+                      <code><span>SimGraph.values&#32;<span>g</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2389">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>SimGraph.values&#32;<span>g</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        g
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.icollection-1">ICollection</a>&lt;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&gt;</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  g
+                </span>
+                :
+                <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.icollection-1">ICollection</a>&lt;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a>&gt;</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
             </dl>
           </td>
         </tr>
@@ -1250,454 +1813,10 @@
   <div></div>
   <div></div>
   <div></div>
-  <div>
-    <h3>
-      Instance members
-    </h3>
-    <table class="table outer-list fsdocs-member-list">
-      <thead>
-        <tr>
-          <td class="fsdocs-member-list-header">
-            Instance member
-          </td>
-          <td class="fsdocs-member-list-header">
-            Description
-          </td>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5918', 5918)" onmouseover="showTip(event, '5918', 5918)">
-                <p>
-                  <a id="IsPAdd">
-                    <a href="#IsPAdd">
-                      <code><span>this.IsPAdd</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5918">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsPAdd</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5919', 5919)" onmouseover="showTip(event, '5919', 5919)">
-                <p>
-                  <a id="IsPBinFunc">
-                    <a href="#IsPBinFunc">
-                      <code><span>this.IsPBinFunc</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5919">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsPBinFunc</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5920', 5920)" onmouseover="showTip(event, '5920', 5920)">
-                <p>
-                  <a id="IsPCLog2">
-                    <a href="#IsPCLog2">
-                      <code><span>this.IsPCLog2</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5920">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsPCLog2</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5921', 5921)" onmouseover="showTip(event, '5921', 5921)">
-                <p>
-                  <a id="IsPDivide">
-                    <a href="#IsPDivide">
-                      <code><span>this.IsPDivide</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5921">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsPDivide</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5922', 5922)" onmouseover="showTip(event, '5922', 5922)">
-                <p>
-                  <a id="IsPInt">
-                    <a href="#IsPInt">
-                      <code><span>this.IsPInt</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5922">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsPInt</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5923', 5923)" onmouseover="showTip(event, '5923', 5923)">
-                <p>
-                  <a id="IsPMultiply">
-                    <a href="#IsPMultiply">
-                      <code><span>this.IsPMultiply</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5923">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsPMultiply</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5924', 5924)" onmouseover="showTip(event, '5924', 5924)">
-                <p>
-                  <a id="IsPParameter">
-                    <a href="#IsPParameter">
-                      <code><span>this.IsPParameter</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5924">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsPParameter</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5925', 5925)" onmouseover="showTip(event, '5925', 5925)">
-                <p>
-                  <a id="IsPRemainder">
-                    <a href="#IsPRemainder">
-                      <code><span>this.IsPRemainder</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5925">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsPRemainder</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5926', 5926)" onmouseover="showTip(event, '5926', 5926)">
-                <p>
-                  <a id="IsPShiftLeft">
-                    <a href="#IsPShiftLeft">
-                      <code><span>this.IsPShiftLeft</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5926">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsPShiftLeft</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5927', 5927)" onmouseover="showTip(event, '5927', 5927)">
-                <p>
-                  <a id="IsPShiftRight">
-                    <a href="#IsPShiftRight">
-                      <code><span>this.IsPShiftRight</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5927">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsPShiftRight</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5928', 5928)" onmouseover="showTip(event, '5928', 5928)">
-                <p>
-                  <a id="IsPSubtract">
-                    <a href="#IsPSubtract">
-                      <code><span>this.IsPSubtract</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5928">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsPSubtract</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
   <div></div>
 </div>
         

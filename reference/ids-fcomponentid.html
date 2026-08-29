@@ -492,7 +492,7 @@
     </dt>
     <dt>
       Abbreviation For: 
-      <code><a href="/issie/reference/ids-simcomponentid.html">SimComponentId</a></code>
+      <code><span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;*&#32;<span><a href="/issie/reference/ids-componentid.html">ComponentId</a>&#32;list</span></span></code>
     </dt>
     <dt>
       Base Type: 
@@ -512,20 +512,27 @@
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         The old name for SimComponentId, kept while the ~70 sites that destructure it as a bare tuple
- are still doing so.
+         Unique identifier for a component of a running simulation: which component, and which
+ elaborated copy of its sheet it belongs to.
 
- Both are abbreviations of the same tuple today, so this costs nothing and changes nothing.
- Making the identity a tagged type is one line here - `[<Erase>] type SimComponentId =
- SimComponentId of ComponentId * ComponentId list` - and it was measured, on this branch, to
- break 71 sites, 38 of them in FastCreate and FastExtract. THAT is the reason to wait: it is
- worth doing with the change that needs it (the per-instance port enumeration, which factors a
- predicate out of FastCreate anyway) rather than as a sweep of the simulator core which buys
- nothing on its own.
+ The list is the access path - the containing custom component instances between it and the top
+ sheet of the simulation, innermost first. It is an InstancePath, the same list under the same
+ rule; a pair rather than one list because the component's own id always exists while the path
+ may be empty.
 
- When it is done, tag it [<Erase>] and NOT [<Struct>]: this is the key type of fs.FComps and
- the note above the id types prices what a struct key costs in an F# Map. A plain reference
- wrapper is what the rest of them are and what this should be.
+ THREE NAMES FOR A COMPONENT, AND NO OTHERS. ComponentId names one of the DESIGN - unique across
+ it, and the same one in every instance of its sheet. This names one of a SIMULATION: the design
+ component plus which copy. FastCompIndex names one inside a particular BUILD, and means nothing
+ in the next. This is the durable one, and so what the renderer holds, what a saved selection
+ resolves to, and what FIndexOf translates to a FastCompIndex. There used to be a fourth,
+ SimComponentId, which was an abbreviation of this same tuple under another name.
+
+ A bare tuple, deliberately. Tagging it is one line - `[<Erase>] type FComponentId = FComponentId
+ of ComponentId * ComponentId list` - and was measured on this branch to break 71 sites, 38 of
+ them in FastCreate and FastExtract, which destructure it as a tuple. Worth doing with a change
+ that needs it rather than as a sweep of the simulator core. If it is done, tag it [<Erase>] and
+ NOT [<Struct>]: it is the key type of FIndexOf, the one map a built simulation keeps, and the
+ note above the id types prices what a struct key costs in an F# Map.
       </p>
     </div>
   </div>
@@ -555,7 +562,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4788', 4788)" onmouseover="showTip(event, '4788', 4788)">
+              <code onmouseout="hideTip(event, '4805', 4805)" onmouseover="showTip(event, '4805', 4805)">
                 <p>
                   <a id="Item1">
                     <a href="#Item1">
@@ -564,7 +571,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4788">
+              <div class="fsdocs-tip" id="4805">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.Item1</span></code>
@@ -594,7 +601,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4789', 4789)" onmouseover="showTip(event, '4789', 4789)">
+              <code onmouseout="hideTip(event, '4806', 4806)" onmouseover="showTip(event, '4806', 4806)">
                 <p>
                   <a id="Item2">
                     <a href="#Item2">
@@ -603,7 +610,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4789">
+              <div class="fsdocs-tip" id="4806">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.Item2</span></code>

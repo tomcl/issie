@@ -492,7 +492,7 @@
     </dt>
     <dt>
       Abbreviation For: 
-      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/ids-componentid.html">ComponentId</a>,&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span>&gt;</span></code>
+      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>int,&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span>&gt;</span></code>
     </dt>
     <dt>
       Base Type: 
@@ -500,19 +500,19 @@
     </dt>
     <dt>
       All Interfaces: 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlydictionary-2">IReadOnlyDictionary</a>&lt;<span><a href="/issie/reference/ids-componentid.html">ComponentId</a>,&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlydictionary-2">IReadOnlyDictionary</a>&lt;<span>int,&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span>&gt;</span></code>
       , 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlycollection-1">IReadOnlyCollection</a>&lt;<span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.keyvaluepair-2">KeyValuePair</a>&lt;<span><a href="/issie/reference/ids-componentid.html">ComponentId</a>,&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span>&gt;</span>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlycollection-1">IReadOnlyCollection</a>&lt;<span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.keyvaluepair-2">KeyValuePair</a>&lt;<span>int,&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span>&gt;</span>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
       , 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.idictionary-2">IDictionary</a>&lt;<span><a href="/issie/reference/ids-componentid.html">ComponentId</a>,&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.idictionary-2">IDictionary</a>&lt;<span>int,&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span>&gt;</span></code>
       , 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.icollection-1">ICollection</a>&lt;<span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.keyvaluepair-2">KeyValuePair</a>&lt;<span><a href="/issie/reference/ids-componentid.html">ComponentId</a>,&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span>&gt;</span>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.icollection-1">ICollection</a>&lt;<span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.keyvaluepair-2">KeyValuePair</a>&lt;<span>int,&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span>&gt;</span>&gt;</span></code>
       , 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.keyvaluepair-2">KeyValuePair</a>&lt;<span><a href="/issie/reference/ids-componentid.html">ComponentId</a>,&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span>&gt;</span>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">IEnumerable</a>&lt;<span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.keyvaluepair-2">KeyValuePair</a>&lt;<span>int,&#32;<a href="/issie/reference/simgraphtypes-simulationcomponent.html">SimulationComponent</a></span>&gt;</span>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.ienumerable">IEnumerable</a></code>
     </dt>
@@ -520,7 +520,15 @@
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         Map every ComponentId to its SimulationComponent.
+         Every component of one sheet instance, by its design-time id.
+
+ Keyed by the bare int INSIDE a ComponentId, and reached only through the SimGraph module below,
+ which takes and returns the wrapped type. F#'s Map takes its comparer from
+ LanguagePrimitives.FastGenericComparer, which has hard-coded fast paths for genuine primitives
+ and a boxing fallback for everything else - so an int key is 2.4x faster than a reference
+ wrapper and a struct wrapper is slower than either, boxing BOTH operands on every comparison.
+ Unwrapping at this one boundary buys the primitive path and keeps the types at every call site,
+ which is what lets ComponentId be [<Struct>] without this map being the thing that pays.
       </p>
     </div>
   </div>
@@ -550,7 +558,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '6367', 6367)" onmouseover="showTip(event, '6367', 6367)">
+              <code onmouseout="hideTip(event, '6383', 6383)" onmouseover="showTip(event, '6383', 6383)">
                 <p>
                   <a id="Count">
                     <a href="#Count">
@@ -559,7 +567,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="6367">
+              <div class="fsdocs-tip" id="6383">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.Count</span></code>
@@ -589,7 +597,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '6368', 6368)" onmouseover="showTip(event, '6368', 6368)">
+              <code onmouseout="hideTip(event, '6384', 6384)" onmouseover="showTip(event, '6384', 6384)">
                 <p>
                   <a id="IsEmpty">
                     <a href="#IsEmpty">
@@ -598,7 +606,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="6368">
+              <div class="fsdocs-tip" id="6384">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.IsEmpty</span></code>
@@ -628,7 +636,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '6369', 6369)" onmouseover="showTip(event, '6369', 6369)">
+              <code onmouseout="hideTip(event, '6385', 6385)" onmouseover="showTip(event, '6385', 6385)">
                 <p>
                   <a id="Item">
                     <a href="#Item">
@@ -637,7 +645,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="6369">
+              <div class="fsdocs-tip" id="6385">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this[<span>key</span>]</span></code>
@@ -650,7 +658,7 @@
                         key
                       </b>
                       :
-                      <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
+                      <code>int</code>
                     </span>
                     <br/>
                   </ul>
@@ -671,7 +679,7 @@
                   key
                 </span>
                 :
-                <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
+                <code>int</code>
               </dt>
               <dd class="fsdocs-param-docs"></dd>
             </dl>
@@ -689,7 +697,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '6370', 6370)" onmouseover="showTip(event, '6370', 6370)">
+              <code onmouseout="hideTip(event, '6386', 6386)" onmouseover="showTip(event, '6386', 6386)">
                 <p>
                   <a id="Keys">
                     <a href="#Keys">
@@ -698,7 +706,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="6370">
+              <div class="fsdocs-tip" id="6386">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.Keys</span></code>
@@ -706,7 +714,7 @@
                   <br/>
                   <span>
                     Returns: 
-                    <code><span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.icollection-1">ICollection</a>&lt;<a href="/issie/reference/ids-componentid.html">ComponentId</a>&gt;</span></code>
+                    <code><span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.icollection-1">ICollection</a>&lt;int&gt;</span></code>
                   </span>
                   <br/>
                 </div>
@@ -719,7 +727,7 @@
                 <span class="fsdocs-return-name">
                   Returns: 
                 </span>
-                <code><span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.icollection-1">ICollection</a>&lt;<a href="/issie/reference/ids-componentid.html">ComponentId</a>&gt;</span></code>
+                <code><span><a href="https://learn.microsoft.com/dotnet/api/system.collections.generic.icollection-1">ICollection</a>&lt;int&gt;</span></code>
               </dt>
               <dd class="fsdocs-return-docs"></dd>
             </dl>
@@ -728,7 +736,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '6371', 6371)" onmouseover="showTip(event, '6371', 6371)">
+              <code onmouseout="hideTip(event, '6387', 6387)" onmouseover="showTip(event, '6387', 6387)">
                 <p>
                   <a id="Values">
                     <a href="#Values">
@@ -737,7 +745,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="6371">
+              <div class="fsdocs-tip" id="6387">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.Values</span></code>

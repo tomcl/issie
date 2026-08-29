@@ -492,8 +492,8 @@
  the index it was stored at, and read back by that index.
 
  It exists because the simulator's build phase was indexing its own components by structural
- keys. A `Map<ComponentId * ComponentId list, _>` costs a boxed comparison of a GUID-like id
- and a list per tree level of every lookup - 200,000 lookups into a 10,000-entry map measured
+ keys. A `Map<FComponentId, _>` - a component id and its access path - costs a boxed comparison
+ of the id and one of the list per lookup - 200,000 lookups into a 10,000-entry map measured
  77.2 ms as such a Map and 0.2 ms as an array index - and the build does millions of them.
  The fix is not a faster map but an index: the thing being looked up is created by the same
  walk that later reads it, so it can be given its position as it is made.
@@ -572,7 +572,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1321', 1321)" onmouseover="showTip(event, '1321', 1321)">
+              <code onmouseout="hideTip(event, '1320', 1320)" onmouseover="showTip(event, '1320', 1320)">
                 <p>
                   <a id="addItem">
                     <a href="#addItem">
@@ -581,7 +581,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1321">
+              <div class="fsdocs-tip" id="1320">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>addItem&#32;<span>item&#32;store</span></span></code>
@@ -626,7 +626,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:LookupArray.addItem``1\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/LookupArray.fs#L68-68" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/LookupArray.fs#L69-69" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -671,7 +671,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1322', 1322)" onmouseover="showTip(event, '1322', 1322)">
+              <code onmouseout="hideTip(event, '1321', 1321)" onmouseover="showTip(event, '1321', 1321)">
                 <p>
                   <a id="count">
                     <a href="#count">
@@ -680,7 +680,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1322">
+              <div class="fsdocs-tip" id="1321">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>count&#32;<span>store</span></span></code>
@@ -722,7 +722,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:LookupArray.count``1\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/LookupArray.fs#L89-89" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/LookupArray.fs#L90-90" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -755,7 +755,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1323', 1323)" onmouseover="showTip(event, '1323', 1323)">
+              <code onmouseout="hideTip(event, '1322', 1322)" onmouseover="showTip(event, '1322', 1322)">
                 <p>
                   <a id="create">
                     <a href="#create">
@@ -764,7 +764,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1323">
+              <div class="fsdocs-tip" id="1322">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>create&#32;<span>getIndex&#32;addIndexStamp&#32;capacity&#32;maxIncrement</span></span></code>
@@ -825,7 +825,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:LookupArray.create``1\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/LookupArray.fs#L46-46" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/LookupArray.fs#L47-47" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <pre> A store of `capacity` items before it has to grow, extending by at most `maxIncrement` slots
@@ -837,8 +837,9 @@
  is `[<ReferenceEquality>]` and already carries mutable fields, so an index written in place
  costs nothing and keeps the object identity the simulator relies on:
 
-     // in place - no copy, the same object back
-     LookupArray.create (fun fc -> fc.Index) (fun fc i -> fc.Index <- i; fc) n maxInc
+     // in place - no copy, the same object back. The store works in bare ints; a caller whose
+     // index is a wrapped one unwraps at this boundary and nowhere else.
+     LookupArray.create (fun fc -> fcToInt fc.Index) (fun fc i -> fc.Index <- FastCompIndex i; fc) n maxInc
      // through a lens, where the type is immutable
      LookupArray.create (Optic.get index_) (fun t i -> Optic.set index_ i t) n maxInc
 
@@ -894,7 +895,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1324', 1324)" onmouseover="showTip(event, '1324', 1324)">
+              <code onmouseout="hideTip(event, '1323', 1323)" onmouseover="showTip(event, '1323', 1323)">
                 <p>
                   <a id="indexOf">
                     <a href="#indexOf">
@@ -903,7 +904,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1324">
+              <div class="fsdocs-tip" id="1323">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>indexOf&#32;<span>item&#32;store</span></span></code>
@@ -953,7 +954,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:LookupArray.indexOf``1\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/LookupArray.fs#L92-92" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/LookupArray.fs#L93-93" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -994,7 +995,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1325', 1325)" onmouseover="showTip(event, '1325', 1325)">
+              <code onmouseout="hideTip(event, '1324', 1324)" onmouseover="showTip(event, '1324', 1324)">
                 <p>
                   <a id="item">
                     <a href="#item">
@@ -1003,7 +1004,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1325">
+              <div class="fsdocs-tip" id="1324">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>item&#32;<span>i&#32;store</span></span></code>
@@ -1053,7 +1054,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:LookupArray.item``1\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/LookupArray.fs#L86-86" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/LookupArray.fs#L87-87" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1094,7 +1095,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1326', 1326)" onmouseover="showTip(event, '1326', 1326)">
+              <code onmouseout="hideTip(event, '1325', 1325)" onmouseover="showTip(event, '1325', 1325)">
                 <p>
                   <a id="iteri">
                     <a href="#iteri">
@@ -1103,7 +1104,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1326">
+              <div class="fsdocs-tip" id="1325">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>iteri&#32;<span>f&#32;store</span></span></code>
@@ -1143,7 +1144,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:LookupArray.iteri``1\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/LookupArray.fs#L98-98" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/LookupArray.fs#L99-99" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1175,7 +1176,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1327', 1327)" onmouseover="showTip(event, '1327', 1327)">
+              <code onmouseout="hideTip(event, '1326', 1326)" onmouseover="showTip(event, '1326', 1326)">
                 <p>
                   <a id="toArray">
                     <a href="#toArray">
@@ -1184,7 +1185,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1327">
+              <div class="fsdocs-tip" id="1326">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>toArray&#32;<span>store</span></span></code>
@@ -1221,7 +1222,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:LookupArray.toArray``1\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/LookupArray.fs#L95-95" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/LookupArray.fs#L96-96" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1254,7 +1255,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1328', 1328)" onmouseover="showTip(event, '1328', 1328)">
+              <code onmouseout="hideTip(event, '1327', 1327)" onmouseover="showTip(event, '1327', 1327)">
                 <p>
                   <a id="updateItem">
                     <a href="#updateItem">
@@ -1263,7 +1264,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1328">
+              <div class="fsdocs-tip" id="1327">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>updateItem&#32;<span>i&#32;item&#32;store</span></span></code>
@@ -1311,7 +1312,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:LookupArray.updateItem``1\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/LookupArray.fs#L79-79" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/LookupArray.fs#L80-80" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

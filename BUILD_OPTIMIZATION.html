@@ -509,9 +509,22 @@ it sounds: the port is bound <em>after</em> a full Fable compile and after Elect
 so the window appears, stays blank, and the log says <code>ready</code>. A stale Electron on 9222 is quieter
 still — <code>inspect-canvas</code> connects to it and reports the previous run's canvas. Whoever holds the
 port is killed, whatever it is; that is a more reliable test than matching command lines.</p>
+<p>A <code>fable watch</code> holds no port, so nothing above reaches it — and it is the leftover that matters
+most, because it is still watching: it recompiles on the next file change and can flip the tree's
+build mode under whoever runs the app next. Every entry point above therefore starts by removing
+the watchers an interrupted session left (<a href="../scripts/free-watchers.js"><code>scripts/free-watchers.js</code></a>).</p>
+<p>That check has to be nearly free, since it runs before a <code>dev:once</code> that is otherwise instant on an
+unchanged tree, and Windows cannot list processes without spawning PowerShell — 250ms before it has
+done anything, 640ms for the query. So a watch session leaves a note in <code>build-fable</code> saying it
+started and who owned it, and removes the note when it ends properly. No note, or a note whose
+owner is still alive, means there is nothing to look for: about 10ms, and the usual answer. Only a
+note left by a session that was killed is worth the listing, and then a leftover is identified by
+its PARENT being gone rather than by its pid — the shell <code>dev.js</code> spawns it through dies with the
+session while the Fable process under it does not, which is the whole problem.</p>
 <p><a href="../scripts/clean-dev.js"><code>scripts/clean-dev.js</code></a> is still the tool for sweeping a whole abandoned
-session, because it also catches a <code>fable watch</code> that holds no port at all and can still recompile
-the tree under you.</p>
+session on request. It matches command lines rather than parentage, so it catches a watcher started
+some other way — and it will kill a running app, which is why it is a command you run and not
+something that happens at startup.</p>
 <h2><a name="How-Fable-decides-it-can-start-fast" class="anchor" href="#How-Fable-decides-it-can-start-fast">How Fable decides it can start fast</a></h2>
 <p>Fable has no on-disk cache of typed ASTs: a cold compile type-checks every file of the Renderer
 (~200 including dependencies) and takes on the order of a minute. What it does have:</p>

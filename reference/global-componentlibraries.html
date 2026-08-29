@@ -581,7 +581,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ComponentLibraries.ComponentShape\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L453-453" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L475-475" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -1035,7 +1035,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentLibraries.customSheetsUsedBy\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L509-509" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L531-531" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1359,7 +1359,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentLibraries.isLibrarySheet\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L588-588" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L610-610" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1394,6 +1394,91 @@
             <div>
               <code onmouseout="hideTip(event, '657', 657)" onmouseover="showTip(event, '657', 657)">
                 <p>
+                  <a id="isManagedLibrary">
+                    <a href="#isManagedLibrary">
+                      <code><span>isManagedLibrary&#32;<span>libPath</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="657">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>isManagedLibrary&#32;<span>libPath</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        libPath
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bool</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ComponentLibraries.isManagedLibrary`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentLibraries.isManagedLibrary\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L438-438" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Whether a library is one Issie manages rather than one the user wrote.
+
+ Two directories are Issie's own. The shipped libraries under the installation are what comes
+ with the program. The user library directory is the store: it is where a library ARRIVES - the
+ copy made when a component is saved into a library from a sheet, and the copy an import will
+ leave - and a copy is not the thing to edit. A library the user is actually working on lives
+ wherever they keep their work, the way a project does.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    libPath
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>bool</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '658', 658)" onmouseover="showTip(event, '658', 658)">
+                <p>
                   <a id="libraryIndexFor">
                     <a href="#libraryIndexFor">
                       <code><span>libraryIndexFor&#32;<span>ldcs&#32;libraryName</span></span></code>
@@ -1401,7 +1486,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="657">
+              <div class="fsdocs-tip" id="658">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>libraryIndexFor&#32;<span>ldcs&#32;libraryName</span></span></code>
@@ -1446,7 +1531,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentLibraries.libraryIndexFor\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L558-558" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L580-580" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1493,7 +1578,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '658', 658)" onmouseover="showTip(event, '658', 658)">
+              <code onmouseout="hideTip(event, '659', 659)" onmouseover="showTip(event, '659', 659)">
                 <p>
                   <a id="libraryIsEditable">
                     <a href="#libraryIsEditable">
@@ -1502,7 +1587,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="658">
+              <div class="fsdocs-tip" id="659">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>libraryIsEditable&#32;<span>library</span></span></code>
@@ -1530,56 +1615,31 @@
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ComponentLibraries.libraryIsEditable`')">
-                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
-                  </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentLibraries.libraryIsEditable\'/>')">
-                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
-                  </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L435-435" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     Whether a library may be opened as a project - which is to say, whether Issie could save it
- again afterwards.
-
- The libraries the user made or imported live in their own writable directory and always may be.
- The ones shipped with Issie sit inside the installation, which is read-only for anyone who
- installed it, and opening a library that could never be saved is worse than not offering it at
- all: the work is done before the refusal arrives. A development run has the checkout writable
- (see Main/Bridge.fs) and is where a shipped library is actually maintained, so there it may.
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-params">
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    library
-                  </span>
-                  :
-                  <code><a href="/issie/reference/componentlibraries-componentlibrary.html">ComponentLibrary</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-              </dl>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Returns: 
-                  </span>
-                  <code>bool</code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  library
+                </span>
+                :
+                <code><a href="/issie/reference/componentlibraries-componentlibrary.html">ComponentLibrary</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>bool</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
           </td>
         </tr>
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '659', 659)" onmouseover="showTip(event, '659', 659)">
+              <code onmouseout="hideTip(event, '660', 660)" onmouseover="showTip(event, '660', 660)">
                 <p>
                   <a id="libraryOfSheet">
                     <a href="#libraryOfSheet">
@@ -1588,7 +1648,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="659">
+              <div class="fsdocs-tip" id="660">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>libraryOfSheet&#32;<span>ldc</span></span></code>
@@ -1625,7 +1685,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentLibraries.libraryOfSheet\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L536-536" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L558-558" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1658,7 +1718,100 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '660', 660)" onmouseover="showTip(event, '660', 660)">
+              <code onmouseout="hideTip(event, '661', 661)" onmouseover="showTip(event, '661', 661)">
+                <p>
+                  <a id="libraryPathIsEditable">
+                    <a href="#libraryPathIsEditable">
+                      <code><span>libraryPathIsEditable&#32;<span>libPath</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="661">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>libraryPathIsEditable&#32;<span>libPath</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        libPath
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bool</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ComponentLibraries.libraryPathIsEditable`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentLibraries.libraryPathIsEditable\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L460-460" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Whether the library in this directory may be opened as a project and saved again.
+
+ Not the standard libraries, and not the imported ones: what is in Issie's own directories
+ arrived from somewhere else, and editing a copy in the form it arrived in produces a version
+ that agrees with nothing. A library kept anywhere else is the user's own work and is theirs to
+ change - including one somebody handed them, which they have to put somewhere first.
+
+ A development run may edit anything, the shipped libraries above all: that is where they are
+ maintained, and the checkout is writable there (see Main/Bridge.fs).
+
+ Nothing here is prominent, and that is deliberate. Writing a library component is
+ sheet -> save into a library -> place it and try it -> change it, and the last step must not
+ need a second, non-library copy of the sheet kept in step by hand. But it is a thing to go and
+ do rather than a thing to fall into: the catalogue only offers it where it applies, and
+ otherwise a library is opened by navigating to the folder it is in.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    libPath
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>bool</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '662', 662)" onmouseover="showTip(event, '662', 662)">
                 <p>
                   <a id="openLibrary">
                     <a href="#openLibrary">
@@ -1667,7 +1820,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="660">
+              <div class="fsdocs-tip" id="662">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>openLibrary&#32;<span>library</span></span></code>
@@ -1739,7 +1892,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '661', 661)" onmouseover="showTip(event, '661', 661)">
+              <code onmouseout="hideTip(event, '663', 663)" onmouseover="showTip(event, '663', 663)">
                 <p>
                   <a id="prefixFor">
                     <a href="#prefixFor">
@@ -1748,7 +1901,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="661">
+              <div class="fsdocs-tip" id="663">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>prefixFor&#32;<span>libraryIndex</span></span></code>
@@ -1785,7 +1938,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentLibraries.prefixFor\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L549-549" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L571-571" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1818,7 +1971,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '662', 662)" onmouseover="showTip(event, '662', 662)">
+              <code onmouseout="hideTip(event, '664', 664)" onmouseover="showTip(event, '664', 664)">
                 <p>
                   <a id="readComponentAndDependencies">
                     <a href="#readComponentAndDependencies">
@@ -1827,7 +1980,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="662">
+              <div class="fsdocs-tip" id="664">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>readComponentAndDependencies&#32;<span>libPath&#32;name</span></span></code>
@@ -1916,7 +2069,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '663', 663)" onmouseover="showTip(event, '663', 663)">
+              <code onmouseout="hideTip(event, '665', 665)" onmouseover="showTip(event, '665', 665)">
                 <p>
                   <a id="reservedPrefixOf">
                     <a href="#reservedPrefixOf">
@@ -1925,7 +2078,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="663">
+              <div class="fsdocs-tip" id="665">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>reservedPrefixOf&#32;<span>ldcs&#32;sheetName</span></span></code>
@@ -1970,7 +2123,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentLibraries.reservedPrefixOf\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L579-579" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L601-601" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2012,7 +2165,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '664', 664)" onmouseover="showTip(event, '664', 664)">
+              <code onmouseout="hideTip(event, '666', 666)" onmouseover="showTip(event, '666', 666)">
                 <p>
                   <a id="reservedPrefixes">
                     <a href="#reservedPrefixes">
@@ -2021,7 +2174,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="664">
+              <div class="fsdocs-tip" id="666">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>reservedPrefixes&#32;<span>ldcs</span></span></code>
@@ -2058,7 +2211,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentLibraries.reservedPrefixes\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L571-571" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L593-593" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2092,7 +2245,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '665', 665)" onmouseover="showTip(event, '665', 665)">
+              <code onmouseout="hideTip(event, '667', 667)" onmouseover="showTip(event, '667', 667)">
                 <p>
                   <a id="sheetExtension">
                     <a href="#sheetExtension">
@@ -2101,7 +2254,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="665">
+              <div class="fsdocs-tip" id="667">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sheetExtension&#32;<span>project</span></span></code>
@@ -2172,7 +2325,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '666', 666)" onmouseover="showTip(event, '666', 666)">
+              <code onmouseout="hideTip(event, '668', 668)" onmouseover="showTip(event, '668', 668)">
                 <p>
                   <a id="sheetFilePath">
                     <a href="#sheetFilePath">
@@ -2181,7 +2334,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="666">
+              <div class="fsdocs-tip" id="668">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sheetFilePath&#32;<span>project&#32;sheetName</span></span></code>
@@ -2269,7 +2422,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '667', 667)" onmouseover="showTip(event, '667', 667)">
+              <code onmouseout="hideTip(event, '669', 669)" onmouseover="showTip(event, '669', 669)">
                 <p>
                   <a id="sheetNameFor">
                     <a href="#sheetNameFor">
@@ -2278,7 +2431,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="667">
+              <div class="fsdocs-tip" id="669">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sheetNameFor&#32;<span>libraryIndex&#32;compName</span></span></code>
@@ -2323,7 +2476,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentLibraries.sheetNameFor\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L533-533" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L555-555" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2364,7 +2517,87 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '668', 668)" onmouseover="showTip(event, '668', 668)">
+              <code onmouseout="hideTip(event, '670', 670)" onmouseover="showTip(event, '670', 670)">
+                <p>
+                  <a id="shippedLibrariesDirectory">
+                    <a href="#shippedLibrariesDirectory">
+                      <code><span>shippedLibrariesDirectory&#32;<span>()</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="670">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>shippedLibrariesDirectory&#32;<span>()</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ()
+                      </b>
+                      :
+                      <code>unit</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>string</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ComponentLibraries.shippedLibrariesDirectory`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentLibraries.shippedLibrariesDirectory\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L429-429" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Where the libraries shipped with Issie live: inside the installation, and read-only for anyone
+ who installed it.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ()
+                  </span>
+                  :
+                  <code>unit</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '671', 671)" onmouseover="showTip(event, '671', 671)">
                 <p>
                   <a id="tryLoadLibraryProject">
                     <a href="#tryLoadLibraryProject">
@@ -2373,7 +2606,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="668">
+              <div class="fsdocs-tip" id="671">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>tryLoadLibraryProject&#32;<span>libPath</span></span></code>
@@ -2453,7 +2686,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '669', 669)" onmouseover="showTip(event, '669', 669)">
+              <code onmouseout="hideTip(event, '672', 672)" onmouseover="showTip(event, '672', 672)">
                 <p>
                   <a id="tryLoadSheetFile">
                     <a href="#tryLoadSheetFile">
@@ -2462,7 +2695,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="669">
+              <div class="fsdocs-tip" id="672">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>tryLoadSheetFile&#32;<span>filePath</span></span></code>
@@ -2532,7 +2765,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '670', 670)" onmouseover="showTip(event, '670', 670)">
+              <code onmouseout="hideTip(event, '673', 673)" onmouseover="showTip(event, '673', 673)">
                 <p>
                   <a id="tryReadComponentFile">
                     <a href="#tryReadComponentFile">
@@ -2541,7 +2774,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="670">
+              <div class="fsdocs-tip" id="673">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>tryReadComponentFile&#32;<span>path</span></span></code>
@@ -2612,7 +2845,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '671', 671)" onmouseover="showTip(event, '671', 671)">
+              <code onmouseout="hideTip(event, '674', 674)" onmouseover="showTip(event, '674', 674)">
                 <p>
                   <a id="tryReadComponentShape">
                     <a href="#tryReadComponentShape">
@@ -2621,7 +2854,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="671">
+              <div class="fsdocs-tip" id="674">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>tryReadComponentShape&#32;<span>libPath&#32;name</span></span></code>
@@ -2666,7 +2899,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentLibraries.tryReadComponentShape\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L491-491" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L513-513" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2710,7 +2943,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '672', 672)" onmouseover="showTip(event, '672', 672)">
+              <code onmouseout="hideTip(event, '675', 675)" onmouseover="showTip(event, '675', 675)">
                 <p>
                   <a id="tryReadHeader">
                     <a href="#tryReadHeader">
@@ -2719,7 +2952,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="672">
+              <div class="fsdocs-tip" id="675">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>tryReadHeader&#32;<span>path</span></span></code>
@@ -2789,7 +3022,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '673', 673)" onmouseover="showTip(event, '673', 673)">
+              <code onmouseout="hideTip(event, '676', 676)" onmouseover="showTip(event, '676', 676)">
                 <p>
                   <a id="trySheetFileBody">
                     <a href="#trySheetFileBody">
@@ -2798,7 +3031,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="673">
+              <div class="fsdocs-tip" id="676">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>trySheetFileBody&#32;<span>filePath</span></span></code>
@@ -2870,7 +3103,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '674', 674)" onmouseover="showTip(event, '674', 674)">
+              <code onmouseout="hideTip(event, '677', 677)" onmouseover="showTip(event, '677', 677)">
                 <p>
                   <a id="tryUserLibrariesDirectory">
                     <a href="#tryUserLibrariesDirectory">
@@ -2879,7 +3112,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="674">
+              <div class="fsdocs-tip" id="677">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>tryUserLibrariesDirectory&#32;<span>()</span></span></code>
@@ -2951,7 +3184,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '675', 675)" onmouseover="showTip(event, '675', 675)">
+              <code onmouseout="hideTip(event, '678', 678)" onmouseover="showTip(event, '678', 678)">
                 <p>
                   <a id="unusedLibrarySheets">
                     <a href="#unusedLibrarySheets">
@@ -2960,7 +3193,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="675">
+              <div class="fsdocs-tip" id="678">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>unusedLibrarySheets&#32;<span>ldcs</span></span></code>
@@ -2997,7 +3230,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentLibraries.unusedLibrarySheets\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L600-600" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/ComponentLibraries.fs#L622-622" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3036,7 +3269,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '676', 676)" onmouseover="showTip(event, '676', 676)">
+              <code onmouseout="hideTip(event, '679', 679)" onmouseover="showTip(event, '679', 679)">
                 <p>
                   <a id="writeAllSheetFiles">
                     <a href="#writeAllSheetFiles">
@@ -3045,7 +3278,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="676">
+              <div class="fsdocs-tip" id="679">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>writeAllSheetFiles&#32;<span>project</span></span></code>
@@ -3102,7 +3335,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '677', 677)" onmouseover="showTip(event, '677', 677)">
+              <code onmouseout="hideTip(event, '680', 680)" onmouseover="showTip(event, '680', 680)">
                 <p>
                   <a id="writeComponentFile">
                     <a href="#writeComponentFile">
@@ -3111,7 +3344,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="677">
+              <div class="fsdocs-tip" id="680">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>writeComponentFile&#32;<span>libPath&#32;header&#32;body</span></span></code>
@@ -3215,7 +3448,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '678', 678)" onmouseover="showTip(event, '678', 678)">
+              <code onmouseout="hideTip(event, '681', 681)" onmouseover="showTip(event, '681', 681)">
                 <p>
                   <a id="writeComponentFileAt">
                     <a href="#writeComponentFileAt">
@@ -3224,7 +3457,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="678">
+              <div class="fsdocs-tip" id="681">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>writeComponentFileAt&#32;<span>path&#32;header&#32;body</span></span></code>
@@ -3327,7 +3560,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '679', 679)" onmouseover="showTip(event, '679', 679)">
+              <code onmouseout="hideTip(event, '682', 682)" onmouseover="showTip(event, '682', 682)">
                 <p>
                   <a id="writeSheetFile">
                     <a href="#writeSheetFile">
@@ -3336,7 +3569,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="679">
+              <div class="fsdocs-tip" id="682">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>writeSheetFile&#32;<span>filePath&#32;<span>(<span>arg2,&#32;arg3,&#32;arg4</span>)</span></span></span></code>
@@ -3455,7 +3688,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '680', 680)" onmouseover="showTip(event, '680', 680)">
+              <code onmouseout="hideTip(event, '683', 683)" onmouseover="showTip(event, '683', 683)">
                 <p>
                   <a id="writeSheetFileAt">
                     <a href="#writeSheetFileAt">
@@ -3464,7 +3697,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="680">
+              <div class="fsdocs-tip" id="683">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>writeSheetFileAt&#32;<span>timeStamp&#32;filePath&#32;<span>(<span>arg3,&#32;arg4,&#32;arg5</span>)</span></span></span></code>

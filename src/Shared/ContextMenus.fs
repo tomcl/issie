@@ -67,6 +67,7 @@ let contextMenus = [
         "SheetMenuBreadcrumbDevNoTop", sheetItems false @ devSheetItems
         "SheetMenuBreadcrumb", sheetItems true
         "SheetMenuBreadcrumbNoTop", sheetItems false
+        "CatalogueLibrary", ["Export library"]
         "ProjectPath", ["Copy path"; "Open directory"]
         "CustomComponent", customComponentItems
         "CustomComponentWaveSim", customComponentItems @ [addWavesItem]

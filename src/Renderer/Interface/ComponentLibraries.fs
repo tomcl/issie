@@ -234,6 +234,56 @@ let readComponentAndDependencies (libPath: string) (name: string) : Result<Libra
                 |> Result.map (fun got -> got @ [header, body]))
     read [] name
 
+
+/// What exporting a library did: how many components were written, and how many were removed from
+/// the destination because this library no longer has them.
+type ExportResult = { Written: int; Removed: int; Destination: string }
+
+/// Copy a library into `destRoot`, in a subdirectory named after the library - created if it is not
+/// there, brought up to date if it is.
+///
+/// What lands is a LIBRARY and not a heap of files: the destination ends up holding exactly the
+/// components this one holds. A component renamed or deleted since a previous export would
+/// otherwise stay behind in the copy and go on being offered from it, which is a library that
+/// exists nowhere. Only .ldgm files are touched, and only inside the subdirectory named after the
+/// library, so nothing else in the folder the user chose is at risk.
+///
+/// The files are copied verbatim rather than read and written back. An .ldgm is a header and the
+/// exact text of a .dgm; an export that re-encoded them could differ from its source for reasons
+/// that have nothing to do with the components in it.
+///
+/// Names are compared case-insensitively when deciding what is stale. On Windows "Adder.ldgm" and
+/// "adder.ldgm" ARE the same file, so an exact comparison would delete the one just written; on
+/// systems where they differ this errs towards leaving a file alone, which is the safe direction.
+let exportLibraryTo (destRoot: string) (library: ComponentLibrary) : Result<ExportResult, string> =
+    let dest = pathJoin [| destRoot; library.Name |]
+    let componentFiles = readFilesFromDirectoryWithExtn library.Path Constants.componentExtension
+
+    match componentFiles with
+    | [] -> Error $"{library.Name} holds no components to export"
+    // Exporting a library over itself would copy each file onto itself, and then remove as stale
+    // whatever the copy had not just written. Caught rather than survived.
+    | _ when PathHelpers.isWithin dest library.Path || PathHelpers.isWithin library.Path dest ->
+        Error $"{library.Name} already lives there - choose a folder outside {library.Path}"
+    | componentFiles ->
+        tryEnsureDirectory dest
+        |> Result.bind (fun dest ->
+            componentFiles
+            |> List.map (fun name ->
+                tryReadFileSync (pathJoin [| library.Path; name |])
+                |> Result.bind (writeFile (pathJoin [| dest; name |]))
+                |> Result.mapError (fun msg -> $"{name} could not be exported: {msg}"))
+            |> Helpers.ResultList.sequence
+            |> Result.map (fun _ ->
+                let exported = componentFiles |> List.map (fun name -> name.ToLowerInvariant()) |> Set.ofList
+                let stale =
+                    readFilesFromDirectoryWithExtn dest Constants.componentExtension
+                    |> List.filter (fun name -> not (Set.contains (name.ToLowerInvariant()) exported))
+                stale |> List.iter (fun name -> unlink (pathJoin [| dest; name |]))
+                { Written = List.length componentFiles
+                  Removed = List.length stale
+                  Destination = dest }))
+
 //------------------------------------------------------------------------------------------------//
 //----------------------------- A library opened as a project ------------------------------------//
 //------------------------------------------------------------------------------------------------//

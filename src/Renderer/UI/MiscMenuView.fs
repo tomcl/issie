@@ -867,6 +867,31 @@ let saveAsLibraryComponent (sheetName: string) (model: Model) dispatch =
 
         dialogPopup title body "Save to library" buttonAction isDisabled [] dispatch
 
+/// Copy a library out to a folder the user picks, as a subdirectory named after it - which is how
+/// a library made in Issie is shared, backed up, or put under version control.
+///
+/// The folder is asked for rather than remembered: this is not somewhere Issie owns, and the last
+/// place a library went is not a good guess at the next one.
+let exportLibrary (library: ComponentLibraries.ComponentLibrary) dispatch =
+    match askForFolder $"Where should the {library.Name} library be copied to?" "Export here" None with
+    | None -> ()      // cancelled
+    | Some destRoot ->
+        match ComponentLibraries.exportLibraryTo destRoot library with
+        | Error msg -> displayFileErrorNotification msg dispatch
+        | Ok result ->
+            let components = if result.Written = 1 then "1 component" else $"{result.Written} components"
+            // Said out loud, because it is the one part of this that deletes anything: a component
+            // dropped from the library since the last export goes from the copy too.
+            let alsoRemoved =
+                match result.Removed with
+                | 0 -> ""
+                | 1 -> ", and removed 1 no longer in it"
+                | n -> $", and removed {n} no longer in it"
+            dispatch <| SetFilesNotification (
+                Notifications.successNotification
+                    $"{library.Name} exported to {result.Destination}: {components}{alsoRemoved}."
+                    CloseFilesNotification)
+
 let duplicateSheet (sheetName: string) model dispatch =
     match model.CurrentProj with
     | None -> Log.warn "Current project must be open for a sheet to be duplicated"

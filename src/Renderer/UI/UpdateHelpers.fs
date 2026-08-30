@@ -374,6 +374,7 @@ type RightClickElement =
     | DBOutputPort of string
     | IssieElement of string
     | SheetMenuBreadcrumb of Sheet: SheetTree * IsSubSheet: bool
+    | CatalogueLibrary of ComponentLibraries.ComponentLibrary
     | ProjectPathBreadcrumb of Path: string
     | WaveSimHelp
     | NoMenu
@@ -415,6 +416,15 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
             model.CurrentProj
             |> Option.map (fun p -> ProjectPathBreadcrumb p.ProjectPath)
             |> Option.defaultValue NoMenu
+        // A library in the catalogue. Found by name in the model rather than read from disk: the
+        // row was drawn from that list, so the library it stands for is the one still in it.
+        | _, elId, _ when String.startsWith "CatalogueLibrary:" elId ->
+            let name = elId.Substring (String.length "CatalogueLibrary:")
+            model.ComponentLibraries
+            |> List.tryFind (fun lib -> lib.Name = name)
+            |> Option.map CatalogueLibrary
+            |> Option.defaultValue NoMenu
+
         | _, elId, _ when String.startsWith "SheetMenuBreadcrumb:" elId ->
             let nameParts = elId.Split(":",System.StringSplitOptions.RemoveEmptyEntries)
             model.CurrentProj
@@ -498,6 +508,8 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
         "SheetMenuBreadcrumb"
         + (if JSHelpers.debugLevel > 0 then "Dev" else "")
         + (if offersSetAsTop then "" else "NoTop")
+    | CatalogueLibrary _ ->
+        "CatalogueLibrary"
     | ProjectPathBreadcrumb _ ->
         "ProjectPath"
     | DBScalingBox _ ->
@@ -647,6 +659,10 @@ let processContextMenuClick
         model
         |> changeSubtreeLockState isSubSheet sheet (fun _ -> Unlocked)
         |> withNoCmd 
+
+    | CatalogueLibrary library, "Export library" ->
+        MiscMenuView.exportLibrary library dispatch
+        withNoCmd model
 
     | ProjectPathBreadcrumb path, "Copy path" ->
         // the bar shows a cropped path, so confirm what actually reached the clipboard

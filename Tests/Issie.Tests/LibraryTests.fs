@@ -328,4 +328,89 @@ let tests =
             Expect.isFalse (ComponentLibraries.isManagedLibrary "/somewhere/else/adders")
                 "an unrelated path is not inside an empty shipped root"
         }
+    
+
+        //------------------------------------------------------------------------------------//
+        // Exporting a library: copying it out to a folder of the user's, as a subdirectory named
+        // after it. What lands has to BE the library, not just files from it.
+        //------------------------------------------------------------------------------------//
+
+        test "a library is exported into a subdirectory named after it" {
+            withTempLibrary (fun libPath ->
+                writeComponent libPath (header "adder" true [ "carry" ]) (bodyOf "adder" [])
+                writeComponent libPath (header "carry" false []) (bodyOf "carry" [])
+                withTempLibrary (fun destRoot ->
+                    let library: ComponentLibraries.ComponentLibrary = {Name = "arithmetic"; Path = libPath}
+                    match ComponentLibraries.exportLibraryTo destRoot library with
+                    | Error msg -> failtest msg
+                    | Ok result ->
+                        Expect.equal result.Written 2 "both components went"
+                        Expect.equal result.Removed 0 "nothing was there to remove"
+                        Expect.equal result.Destination (FilesIO.pathJoin [| destRoot; "arithmetic" |])
+                            "the subdirectory is named after the library, not after where it came from"
+                        Expect.equal
+                            (FilesIO.readFilesFromDirectoryWithExtn result.Destination ".ldgm" |> List.sort)
+                            [ "adder.ldgm"; "carry.ldgm" ]
+                            "and holds the components"
+
+                        // copied verbatim: an export that re-encoded them could differ from its
+                        // source for reasons that have nothing to do with the components
+                        Expect.equal
+                            (System.IO.File.ReadAllText(System.IO.Path.Combine(result.Destination, "adder.ldgm")))
+                            (System.IO.File.ReadAllText(System.IO.Path.Combine(libPath, "adder.ldgm")))
+                            "byte for byte what the library holds"))
+        }
+
+        test "exporting again brings the copy up to date, stale components and all" {
+            withTempLibrary (fun libPath ->
+                writeComponent libPath (header "adder" true []) (bodyOf "adder" [])
+                writeComponent libPath (header "oldName" false []) (bodyOf "oldName" [])
+                withTempLibrary (fun destRoot ->
+                    let library: ComponentLibraries.ComponentLibrary = {Name = "arithmetic"; Path = libPath}
+                    ComponentLibraries.exportLibraryTo destRoot library |> ignore
+
+                    // the library moves on: one component renamed, one changed
+                    System.IO.File.Delete(System.IO.Path.Combine(libPath, "oldName.ldgm"))
+                    writeComponent libPath (header "newName" false []) (bodyOf "newName" [])
+                    writeComponent libPath {header "adder" true [] with Description = "now with carry"} (bodyOf "adder" [])
+
+                    match ComponentLibraries.exportLibraryTo destRoot library with
+                    | Error msg -> failtest msg
+                    | Ok result ->
+                        Expect.equal result.Written 2 "the two components it now has"
+                        Expect.equal result.Removed 1 "and the one it no longer has"
+                        Expect.equal
+                            (FilesIO.readFilesFromDirectoryWithExtn result.Destination ".ldgm" |> List.sort)
+                            [ "adder.ldgm"; "newName.ldgm" ]
+                            "a component dropped from the library is dropped from the copy, or the copy \
+                             goes on offering something that exists nowhere"
+                        match ComponentLibraries.tryReadHeader (FilesIO.pathJoin [| result.Destination; "adder.ldgm" |]) with
+                        | Error msg -> failtest msg
+                        | Ok updated ->
+                            Expect.equal updated.Description "now with carry" "and a changed one is overwritten"))
+        }
+
+        test "a library is not exported over itself" {
+            withTempLibrary (fun root ->
+                // the library sits at <root>/arithmetic, so exporting it to <root> would copy every
+                // file onto itself and then remove as stale whatever it had not just written
+                let libPath = FilesIO.pathJoin [| root; "arithmetic" |]
+                System.IO.Directory.CreateDirectory libPath |> ignore
+                writeComponent libPath (header "adder" true []) (bodyOf "adder" [])
+                let library: ComponentLibraries.ComponentLibrary = {Name = "arithmetic"; Path = libPath}
+                Expect.isError (ComponentLibraries.exportLibraryTo root library)
+                    "exporting a library into its own parent lands on the library itself"
+                Expect.isTrue (System.IO.File.Exists(System.IO.Path.Combine(libPath, "adder.ldgm")))
+                    "and it is refused before anything is written or removed")
+        }
+
+        test "a library with no components is not exported" {
+            withTempLibrary (fun libPath ->
+                withTempLibrary (fun destRoot ->
+                    let library: ComponentLibraries.ComponentLibrary = {Name = "empty"; Path = libPath}
+                    Expect.isError (ComponentLibraries.exportLibraryTo destRoot library)
+                        "there is nothing to copy, and a folder holding no components is not a library"))
+        }
+    
+
     ]

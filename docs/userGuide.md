@@ -375,6 +375,12 @@ Keep a library you are working on in a folder of your own, next to the rest of y
 it from **Open project** the way you would open a project — Issie lists a folder of components as a
 library and says how many are in it.
 
+To take a library somewhere else — a USB stick, a shared drive, a git repository — right-click it
+in the Catalogue's **Library** section and choose **Export library**. You pick a folder, and the
+library is copied into it as a subdirectory named after the library. Exporting again brings that
+copy up to date, including dropping any component you have deleted since: what you get is the
+library as it now is, not a pile of everything it has ever contained.
+
 The two directories ISSIE looks after are not edited in place: the libraries shipped inside the
 installation, and your library directory, which is the store a component saved into a library — or
 a library somebody sent you — arrives in. A copy edited in the form it arrived in is a version that

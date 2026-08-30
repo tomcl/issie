@@ -52,6 +52,20 @@ let menuItem styles label onClick =
         [ Menu.Item.IsActive false; Menu.Item.Props [ OnClick onClick; Style styles ] ]
         [ str label ]
 
+/// As menuItem, carrying an id so that a right-click on the row can be told from a right-click on
+/// anything else. The id is what UpdateHelpers.getContextMenu matches on - it is handed the element
+/// under the pointer and nothing else, so a row that wants a context menu has to say what it is.
+let menuItemWithId elementId styles label onClick =
+    Menu.Item.li
+        [ Menu.Item.IsActive false
+          Menu.Item.Props [ Id elementId; OnClick onClick; Style styles ] ]
+        [ str label ]
+
+/// The id a library's row in the catalogue carries. The name follows the prefix verbatim rather
+/// than being separated out later: a library is a directory, and a directory name may contain
+/// whatever the platform allows.
+let libraryRowId (libraryName: string) = $"CatalogueLibrary:{libraryName}"
+
 /// Where on the sheet a point on the screen is, if it is over the canvas at all. A gesture that
 /// ends anywhere else - over the catalogue, the menu bar, outside the window - is over no position
 /// on the sheet and places nothing, which is what lets a drag be abandoned by dropping it nowhere.
@@ -1772,7 +1786,7 @@ let viewCatalogue model dispatch =
                             // the components are read HERE, when the library is opened. This
                             // is an event handler, not the render function, so it may read the
                             // disk; startup knows only that the library exists.
-                            menuItem styles lib.Name (fun _ ->
+                            menuItemWithId (libraryRowId lib.Name) styles lib.Name (fun _ ->
                                 let opened = ComponentLibraries.openLibrary lib
                                 dispatch <| UpdateModel (Optics.Optic.set openLibrary_ (Some opened)))))
                     ]

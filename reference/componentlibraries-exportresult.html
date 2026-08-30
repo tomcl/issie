@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="PopupDialogData (issie)" />
+    <meta property="og:title" content="ExportResult (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="PopupDialogData (issie)">
+    <meta name="twitter:title" content="ExportResult (issie)">
     
-    <title>PopupDialogData (issie) | issie</title>
+    <title>ExportResult (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -472,7 +472,7 @@
     <div id="content">
         <div>
   <h2>
-    PopupDialogData Type
+    ExportResult Type
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
@@ -486,8 +486,8 @@
     </dt>
     <dt>
       Parent Module: 
-      <a href="/issie/reference/drawmodeltype-sheett.html">
-        SheetT
+      <a href="/issie/reference/global-componentlibraries.html">
+        ComponentLibraries
       </a>
     </dt>
     <dt>
@@ -496,11 +496,11 @@
     </dt>
     <dt>
       All Interfaces: 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/drawmodeltype-sheett-popupdialogdata.html">PopupDialogData</a>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/componentlibraries-exportresult.html">ExportResult</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
       , 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/drawmodeltype-sheett-popupdialogdata.html">PopupDialogData</a>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/componentlibraries-exportresult.html">ExportResult</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
       , 
@@ -510,7 +510,8 @@
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         Possible fields that may (or may not) be used in a dialog popup.
+         What exporting a library did: how many components were written, and how many were removed from
+ the destination because this library no longer has them.
       </p>
     </div>
   </div>
@@ -537,24 +538,24 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4557', 4557)" onmouseover="showTip(event, '4557', 4557)">
+              <code onmouseout="hideTip(event, '4084', 4084)" onmouseover="showTip(event, '4084', 4084)">
                 <p>
-                  <a id="Int">
-                    <a href="#Int">
-                      <code>Int</code>
+                  <a id="Destination">
+                    <a href="#Destination">
+                      <code>Destination</code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4557">
+              <div class="fsdocs-tip" id="4084">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code>Int</code>
+                  <code>Destination</code>
                   <br/>
                   <br/>
                   <span>
                     Field type: 
-                    <code><span>int&#32;option</span></code>
+                    <code>string</code>
                   </span>
                   <br/>
                 </div>
@@ -567,7 +568,7 @@
                 <span class="fsdocs-return-name">
                   Field type: 
                 </span>
-                <code><span>int&#32;option</span></code>
+                <code>string</code>
               </dt>
               <dd class="fsdocs-return-docs"></dd>
             </dl>
@@ -576,24 +577,24 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4558', 4558)" onmouseover="showTip(event, '4558', 4558)">
+              <code onmouseout="hideTip(event, '4085', 4085)" onmouseover="showTip(event, '4085', 4085)">
                 <p>
-                  <a id="Int2">
-                    <a href="#Int2">
-                      <code>Int2</code>
+                  <a id="Removed">
+                    <a href="#Removed">
+                      <code>Removed</code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4558">
+              <div class="fsdocs-tip" id="4085">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code>Int2</code>
+                  <code>Removed</code>
                   <br/>
                   <br/>
                   <span>
                     Field type: 
-                    <code><span>bigint&#32;option</span></code>
+                    <code>int</code>
                   </span>
                   <br/>
                 </div>
@@ -606,7 +607,7 @@
                 <span class="fsdocs-return-name">
                   Field type: 
                 </span>
-                <code><span>bigint&#32;option</span></code>
+                <code>int</code>
               </dt>
               <dd class="fsdocs-return-docs"></dd>
             </dl>
@@ -615,24 +616,24 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4559', 4559)" onmouseover="showTip(event, '4559', 4559)">
+              <code onmouseout="hideTip(event, '4086', 4086)" onmouseover="showTip(event, '4086', 4086)">
                 <p>
-                  <a id="Text">
-                    <a href="#Text">
-                      <code>Text</code>
+                  <a id="Written">
+                    <a href="#Written">
+                      <code>Written</code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4559">
+              <div class="fsdocs-tip" id="4086">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code>Text</code>
+                  <code>Written</code>
                   <br/>
                   <br/>
                   <span>
                     Field type: 
-                    <code><span>string&#32;option</span></code>
+                    <code>int</code>
                   </span>
                   <br/>
                 </div>
@@ -645,7 +646,7 @@
                 <span class="fsdocs-return-name">
                   Field type: 
                 </span>
-                <code><span>string&#32;option</span></code>
+                <code>int</code>
               </dt>
               <dd class="fsdocs-return-docs"></dd>
             </dl>

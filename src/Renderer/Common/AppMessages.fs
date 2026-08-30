@@ -206,6 +206,20 @@ the sheet. If you want copies of sheet hardware you can add the sheet multiple t
 from *This Project** in the Catalogue.
 """
 
+    /// After a project written before ids were integers has been converted on the way in. Said
+    /// once, when it happens, and never again for that project - the files are in the new form
+    /// from then on. It is worth saying because every file of the project has just changed, which
+    /// anyone keeping their work under version control is about to see.
+    let idsConverted (sheets: string list) = $"""
+Issie has updated the internal component identifiers in this project to its current format.
+
+{List.length sheets} sheet file(s) were rewritten: {String.concat ", " sheets}.
+
+Your design is unchanged - this only affects how components are named inside the saved files, and
+it happens once. If you keep this project under version control you will see every sheet as
+modified.
+"""
+
     /// Opening a folder that holds sheets but no `.dprj` marker. Issie can open it either way, so
     /// this offers to put the marker back rather than refusing the folder or writing to it
     /// uninvited.

@@ -518,6 +518,46 @@ let tests =
         // The fixture projects are deliberately in the OLD form - uuids, as written before ids
         // were integers - which is what makes them the corpus for this. They are copied out
         // before being converted, so the corpus survives the test.
+
+        // The common case, and the one that must cost nothing: ids already in the current form.
+        // Opening such a project must not rewrite a single file - every sheet would show as
+        // modified to anyone keeping their work under version control, for having opened it.
+        test "a project whose ids need no conversion is not written at all" {
+            withTempDir (fun folder ->
+                let write (name: string) (state: CanvasState) =
+                    match FilesIO.saveStateToFile folder name (state, None, Some sheetInfo) with
+                    | Ok () -> ()
+                    | Error msg -> failtest msg
+                write "main" ([ makeComp 1 0 1 (Input1(1, None)) "IN" ], [])
+                write "other" ([ makeComp 1 1 0 (Output 1) "OUT" ], [])
+
+                let load () =
+                    match FilesIO.loadAllComponentFiles folder with
+                    | Error msg -> failtest msg
+                    | Ok statuses ->
+                        statuses
+                        |> List.map (function
+                            | FilesIO.OkComp ldc | FilesIO.OkAuto ldc | FilesIO.Resolve(ldc, _) -> ldc)
+                        |> Helpers.RegenerateIds.admitDesign
+                        |> fst
+
+                let loaded = load ()
+                Expect.all loaded (fun ldc -> not ldc.LoadedComponentIsOutOfDate)
+                    "these were written by this version, so nothing is in the old form"
+
+                let before =
+                    System.IO.Directory.GetFiles(folder, "*.dgm")
+                    |> Array.map (fun f -> f, System.IO.File.ReadAllText f, System.IO.File.GetLastWriteTimeUtc f)
+
+                let _, written = MenuHelpers.convertProjectIdsOnDisk loaded
+                Expect.isEmpty written "nothing was converted, so nothing was written"
+                Expect.equal
+                    (System.IO.Directory.GetFiles(folder, "*.dgm")
+                     |> Array.map (fun f -> f, System.IO.File.ReadAllText f, System.IO.File.GetLastWriteTimeUtc f))
+                    before
+                    "and the files are untouched, down to when they were last written")
+        }
+
         test "a project written before ids were integers is converted when it is opened" {
             withTempDir (fun folder ->
                 let source =
@@ -543,7 +583,8 @@ let tests =
                 Expect.all loaded (fun ldc -> ldc.LoadedComponentIsOutOfDate)
                     "every sheet came out of a file whose ids are in the old form"
 
-                let converted = MenuHelpers.convertProjectIdsOnDisk loaded
+                let converted, written = MenuHelpers.convertProjectIdsOnDisk loaded
+                Expect.isNonEmpty written "it says which sheets it wrote, which is what the user is told"
                 Expect.all converted (fun ldc -> not ldc.LoadedComponentIsOutOfDate)
                     "and once written none of them is waiting to be written"
 
@@ -612,7 +653,8 @@ let tests =
                     System.IO.Directory.GetFiles(folder, "*.dgm")
                     |> Array.map System.IO.File.ReadAllText
 
-                let after = MenuHelpers.convertProjectIdsOnDisk loaded
+                let after, written = MenuHelpers.convertProjectIdsOnDisk loaded
+                Expect.isEmpty written "nothing was written, so there is nothing to tell the user about"
 
                 Expect.equal
                     (System.IO.Directory.GetFiles(folder, "*.dgm") |> Array.map System.IO.File.ReadAllText)

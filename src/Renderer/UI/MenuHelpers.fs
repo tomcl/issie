@@ -1137,10 +1137,22 @@ let private writeComponentKeepingTimeStamp (comp: LoadedComponent) =
 /// project that refuses it simply keeps its old ids. Said in the log and nowhere else, because
 /// nothing about the design is wrong and there is nothing for the user to do.
 ///
-/// A library sheet belongs to its library and is never written back, whatever asks.
-let convertProjectIdsOnDisk (ldcs: LoadedComponent list) : LoadedComponent list =
+/// A library sheet belongs to its library and is never written back, whatever asks. A library
+/// opened AS a project is written like anything else - its components are the sheets - and needs no
+/// exception here: one whose ids are already integers needs no conversion, so nothing is written
+/// for it.
+///
+/// Returns the sheets, and the names of those actually written - empty when nothing needed
+/// converting, and empty when the project could not be written. That is what the caller tells the
+/// user about: this is a legacy conversion, it changes every file of the project, and it should not
+/// happen silently.
+let convertProjectIdsOnDisk (ldcs: LoadedComponent list) : LoadedComponent list * string list =
+    // The flag means what a sheet was READ as: FilesIO.tryLoadComponentFromText sets it from
+    // jsonCanvasHasOldIds and nothing between there and here sets it for any other reason -
+    // admitDesign reports a re-minted sheet separately rather than through this. So no legacy ids
+    // means no writing at all, which is the common case and the one that must cost nothing.
     if not (ldcs |> List.exists (fun ldc -> ldc.LoadedComponentIsOutOfDate)) then
-        ldcs
+        ldcs, []
     else
 
     let writable, refused =
@@ -1164,7 +1176,10 @@ let convertProjectIdsOnDisk (ldcs: LoadedComponent list) : LoadedComponent list 
     // Settled either way. A project that could not be written keeps its old ids, and saying so at
     // every close - "these sheets have unsaved changes" - would be telling the user about something
     // they did not do and cannot act on; the sheets themselves are exactly as they were read.
-    ldcs |> List.map (fun ldc -> { ldc with LoadedComponentIsOutOfDate = false })
+    ldcs |> List.map (fun ldc -> { ldc with LoadedComponentIsOutOfDate = false }),
+    match refused with
+    | Some _ -> []          // nothing landed, so there is nothing to tell the user about
+    | None -> List.rev writable
 
 let rec resolveComponentOpenPopup
         (pPath:string)
@@ -1200,9 +1215,22 @@ let rec resolveComponentOpenPopup
 
         // and where the files still hold the ids of before that move, they are written as they now
         // are - so the conversion happens once rather than on every open
-        let ldcs = convertProjectIdsOnDisk ldcs
+        let ldcs, convertedOnDisk = convertProjectIdsOnDisk ldcs
 
         setupProjectFromComponents false (chooseWhichToOpen ldcs) ldcs model dispatch
+
+        // After the project is open, not before: this popup is about what has just been done to the
+        // files, and raising it first would put it in front of a window with nothing in it. Empty
+        // whenever nothing was converted, which is every project but a legacy one, once.
+        match convertedOnDisk with
+        | [] -> ()
+        | sheets ->
+            closablePopup
+                "Project files updated"
+                (UIPopups.helpText (AppMessages.Confirm.idsConverted sheets))
+                (div [] [])
+                []
+                dispatch
     | Resolve (ldComp,autoComp) :: rLst ->
         // ldComp, autocomp are from attemps to load saved file and its autosave version.
         let compChanges, connChanges = quantifyChanges ldComp autoComp

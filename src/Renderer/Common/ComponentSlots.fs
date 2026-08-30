@@ -116,6 +116,17 @@ let trySetSlotValue (slot: CompSlotName) (value: ParamInt) (compType: ComponentT
     // bigint, so both hold values no int could
     | IO _, BusCompare (w, _) -> Some (BusCompare (w, value))
     | InputDefault, Input1 (w, _) -> Some (Input1 (w, Some value))
+    // A constant's value, and what the current bus comparator compares against. Both are the
+    // component's SECOND number, so both share the IO slot for the reason BusSelection's LSB does:
+    // Buswidth is already the component's own width.
+    //
+    // The third field is the text the SYMBOL DRAWS, and it follows the value. A value set from a
+    // property while the text still said what someone last typed would draw a number the component
+    // no longer has - which is exactly what these two components put on the schematic. Written in
+    // decimal: the notation a value was first typed in is not recoverable from the expression, and
+    // a resolved property is not something the user typed in any case.
+    | IO _, Constant1 (w, _, _) -> Some (Constant1 (w, value, string value))
+    | IO _, BusCompare1 (w, _, _) -> Some (BusCompare1 (w, value, string value))
     // a parameter of the sheet inside a custom component, bound by this instance. Applying it
     // here is what carries a parameter down the sheet tree: elaboration descends using the
     // bindings of the component as processed.
@@ -170,6 +181,14 @@ let constraintsFor (slot: CompSlotName) (compType: ComponentType) : ParamConstra
         MinVal (PInt 0I, $"{what} must be non-negative")
         MaxVal (PInt ((1I <<< width) - 1I), $"{what} must fit in {width} bits")
     ]
+    /// A value in a field of the given width read as signed OR unsigned, which is the range
+    /// NumberHelpers.checkWidth accepts and so what the text boxes these slots replaced accepted.
+    /// A constant of -1 is an ordinary thing to write; refusing it here would take away something
+    /// that worked.
+    let fitsWidth (what: string) (width: int) =
+        let bits = max 1 width
+        [ MinVal (PInt -(1I <<< (bits - 1)), $"{what} must be at least {-(1I <<< (bits - 1))} in {bits} bits")
+          MaxVal (PInt ((1I <<< bits) - 1I), $"{what} must fit in {bits} bits") ]
     // a slot the component does not have holds nothing, so there is nothing to bound. Asked first
     // so that the width cases below need not each repeat which components have them.
     match slotApplies slot compType with
@@ -180,6 +199,8 @@ let constraintsFor (slot: CompSlotName) (compType: ComponentType) : ParamConstra
         // Buswidth is already the component's own width
         | IO _, BusSelection _ -> [MinVal (PInt 0I, "LSB position must be non-negative")]
         | IO _, BusCompare (width, _) -> fitsIn "Comparison value" width
+        | IO _, BusCompare1 (width, _, _) -> fitsWidth "Comparison value" width
+        | IO _, Constant1 (width, _, _) -> fitsWidth "Constant value" width
         | InputDefault, Input1 (width, _) -> fitsIn "Default value" width
         // a parameter of the sheet inside a custom component instance. Its bounds are the child
         // sheet's, not this one's: the value has to satisfy whatever the slots it feeds require,

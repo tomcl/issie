@@ -296,6 +296,17 @@ let updateComponentSlots dispatch (model: Model) (compId: ComponentId) (slotValu
             // SelectedComponentView.makeLsbBitNumberField - and ChangeLSB is what sets both.
             | (BusSelection _ | BusCompare _), IO _ ->
                 model.Sheet.ChangeLSB sheetDispatch compId value
+            // A constant's value, and what the current bus comparator compares against, are the
+            // other two things the IO slot holds - see ComponentSlots for why they are in it. They
+            // have to be named before the width case below, which is where an IO slot otherwise
+            // goes: falling through would set the component's WIDTH from its value.
+            //
+            // The text is what the symbol draws, and follows the value for the same reason it does
+            // in ComponentSlots.
+            | Constant1 _, IO _ ->
+                dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeConstant (compId, value, string value))))
+            | BusCompare1 _, IO _ ->
+                dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeBusCompare (compId, value, string value))))
             | _, Buswidth | _, IO _ ->
                 asInt slot value |> Option.iter (model.Sheet.ChangeWidth sheetDispatch compId)
             // a memory's two widths. The new type comes from ComponentSlots, which is the one place

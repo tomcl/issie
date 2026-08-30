@@ -390,6 +390,11 @@ Property expressions can contain:
 **Values**: whole numbers of any size, and the name of any property this sheet declares. A name
 starts with a letter and continues with letters and digits.
 
+**Bases**: a number may be written in hex as `0x1F` or in binary as `0b11111`, as well as in
+decimal. Useful in the boxes that take a value rather than a width - a constant's, and what a bus
+comparator compares against. A value is always shown back in decimal, whichever base it was
+written in.
+
 **Operators**: `+`, `-`, `*`, `/`, `%`, `<<`, `>>`, and brackets. Division and remainder are
 whole-number: `7/2` is `3`. `*`, `/` and `%` bind tighter than `+` and `-`, which bind tighter than
 the shifts `<<` and `>>` - so `w+1<<2` shifts the sum, as it would in Verilog.

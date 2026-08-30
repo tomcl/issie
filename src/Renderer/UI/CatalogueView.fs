@@ -1150,7 +1150,7 @@ let private twoErrorLines errMsg1 errMsg2 =
     span [Style [Color Red]] [str errMsg1; br []; str errMsg2; br [] ]
 
 /// two line message giving constant value
-let private constantValueMessage w (cVal:bigint) =
+let constantValueMessage w (cVal:bigint) =
     let mask = (1I <<< w) - 1I 
     let uVal = cVal &&& mask
     let sVal = if cVal &&& (1I <<< (w-1)) <> 0I then  uVal - (1I <<< w) else uVal
@@ -1160,7 +1160,7 @@ let private constantValueMessage w (cVal:bigint) =
     span [] [str line1; br [] ; str line2; br [] ]
 
 /// two line message giving constant value
-let private busCompareValueMessage w (cVal:bigint) =
+let busCompareValueMessage w (cVal:bigint) =
     let mask = 
             (1I <<< w) - 1I
     let uVal = cVal &&& mask
@@ -1208,39 +1208,44 @@ let private createConstantPopup model dispatch =
         match paramBoxValues dialog [width] with
         | Ok specs -> intOfParamInt intDefault specs.Head.Value
         | Error _ -> intDefault
-    let parseConstantDialog (dialog: PopupDialogData) =
-        parseConstant Constants.maxIssieBusWidth
-            (widthOf dialog)
-            (Option.defaultValue "" dialog.Text)
-    let beforeText = (fun d -> div [] [d |> parseConstantDialog |> fst; br [] ])
-    let placeholder = "Value: decimal, 0x... hex, 0b... binary"
-    // The value is the dialog's own text box: a constant's value has no parameter slot, only its
-    // width does. Width first, since the value is read against it.
-    let textBody = dialogPopupBodyOnlyText beforeText placeholder dispatch
-    let body = fun (model': Model) -> div [] [paramBox dispatch width model'; textBody model']
+    /// The value box, bounded by the WIDTH box as it currently stands - so the bound tightens as
+    /// the width is typed rather than being frozen at the default. Built per render for that
+    /// reason, which is what a static Constraints list could not do.
+    let valueOf (dialog: PopupDialogData) =
+        slotParam (Constant1 (widthOf dialog, 0I, "")) (IO "value")
+            "Constant value (decimal, 0x hex, 0b binary, or a property expression)" 0
+    let boxesOf (dialog: PopupDialogData) = [width; valueOf dialog]
+    let body =
+        fun (model': Model) ->
+            let dialog = model'.PopupDialogData
+            div [] [
+                paramBox dispatch width model'
+                paramBox dispatch (valueOf dialog) model'
+                // What the value comes to, signed, unsigned and in hex. It matters more than it
+                // did: the box now holds an expression rather than the notation it was typed in,
+                // so this is where the hex reading of a constant lives.
+                match paramBoxValues dialog (boxesOf dialog) with
+                | Ok [w; v] -> constantValueMessage (intOfParamInt intDefault w.Value) v.Value
+                | _ -> null
+            ]
     let buttonText = "Add"
     let buttonAction =
         fun (model': Model) ->
-            match paramBoxValues model'.PopupDialogData [width] with
-            | Error _ -> ()             // the button is disabled in this case
-            | Ok specs ->
-                let widthInt = intOfParamInt intDefault specs.Head.Value
-                let text = Option.defaultValue "" model'.PopupDialogData.Text
-                let constant =
-                    match NumberHelpers.strToIntCheckWidth widthInt text with
-                    | Ok n -> n
-                    | Error _ -> 0I // should never happen?
-                let text' = if text = "" then "0" else text
+            let dialog = model'.PopupDialogData
+            match paramBoxValues dialog (boxesOf dialog) with
+            | Ok [w; v] ->
+                let widthInt = intOfParamInt intDefault w.Value
+                // the third field is what the symbol draws, so it says what the value IS
                 createCompStdLabel
-                    (Constant1(widthInt, constant, text'))
-                    (paramSlotsOf dispatch specs)
+                    (Constant1 (widthInt, v.Value, string v.Value))
+                    (paramSlotsOf dispatch [w; v])
                     model
                     dispatch
                 dispatch ClosePopup
+            | _ -> ()                   // the button is disabled in this case
     let isDisabled =
         fun (model': Model) ->
-            (parseConstantDialog model'.PopupDialogData |> snd |> Option.isNone)
-            || (paramBoxValues model'.PopupDialogData [width] |> Result.isError)
+            paramBoxValues model'.PopupDialogData (boxesOf model'.PopupDialogData) |> Result.isError
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createBusSelectPopup model dispatch =
@@ -1287,39 +1292,39 @@ let private createBusComparePopup (model:Model) dispatch =
         match paramBoxValues dialog [width] with
         | Ok specs -> intOfParamInt intDefault specs.Head.Value
         | Error _ -> intDefault
-    let parseBusCompDialog (dialog: PopupDialogData) =
-        parseBusCompareValue Constants.maxIssieBusWidth (widthOf dialog) (Option.defaultValue "" dialog.Text)
-    let beforeText = (fun d -> div [] [d |> parseBusCompDialog |> fst; br [] ])
-    let placeholder = "Value: decimal, 0x... hex, 0b... binary"
-    // The comparison value is the dialog's own text box. It does have a slot - a BusCompare's value
-    // shares IO - but it is set here from text that may be hex or binary, which no parameter
-    // expression can be; the width is the parameterisable half. Width first, since the value is
-    // read against it.
-    let textBody = dialogPopupBodyOnlyText beforeText placeholder dispatch
-    let body = fun (model': Model) -> div [] [paramBox dispatch width model'; textBody model']
+    /// The value box, bounded by the WIDTH box as it currently stands - as in createConstantPopup,
+    /// and built per render for the same reason.
+    let valueOf (dialog: PopupDialogData) =
+        slotParam (BusCompare1 (widthOf dialog, 0I, "")) (IO "value")
+            "Compare with (decimal, 0x hex, 0b binary, or a property expression)" 0
+    let boxesOf (dialog: PopupDialogData) = [width; valueOf dialog]
+    let body =
+        fun (model': Model) ->
+            let dialog = model'.PopupDialogData
+            div [] [
+                paramBox dispatch width model'
+                paramBox dispatch (valueOf dialog) model'
+                match paramBoxValues dialog (boxesOf dialog) with
+                | Ok [w; v] -> busCompareValueMessage (intOfParamInt intDefault w.Value) v.Value
+                | _ -> null
+            ]
     let buttonText = "Add"
     let buttonAction =
         fun (model': Model) ->
-            match paramBoxValues model'.PopupDialogData [width] with
-            | Error _ -> ()             // the button is disabled in this case
-            | Ok specs ->
-                let widthInt = intOfParamInt intDefault specs.Head.Value
-                let text = Option.defaultValue "" model'.PopupDialogData.Text
-                let constant =
-                    match NumberHelpers.strToIntCheckWidth widthInt text with
-                    | Ok n -> n
-                    | Error _ -> 0I // should never happen?
-                let text' = if text = "" then "0" else text
+            let dialog = model'.PopupDialogData
+            match paramBoxValues dialog (boxesOf dialog) with
+            | Ok [w; v] ->
+                let widthInt = intOfParamInt intDefault w.Value
                 createCompStdLabel
-                    (BusCompare1(widthInt, constant, text'))
-                    (paramSlotsOf dispatch specs)
+                    (BusCompare1 (widthInt, v.Value, string v.Value))
+                    (paramSlotsOf dispatch [w; v])
                     model
                     dispatch
                 dispatch ClosePopup
+            | _ -> ()                   // the button is disabled in this case
     let isDisabled =
         fun (model': Model) ->
-            (parseBusCompDialog model'.PopupDialogData |> snd |> Option.isNone)
-            || (paramBoxValues model'.PopupDialogData [width] |> Result.isError)
+            paramBoxValues model'.PopupDialogData (boxesOf model'.PopupDialogData) |> Result.isError
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createRegisterPopup regType (model:Model) dispatch =

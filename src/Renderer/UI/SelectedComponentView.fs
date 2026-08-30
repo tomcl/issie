@@ -785,75 +785,56 @@ let constantDialogWithDefault (w,cText) dialog =
     let cText = Option.defaultValue cText dialog.Text
     w, cText
 
-/// Create react to change constant properties
+/// The value of a constant, or what a bus comparator compares against: the component's SECOND
+/// number, which shares the IO slot for the reason BusSelection's LSB does.
+///
+/// It was a plain text box in both, and the only numeric field in the pane that could not take a
+/// property expression - which made "the value" the one thing about a parameterised constant that
+/// had to be fixed. The bound follows the component's width rather than being frozen at whatever
+/// it was when the expression was typed, exactly as makeLsbBitNumberField's does.
+let private makeConstantValueField model (comp: Component) dispatch =
+    let prompt, value =
+        match comp.Type with
+        | Constant1 (_, cVal, _) -> "Constant value (decimal, 0x hex or 0b binary)", cVal
+        | BusCompare1 (_, cVal, _) -> "Compare with (decimal, 0x hex or 0b binary)", cVal
+        | _ -> failwithf $"makeConstantValueField called on {comp.Type}, which has no such field"
+    let constraints = ComponentSlots.constraintsFor (IO comp.Label) comp.Type
+    ParameterView.paramInputField
+        model prompt 0I (Some value) None constraints None (Some comp) (IO comp.Label) dispatch
+
+/// The properties of a constant: its width, its value, and what that value comes to.
+///
+/// Both boxes are parameter boxes and apply themselves - ParameterView.updateComponentSlots is what
+/// carries a slot to the component - so this lays them out and does nothing else. It used to hold
+/// the applying too, dispatching WHILE RENDERING whenever the dialog's text differed from the
+/// component, which needed a read-only guard of its own to stop it looping. Nothing here dispatches
+/// now, so there is nothing for a read-only sheet to undo.
 let makeConstantDialog (model:Model) (comp: Component) (text:string) (dispatch: Msg -> Unit): ReactElement =
-        let symbolDispatch msg = dispatch <| msgToS msg
-        let wComp, txtComp =
-            match comp.Type with | Constant1( w,_,txt) -> w,txt | _ -> failwithf "What? impossible" 
-        let w = Option.defaultValue wComp model.PopupDialogData.Int
-        let cText = Option.defaultValue txtComp model.PopupDialogData.Text
-        let reactMsg, compTOpt = CatalogueView.parseConstant Constants.maxIssieBusWidth w cText
-        match compTOpt with
-        | None -> ()
-        // The dispatch below happens while rendering, whenever the dialog's value differs from the
-        // component's. On a sheet held at what it loaded with, the change would be undone, the
-        // pane would render again, and it would dispatch again: not a dead control but a loop. So
-        // the test is here, not on the input box.
-        | Some _ when ModelHelpers.openSheetIsReadOnly model -> ()
-        | Some (Constant1(w,cVal,cText) as compT) ->
-            if compT <> comp.Type then
-                model.Sheet.ChangeWidth (Sheet >> dispatch) (comp.Id) w
-                symbolDispatch <| SymbolT.ChangeConstant (comp.Id, cVal, cText)
-                dispatch (ReloadSelectedComponent w)
-                dispatch ClosePropertiesNotification
-        | _ -> failwithf "What? impossible"
+    let w, cVal =
+        match comp.Type with
+        | Constant1 (w, v, _) -> w, v
+        | _ -> failwithf "What? makeConstantDialog called on {comp.Type}"
+    div [] [
+        makeNumberOfBitsField model comp text dispatch
+        br []
+        makeConstantValueField model comp dispatch
+        // signed, unsigned and hex. It matters more than it did: the box holds an expression rather
+        // than the notation the value was typed in, so this is where the hex reading now lives.
+        CatalogueView.constantValueMessage w cVal
+    ]
 
-        div [] [
-                makeNumberOfBitsField model comp text dispatch
-                br []
-                reactMsg
-                br []
-                textFormFieldSimple 
-                    "Enter constant value in decimal, hex, or binary:" 
-                    cText 
-                    (fun txt -> 
-                        dispatch <| SetPopupDialogText (Some txt))
-                
-            ]              
-
-/// Create react to change constant properties
+/// As makeConstantDialog, for what a bus comparator compares against.
 let makeBusCompareDialog (model:Model) (comp: Component) (text:string) (dispatch: Msg -> Unit): ReactElement =
-        let symbolDispatch msg = dispatch <| msgToS msg
-        let wComp, txtComp =
-            match comp.Type with | BusCompare1( w,_,txt) -> w,txt | _ -> failwithf "What? impossible1" 
-        let w = Option.defaultValue wComp model.PopupDialogData.Int
-        let cText = Option.defaultValue txtComp model.PopupDialogData.Text
-        let reactMsg, compTOpt = CatalogueView.parseBusCompareValue Constants.maxIssieBusWidth w cText
-        match compTOpt with
-        | None -> ()
-        // as makeConstantDialog: this dispatches while rendering, so on a read-only sheet it would
-        // dispatch, be undone, render, and dispatch again
-        | Some _ when ModelHelpers.openSheetIsReadOnly model -> ()
-        | Some (BusCompare1(w,cVal,cText) as compT) ->
-            if compT <> comp.Type then
-                model.Sheet.ChangeWidth (Sheet >> dispatch) (comp.Id) w
-                symbolDispatch <| SymbolT.ChangeBusCompare (comp.Id, cVal, cText)
-                dispatch (ReloadSelectedComponent w)
-                dispatch ClosePropertiesNotification
-        | _ -> failwithf "What? impossible"
-
-        div [] [
-                makeNumberOfBitsField model comp text dispatch
-                br []
-                reactMsg
-                br []
-                textFormFieldSimple 
-                    "Enter bus compare value in decimal, hex, or binary:" 
-                    cText 
-                    (fun txt -> 
-                        dispatch <| SetPopupDialogText (Some txt))
-                
-            ] 
+    let w, cVal =
+        match comp.Type with
+        | BusCompare1 (w, v, _) -> w, v
+        | _ -> failwithf "What? makeBusCompareDialog called on {comp.Type}"
+    div [] [
+        makeNumberOfBitsField model comp text dispatch
+        br []
+        makeConstantValueField model comp dispatch
+        CatalogueView.busCompareValueMessage w cVal
+    ]
 
 /// The properties field for the SECOND integer of a BusSelection or a BusCompare: where the
 /// selection starts, and what the comparison is against. Both go in an IO parameter slot, because

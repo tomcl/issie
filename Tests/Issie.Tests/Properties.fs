@@ -196,6 +196,58 @@ let tests =
                     $"and {name} parses as exactly that name")
         }
 
+
+        // --- literals in other bases ---
+        //
+        // A constant's value and what a bus comparator compares against have always been written in
+        // whichever base suits the design. Those boxes take expressions now, so the grammar has to
+        // say what they could already say - a grammar that could not write 0xFF could not replace a
+        // box that could.
+
+        test "a hexadecimal literal is a number, in either case of x" {
+            Expect.equal (parseExpression "0x1F") (Ok(PInt 31I)) "0x1F is 31"
+            Expect.equal (parseExpression "0X1f") (Ok(PInt 31I)) "the x and the digits may be either case"
+            Expect.equal (parseExpression "0x0") (Ok(PInt 0I)) "zero"
+        }
+
+        test "a binary literal is a number, in either case of b" {
+            Expect.equal (parseExpression "0b1010") (Ok(PInt 10I)) "0b1010 is 10"
+            Expect.equal (parseExpression "0B1010") (Ok(PInt 10I)) "either case"
+        }
+
+        test "a based literal is read unsigned, however high its top bit" {
+            // bigint's own hex parse reads the top bit as a sign, so 0xFF would come back as -1.
+            // These are values of a bus, and a bus has no sign.
+            Expect.equal (parseExpression "0xFF") (Ok(PInt 255I)) "0xFF is 255, not -1"
+            Expect.equal (parseExpression "0x80000000") (Ok(PInt 2147483648I)) "and beyond an int32"
+            Expect.equal (parseExpression "0b11111111") (Ok(PInt 255I)) "the same in binary"
+        }
+
+        test "a based literal is a value like any other, wherever a value goes" {
+            Expect.equal (parseExpression "0x10+1") (Ok(PAdd(PInt 16I, PInt 1I))) "in arithmetic"
+            Expect.equal (parseExpression "W*0x10") (Ok(PMultiply(PParameter(ParamName "W"), PInt 16I)))
+                "beside a property"
+            Expect.equal (parseExpression "(0b11)") (Ok(PInt 3I)) "in brackets"
+        }
+
+        test "a leading zero still reads as decimal where no base follows it" {
+            Expect.equal (parseExpression "0") (Ok(PInt 0I)) "zero on its own"
+            Expect.equal (parseExpression "007") (Ok(PInt 7I)) "leading zeroes are decimal"
+            // 0b with no binary digits is not a literal, so it falls back to the number 0 followed
+            // by a name - which is the mistake numberRunIntoName exists to name.
+            match parseExpression "0b" with
+            | Ok e -> failtest $"expected an error, got {e}"
+            | Error err -> Expect.stringContains err "start with a letter" "0b alone is not a literal"
+        }
+
+        test "a based literal run into a name is reported as such" {
+            match parseExpression "0x1FW" with
+            | Ok e -> failtest $"expected an error, got {e}"
+            | Error err ->
+                Expect.stringContains err "0x1F" "the message quotes the literal it found"
+                Expect.stringContains err "*" "and says a multiplication sign is missing"
+        }
+
         // --- negative values ---
         //
         // `-4` used to read the minus sign as though it were a parameter name and then complain

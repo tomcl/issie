@@ -31,6 +31,7 @@ let main argv =
         ReadOnlySheetTests.tests
         ParameterUI.tests
         MemoryParameters.tests
+        ComponentSlotTests.tests
         InstanceSignatures.tests
         WaveSelection.tests
         CustomOutputExtraction.tests

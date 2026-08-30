@@ -34,6 +34,7 @@
     <Compile Include="ReadOnlySheetTests.fs" />
     <Compile Include="ParameterUI.fs" />
     <Compile Include="MemoryParameters.fs" />
+    <Compile Include="ComponentSlotTests.fs" />
     <Compile Include="InstanceSignatures.fs" />
     <Compile Include="WaveSelection.fs" />
     <Compile Include="CustomOutputExtraction.fs" />

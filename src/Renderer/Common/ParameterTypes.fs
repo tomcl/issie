@@ -594,9 +594,19 @@ let parseExpression (text: string) : Result<ParamExpression, ParamError> =
     /// through to being a property whose name was all digits, and failed much later with
     /// "Property '99999999999' is not defined".
     let toOperand (operand: string) =
-        match System.Numerics.BigInteger.TryParse operand with
-        | true, value -> PInt value
-        | false, _ -> PParameter <| ParamName operand
+        /// A based literal, read a digit at a time: bigint has no "parse in base 2", and its hex
+        /// parse reads the top bit as a sign, so 0xFF would come out as -1.
+        let inBase (radix: int) (digits: string) =
+            digits
+            |> Seq.fold (fun acc c -> acc * bigint radix + bigint (System.Convert.ToInt32(string c, radix))) 0I
+        if operand.Length > 2 && operand[0] = '0' && (operand[1] = 'x' || operand[1] = 'X') then
+            PInt (inBase 16 operand[2..])
+        elif operand.Length > 2 && operand[0] = '0' && (operand[1] = 'b' || operand[1] = 'B') then
+            PInt (inBase 2 operand[2..])
+        else
+            match System.Numerics.BigInteger.TryParse operand with
+            | true, value -> PInt value
+            | false, _ -> PParameter <| ParamName operand
 
     /// Negation. There is no PNegate case and none is wanted: subtraction from zero is the same
     /// expression, so every function over ParamExpression already handles it and no saved file
@@ -720,8 +730,17 @@ let parseExpression (text: string) : Result<ParamExpression, ParamError> =
     // something the input is refused for rather than something dropped on the floor: unmatched
     // characters are discarded by Regex.Matches, so `a<b` would otherwise tokenise as `a b` and be
     // read as a number run into a name.
+    /// A number literal: hexadecimal, binary, or decimal. The based forms come first in the
+    /// alternation because they have to beat the name rule - `0x1F` would otherwise tokenise as the
+    /// number 0 followed by a property called `x1F`, which is how it read before they existed.
+    ///
+    /// They are here because two boxes take a value rather than a width - a constant's, and what a
+    /// bus comparator compares against - and those have always been written in whichever base suits
+    /// the design. A grammar that could not say `0xFF` could not replace the boxes that could.
+    let literalPattern = @"0[xX][0-9a-fA-F]+|0[bB][01]+|\d+"
+
     let tokenize (input: string) =
-        let pattern = @"[a-zA-Z][a-zA-Z0-9]*|\d+|<<|>>|[(),+\-*/%<>]"
+        let pattern = literalPattern + @"|[a-zA-Z][a-zA-Z0-9]*|<<|>>|[(),+\-*/%<>]"
         Regex.Matches(input, pattern)
         |> Seq.cast<Match>
         |> Seq.map (fun m -> m.Value)
@@ -733,7 +752,8 @@ let parseExpression (text: string) : Result<ParamExpression, ParamError> =
     /// parser, which notices several steps later and complains about the wrong token.
     let numberRunIntoName (tokens: string list) =
         List.pairwise tokens
-        |> List.tryFind (fun (a, b) -> Regex.IsMatch(a, @"^\d+$") && Regex.IsMatch(b, @"^[a-zA-Z]"))
+        |> List.tryFind (fun (a, b) ->
+            Regex.IsMatch(a, "^(" + literalPattern + ")$") && Regex.IsMatch(b, @"^[a-zA-Z]"))
 
     /// A single `<` or `>`. Nothing in this language compares two values, so half a shift is the
     /// only thing either can be. Reported here for the same reason as a number run into a name:

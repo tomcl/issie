@@ -407,7 +407,17 @@ let dialogPopupBodyOnlyBoundedInt beforeInt intDefault minBound maxBound dispatc
             ]
         ]
 
-let dialogPopupBodyNInts beforeInt numOutputsDefault intDefault maxNumOutputs dispatch =
+/// `widthBoxFor` and `lsbBoxFor` draw one output's two boxes, given its index and the default the
+/// lists below have worked out for it. They are passed in because they are parameter-capable boxes,
+/// which this file is compiled too early to build - as for dialogPopupBodyMemorySetup.
+let dialogPopupBodyNInts
+        beforeInt
+        numOutputsDefault
+        intDefault
+        maxNumOutputs
+        (widthBoxFor: int -> int -> Model -> ReactElement)
+        (lsbBoxFor: int -> int -> Model -> ReactElement)
+        dispatch =
     numOutputsDefault |> Some |> SetPopupDialogInt |> dispatch
     [for _ in 1..numOutputsDefault -> intDefault] |> Some |> SetPopupDialogIntList |> dispatch
     [for x in 1..numOutputsDefault -> x-1] |> Some |> SetPopupDialogIntList2 |> dispatch
@@ -486,39 +496,27 @@ let dialogPopupBodyNInts beforeInt numOutputsDefault intDefault maxNumOutputs di
             br []
             str $"What is the width and least significant bit (LSB) number of each output?"
             br []; br [];
-            div [Style [Display DisplayOptions.Flex;]] [
-                Label.label [Label.Props [Style [MarginLeft "120px"; MarginRight "15px"]]] [str "Width"]
-                Label.label [Label.Props [Style [MarginLeft "15px"]]] [str "LSB"]
+            // Built from the same widths as the rows below rather than from margins chosen by eye:
+            // the boxes are the caller's now, and a heading nudged into place over a 60px box sat
+            // nowhere near a 200px one.
+            div [Style [Display DisplayOptions.Flex]] [
+                div [Style [Width "115px"]] []          // clears the "Output Port n:" label
+                Label.label [Label.Props [Style [Width "200px"]]] [str "Width"]
+                Label.label [Label.Props [Style [Width "200px"]]] [str "LSB"]
             ]
             List.mapi2 (fun index (defaultWidthValue : int) (defaultLSBValue : int) ->
-                div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center]] [
-                    label [Style [Width "105px"; MarginRight "10px";]] [str (sprintf "Output Port %d:" index)] 
-                    Input.number [
-                        Input.Props [OnPaste preventDefault; Style [Width "60px"]; ]
-                        Input.DefaultValue <| sprintf "%d" defaultWidthValue
-                        Input.OnChange (
-                            let setWidth = 
-                                fun newWidth -> 
-                                    setupWidthList
-                                    |> List.mapi (fun i x -> if i = index then newWidth else x)
-                            getIntEventValue >> setWidth >> Some >> SetPopupDialogIntList >> dispatch)
-                    ]
-                    Input.number [
-                        Input.Props [OnPaste preventDefault; Style [Width "60px"; MarginLeft "10px"]; ]
-                        Input.DefaultValue <| sprintf "%d" defaultLSBValue
-                        Input.OnChange (
-                            let setLSB = 
-                                fun newLSB -> 
-                                    setupLSBList
-                                    |> List.mapi (fun i x -> if i = index then newLSB else x)
-                            getIntEventValue >> setLSB >> Some >> SetPopupDialogIntList2 >> dispatch)
-                    ]
-                    br []
-                    hr []
-                    br []
+                div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.FlexStart]] [
+                    label [Style [Width "105px"; MarginRight "10px"; MarginTop "6px"]]
+                        [str (sprintf "Output Port %d:" index)]
+                    // The two boxes are parameter-capable, so they come from the caller: see
+                    // dialogPopupBodyMemorySetup above for why they cannot be drawn here. The
+                    // defaults are the lists maintained above, which is what puts a sensible LSB
+                    // in a box that has just appeared because the output count went up.
+                    widthBoxFor index defaultWidthValue model
+                    lsbBoxFor index defaultLSBValue model
                 ]
                 ) setupWidthList setupLSBList
-            |> div [] 
+            |> div []
             br []
             br []
 
@@ -789,20 +787,40 @@ let dialogPopupBodyIntAndText beforeText placeholder beforeInt intDefault dispat
 
 /// Create the body of a memory dialog popup: asks for AddressWidth and
 /// WordWidth, two integers.
-let dialogPopupBodyMemorySetup intDefault dispatch =
+/// `addressBox` and `wordBox` draw the two widths, and `widthsOf` reads what they hold.
+///
+/// They are passed in rather than drawn here because they are parameter-capable boxes - the same
+/// box the Properties pane uses, so that a memory's widths can be set from a property as it is
+/// placed - and the parameter code is compiled long after this file. What is left here is the rest
+/// of the dialog: where the data comes from, and the rules relating that to the address width.
+let dialogPopupBodyMemorySetup
+        intDefault
+        (addressBox: Model -> ReactElement)
+        (wordBox: Model -> ReactElement)
+        (widthsOf: PopupDialogData -> (int * int) option)
+        dispatch =
 
-    //Some (4, intDefault, FromData, None) 
+    //Some (4, intDefault, FromData, None)
     //|> SetPopupDialogMemorySetup |> dispatch
     fun (model: Model) ->
         let dialogData = model.PopupDialogData
         let setup =
-            match dialogData.MemorySetup with 
-            | None -> 
+            match dialogData.MemorySetup with
+            | None ->
                 let setup = getMemorySetup dialogData intDefault
                 dispatch <| SetPopupDialogMemorySetup (Some setup)
                 setup
             | Some (n1,n2,init, nameOpt) ->
                 (n1,n2,FromData, None)
+        // The widths live in the boxes now, and everything below - the multiplier's rules above
+        // all - reads them from the setup tuple. So the tuple follows the boxes, in the same
+        // dispatch-while-rendering the line below already does for the defaults.
+        let setup =
+            match widthsOf dialogData with
+            | Some (addr, word) ->
+                let (_, _, source, errorOpt) = setup
+                (addr, word, source, errorOpt)
+            | None -> setup
         // needed in case getMemorySetup has delivered default values not yet stored
         if dialogData.MemorySetup <> Some setup then
             dispatch <| SetPopupDialogMemorySetup (Some setup)
@@ -816,31 +834,11 @@ let dialogPopupBodyMemorySetup intDefault dispatch =
             | ToFileBadName x -> ""
             | _ -> "Memory initial data is determined by the requested multiplication"
         div [] [
-            str $"How many bits should be used to address the data in memory?"
-            br [];
+            addressBox model
             str <| sprintf "%d bits yield %A memory locations." addressWidth (1I <<< addressWidth)
-            br []; br []
-            Input.number [
-                Input.Props [OnPaste preventDefault; Style [Width "60px"] ; AutoFocus true]
-                Input.DefaultValue (sprintf "%d" addressWidth)
-                Input.OnChange (getIntEventValue >> fun newAddrWidth ->
-                    Some (newAddrWidth, wordWidth, source, None) 
-                    |> SetPopupDialogMemorySetup |> dispatch
-                )
-            ]
             br []
             br []
-            str "How many bits should each memory word contain?"
-            br []; br [];
-            Input.number [
-                Input.Props [OnPaste preventDefault; Style [Width "60px"]]
-                Input.DefaultValue (sprintf "%d" wordWidth)
-                Input.OnChange (getIntEventValue >> fun newWordWidth ->
-                    Some (addressWidth, newWordWidth, source, None) 
-                    |> SetPopupDialogMemorySetup |> dispatch
-                )
-            ]
-            br []
+            wordBox model
             br []
             str dataSetupMess
             br []

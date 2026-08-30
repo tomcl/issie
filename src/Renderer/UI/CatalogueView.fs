@@ -513,35 +513,152 @@ let private makeVerilogList keep styles model dispatch =
 
 
 
+//-----------------------------------------------------------------------------------------------//
+//----------- Parameter-capable boxes in the popups that place a built-in component -------------//
+//-----------------------------------------------------------------------------------------------//
+
+(*
+    The Properties pane has taken parameter expressions in every parameterisable box for as long as
+    parameters have existed. The boxes that PLACE a component did not: a width had to be typed as a
+    number, the component dropped, and the width typed again as an expression in Properties. That is
+    the kind of two-step that makes a feature look like an afterthought, and it is unnecessary - the
+    box in Properties and the box in the popup set the same slot of the same component.
+
+    So a creation popup uses the same box: ParameterView.paramInputField, expression help and all.
+    Two things differ from a Properties box, and both are handled here rather than at each popup.
+
+    There is no component to key the box by, since it does not exist yet, so it is keyed by its slot
+    alone - paramBoxKey None - and what it holds lives in PopupDialogData.DialogState until the
+    button is pressed.
+
+    And the state has to be SEEDED before the popup opens. Both the button's action and its
+    isDisabled read that state, so a box the user never touched - which is every box of a dialog
+    accepted at its defaults - would otherwise hold nothing at all.
+*)
+
+/// One parameter-capable box of a component-creation popup.
+type private CreationParam = {
+    Slot: CompSlotName
+    /// What the box asks for. Empty where the caller lays out its own label.
+    Prompt: string
+    Default: ParamInt
+    Constraints: ParamConstraint list
+}
+
+/// A box for one slot of the component about to be placed, bounded exactly as the Properties box
+/// for that same slot is bounded. ComponentSlots.constraintsFor is where those bounds live; a popup
+/// that spelled out its own would drift from the pane that edits the same field a moment later, and
+/// the two would disagree about the same component.
+///
+/// `proto` need only be the right KIND of component - a width bound does not depend on the width it
+/// is bounding. The bounds that DO depend on the component's contents belong to slots checked
+/// against another box in the same dialog (an input's default value against its width), and those
+/// are given no bounds here: see createInputPopup for why a bound taken from the width as it
+/// currently stands would be worse than none.
+let private slotParam (proto: ComponentType) (slot: CompSlotName) (prompt: string) (defaultValue: int) : CreationParam =
+    { Slot = slot
+      Prompt = prompt
+      Default = bigint defaultValue
+      Constraints = ComponentSlots.constraintsFor slot proto }
+
+/// Takes the dialog data rather than the model, so that it can be asked from inside a popup body's
+/// own callbacks - which are handed that and not the whole model.
+///
+/// A box with nothing in the dialog state holds its DEFAULT, which is also what it is showing:
+/// paramInputField renders the default until something is typed, and only records a state when it
+/// is. Reading it as an error instead would disable the button on every dialog accepted as it
+/// stands - and would make a dialog whose boxes come and go, as the split's do with the number of
+/// outputs, impossible to satisfy without touching each new box.
+let private paramBoxValues (dialog: PopupDialogData) (boxes: CreationParam list) : Result<NewParamCompSpec list, ParamError> =
+    boxes
+    |> List.map (fun box ->
+        dialog.DialogState
+        |> Option.bind (Map.tryFind (ParameterTypes.paramBoxKey None box.Slot))
+        |> function
+           | Some state -> state.Spec
+           | None ->
+               Ok { CompSlot = box.Slot
+                    Expression = PInt box.Default
+                    Constraints = box.Constraints
+                    Value = box.Default })
+    |> Helpers.ResultList.sequence
+
+/// Draw one box, against the dialog's own model.
+///
+/// The value it currently comes out at is handed back to it so that an expression shows its answer
+/// - "= 7" beside "2*3+1" - which is what the same box does in Properties, and the only way to see
+/// what a width is going to be before the component is placed at it.
+let private paramBox (dispatch: Msg -> unit) (box: CreationParam) (model': Model) : ReactElement =
+    let current =
+        match paramBoxValues model'.PopupDialogData [box] with
+        | Ok [spec] -> Some spec.Value
+        | _ -> None
+    ParameterView.paramInputField
+        model' box.Prompt box.Default current None box.Constraints None None box.Slot dispatch
+
+/// What every box holds, or the first complaint any of them is showing. Error is what disables the
+/// button, so a popup never places a component from a box it is refusing.
+/// The whole numbers those boxes hold, in the order they were given.
+let private paramBoxInts (specs: NewParamCompSpec list) : int list =
+    specs |> List.map (fun spec -> intOfParamInt 1 spec.Value)
+
+/// What createCompStdLabel is handed so that the slots exist on the component it places. None where
+/// no box holds an expression: a component whose width is the number 8 has no parameterised slot,
+/// and addParamComponent would only remove one that is not there.
+let private paramSlotsOf (dispatch: Msg -> unit) (specs: NewParamCompSpec list) =
+    Some (ParameterView.addParamComponents specs dispatch)
+
 let private createInputPopup typeStr (compType: int * bigint option -> ComponentType) (model:Model) (dispatch: Msg -> unit) =
     let title = sprintf "Add %s node" typeStr
     let beforeText =
         fun _ -> str <| sprintf "How do you want to name your %s?" typeStr
     let placeholder = "Component name"
-    let beforeInt =
-        fun _ -> str <| sprintf "How many bits should the %s node have?" typeStr
-    let beforeDefaultValue = fun _ -> str <| sprintf "If the input is undriven, what should the default value be?"
-    let intDefault = model.LastUsedDialogWidth
+    let width =
+        slotParam (compType (1, None)) Buswidth
+            (sprintf "How many bits should the %s node have?" typeStr)
+            model.LastUsedDialogWidth
+    // Unbounded here, deliberately. What bounds it is that it must fit the width, and the width is
+    // the box above - possibly an expression, so there is no number to bound against while both are
+    // being typed. ComponentSlots.constraintsFor applies that bound to the value as it is written
+    // into the component, which is where it can be worked out.
+    let defaultValue =
+        { slotParam (compType (1, None)) InputDefault
+              "If the input is undriven, what should the default value be?" 0 with
+            // ComponentSlots would bound this by the width of the prototype above, which is not the
+            // width being typed into the box before it. A bound taken from a stale width is worse
+            // than none: widen the input and a value that now fits would still be refused. The
+            // bound that matters is applied where the value is written into the component.
+            Constraints = [] }
+    let boxes = [width; defaultValue]
+    let textBody = dialogPopupBodyOnlyText beforeText placeholder dispatch
     let body =
-        dialogPopupBodyTextAndTwoInts 1 (beforeText, placeholder) (beforeInt, beforeDefaultValue) (bigint intDefault, 0I) dispatch
+        fun (model': Model) ->
+            div [] [textBody model'; paramBox dispatch width model'; paramBox dispatch defaultValue model']
     let buttonText = "Add"
     let buttonAction =
-        fun (model: Model) ->
-            let dialogData = model.PopupDialogData
-            // TODO: format text for only uppercase and allowed chars (-, not number start)
-            // TODO: repeat this throughout this file and selectedcomponentview (use functions)
-            let inputText = getText dialogData
-            let widthInt = getInt dialogData
-            let defaultValueInt = getInt2 dialogData
-            createComponent (compType (widthInt, Some defaultValueInt)) (MenuHelpers.formatLabelFromType (compType (widthInt, Some defaultValueInt)) inputText) None model dispatch
-            dispatch ClosePopup
+        fun (model': Model) ->
+            match paramBoxValues model'.PopupDialogData boxes with
+            | Error _ -> ()             // the button is disabled in this case
+            | Ok specs ->
+                // TODO: format text for only uppercase and allowed chars (-, not number start)
+                // TODO: repeat this throughout this file and selectedcomponentview (use functions)
+                let inputText = getText model'.PopupDialogData
+                let widthInt = intOfParamInt 1 specs.Head.Value
+                // the default value is a bigint and stays one: it holds values no int could
+                let comp = compType (widthInt, Some specs.Tail.Head.Value)
+                createComponent
+                    comp
+                    (MenuHelpers.formatLabelFromType comp inputText)
+                    (paramSlotsOf dispatch specs)
+                    model
+                    dispatch
+                dispatch ClosePopup
     let isDisabled =
         fun (model': Model) ->
-            let dialogData = model'.PopupDialogData
             let notGoodLabel =
-                getText dialogData
+                getText model'.PopupDialogData
                 |> (fun s -> s = "" || not (String.startsWithLetter s))
-            (getInt dialogData < 1) || notGoodLabel
+            notGoodLabel || (paramBoxValues model'.PopupDialogData boxes |> Result.isError)
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
@@ -550,31 +667,45 @@ let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
     let beforeText =
         fun _ -> str <| sprintf "How do you want to name your %s?" typeStr
     let placeholder = "Component name"
-    let beforeInt =
-        fun _ -> str <| sprintf "How many bits should the %s node have?" typeStr
-    let intDefault = model.LastUsedDialogWidth
-    let body = 
+    let width =
+        slotParam (compType 1) Buswidth
+            (sprintf "How many bits should the %s node have?" typeStr)
+            model.LastUsedDialogWidth
+    // The name box is the dialog's own; only the width is a parameter slot. Composed rather than
+    // taken from dialogPopupBodyTextAndInt, which draws a plain int box.
+    let textBody = dialogPopupBodyOnlyText beforeText placeholder dispatch
+    let body =
         match hasInt with
-        | true -> dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispatch
-        | false -> dialogPopupBodyOnlyText beforeText placeholder dispatch
+        | true -> fun (model': Model) -> div [] [textBody model'; paramBox dispatch width model']
+        | false -> textBody
+    let labelIsBad (model': Model) =
+        getText model'.PopupDialogData
+        |> fun s -> s = "" || not (String.startsWithLetter s)
     let buttonText = "Add"
     let buttonAction =
         fun (model': Model) ->
-            let dialogData = model'.PopupDialogData
             // TODO: format text for only uppercase and allowed chars (-, not number start)
             // TODO: repeat this throughout this file and selectedcomponentview (use functions)
-            let inputText = getText dialogData
-            let inputInt = getInt dialogData
-            createComponent (compType inputInt) (MenuHelpers.formatLabelFromType (compType inputInt) inputText) None model dispatch
-            dispatch ClosePopup
+            let inputText = getText model'.PopupDialogData
+            let place widthInt createParam =
+                createComponent
+                    (compType widthInt)
+                    (MenuHelpers.formatLabelFromType (compType widthInt) inputText)
+                    createParam
+                    model
+                    dispatch
+                dispatch ClosePopup
+            match hasInt with
+            | false -> place 1 None
+            | true ->
+                match paramBoxValues model'.PopupDialogData [width] with
+                | Error _ -> ()         // the button is disabled in this case
+                | Ok specs -> place (paramBoxInts specs |> List.head) (paramSlotsOf dispatch specs)
     let isDisabled =
         fun (model': Model) ->
-            let dialogData = model'.PopupDialogData
-            let notGoodLabel =
-                getText dialogData
-                |> (fun s -> s = "" || not (String.startsWithLetter s))
-            (getInt dialogData < 1) || notGoodLabel
-    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+            labelIsBad model'
+            || (hasInt && paramBoxValues model'.PopupDialogData [width] |> Result.isError)
+    if hasInt then    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
 /// The nets on this sheet that already have a name. A net IS its name - every net label carrying
@@ -773,20 +904,51 @@ let private createSplitNPopup (model: Model) dispatch =
     let beforeInt =
         fun _ -> str "How many outputs should the split component have?"
     let numInputsDefault = 2
-    let body = dialogPopupBodyNInts beforeInt numInputsDefault 1 Constants.maxSplitMergeBranches dispatch
+    // Only the KIND matters: a width bound does not depend on the widths it is bounding, and the
+    // index is what picks out which output a slot belongs to.
+    let proto = SplitN (2, [1; 1], [0; 1])
+    let widthBox index defaultWidth = paramBox dispatch (slotParam proto (SplitNWidth index) "" defaultWidth)
+    let lsbBox index defaultLSB = paramBox dispatch (slotParam proto (SplitNLSB index) "" defaultLSB)
+    /// The boxes this dialog currently has: two per output, and the number of outputs is itself
+    /// something the user is typing. The defaults are the lists the body maintains as that number
+    /// changes, so a box that has just appeared is read at the value it is showing.
+    let boxesOf (dialog: PopupDialogData) =
+        let widths = getIntList dialog numInputsDefault 1
+        let lsbs = getIntList2 dialog numInputsDefault 0
+        List.mapi2
+            (fun index width lsb ->
+                [slotParam proto (SplitNWidth index) "" width; slotParam proto (SplitNLSB index) "" lsb])
+            widths lsbs
+        |> List.concat
+    let body =
+        dialogPopupBodyNInts beforeInt numInputsDefault 1 Constants.maxSplitMergeBranches
+            widthBox lsbBox dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (model': Model) ->
             let dialogData = model'.PopupDialogData
-            let outputInt = getInt dialogData 
-            let outputWidthList = getIntList dialogData numInputsDefault 1
-            let outputLSBList = getIntList2 dialogData numInputsDefault 0
-            createCompStdLabel (SplitN (outputInt, outputWidthList, outputLSBList)) None model dispatch
-            dispatch ClosePopup
+            match paramBoxValues dialogData (boxesOf dialogData) with
+            | Error _ -> ()             // the button is disabled in this case
+            | Ok specs ->
+                // interleaved width, lsb, width, lsb... as boxesOf built them
+                let widths, lsbs =
+                    specs
+                    |> List.indexed
+                    |> List.partition (fun (i, _) -> i % 2 = 0)
+                    |> fun (ws, ls) -> List.map snd ws, List.map snd ls
+                createCompStdLabel
+                    (SplitN (getInt dialogData, paramBoxInts widths, paramBoxInts lsbs))
+                    (paramSlotsOf dispatch (widths @ lsbs))
+                    model
+                    dispatch
+                dispatch ClosePopup
     let isDisabled =
         fun (model': Model) ->
-            let intIn = getInt model'.PopupDialogData
-            intIn < 2 || intIn > Constants.maxSplitMergeBranches
+            let dialogData = model'.PopupDialogData
+            let intIn = getInt dialogData
+            intIn < 2
+            || intIn > Constants.maxSplitMergeBranches
+            || (paramBoxValues dialogData (boxesOf dialogData) |> Result.isError)
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
@@ -943,39 +1105,45 @@ let private createShiftPopup (model: Model) dispatch =
 
 let private createNbitSpreaderPopup (model:Model) dispatch =
     let title = sprintf "Add 1-to-N bit spreader"
-    let beforeInt =
-        fun _ -> str "How many bits should the output bus contain?"
-    let intDefault = model.LastUsedDialogWidth
-    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
-    let buttonText = "Add"
+    let width =
+        slotParam (NbitSpreader 1) Buswidth
+            "How many bits should the output bus contain?" model.LastUsedDialogWidth
     let buttonAction =
         fun (model': Model) ->
-            let dialogData = model'.PopupDialogData
-            let inputInt = getInt dialogData
-            createCompStdLabel (NbitSpreader inputInt) None {model with LastUsedDialogWidth = inputInt} dispatch
-            dispatch ClosePopup
-    let isDisabled =
-        fun (model': Model) -> getInt model.PopupDialogData < 1
-    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+            match paramBoxValues model'.PopupDialogData [width] with
+            | Error _ -> ()             // the button is disabled in this case
+            | Ok specs ->
+                let outputWidth = paramBoxInts specs |> List.head
+                createCompStdLabel
+                    (NbitSpreader outputWidth)
+                    (paramSlotsOf dispatch specs)
+                    {model with LastUsedDialogWidth = outputWidth}
+                    dispatch
+                dispatch ClosePopup
+    let isDisabled = fun (model': Model) -> paramBoxValues model'.PopupDialogData [width] |> Result.isError
+    dialogPopup title (paramBox dispatch width) "Add" buttonAction isDisabled [] dispatch
 
 
 let private createSplitWirePopup model dispatch =
     let title = sprintf "Add SplitWire node" 
-    let beforeInt =
-        fun _ -> str "How many bits should go to the top (LSB) wire? The remaining bits will go to the bottom (MSB) wire. \
-                      Use Edit -> Flip Vertically after placing component to swap top and bottom"
-    let intDefault = 1
-    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
-    let buttonText = "Add"
+    let topWidth =
+        slotParam (SplitWire 1) Buswidth
+            ("How many bits should go to the top (LSB) wire? The remaining bits will go to the bottom (MSB) wire. \
+                      Use Edit -> Flip Vertically after placing component to swap top and bottom")
+            1
     let buttonAction =
         fun (model': Model) ->
-            let dialogData = model'.PopupDialogData
-            let inputInt = getInt dialogData
-            createCompStdLabel (SplitWire inputInt) None model dispatch
-            dispatch ClosePopup
-    let isDisabled =
-        fun (model': Model) -> getInt model'.PopupDialogData < 1
-    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+            match paramBoxValues model'.PopupDialogData [topWidth] with
+            | Error _ -> ()             // the button is disabled in this case
+            | Ok specs ->
+                createCompStdLabel
+                    (SplitWire (paramBoxInts specs |> List.head))
+                    (paramSlotsOf dispatch specs)
+                    model
+                    dispatch
+                dispatch ClosePopup
+    let isDisabled = fun (model': Model) -> paramBoxValues model'.PopupDialogData [topWidth] |> Result.isError
+    dialogPopup title (paramBox dispatch topWidth) "Add" buttonAction isDisabled [] dispatch
 
 /// two react text lines in red
 let private twoErrorLines errMsg1 errMsg2 =
@@ -1027,79 +1195,131 @@ let parseBusCompareValue wMax w cText =
 /// create react popup to set a constant
 let private createConstantPopup model dispatch =
     let title = sprintf "Add Constant" 
-    let beforeInt =
-        fun _ -> str "How many bits has the wire carrying the constant?"
     let intDefault = 1
-    let parseConstantDialog model' =
-        let dialog = model'.PopupDialogData
+    let width =
+        slotParam (Constant1 (1, 0I, "")) Buswidth
+            ("How many bits has the wire carrying the constant?")
+            intDefault
+    /// The width the value has to fit in, as the box evaluates to now - so a width typed as an
+    /// expression bounds the constant exactly as a number typed there would. The default stands in
+    /// while the box is empty or wrong, which is when the value's own complaint is not the one to
+    /// show.
+    let widthOf (dialog: PopupDialogData) =
+        match paramBoxValues dialog [width] with
+        | Ok specs -> intOfParamInt intDefault specs.Head.Value
+        | Error _ -> intDefault
+    let parseConstantDialog (dialog: PopupDialogData) =
         parseConstant Constants.maxIssieBusWidth
-            (Option.defaultValue intDefault dialog.Int)
+            (widthOf dialog)
             (Option.defaultValue "" dialog.Text)
     let beforeText = (fun d -> div [] [d |> parseConstantDialog |> fst; br [] ])
-    let placeholder = "Value: decimal, 0x... hex, 0b... binary"   
-    let body = dialogPopupBodyIntAndText beforeText placeholder beforeInt intDefault dispatch
+    let placeholder = "Value: decimal, 0x... hex, 0b... binary"
+    // The value is the dialog's own text box: a constant's value has no parameter slot, only its
+    // width does. Width first, since the value is read against it.
+    let textBody = dialogPopupBodyOnlyText beforeText placeholder dispatch
+    let body = fun (model': Model) -> div [] [paramBox dispatch width model'; textBody model']
     let buttonText = "Add"
     let buttonAction =
-        fun (model: Model) ->
-            let dialogData = model.PopupDialogData
-            let width = getInt dialogData
-            let text = Option.defaultValue "" dialogData.Text
-            let constant = 
-                match NumberHelpers.strToIntCheckWidth width text with
-                | Ok n -> n
-                | Error _ -> 0I // should never happen?
-            let text' = if text = "" then "0" else text
-            createCompStdLabel (Constant1(width, constant, text')) None model dispatch
-            dispatch ClosePopup
-    let isDisabled = parseConstantDialog >> snd >> Option.isNone
+        fun (model': Model) ->
+            match paramBoxValues model'.PopupDialogData [width] with
+            | Error _ -> ()             // the button is disabled in this case
+            | Ok specs ->
+                let widthInt = intOfParamInt intDefault specs.Head.Value
+                let text = Option.defaultValue "" model'.PopupDialogData.Text
+                let constant =
+                    match NumberHelpers.strToIntCheckWidth widthInt text with
+                    | Ok n -> n
+                    | Error _ -> 0I // should never happen?
+                let text' = if text = "" then "0" else text
+                createCompStdLabel
+                    (Constant1(widthInt, constant, text'))
+                    (paramSlotsOf dispatch specs)
+                    model
+                    dispatch
+                dispatch ClosePopup
+    let isDisabled =
+        fun (model': Model) ->
+            (parseConstantDialog model'.PopupDialogData |> snd |> Option.isNone)
+            || (paramBoxValues model'.PopupDialogData [width] |> Result.isError)
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createBusSelectPopup model dispatch =
     let title = sprintf "Add Bus Selection node" 
-    let beforeInt2 =
-        fun _ -> str "Which input bit is the least significant output bit?"
-    let beforeInt =
-        fun _ -> str "How many bits width is the output bus?"
-    let intDefault = 1I
-    let intDefault2 = 0I
-    let body = dialogPopupBodyTwoInts (beforeInt,beforeInt2) (intDefault, intDefault2) "60px" dispatch
+    let width =
+        slotParam (BusSelection (1, 0)) Buswidth
+            ("How many bits width is the output bus?")
+            1
+    // A bus selection's least significant bit shares the IO slot: see ComponentSlots, where the
+    // want of anywhere else to put it is explained. Zero is a legal value, unlike a width.
+    let lsb =
+        slotParam (BusSelection (1, 0)) (IO "LSB")
+            "Which input bit is the least significant output bit?" 0
+    let boxes = [width; lsb]
+    let body = fun (model': Model) -> div [] (boxes |> List.map (fun box -> paramBox dispatch box model'))
     let buttonText = "Add"
     let buttonAction =
         fun (model': Model) ->
-            let dialogData = model'.PopupDialogData
-            let width = getInt dialogData
-            let lsb = int32 (getInt2 dialogData)
-            createCompStdLabel (BusSelection(width,lsb)) None model dispatch
-            dispatch ClosePopup
+            match paramBoxValues model'.PopupDialogData boxes with
+            | Error _ -> ()             // the button is disabled in this case
+            | Ok specs ->
+                match paramBoxInts specs with
+                | [widthInt; lsbInt] ->
+                    createCompStdLabel
+                        (BusSelection(widthInt, lsbInt))
+                        (paramSlotsOf dispatch specs)
+                        model
+                        dispatch
+                    dispatch ClosePopup
+                | _ -> failwithf "Bus selection has exactly two boxes"
     let isDisabled =
-        fun (model': Model) -> getInt model'.PopupDialogData < 1 || getInt2 model'.PopupDialogData < 0I
+        fun (model': Model) -> paramBoxValues model'.PopupDialogData boxes |> Result.isError
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createBusComparePopup (model:Model) dispatch =
     let title = sprintf "Add Bus Compare node" 
-    let beforeInt =
-        fun _ -> str "How many bits width is the input bus?"
     let intDefault = 1
-    let parseBusCompDialog model' =
-        let dialog = model'.PopupDialogData
-        parseBusCompareValue Constants.maxIssieBusWidth (Option.defaultValue intDefault dialog.Int) (Option.defaultValue "" dialog.Text)
+    let width =
+        slotParam (BusCompare1 (1, 0I, "")) Buswidth
+            ("How many bits width is the input bus?")
+            intDefault
+    /// The width the comparison value has to fit in, as the box evaluates to now.
+    let widthOf (dialog: PopupDialogData) =
+        match paramBoxValues dialog [width] with
+        | Ok specs -> intOfParamInt intDefault specs.Head.Value
+        | Error _ -> intDefault
+    let parseBusCompDialog (dialog: PopupDialogData) =
+        parseBusCompareValue Constants.maxIssieBusWidth (widthOf dialog) (Option.defaultValue "" dialog.Text)
     let beforeText = (fun d -> div [] [d |> parseBusCompDialog |> fst; br [] ])
-    let placeholder = "Value: decimal, 0x... hex, 0b... binary"   
-    let body = dialogPopupBodyIntAndText beforeText placeholder beforeInt intDefault dispatch
+    let placeholder = "Value: decimal, 0x... hex, 0b... binary"
+    // The comparison value is the dialog's own text box. It does have a slot - a BusCompare's value
+    // shares IO - but it is set here from text that may be hex or binary, which no parameter
+    // expression can be; the width is the parameterisable half. Width first, since the value is
+    // read against it.
+    let textBody = dialogPopupBodyOnlyText beforeText placeholder dispatch
+    let body = fun (model': Model) -> div [] [paramBox dispatch width model'; textBody model']
     let buttonText = "Add"
     let buttonAction =
         fun (model': Model) ->
-            let dialogData = model'.PopupDialogData
-            let width = getInt dialogData
-            let text = Option.defaultValue "" dialogData.Text
-            let constant = 
-                match NumberHelpers.strToIntCheckWidth width text with
-                | Ok n -> n
-                | Error _ -> 0I // should never happen?
-            let text' = if text = "" then "0" else text
-            createCompStdLabel (BusCompare1(width,constant,text')) None model dispatch
-            dispatch ClosePopup
-    let isDisabled = parseBusCompDialog >> snd >> Option.isNone
+            match paramBoxValues model'.PopupDialogData [width] with
+            | Error _ -> ()             // the button is disabled in this case
+            | Ok specs ->
+                let widthInt = intOfParamInt intDefault specs.Head.Value
+                let text = Option.defaultValue "" model'.PopupDialogData.Text
+                let constant =
+                    match NumberHelpers.strToIntCheckWidth widthInt text with
+                    | Ok n -> n
+                    | Error _ -> 0I // should never happen?
+                let text' = if text = "" then "0" else text
+                createCompStdLabel
+                    (BusCompare1(widthInt, constant, text'))
+                    (paramSlotsOf dispatch specs)
+                    model
+                    dispatch
+                dispatch ClosePopup
+    let isDisabled =
+        fun (model': Model) ->
+            (parseBusCompDialog model'.PopupDialogData |> snd |> Option.isNone)
+            || (paramBoxValues model'.PopupDialogData [width] |> Result.isError)
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createRegisterPopup regType (model:Model) dispatch =
@@ -1178,7 +1398,34 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
         | Some (n1,n2,mem, _) ->
             Some (n1,n2,mem,errorOpt)
         | _ -> None
-    let body = dialogPopupBodyMemorySetup intDefault dispatch
+    // Both of a memory's widths are ordinary bus widths and have slots of their own, so both take
+    // an expression here exactly as they do in Properties. The prototype only has to BE a memory:
+    // what bounds a width does not depend on the width it is bounding.
+    let protoMemory =
+        memType {Init = FromData; AddressWidth = 1; WordWidth = 1; Data = Map.empty; Comments = None}
+    // 4, as getMemorySetup has always defaulted it - a memory of 16 locations. Only the WORD width
+    // follows the last width the user typed, which is what intDefault is.
+    let addressWidth =
+        slotParam protoMemory MemoryAddressWidth
+            "How many bits should be used to address the data in memory?" 4
+    let wordWidth =
+        slotParam protoMemory MemoryWordWidth
+            "How many bits should each memory word contain?" intDefault
+    let boxes = [addressWidth; wordWidth]
+    let widthsOf (dialog: PopupDialogData) =
+        match paramBoxValues dialog boxes with
+        | Ok specs ->
+            match paramBoxInts specs with
+            | [addr; word] -> Some (addr, word)
+            | _ -> None
+        | Error _ -> None
+    let body =
+        dialogPopupBodyMemorySetup
+            intDefault
+            (paramBox dispatch addressWidth)
+            (paramBox dispatch wordWidth)
+            widthsOf
+            dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (model': Model) ->
@@ -1194,11 +1441,12 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
                 }
 
             let memory = FilesIO.initialiseMem  initMem dialogData.ProjectPath
-            match memory with
-            | Ok mem ->
-                createCompStdLabel (memType mem) None model dispatch
+            match memory, paramBoxValues dialogData boxes with
+            | Ok mem, Ok specs ->
+                createCompStdLabel (memType mem) (paramSlotsOf dispatch specs) model dispatch
                 dispatch ClosePopup
-            | Error mess ->
+            | _, Error _ -> ()          // the button is disabled in this case
+            | Error mess, _ ->
                 dispatch <| SetPopupDialogMemorySetup (addError (Some mess) dialogData.MemorySetup)
     let isDisabled =
         fun (model': Model) ->
@@ -1225,7 +1473,9 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
                 | Some (_,_,_,e) when e = Some msg -> ()
                 | _ -> dispatch <| SetPopupDialogMemorySetup (addError (Some msg) dialogData.MemorySetup)
             | _ -> ()
-            addressWidth < 1 || wordWidth < 1 || error <> None
+            // The widths are the boxes' business now - they carry their own bounds and say so in
+            // their own message - so what is left here is the memory's own rules about them.
+            error <> None || (paramBoxValues dialogData boxes |> Result.isError)
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 

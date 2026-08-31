@@ -1,4 +1,4 @@
-module ArrayElaborate
+﻿module ArrayElaborate
 
 (*
     ArrayElaborate.fs
@@ -67,8 +67,12 @@ let private bodyPortLabel (comp: Component) =
     // the copy, so the body label carries the number as well as the direction. The number here is
     // the one the sheet is DRAWN at, which is only an identifier: what makes it distinct is the
     // rule that two joins facing the same way may not share a channel and a number.
-    | JoinIn (_, n) -> $"{comp.Label}_in_{n}"
-    | JoinOut (_, n) -> $"{comp.Label}_out_{n}"
+    //
+    // Named by the same functions that name the array's own loose-end ports. A body port and an
+    // outline port are different things, but they are spelt the same way, and spelling it twice is
+    // how one of them changes and the other does not.
+    | JoinIn (_, n) -> joinInPortName comp.Label n
+    | JoinOut (_, n) -> joinOutPortName comp.Label n
     | _ -> comp.Label
 
 /// The array design sheet as ONE copy: an ordinary sheet.
@@ -240,9 +244,9 @@ let private wrapperOf
         : CanvasState * ParameterDefs =
     let addComp = addComp ids
     let wire = wire ids
-    let comps, _ = sheet.CanvasState
     let copies = copiesOfArray info
-    let wiring = joinsOf info sheet.LCParameterSlots sheet.CanvasState
+    let (outlineIns, outlineOuts), wiring =
+        outlinePortsOf info sheet.LCParameterSlots sheet.CanvasState
     let sheetDefs =
         sheet.LCParameterSlots |> Option.defaultValue {DefaultBindings = Map.empty; ParamSlots = Map.empty}
 
@@ -253,15 +257,6 @@ let private wrapperOf
     /// The width expression the sheet gives an array component, where it gives one.
     let widthExprOf (comp: Component) =
         tryFindSlot {CompId = comp.Id; CompSlot = IO comp.Label} sheetDefs.ParamSlots
-
-    /// The unmatched ends of one join, one port per channel - the reading arrayOutlineOf takes.
-    let looseEndsOf (ends: JoinEnd list) (comp: Component) =
-        ends
-        |> List.filter (fun e -> e.Comp.Id = comp.Id)
-        |> List.distinctBy (fun e -> e.Num)
-        |> List.sortBy (fun e -> e.Num)
-
-    let ordered = comps |> List.sortBy (fun comp -> comp.Y, comp.X)
 
 
     // ---- the copies ----
@@ -288,64 +283,56 @@ let private wrapperOf
             comp :: acc, b)
         |> fun (acc, b) -> List.rev acc |> Array.ofList, b
 
-    // ---- the sheet own ports, in outline order ----
-    // One pass over the components in (Y, X) order, because that is the order arrayOutlineOf gives
-    // the ports and the wrapper own signature has to come out as the outline its instances were
-    // given. A MuxOut contributes BOTH an input and an output, so the two passes cannot be over
-    // different things: they are over the same list, in the same order, and a mux select landing in
-    // the middle of the inputs is exactly where the outline puts it.
+    // ---- the sheet's own ports ----
+    // Which ports there are, what they are called and what the array does with each is
+    // ArrayExpand's answer, not a second opinion formed here: the sheet's SIGNATURE and the wrapper
+    // that realises it have to be the same list in the same order, and stating the rules twice is
+    // how those come to disagree. This turns each of them into a component and its wiring.
+    //
+    // The width EXPRESSION is added here rather than there because it is not part of what a port
+    // IS: it is the sheet's parameter slot for the component the port comes from, which only the
+    // expansion needs. A concatenated port is as many times as wide as one copy, so its expression
+    // is multiplied to match the width the outline already gave it.
+    let widthExprFor (p: OutlinePort) =
+        match p.Role with
+        | SelectOf _ -> None
+        | Concatenated ->
+            widthExprOf p.Comp
+            |> Option.map (fun e -> {e with Expression = PMultiply (PInt (bigint copies), e.Expression)})
+        | _ -> widthExprOf p.Comp
+
     let b =
-        ordered
-        |> List.collect (fun comp ->
-            match comp.Type with
-            // one input, driven to EVERY copy
-            | Input1 (w, _) -> [comp.Label, w, widthExprOf comp, [for i in 0 .. copies - 1 -> i, bodyIn comp]]
-            // a loose join end: this copy takes its value from outside the array
-            | JoinIn (w, _) ->
-                looseEndsOf wiring.UnmatchedIn comp
-                |> List.map (fun e -> joinInPortName comp.Label e.Num, w, widthExprOf comp, [e.Copy, bodyIn comp])
-            // a mux select. A plain number of bits and never an expression: it follows the copy
-            // count, which is a plain number on the sheet. It drives no copy - the mux reads it -
-            // so it is wired below rather than here.
-            | MuxOut _ -> [muxSelectPortName comp.Label, arraySelectWidth copies, None, []]
-            | _ -> [])
-        |> List.fold (fun b (label, w, expr, targets) ->
-            let comp, b = addComp b (Input1 (w, None)) label 0 1
-            let b = addWidthSlot b comp expr
-            targets |> List.fold (fun b (copy, port) -> wire b comp 0 copyComps[copy] port) b) b
+        (b, outlineIns)
+        ||> List.fold (fun b p ->
+            let comp, b = addComp b (Input1 (p.Width, None)) p.Name 0 1
+            let b = addWidthSlot b comp (widthExprFor p)
+            // A select drives no copy - the multiplexer reads it - so it is wired with the glue.
+            let intoCopies =
+                match p.Role with
+                | ToEveryCopy -> [0 .. copies - 1]
+                | ToCopy copy -> [copy]
+                | _ -> []
+            intoCopies |> List.fold (fun b copy -> wire b comp 0 copyComps[copy] (bodyIn p.Comp)) b)
 
     /// The select input of each MuxOut, by the MuxOut it belongs to. Found by the name it was given
     /// rather than remembered through the fold, so the two cannot drift apart.
     let selectOf (source: Component) =
         b.Comps |> List.find (fun c -> c.Label = muxSelectPortName source.Label)
 
-    // ---- the sheet own outputs, in the same order, and what drives each ----
-    let outputSpecs =
-        ordered
-        |> List.collect (fun comp ->
-            match comp.Type with
-            // an ordinary Output is one port per copy
-            | Output w ->
-                [for i in 0 .. copies - 1 -> $"{comp.Label}_{i}", w, widthExprOf comp, FromCopy (i, bodyOut comp)]
-            // the copies values concatenated: as many times as wide, so the width expression is too
-            | BusOut w ->
-                [ comp.Label, w * copies,
-                  widthExprOf comp
-                  |> Option.map (fun e -> {e with Expression = PMultiply (PInt (bigint copies), e.Expression)}),
-                  FromMerge (bodyOut comp) ]
-            | JoinOut (w, _) ->
-                looseEndsOf wiring.UnmatchedOut comp
-                |> List.map (fun e ->
-                    joinOutPortName comp.Label e.Num, w, widthExprOf comp, FromCopy (e.Copy, bodyOut comp))
-            // one multiplexer per MuxOut, reading the copy its own select names
-            | MuxOut w -> [comp.Label, w, widthExprOf comp, FromMux (bodyOut comp, selectOf comp)]
-            | _ -> [])
-
     let outputComps, b =
-        (([], b), outputSpecs)
-        ||> List.fold (fun (acc, b) (label, w, expr, driver) ->
-            let comp, b = addComp b (Output w) label 1 0
-            let b = addWidthSlot b comp expr
+        (([], b), outlineOuts)
+        ||> List.fold (fun (acc, b) p ->
+            let comp, b = addComp b (Output p.Width) p.Name 1 0
+            let b = addWidthSlot b comp (widthExprFor p)
+            let driver =
+                match p.Role with
+                // qualified: OutputDriver has a FromCopy of its own, being the same idea one step
+                // further on - which copy AND which of its ports
+                | PortRole.FromCopy copy -> OutputDriver.FromCopy (copy, bodyOut p.Comp)
+                | Concatenated -> FromMerge (bodyOut p.Comp)
+                | Multiplexed -> FromMux (bodyOut p.Comp, selectOf p.Comp)
+                | ToEveryCopy | ToCopy _ | SelectOf _ ->
+                    failwithf "%A is an input role and cannot drive the output '%s'" p.Role p.Name
             (comp, driver) :: acc, b)
         |> fun (acc, b) -> List.rev acc, b
 

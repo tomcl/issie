@@ -65,10 +65,16 @@ let rec sheetsNeeded (ldcs: LoadedComponent list) (sheet: string) : string list 
 /// diagramName: name of current open sheet.
 /// return updated list of all LDCs
 let getUpdatedLoadedComponentState diagramName canvasState projLdcs =
-    let ldc' = CanvasExtractor.extractLoadedSimulatorComponent canvasState diagramName
+    let ldcIsOpen ldc = ldc.Name = diagramName
+    // sheetFromCanvas and not extractLoadedSimulatorComponent: there IS a sheet behind this canvas
+    // - it is in projLdcs - and what its canvas cannot say has to come from there. Without it an
+    // array component being edited became an ordinary sheet with the wrong ports.
+    let ldc' =
+        projLdcs
+        |> List.tryFind ldcIsOpen
+        |> fun existing -> CanvasExtractor.sheetFromCanvas existing diagramName canvasState
 
     let ldcs =
-        let ldcIsOpen ldc = ldc.Name = diagramName
 
         projLdcs
         |> List.map (fun ldc -> if ldcIsOpen ldc then ldc' else ldc)

@@ -198,6 +198,52 @@ let joinsOf (info: ArrayInfo) (paramDefs: ParameterDefs option) (canvas: CanvasS
       UnmatchedIn = inEnds |> List.filter (fun e -> not (Map.containsKey (e.Comp.Label, e.Num) outByChannel))
       Problems = nameProblems @ outProblems @ inProblems @ negatives @ outClashes }
 
+/// The unmatched ends of one join component, in channel order so that a sheet with several loose
+/// ends lists them predictably.
+///
+/// One PORT per channel, not per end. A join whose number does not vary with the loop variable puts
+/// every copy on one channel, so every copy's end is loose on it - and a port is named after the
+/// channel, so those would be one name repeated. That sheet is already reported as wrong (each
+/// channel joins exactly two copies), and this is the best reading of it meanwhile.
+let looseEndsOf (ends: JoinEnd list) (comp: Component) =
+    ends
+    |> List.filter (fun e -> e.Comp.Id = comp.Id)
+    |> List.distinctBy (fun e -> e.Num)
+    |> List.sortBy (fun e -> e.Num)
+
+/// What the array does with one of its own ports - which is also how the wrapper must wire it.
+///
+/// The reason this is a type rather than two functions: the sheet's SIGNATURE and the wrapper that
+/// realises it are the same seven rules read two ways, and stating them twice is how a sheet's
+/// declared ports and its wrapper's actual ports come to disagree. They are stated once, here, and
+/// arrayOutlineOf takes the names and widths off them while ArrayElaborate builds the components.
+type PortRole =
+    /// an ordinary Input: one port, driven to every copy
+    | ToEveryCopy
+    /// an unmatched JoinIn: into the one copy whose end is loose
+    | ToCopy of int
+    /// a MuxOut's select input, which drives no copy - the multiplexer reads it
+    | SelectOf of Component
+    /// an ordinary Output, or an unmatched JoinOut: out of the one copy named
+    | FromCopy of int
+    /// a BusOut: every copy's value concatenated, copy 0 least significant
+    | Concatenated
+    /// a MuxOut's output: the value of whichever copy its select names, and 0 where it names none
+    | Multiplexed
+
+/// One port of an array component's outline: what it is called, how wide it is, which drawn
+/// component it comes from, and what the array does with it.
+type OutlinePort = {
+    Name: string
+    /// The width the PORT has, which is not always the width of the component it comes from: a
+    /// BusOut's port is as wide as all the copies together.
+    Width: int
+    /// The array IO component on the sheet that generates this port. What ArrayElaborate needs it
+    /// for is the width EXPRESSION of that component, which is keyed by component id.
+    Comp: Component
+    Role: PortRole
+}
+
 /// The ports an array design sheet has, and what is wrong with the sheet if anything.
 ///
 /// DERIVED from the sheet's contents and its copy count, rather than being its Input1 and Output
@@ -206,62 +252,60 @@ let joinsOf (info: ArrayInfo) (paramDefs: ParameterDefs option) (canvas: CanvasS
 /// sheet, so this is a fact about the SHEET, exactly as an ordinary sheet's ports are.
 ///
 /// Ports come in the (Y, X) order of the components that generate them - the order
-/// getOrderedCompLabels already uses - with the multiplexers' ports last, in the order they are
-/// declared in the sheet's settings.
+/// getOrderedCompLabels already uses. A MuxOut contributes BOTH an input and an output, so the two
+/// lists are over the same components in the same order and a mux select lands in the middle of the
+/// inputs, which is exactly where the outline puts it.
 ///
 /// The canvas passed in must already be resolved at whatever bindings are wanted, as
 /// signatureOfInstance resolves it: the widths here are read off the components.
-let arrayOutlineOf
+let outlinePortsOf
         (info: ArrayInfo)
         (paramDefs: ParameterDefs option)
         (canvas: CanvasState)
-        : ((string * int) list * (string * int) list) * string list =
+        : (OutlinePort list * OutlinePort list) * JoinWiring =
     let comps, _ = canvas
     let copies = copiesOfArray info
     let wiring = joinsOf info paramDefs canvas
-
-    /// The unmatched ends of one join component, in channel order so that a sheet with several
-    /// loose ends lists them predictably.
-    ///
-    /// One PORT per channel, not per end. A join whose number does not vary with the loop variable
-    /// puts every copy on one channel, so every copy's end is loose on it - and a port is named
-    /// after the channel, so those would be one name repeated. That sheet is already reported as
-    /// wrong (each channel joins exactly two copies), and this is the best reading of it meanwhile.
-    let looseEndsOf (ends: JoinEnd list) (comp: Component) =
-        ends
-        |> List.filter (fun e -> e.Comp.Id = comp.Id)
-        |> List.distinctBy (fun e -> e.Num)
-        |> List.sortBy (fun e -> e.Num)
-
     let ordered = comps |> List.sortBy (fun comp -> comp.Y, comp.X)
+    let port name width comp role = { Name = name; Width = width; Comp = comp; Role = role }
 
     let inputs =
         ordered
         |> List.collect (fun comp ->
             match comp.Type with
-            // an ordinary Input goes to EVERY copy, so it is one port however many copies there are
-            | Input1 (w, _) -> [comp.Label, w]
+            | Input1 (w, _) -> [port comp.Label w comp ToEveryCopy]
             | JoinIn (w, _) ->
                 looseEndsOf wiring.UnmatchedIn comp
-                |> List.map (fun e -> joinInPortName comp.Label e.Num, w)
-            // a MuxOut reads one copy's value back, so the select saying which copy is an input
-            | MuxOut _ -> [muxSelectPortName comp.Label, arraySelectWidth copies]
+                |> List.map (fun e -> port (joinInPortName comp.Label e.Num) w comp (ToCopy e.Copy))
+            // A plain number of bits and never an expression: it follows the copy count, which is a
+            // plain number on the sheet.
+            | MuxOut _ -> [port (muxSelectPortName comp.Label) (arraySelectWidth copies) comp (SelectOf comp)]
             | _ -> [])
 
     let outputs =
         ordered
         |> List.collect (fun comp ->
             match comp.Type with
-            // an ordinary Output is one port PER COPY
-            | Output w -> [for i in 0 .. copies - 1 -> $"{comp.Label}_{i}", w]
-            // the copies' values concatenated, copy 0 least significant
-            | BusOut w -> [comp.Label, w * copies]
+            | Output w -> [for i in 0 .. copies - 1 -> port $"{comp.Label}_{i}" w comp (FromCopy i)]
+            | BusOut w -> [port comp.Label (w * copies) comp Concatenated]
             | JoinOut (w, _) ->
                 looseEndsOf wiring.UnmatchedOut comp
-                |> List.map (fun e -> joinOutPortName comp.Label e.Num, w)
-            // the value of whichever copy the select names, and 0 where it names none
-            | MuxOut w -> [comp.Label, w]
+                |> List.map (fun e -> port (joinOutPortName comp.Label e.Num) w comp (FromCopy e.Copy))
+            | MuxOut w -> [port comp.Label w comp Multiplexed]
             | _ -> [])
+
+    (inputs, outputs), wiring
+
+/// The array component's ports as names and widths - what every sheet signature is - and what is
+/// wrong with the sheet if anything.
+let arrayOutlineOf
+        (info: ArrayInfo)
+        (paramDefs: ParameterDefs option)
+        (canvas: CanvasState)
+        : ((string * int) list * (string * int) list) * string list =
+    let (inPorts, outPorts), wiring = outlinePortsOf info paramDefs canvas
+    let named (ports: OutlinePort list) = ports |> List.map (fun p -> p.Name, p.Width)
+    let inputs, outputs = named inPorts, named outPorts
 
     /// Every port name the sheet derives, and the ones it derives twice.
     ///

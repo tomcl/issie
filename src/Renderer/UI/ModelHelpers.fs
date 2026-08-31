@@ -951,10 +951,10 @@ let simulateModel (localBuild: bool) (isWaveSim: bool) (simulatedSheet: string o
         Error (Simulator.makeDummySimulationError "What - Internal Simulation Error starting simulation - I don't think this can happen!"), openSheetCanvasState
     | canvasState, Some project ->
         let simSheet = Option.defaultValue project.OpenFileName simulatedSheet
-        let otherComponents = 
-            project.LoadedComponents 
-            |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-        (canvasState, otherComponents)
+        // the whole design, the open sheet included: prepareSimulationMemoized replaces that
+        // sheet's canvas with the one drawn, and what a canvas cannot say - parameters, top sheet,
+        // array settings - it can only carry forward from the copy already in the list
+        (canvasState, project.LoadedComponents)
         ||> Simulator.prepareSimulationMemoized localBuild isWaveSim simulationArraySize project.OpenFileName simSheet 
         |> TimeHelpers.instrumentInterval "MakeSimData" start
 
@@ -984,9 +984,13 @@ let simulateModel (localBuild: bool) (isWaveSim: bool) (simulatedSheet: string o
 /// saved, and until it finishes the project's own copy of that sheet is the version BEFORE the
 /// edit. Walking the stale copy is how a component renamed on the canvas would be saved under the
 /// name it no longer has.
+/// The whole list goes in, INCLUDING the sheet being replaced: addStateToLoadedComponents replaces
+/// it itself, and everything about the sheet that its canvas does not say - its parameters, whether
+/// it is the top sheet, and whether it is an array component - it can only carry forward from the
+/// copy already there. Filtering first left an array component looking like an ordinary sheet for
+/// as long as it was the sheet being edited, so its ports came out wrong and it was never expanded.
 let designWithSheet (project: Project) (sheet: string) (canvasState: CanvasState) =
     project.LoadedComponents
-    |> List.filter (fun comp -> comp.Name <> sheet)
     |> CanvasExtractor.addStateToLoadedComponents sheet canvasState
 
 /// The design as the simulator sees it: the open sheet as it is on the canvas now, and every other

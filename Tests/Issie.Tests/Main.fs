@@ -15,6 +15,7 @@ let main argv =
         TruthTableSimTests.tests
         ParameterScenarios.tests
         ArraySheets.tests
+        SheetIdentity.tests
         ComponentSemantics.tests
         GoldenModel.tests
         LookupArrayTests.tests

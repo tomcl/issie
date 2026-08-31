@@ -50,6 +50,7 @@
     <Compile Include="VerilogCompiler.fs" />
     <Compile Include="SourceHygiene.fs" />
     <Compile Include="CarrierTests.fs" />
+    <Compile Include="SheetIdentity.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
 

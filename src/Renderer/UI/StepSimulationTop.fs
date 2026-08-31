@@ -48,8 +48,10 @@ let viewSimulation canvasState model dispatch =
         |> dispatch
         match model.CurrentProj with
         | Some project ->
-            let loadedDependencies = project.LoadedComponents |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-            let ldcs = addStateToLoadedComponents simCache.Name canvasState loadedDependencies
+            // the whole list, not the open sheet filtered out of it: addStateToLoadedComponents
+            // replaces the named sheet itself, and what a canvas cannot say - parameters, top
+            // sheet, array settings - it carries forward from the copy already in the list
+            let ldcs = addStateToLoadedComponents simCache.Name canvasState project.LoadedComponents
             simCache <- {simCache with StoredState = ldcs}
         | None -> ()
 
@@ -60,8 +62,7 @@ let viewSimulation canvasState model dispatch =
         : bool = 
         match model.CurrentProj with
         | Some project ->
-            let loadedDependencies = project.LoadedComponents |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-            let ldcs = addStateToLoadedComponents simCache.Name currentCanvasState loadedDependencies
+            let ldcs = addStateToLoadedComponents simCache.Name currentCanvasState project.LoadedComponents
             let isSame = storedstateisEqual simCache ldcs
             not isSame
         | _ -> false

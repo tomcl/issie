@@ -280,26 +280,56 @@ let parseDiagramSignatureFor
 let parseDiagramSignature canvasState : (string * int) list * (string * int) list =
     parseDiagramSignatureFor None None canvasState
 
-/// extract the fields compared to check circuit equality
-let extractLoadedSimulatorComponent (canvas: CanvasState) (name: string) =
-    let inputs, outputs = parseDiagramSignature canvas
-    let ldc =
-        { Name = name
-          TimeStamp = System.DateTime.Now
-          WaveInfo = None
-          FilePath = ""
-          CanvasState = canvas
-          InputLabels = inputs
-          OutputLabels = outputs
-          Form = None
-          Description = None
-          LCParameterSlots = None // Parameter slots will be set by the sheet's parameter system
-          LoadedComponentIsOutOfDate = false
-          IsTopSheet = false
-          ArrayInfo = None
-          }
+/// A sheet rebuilt from a canvas: everything the canvas says, and everything it cannot say taken
+/// from the copy already held.
+///
+/// **THE one place that splits a LoadedComponent's fields between those two.** A sheet is more than
+/// its canvas - its array settings say how many copies its components are and give it ports no
+/// component on it draws, its parameters give those ports their widths, and being the top sheet
+/// decides which design is simulated - and Issie rebuilds sheets from canvases in several places.
+/// Three of them dropped all of that and produced an ordinary sheet where an array component had
+/// been, with the wrong ports and no expansion. Written once so that there is one place to be
+/// right, and Tests/Issie.Tests/SheetIdentity.fs holds the two halves to the whole record.
+///
+/// `existing` is None only where there genuinely is no sheet behind the canvas.
+let sheetFromCanvas (existing: LoadedComponent option) (name: string) (canvas: CanvasState) =
+    // The kind of sheet this is decides how its ports are READ, so the carried fields are needed
+    // before the rest: an array component's ports are derived from its array settings and their
+    // widths from its parameters, neither of which is listed on its canvas.
+    let inputs, outputs =
+        parseDiagramSignatureFor
+            (existing |> Option.bind (fun e -> e.ArrayInfo))
+            (existing |> Option.bind (fun e -> e.LCParameterSlots))
+            canvas
+    { Name = name
+      CanvasState = canvas
+      InputLabels = inputs
+      OutputLabels = outputs
 
-    ldc
+      // Only the sheet's own copy can say these, and losing one yields a DIFFERENT sheet that
+      // happens to be drawn the same way.
+      LCParameterSlots = existing |> Option.bind (fun e -> e.LCParameterSlots)
+      IsTopSheet = existing |> Option.map (fun e -> e.IsTopSheet) |> Option.defaultValue false
+      ArrayInfo = existing |> Option.bind (fun e -> e.ArrayInfo)
+
+      // this sheet is BEING built from the canvas, so by construction it matches it
+      LoadedComponentIsOutOfDate = false
+      TimeStamp = System.DateTime.Now
+      // Deliberately not carried. This copy is made to be simulated and compared, never written:
+      // FilePath and WaveInfo belong to the file, Form to the library machinery and Description to
+      // the properties pane, and none of the four changes what circuit this is. A path that means
+      // to SAVE a sheet goes through the project's own copy of it.
+      FilePath = ""
+      WaveInfo = None
+      Form = None
+      Description = None }
+
+/// extract the fields compared to check circuit equality
+///
+/// No sheet behind the canvas, so nothing to carry: every caller that HAS one should be calling
+/// sheetFromCanvas with it.
+let extractLoadedSimulatorComponent (canvas: CanvasState) (name: string) =
+    sheetFromCanvas None name canvas
 
 /// Put a sheet's parameter slots in order against its canvas, ready to be saved:
 ///
@@ -507,31 +537,20 @@ let loadedComponentIsSameAsProject (canvasState: CanvasState) (ldc: LoadedCompon
         |> Option.map (fun ldc' -> ldcIsEq ldc' ldc)
         |> Option.defaultValue false
 
-/// add given name,state to loadedcomponent list as a loaded component (overwriting existing if needed)
+/// Add given name,state to loadedcomponent list as a loaded component (overwriting existing if
+/// needed).
+///
+/// **Give it the WHOLE design, the named sheet included.** It replaces that sheet itself, and
+/// everything about a sheet that its canvas does not say - its parameters, whether it is the top
+/// sheet, and whether it is an ARRAY COMPONENT - can only be carried forward from the copy already
+/// in the list. Callers used to filter the sheet out first, which made this lookup dead: while an
+/// array component was the sheet being edited, every design built from the model said it was an
+/// ordinary sheet, so its ports came out as its drawn IO alone and it was never expanded.
 let addStateToLoadedComponents openFileName canvasState loadedComponents =
-    let existingLdc = loadedComponents |> List.tryFind (fun ldc -> ldc.Name = openFileName)
-    // the open sheet keeps whatever kind of sheet it already was, so its ports are read the same way
-    let ins, outs =
-        parseDiagramSignatureFor
-            (existingLdc |> Option.bind (fun e -> e.ArrayInfo))
-            (existingLdc |> Option.bind (fun e -> e.LCParameterSlots))
-            canvasState
-
-    let ldc: LoadedComponent =
-        { Name = openFileName
-          LoadedComponentIsOutOfDate = false
-          InputLabels = ins
-          OutputLabels = outs
-          CanvasState = canvasState
-          Form = None
-          Description = None
-          WaveInfo = None
-          FilePath = ""
-          TimeStamp = System.DateTime.Now
-          LCParameterSlots = existingLdc |> Option.map (fun e -> e.LCParameterSlots) |> Option.flatten
-          IsTopSheet = existingLdc |> Option.map (fun e -> e.IsTopSheet) |> Option.defaultValue false
-          ArrayInfo = existingLdc |> Option.bind (fun e -> e.ArrayInfo)
-         }
+    let ldc =
+        loadedComponents
+        |> List.tryFind (fun ldc -> ldc.Name = openFileName)
+        |> fun existing -> sheetFromCanvas existing openFileName canvasState
 
     loadedComponents
     |> List.filter (fun ldc -> ldc.Name <> openFileName)

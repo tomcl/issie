@@ -794,6 +794,37 @@ let checkComponentNamesAreOk ((comps, conns): CanvasState) =
             comps
             |> List.map (fun comp -> comp.Id) })
 
+/// The IO of an array design sheet, on a sheet that is not one.
+///
+/// By the time a canvas reaches here, every array design sheet has been replaced by the two
+/// ordinary sheets it expands to (ArrayElaborate) - so a BusOut, an ArrayOut or a join surviving to
+/// this point is one on a sheet with no array settings, where there are no copies for it to mean
+/// anything about. That is how a component pasted onto an ordinary sheet, or left behind when a
+/// sheet stopped being an array sheet, is caught.
+///
+/// ArrayMerge and ArrayMux are deliberately not refused: expansion MAKES them, so they are
+/// perfectly legal here. What keeps them off a user's sheet is that the catalogue does not offer
+/// them and nothing can place one.
+let private checkArrayIOIsOnAnArraySheet ((comps, _): CanvasState) : SimulationError option =
+    comps
+    |> List.filter (fun comp ->
+        match comp.Type with
+        | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ -> true
+        | _ -> false)
+    |> function
+       | [] -> None
+       | bad ->
+            let names = bad |> List.map (fun c -> $"'{c.Label}'") |> String.concat ", "
+            Some
+                { ErrType =
+                    GenericSimError
+                        $"{names}: this component says how the copies of an ARRAY DESIGN SHEET join \
+                          up, and can only be on one. Either make this sheet an array sheet from the \
+                          right-click menu on its background, or delete the component."
+                  InDependency = None
+                  ConnectionsAffected = []
+                  ComponentsAffected = bad |> List.map (fun c -> c.Id) }
+
 /// Analyse a CanvasState and return any error (or None).
 let analyseState
     (state: CanvasState)
@@ -804,6 +835,7 @@ let analyseState
     [ checkPortTypesAreConsistent state
       checkPortsAreConnectedProperly state
       checkIOLabels state
+      checkArrayIOIsOnAnArraySheet state
       checkCustomComponentsOk state ldComps
       widthErr
       checkComponentNamesAreOk state

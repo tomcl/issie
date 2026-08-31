@@ -116,73 +116,18 @@ type private OutputDriver =
     /// generated select inputs drives it
     | FromMux of BodyPort: int * SelectIndex: int
 
-/// The wrapper as it is being put together.
+/// A source of ids for the components, ports and connections the expansion makes.
 ///
-/// Components carry a position because a sheet's ports are read off its Input1 and Output
-/// components in (Y, X) order: laying them down in the order they are made is what makes the
-/// wrapper's own signature come out as the outline its instances were given.
-type private Build = {
-    /// Ids handed out from above every id the design already uses, densely and in order.
-    ///
-    /// NOT from Helpers.IdAllocator, which is global mutable state that is never freed: expansion
-    /// runs on every build, so an allocator would grow without bound, and a pure function that
-    /// gives the same design the same ids twice is what lets one simulation be compared with the
-    /// one before it. Dense and positive because FastCreate indexes arrays by the raw integer: a
-    /// negative id throws under .NET and silently corrupts the build under Fable, and a sparse one
-    /// allocates an array as long as the largest id in it.
-    NextComp: int
-    NextPort: int
-    NextConn: int
-    /// Newest first, reversed when the build is finished.
-    Comps: Component list
-    Conns: Connection list
-    Slots: ComponentSlotExpr
-    /// How far down the sheet the next component goes.
-    Row: int
+/// Handing out ids IS state: each one must differ from the last. It is confined to withIdSource
+/// below - the counters are locals of that one function, reachable only through these three
+/// functions and only while it runs - so nothing else in Issie can hold one, reset one, or hand out
+/// an id after the expansion that owns it has finished. Both the type and the function are private,
+/// so what may be inside that scope is one function long and can be read in one go.
+type private IdSource = {
+    NewComp: unit -> ComponentId
+    NewPort: unit -> PortId
+    NewConn: unit -> ConnectionId
 }
-
-let private addComp (b: Build) (compType: ComponentType) (label: string) (nIn: int) (nOut: int) =
-    let id = ComponentId b.NextComp
-    let ports first n portType =
-        [ for i in 0 .. n - 1 ->
-            { Id = PortId (b.NextPort + first + i)
-              PortNumber = Some i
-              PortType = portType
-              HostId = id } ]
-    let comp =
-        { Id = id
-          Type = compType
-          Label = label
-          InputPorts = ports 0 nIn PortType.Input
-          OutputPorts = ports nIn nOut PortType.Output
-          X = 0.
-          Y = float (b.Row * 100)
-          H = 30.
-          W = 60.
-          SymbolInfo = None
-          SlotInfo = None }
-    comp,
-    { b with
-        NextComp = b.NextComp + 1
-        NextPort = b.NextPort + nIn + nOut
-        Comps = comp :: b.Comps
-        Row = b.Row + 1 }
-
-let private wire (b: Build) (src: Component) (srcPort: int) (tgt: Component) (tgtPort: int) =
-    let conn =
-        { Id = ConnectionId b.NextConn
-          Source = { src.OutputPorts[srcPort] with PortNumber = None }
-          Target = { tgt.InputPorts[tgtPort] with PortNumber = None }
-          Vertices = [] }
-    { b with NextConn = b.NextConn + 1; Conns = conn :: b.Conns }
-
-/// Give a generated port the width expression its array component had, where it had one. Without
-/// this an instance binding a width would resize the copies and leave the array's own ports as
-/// they were.
-let private addWidthSlot (b: Build) (comp: Component) (expr: ConstrainedExpr option) =
-    match expr with
-    | None -> b
-    | Some e -> { b with Slots = addSlot {CompId = comp.Id; CompSlot = IO comp.Label} e b.Slots }
 
 /// The largest id of each kind anywhere in the design, so that generated ones can start above them.
 let private firstFreeIds (ldcs: LoadedComponent list) =
@@ -195,15 +140,100 @@ let private firstFreeIds (ldcs: LoadedComponent list) =
         snd ldc.CanvasState |> List.map (fun c -> let (ConnectionId n) = c.Id in n)
     maxOf comps + 1, maxOf ports + 1, maxOf conns + 1
 
+/// Run `body` with a source of ids starting above every id the design already uses.
+///
+/// The counters live and die here, which is the whole point of the shape: an expansion cannot
+/// outlive its ids and nothing outside can reach them. Deterministic despite being state - the same
+/// design makes the same calls in the same order, so it gets the same ids twice, which is what lets
+/// one simulation of a design be compared with the one before it.
+///
+/// NOT Helpers.IdAllocator, which is the design's own and is never freed: expansion runs on every
+/// build, so taking ids from it would consume that namespace without bound and break the density
+/// its own users depend on.
+///
+/// Dense and positive because FastCreate indexes arrays by the raw integer id: a negative one
+/// throws under .NET and silently corrupts the build under Fable, and a sparse one allocates an
+/// array as long as the largest id in it.
+let private withIdSource (ldcs: LoadedComponent list) (body: IdSource -> 'a) : 'a =
+    let firstComp, firstPort, firstConn = firstFreeIds ldcs
+    // ref cells rather than `let mutable`, which F# will not let a closure capture
+    let comp = ref firstComp
+    let port = ref firstPort
+    let conn = ref firstConn
+    let next (counter: int ref) =
+        let taken = counter.Value
+        counter.Value <- taken + 1
+        taken
+    body
+        { NewComp = fun () -> ComponentId (next comp)
+          NewPort = fun () -> PortId (next port)
+          NewConn = fun () -> ConnectionId (next conn) }
+
+/// The wrapper as it is being put together.
+///
+/// Components carry a position because a sheet's ports are read off its Input1 and Output
+/// components in (Y, X) order: laying them down in the order they are made is what makes the
+/// wrapper's own signature come out as the outline its instances were given.
+type private Build = {
+    /// Newest first, reversed when the build is finished.
+    Comps: Component list
+    Conns: Connection list
+    Slots: ComponentSlotExpr
+    /// How far down the sheet the next component goes.
+    Row: int
+}
+
+let private emptyBuild = { Comps = []; Conns = []; Slots = Map.empty; Row = 0 }
+
+let private addComp (ids: IdSource) (b: Build) (compType: ComponentType) (label: string) (nIn: int) (nOut: int) =
+    let id = ids.NewComp ()
+    let ports n portType =
+        [ for i in 0 .. n - 1 ->
+            { Id = ids.NewPort ()
+              PortNumber = Some i
+              PortType = portType
+              HostId = id } ]
+    let comp =
+        { Id = id
+          Type = compType
+          Label = label
+          InputPorts = ports nIn PortType.Input
+          OutputPorts = ports nOut PortType.Output
+          X = 0.
+          Y = float (b.Row * 100)
+          H = 30.
+          W = 60.
+          SymbolInfo = None
+          SlotInfo = None }
+    comp, { b with Comps = comp :: b.Comps; Row = b.Row + 1 }
+
+let private wire (ids: IdSource) (b: Build) (src: Component) (srcPort: int) (tgt: Component) (tgtPort: int) =
+    let conn =
+        { Id = ids.NewConn ()
+          Source = { src.OutputPorts[srcPort] with PortNumber = None }
+          Target = { tgt.InputPorts[tgtPort] with PortNumber = None }
+          Vertices = [] }
+    { b with Conns = conn :: b.Conns }
+
+/// Give a generated port the width expression its array component had, where it had one. Without
+/// this an instance binding a width would resize the copies and leave the array's own ports as
+/// they were.
+let private addWidthSlot (b: Build) (comp: Component) (expr: ConstrainedExpr option) =
+    match expr with
+    | None -> b
+    | Some e -> { b with Slots = addSlot {CompId = comp.Id; CompSlot = IO comp.Label} e b.Slots }
+
 /// The wrapper: n instances of the body, wired up, with the sheet's derived ports and the glue
-/// that makes them. Returns the canvas, the parameter data it declares, and the ids left over.
+/// that makes them. Returns the canvas and the parameter data it declares.
 let private wrapperOf
+        (ids: IdSource)
         (sheet: LoadedComponent)
         (info: ArrayInfo)
         (bodyName: string)
         ((bodyIns, bodyOuts): (string * int) list * (string * int) list)
-        (start: Build)
-        : CanvasState * ParameterDefs * Build =
+        : CanvasState * ParameterDefs =
+    let addComp = addComp ids
+    let wire = wire ids
     let comps, _ = sheet.CanvasState
     let copies = copiesOfArray info
     let wiring = joinsOf info sheet.LCParameterSlots sheet.CanvasState
@@ -247,7 +277,7 @@ let private wrapperOf
         |> Map.add info.LoopParam (PInt (bigint i))
 
     let copyComps, b =
-        (([], start), [0 .. copies - 1])
+        (([], emptyBuild), [0 .. copies - 1])
         ||> List.fold (fun (acc, b) i ->
             let ct =
                 Custom
@@ -345,8 +375,7 @@ let private wrapperOf
             wire b copyComps[outEnd.Copy] (bodyOut outEnd.Comp) copyComps[inEnd.Copy] (bodyIn inEnd.Comp)) b
 
     (List.rev b.Comps, List.rev b.Conns),
-    { DefaultBindings = sheetDefs.DefaultBindings; ParamSlots = b.Slots },
-    b
+    { DefaultBindings = sheetDefs.DefaultBindings; ParamSlots = b.Slots }
 
 //-------------------------------------------------------------------------------------------//
 //------------------------------------THE WHOLE PASS-----------------------------------------//
@@ -369,19 +398,17 @@ let private bodyNameProblems (sheetName: string) ((comps, _): CanvasState) =
           rename one of them")
 
 /// Every array design sheet replaced by the two ordinary sheets it expands to, and everything that
-/// is wrong with any of them.
+/// is wrong with any of them - each problem paired with the sheet it is about, so that a caller can
+/// tell which of them the design being simulated actually depends on.
 ///
 /// After this the simulator has never seen an array sheet: BusOut, ArrayOut, JoinOut and JoinIn are
 /// gone from every canvas, and what is left is custom components, wires and the two array glue
 /// types. That is why the evaluators, the truth table and the dependency machinery need no part in
 /// this, and why the wave selector shows the copies without being told about arrays.
-let expandArraySheets (ldcs: LoadedComponent list) : LoadedComponent list * string list =
-    let nextComp, nextPort, nextConn = firstFreeIds ldcs
-    let start =
-        { NextComp = nextComp; NextPort = nextPort; NextConn = nextConn
-          Comps = []; Conns = []; Slots = Map.empty; Row = 0 }
+let expandArraySheets (ldcs: LoadedComponent list) : LoadedComponent list * (string * string) list =
+    withIdSource ldcs (fun ids ->
 
-    let expandOne (b: Build) (sheet: LoadedComponent) (info: ArrayInfo) =
+    let expandOne (sheet: LoadedComponent) (info: ArrayInfo) =
         let copies = copiesOfArray info
         let sizeProblems =
             if info.EndValue < 0 then
@@ -393,7 +420,7 @@ let expandArraySheets (ldcs: LoadedComponent list) : LoadedComponent list * stri
         | _ :: _ ->
             // nothing can be built from a copy count that makes no sense, so the sheet is passed
             // through as it is and the message is what the caller acts on
-            [sheet], sizeProblems, b
+            [sheet], sizeProblems |> List.map (fun msg -> sheet.Name, msg)
         | [] ->
             let bodyCanvas = bodyCanvasOf sheet.CanvasState
             let bodyIns, bodyOuts = CanvasExtractor.parseDiagramSignature bodyCanvas
@@ -408,7 +435,7 @@ let expandArraySheets (ldcs: LoadedComponent list) : LoadedComponent list * stri
                     ArrayInfo = None
                     // the body is not a sheet of the project and is never its top
                     IsTopSheet = false }
-            let canvas, defs, b = wrapperOf sheet info bodyName (bodyIns, bodyOuts) b
+            let canvas, defs = wrapperOf ids sheet info bodyName (bodyIns, bodyOuts)
             let wrapperIns, wrapperOuts = CanvasExtractor.parseDiagramSignature canvas
             let wrapper =
                 { sheet with
@@ -421,15 +448,14 @@ let expandArraySheets (ldcs: LoadedComponent list) : LoadedComponent list * stri
             let _, problems = ArrayExpand.arrayOutlineOf info sheet.LCParameterSlots sheet.CanvasState
             [wrapper; body],
             (problems @ bodyNameProblems sheet.Name sheet.CanvasState
-             |> List.map (fun msg -> $"array design sheet '{sheet.Name}': {msg}")),
-            b
+             |> List.map (fun msg -> sheet.Name, $"array design sheet '{sheet.Name}': {msg}"))
 
-    ((([], []), start), ldcs)
-    ||> List.fold (fun ((sheets, problems), b) ldc ->
+    (([], []), ldcs)
+    ||> List.fold (fun (sheets, problems) ldc ->
         match ldc.ArrayInfo with
-        | None -> (ldc :: sheets, problems), b
+        | None -> ldc :: sheets, problems
         | Some info ->
-            let made, newProblems, b = expandOne b ldc info
+            let made, newProblems = expandOne ldc info
             // the wrapper keeps the sheet's place in the list; the body follows it
-            ((List.rev made) @ sheets, problems @ newProblems), b)
-    |> fun ((sheets, problems), _) -> List.rev sheets, problems
+            (List.rev made) @ sheets, problems @ newProblems)
+    |> fun (sheets, problems) -> List.rev sheets, problems)

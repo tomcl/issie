@@ -202,8 +202,31 @@ let private expandArrayDesign
     | false -> Ok (canvasState, loadedDependencies)
     | true ->
         let expanded, problems = ArrayElaborate.expandArraySheets loadedDependencies
-        match problems with
-        | msg :: _ ->
+
+        /// The sheets this design actually uses, by name.
+        ///
+        /// A broken array sheet somewhere else in the project must not stop a design that does not
+        /// instantiate it - which is the rule checkDependenciesAndBuildMap already follows for
+        /// every other kind of error in a sheet. Walked over the sheets as they were BEFORE
+        /// expansion, since that is what the problems are named after; a sheet that is missing is
+        /// no error here, and is reported as DependencyNotFound where that is what it means.
+        let rec reach (seen: Set<string>) (comps: Component list) =
+            comps
+            |> List.choose (fun comp -> match comp.Type with | Custom cc -> Some cc.Name | _ -> None)
+            |> List.fold (fun seen name ->
+                match Set.contains name seen with
+                | true -> seen
+                | false ->
+                    loadedDependencies
+                    |> List.tryFind (fun ldc -> ldc.Name = name)
+                    |> function
+                       | None -> Set.add name seen
+                       | Some ldc -> reach (Set.add name seen) (fst ldc.CanvasState)) seen
+
+        let used = reach (Set.singleton diagramName) (fst canvasState)
+
+        match problems |> List.filter (fun (sheet, _) -> Set.contains sheet used) with
+        | (_, msg) :: _ ->
             Error
                 { ErrType = GenericSimError msg
                   InDependency = None

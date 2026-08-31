@@ -250,6 +250,15 @@ let private startPlacement (placeMsg: SheetT.Msg) (model: Model) dispatch =
     | _ -> ()
 
 let private createComponent compType label createParam model dispatch =
+    // The IO that says how the copies of an array design sheet join up belongs only on one. The
+    // catalogue does not offer these anywhere else, so this cannot be reached from the UI as it
+    // stands - it is here because every placement comes through this one function, which is the
+    // only way to be sure a later one is refused too. Simulating a sheet that got one some other
+    // way is refused by CanvasStateAnalyser, which is where a paste is caught.
+    if ModelHelpers.isArrayOnlyComponent compType && (ModelHelpers.openSheetArrayInfo model).IsNone then
+        dispatch EndDragPlacement
+    else
+
     startPlacement
         (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, compType, label, createParam))
         model dispatch

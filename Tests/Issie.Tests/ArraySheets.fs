@@ -491,4 +491,72 @@ let private expansionTests =
         }
     ]
 
-let tests = testList "ArraySheets" [ joinTests; outlineTests; expansionTests ]
+//-------------------------------------------------------------------------------------------//
+//--------------------------------------THE REFUSALS-----------------------------------------//
+//-------------------------------------------------------------------------------------------//
+
+/// Simulate a design and give back whatever it complained about.
+let private simError (top: LoadedComponent) (deps: LoadedComponent list) =
+    match Simulator.startCircuitSimulation maxArraySize top.Name top.CanvasState (top :: deps) with
+    | Ok _ -> None
+    | Error e -> Some (SimGraphTypes.errMsg e.ErrType)
+
+let private refusalTests =
+    testList "refusals" [
+        test "array IO on a sheet that is not an array sheet is refused, and says what to do" {
+            // the state a paste onto an ordinary sheet leaves, and the state a sheet is in when its
+            // array settings are taken away while its array components are still on it
+            let inp = makeComp 1 0 1 (Input1(1, None)) "A"
+            let bad = makeComp 2 1 0 (BusOut 1) "B"
+            let top = makeLdc "plain" None (stacked [ inp; bad ], [ conn inp 0 bad 0 ])
+            match simError top [] with
+            | None -> failtest "array IO on an ordinary sheet must be refused"
+            | Some msg ->
+                Expect.stringContains msg "'B'" "the message names the component"
+                Expect.stringContains msg "ARRAY DESIGN SHEET" "and says what kind of sheet it needs"
+                Expect.stringContains msg "right-click" "and where to make one"
+        }
+
+        test "the same components are fine on an array sheet, which is the point" {
+            let parent, sheet = rippleParent 2
+            Expect.isNone (simError parent [ sheet ]) "an array sheet's own IO is not an error on it"
+        }
+
+        test "a broken array sheet is refused when the design uses it" {
+            let parent, sheet = rippleParent 2
+            let broken = { sheet with ArrayInfo = Some (arrayInfo -1 []) }
+            match simError parent [ broken ] with
+            | None -> failtest "a copy count that makes no sense must be refused"
+            | Some msg -> Expect.stringContains msg "before it starts" "and the message must say why"
+        }
+
+        test "a broken array sheet elsewhere in the project does not stop an unrelated design" {
+            // the rule every other kind of error in a sheet already follows: only the sheets the
+            // design reaches are checked, so one being worked on cannot block another being run
+            let inp = makeComp 1 0 1 (Input1(1, None)) "A"
+            let outp = makeComp 2 1 0 (Output 1) "B"
+            let plain = makeLdc "plain" None (stacked [ inp; outp ], [ conn inp 0 outp 0 ])
+            let broken = { rippleSheet 2 with ArrayInfo = Some (arrayInfo -1 []) }
+            Expect.isNone (simError plain [ broken ])
+                "a design that instantiates nothing is not affected by a sheet it does not use"
+        }
+
+        test "an array sheet can be simulated while it is open" {
+            // the first thing anyone will do with one, so it must give the array's own hardware
+            // rather than an error about the sheet not being a design
+            let sheet = rippleSheet 4
+            match Simulator.startCircuitSimulation maxArraySize sheet.Name sheet.CanvasState [ sheet ] with
+            | Error e -> failtestf "simulating an array sheet directly: %A" (SimGraphTypes.errMsg e.ErrType)
+            | Ok simData ->
+                // as sets: getSimulationIOs builds its lists with cons, so what it gives back is
+                // the canvas order reversed rather than the sheet's port order. That the wrapper's
+                // PORTS come out in outline order is pinned in the expansion tests, which read them
+                // the way every sheet's are read.
+                let ins = simData.Inputs |> List.map (fun (_, ComponentLabel l, _) -> l) |> Set.ofList
+                let outs = simData.Outputs |> List.map (fun (_, ComponentLabel l, _) -> l) |> Set.ofList
+                Expect.equal ins (Set [ "A"; "B"; "C_in_0" ]) "its inputs are the array's own"
+                Expect.equal outs (Set [ "SUM"; "C_out_4" ]) "and so are its outputs"
+        }
+    ]
+
+let tests = testList "ArraySheets" [ joinTests; outlineTests; expansionTests; refusalTests ]

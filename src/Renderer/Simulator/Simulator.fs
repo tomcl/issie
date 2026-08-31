@@ -97,8 +97,10 @@ let getCurrentSimulationState
     | None -> SimNoProject
     | _ when fs.SimulatedTopSheet = "" -> SimEmpty
     | Some p ->
+        // DesignAsDrawn, not the simulated sheets: an expanded array component is a wrapper and a
+        // body, and the project holds neither of them. See SimulatedDesign.DesignAsDrawn.
         let simIsUpToDate =
-            fs.SimulatedCanvasState
+            fs.Design.DesignAsDrawn
             |> List.forall (fun ldc ->
                 match
                     p.OpenFileName = ldc.Name,
@@ -133,10 +135,16 @@ let saveStateInSimulation
     (canvasState: CanvasState)
     (openFileName: string)
     (loadedComponents: LoadedComponent list)
+    /// The same design as the PROJECT holds it, before any array component was expanded - the only
+    /// form in which "has this been edited since?" can be asked. See SimulatedDesign.DesignAsDrawn.
+    ((drawnCanvasState, drawnComponents): CanvasState * LoadedComponent list)
     (fs: FastSimulation)
     =
     let diagramName = openFileName
     let ldcs = getUpdatedLoadedComponentState diagramName canvasState loadedComponents
+    let asDrawn =
+        let drawn = getUpdatedLoadedComponentState diagramName drawnCanvasState drawnComponents
+        sheetsNeeded drawn diagramName |> List.map (getSheet drawn)
     sheetsNeeded ldcs diagramName
     |> List.map (getSheet ldcs)
     |> (fun updatedLdcs ->
@@ -180,6 +188,7 @@ let saveStateInSimulation
             Design =
                 { fs.Design with
                     DesignSheets = updatedLdcs
+                    DesignAsDrawn = asDrawn
                     DesignComponentsById = compMap
                     DesignConnectionsByPort = portMap } })
 
@@ -295,6 +304,7 @@ let startCircuitSimulationWith
     SimLog.beginInvocation ()
     let buildStart = TimeHelpers.getTimeMs ()
 
+    let asDrawn = canvasState, loadedDependencies
     match expandArrayDesign diagramName canvasState loadedDependencies with
     | Error e -> Error e
     | Ok (canvasState, loadedDependencies) ->
@@ -305,7 +315,7 @@ let startCircuitSimulationWith
         try
             match FastBuild.buildFastSimulationWith waveTables simulationArraySize diagramName graph with
             | Ok fs ->
-                let fs = saveStateInSimulation canvasState diagramName loadedDependencies fs
+                let fs = saveStateInSimulation canvasState diagramName loadedDependencies asDrawn fs
                 let components, _ = canvasState
                 let inputs, outputs = getSimulationIOs components
 
@@ -358,6 +368,7 @@ let startCircuitSimulationFData
     : Result<SimulationData, SimulationError>
     =
 
+    let asDrawn = canvasState, loadedDependencies
     match expandArrayDesign diagramName canvasState loadedDependencies with
     | Error e -> Error e
     | Ok (canvasState, loadedDependencies) ->
@@ -380,7 +391,7 @@ let startCircuitSimulationFData
                 try
                     match FastBuild.buildFastSimulationFData simulationArraySize diagramName graph with
                     | Ok fs ->
-                        let fs = saveStateInSimulation canvasState diagramName loadedDependencies fs
+                        let fs = saveStateInSimulation canvasState diagramName loadedDependencies asDrawn fs
 
                         Ok
                             { FastSim = fs
@@ -504,6 +515,7 @@ let designOnlySimulation
     (canvasState: CanvasState)
     (loadedDependencies: LoadedComponent list)
     : Result<SimulationData, SimulationError> =
+    let asDrawn = canvasState, loadedDependencies
     match expandArrayDesign diagramName canvasState loadedDependencies with
     | Error e -> Error e
     | Ok (canvasState, loadedDependencies) ->
@@ -513,7 +525,7 @@ let designOnlySimulation
     | Ok graph ->
         let fs =
             { FastCreate.emptyFastSimulation diagramName with MaxArraySize = simulationArraySize }
-            |> saveStateInSimulation canvasState diagramName loadedDependencies
+            |> saveStateInSimulation canvasState diagramName loadedDependencies asDrawn
 
         let components, _ = canvasState
         let inputs, outputs = getSimulationIOs components

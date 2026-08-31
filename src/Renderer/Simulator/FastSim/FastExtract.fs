@@ -326,8 +326,14 @@ let extractViewers (simulationData: SimulationData) : ((string * string) * int *
         extractFastSimulationOutput fs simulationData.ClockTickNumber fc.fId (OutputPortNumber 0))
 
 /// Check if the components and connections of a fast simulation and a canvas are the same.
+/// Is the design the simulation was built from still what the project holds? False puts the
+/// Refresh button up.
+///
+/// Asked of DesignAsDrawn and not of the SIMULATED sheets, because the two differ for a design
+/// holding an array component: there the simulation is of a wrapper and a body, and the project has
+/// neither - so every such simulation reported itself edited the moment it started.
 let compareLoadedStates (fs: FastSimulation) (canv: CanvasState) (p: Project option) =
-    List.forall (fun ldc -> CanvasExtractor.loadedComponentIsSameAsProject canv ldc p) fs.SimulatedCanvasState
+    List.forall (fun ldc -> CanvasExtractor.loadedComponentIsSameAsProject canv ldc p) fs.Design.DesignAsDrawn
 
 /// Get the input value of a fast component as a bigint.
 /// fc: the fast component to get the input from.

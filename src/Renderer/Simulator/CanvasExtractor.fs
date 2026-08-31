@@ -526,7 +526,10 @@ let loadedComponentIsSameAsProject (canvasState: CanvasState) (ldc: LoadedCompon
     | "", _
     | _, None -> false
     | name, Some p when name = p.OpenFileName ->
-        let ins, outs = parseDiagramSignature canvasState
+        // read the way THIS sheet's ports are read - ldc is the sheet, and an array component's
+        // ports are derived from its array settings rather than listed on its canvas. Reading them
+        // the ordinary way said the open sheet had changed the instant a simulation of it started.
+        let ins, outs = parseDiagramSignatureFor ldc.ArrayInfo ldc.LCParameterSlots canvasState
         let sort = List.sort
 
         stateIsEqual canvasState ldc.CanvasState

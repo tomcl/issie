@@ -516,6 +516,30 @@ let private expansionTests =
             Expect.equal got["COUT"] want["COUT"] "carry out too"
         }
 
+        test "a simulation of an array design does not report itself edited the moment it starts" {
+            // What put the Refresh button up and left it there. The question "is the design still
+            // what the project holds" was asked of the sheets as SIMULATED - and for an array
+            // design those are a wrapper and a body, neither of which the project has - so the
+            // answer was no, always, for every simulation of every design containing an array.
+            //
+            // Asked for both tops, because the two go wrong differently: with the parent on top the
+            // array is a dependency whose canvas is not the project's, and with the array itself on
+            // top it is also the OPEN sheet, whose ports are read a second way.
+            let parent, sheet = rippleParent 3
+            for top in [ parent; sheet ] do
+                let project: CommonTypes.Project =
+                    { ProjectPath = ""
+                      OpenFileName = top.Name
+                      WorkingFileName = Some top.Name
+                      LoadedComponents = [ parent; sheet ] }
+                match Simulator.startCircuitSimulation maxArraySize top.Name top.CanvasState [ parent; sheet ] with
+                | Error e -> failtestf "%A" e.ErrType
+                | Ok sd ->
+                    Expect.isTrue
+                        (FastExtract.compareLoadedStates sd.FastSim top.CanvasState (Some project))
+                        $"simulating '{top.Name}' must not look like an edit to it"
+        }
+
         test "an array component simulates when it is itself the sheet being simulated" {
             // What someone does first: draw the array component, then press simulate while looking
             // at it, before ever placing an instance. Everything above drives an array through a

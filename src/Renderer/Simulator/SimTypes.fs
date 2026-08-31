@@ -299,7 +299,21 @@ type SheetPort = {
 type SimulatedDesign =
     {
         /// Circuit simulated: the top sheet and every sheet it depends on.
+        ///
+        /// The sheets as SIMULATED, which for a design holding an array component is not the set of
+        /// sheets the project holds: each array component has become a wrapper and a body. Read it
+        /// to say what the simulation contains - the waveform selector's hierarchy is exactly this.
+        /// To ask whether the design has since been edited, read DesignAsDrawn.
         DesignSheets: LoadedComponent list
+        /// The same design as the PROJECT held it, before any array component was expanded.
+        ///
+        /// The only question it answers is whether the design has been edited since the simulation
+        /// was built, which is what puts the Refresh button up. That has to be asked of sheets the
+        /// project actually has: an expanded design contains a body sheet the project has never
+        /// heard of and a wrapper that is not what its array component looks like, so asking it of
+        /// DesignSheets said "edited" every time, and every simulation of a design containing an
+        /// array component offered a Refresh it did not need.
+        DesignAsDrawn: LoadedComponent list
         /// The root sheet being simulated. "" when there is no simulation.
         DesignTopSheet: string
         /// Every component of every simulated sheet, by sheet name and then by id. Subsheet
@@ -556,6 +570,7 @@ type SimulatedDesign =
 /// A design with nothing in it: what a renderer holds before anything has been simulated.
 let emptySimulatedDesign =
     { DesignSheets = []
+      DesignAsDrawn = []
       DesignTopSheet = ""
       DesignComponentsById = Map.empty
       DesignConnectionsByPort = Map.empty }

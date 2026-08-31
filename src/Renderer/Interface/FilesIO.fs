@@ -935,7 +935,13 @@ let checkMemoryContents (projectPath:string) (comp: Component) : Component =
 /// load a component from its canvas and other elements
 let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp waveInfo (sheetInfo:SheetInfo option) =
     let projectPath = dirName filePath
-    let inputs, outputs = CanvasExtractor.parseDiagramSignature canvas
+    // An array design sheet's ports are derived from its contents and its copy count, so the sheet
+    // info has to be read before its signature can be - see parseDiagramSignatureFor.
+    let inputs, outputs =
+        CanvasExtractor.parseDiagramSignatureFor
+            (sheetInfo |> Option.bind (fun sI -> sI.ArrayInfo))
+            (sheetInfo |> Option.bind (fun sI -> sI.ParameterDefinitions))
+            canvas
     let comps,conns = canvas
     let comps' = List.map (checkMemoryContents projectPath) comps
     let canvas = comps',conns

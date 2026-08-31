@@ -246,10 +246,39 @@ let getOrderedCompLabels compType ((comps, _): CanvasState) =
 
 /// Extract the labels and bus widths of the inputs and outputs nodes as a signature.
 /// Form is inputs,outputs
+///
+/// THE one place that says what a sheet's ports are. On an ordinary sheet they are its Input1 and
+/// Output components; on an ARRAY DESIGN SHEET they are derived from its contents and its copy
+/// count instead - an Output gives one port per copy, a BusOut one wide one, a loose join an end of
+/// a chain - and ArrayExpand.arrayOutlineOf works that out. Every path that asks what a sheet's
+/// ports are comes through here, which is what keeps the two kinds of sheet answering one question:
+/// loading a sheet, saving one, and CanvasExtractor.signatureOfInstance for an instance of one.
+///
+/// The array settings and the parameter slots are taken rather than read off a LoadedComponent
+/// because two callers have a canvas and no sheet: an instance's signature is computed from the
+/// child sheet's canvas RESOLVED at that instance's bindings, and the sheet-description DSL builds
+/// a canvas before there is a sheet to hold it.
+///
+/// A sheet whose array settings do not work out - a mux over an Array out that is not there, a
+/// channel number that will not evaluate - still has ports, and still has to be drawn while it is
+/// being fixed. So the problems are dropped here and CanvasStateAnalyser is what reports them and
+/// refuses to simulate: see ArrayExpand's note about nothing there throwing.
+let parseDiagramSignatureFor
+        (arrayInfo: ArrayInfo option)
+        (paramDefs: ParameterTypes.ParameterDefs option)
+        canvasState
+        : (string * int) list * (string * int) list =
+    match arrayInfo with
+    | Some info -> ArrayExpand.arrayOutlineOf info paramDefs canvasState |> fst
+    | None ->
+        let inputs = getOrderedCompLabels (Input1(0, None)) canvasState
+        let outputs = getOrderedCompLabels (Output 0) canvasState
+        inputs, outputs
+
+/// A sheet's ports where it is known not to be an array design sheet - which is every canvas that
+/// has no sheet behind it to carry array settings. See parseDiagramSignatureFor.
 let parseDiagramSignature canvasState : (string * int) list * (string * int) list =
-    let inputs = getOrderedCompLabels (Input1(0, None)) canvasState
-    let outputs = getOrderedCompLabels (Output 0) canvasState
-    inputs, outputs
+    parseDiagramSignatureFor None None canvasState
 
 /// extract the fields compared to check circuit equality
 let extractLoadedSimulatorComponent (canvas: CanvasState) (name: string) =
@@ -383,8 +412,13 @@ let signatureOfInstanceWithCertainty
         let childDefaults = bindingsOf defs.DefaultBindings
         let effective = effectiveInstanceBindings childDefaults parentBindings instanceBindings
         let resolved = ComponentSlots.resolveCanvasAtBindings effective defs.ParamSlots childLdc.CanvasState
-        (getOrderedCompLabels (Input1 (0, None)) resolved,
-         getOrderedCompLabels (Output 0) resolved),
+        // An array design sheet's ports are derived from its contents and its copy count, so the
+        // instance's ports are too - and the copy count is a plain integer on the sheet, which is
+        // why this is still one signature per set of bindings and not something new to reason
+        // about. The slots go in as well as the canvas: a join's channel number is a slot whose
+        // expression names the LOOP variable, which resolveCanvasAtBindings cannot evaluate and so
+        // leaves alone, and arrayOutlineOf evaluates it once per copy.
+        parseDiagramSignatureFor childLdc.ArrayInfo childLdc.LCParameterSlots resolved,
         signatureIsExact childDefaults parentBindings instanceBindings effective defs.ParamSlots)
 
 /// The signature an instance of `childSheet` has when it binds its parameters as given.
@@ -475,8 +509,13 @@ let loadedComponentIsSameAsProject (canvasState: CanvasState) (ldc: LoadedCompon
 
 /// add given name,state to loadedcomponent list as a loaded component (overwriting existing if needed)
 let addStateToLoadedComponents openFileName canvasState loadedComponents =
-    let ins, outs = parseDiagramSignature canvasState
     let existingLdc = loadedComponents |> List.tryFind (fun ldc -> ldc.Name = openFileName)
+    // the open sheet keeps whatever kind of sheet it already was, so its ports are read the same way
+    let ins, outs =
+        parseDiagramSignatureFor
+            (existingLdc |> Option.bind (fun e -> e.ArrayInfo))
+            (existingLdc |> Option.bind (fun e -> e.LCParameterSlots))
+            canvasState
 
     let ldc: LoadedComponent =
         { Name = openFileName

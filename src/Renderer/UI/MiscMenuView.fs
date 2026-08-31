@@ -558,12 +558,17 @@ let createSheetInfo model projectDir dispatch ((sheetPath, dependencies): string
 
             | Ok ldcSource ->
 
-                let sourceSig = parseDiagramSignature ldcSource.CanvasState
+                // the sheet's own ports, which on an array design sheet are derived from its
+                // contents and its copy count rather than being its Input1 and Output components
+                let signatureOf (ldc: LoadedComponent) =
+                    parseDiagramSignatureFor ldc.ArrayInfo ldc.LCParameterSlots ldc.CanvasState
+
+                let sourceSig = signatureOf ldcSource
 
                 let destSig =
                     tryGetLoadedComponents model
                     |> List.find (fun ldc -> ldc.Name = baseNameWithoutExtension sheetPath)
-                    |> (fun ldc -> parseDiagramSignature ldc.CanvasState)
+                    |> signatureOf
 
                 let overwriteDisabled = (sourceSig <> destSig) && (depSheets <> "")
 

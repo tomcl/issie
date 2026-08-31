@@ -1460,15 +1460,21 @@ let updateProjectFromCanvas (model:Model) (dispatch:Msg -> Unit) =
     | canvasState ->  
         canvasState
         |> fun canvas ->
-            let inputs, outputs = parseDiagramSignature canvas
             let setLc lc =
+                // Read from the sheet being updated rather than once outside: on an array design
+                // sheet the ports are derived from its contents and its copy count, and the copy
+                // count is on the sheet. Tidied slots go in, since a deleted join takes its channel
+                // number with it and that changes which ends of a chain are loose.
+                let slots = CanvasExtractor.tidyParamSlots canvas lc.LCParameterSlots
+                let inputs, outputs =
+                    CanvasExtractor.parseDiagramSignatureFor lc.ArrayInfo slots canvas
                 { lc with
                     CanvasState = canvas
                     InputLabels = inputs
                     OutputLabels = outputs
                     // components deleted from the canvas must not leave parameter slots behind,
                     // and a renamed one must not leave its slot describing the old name
-                    LCParameterSlots = CanvasExtractor.tidyParamSlots canvas lc.LCParameterSlots
+                    LCParameterSlots = slots
                 }
             model.CurrentProj
             |> Option.map (fun p -> 

@@ -14,6 +14,7 @@ let main argv =
         NumberHelpersTests.tests
         TruthTableSimTests.tests
         ParameterScenarios.tests
+        ArraySheets.tests
         ComponentSemantics.tests
         GoldenModel.tests
         LookupArrayTests.tests

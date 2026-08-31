@@ -76,6 +76,9 @@
     <Compile Include="Simulator\SimInterface.fs" />
     <Compile Include="Simulator\TruthTableTypes.fs" />
     <Compile Include="Simulator\NumberHelpers.fs" />
+    <!-- before CanvasExtractor: parseDiagramSignature asks it what an array design sheet's ports
+         are, and it depends on nothing but CommonTypes and the parameter types -->
+    <Compile Include="Simulator\ArrayExpand.fs" />
     <Compile Include="Simulator\CanvasExtractor.fs" />
     <Compile Include="Simulator\SynchronousUtils.fs" />
     <Compile Include="Simulator\CanvasStateAnalyser.fs" />

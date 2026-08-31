@@ -19,6 +19,7 @@
     <Compile Include="ComponentSemantics.fs" />
     <Compile Include="Properties.fs" />
     <Compile Include="ParameterScenarios.fs" />
+    <Compile Include="ArraySheets.fs" />
     <Compile Include="AlgebraTests.fs" />
     <Compile Include="NumberHelpersTests.fs" />
     <Compile Include="TruthTableSimTests.fs" />

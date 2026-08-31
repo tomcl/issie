@@ -177,6 +177,7 @@
     <Compile Include="UI\BuildView.fs" />
     <Compile Include="UI\PropertiesHelp.fs" />
     <Compile Include="UI\ParameterView.fs" />
+    <Compile Include="UI\ArraySheetView.fs" />
     <Compile Include="UI\CatalogueView.fs" />
     <Compile Include="UI\SelectedComponentView.fs" />
     <Compile Include="UI\WaveSim\WaveSimTypes.fs" />

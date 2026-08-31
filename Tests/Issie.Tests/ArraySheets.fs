@@ -559,4 +559,36 @@ let private refusalTests =
         }
     ]
 
-let tests = testList "ArraySheets" [ joinTests; outlineTests; expansionTests; refusalTests ]
+let private menuTests =
+    testList "menu" [
+        // ContextMenus.fs is compiled into the main process and cannot see the model, so an item
+        // offered only sometimes is expressed as a second menu that the renderer chooses. The two
+        // must otherwise be the same menu, or the sheet background would gain or lose ordinary
+        // items depending on what kind of sheet it is.
+        test "the two canvas menus differ by exactly the array item" {
+            let menu name =
+                ContextMenus.contextMenus |> List.find (fst >> (=) name) |> snd
+            let plain = menu "Canvas"
+            let array = menu "CanvasArray"
+            Expect.equal (List.length plain) (List.length array) "the two menus are the same size"
+            Expect.equal
+                (plain |> List.filter (fun i -> i <> ContextMenus.makeArraySheetItem))
+                (array |> List.filter (fun i -> i <> ContextMenus.arraySheetSettingsItem))
+                "and hold the same items but for the one that differs"
+            Expect.contains plain ContextMenus.makeArraySheetItem
+                "an ordinary sheet is offered becoming an array sheet"
+            Expect.contains array ContextMenus.arraySheetSettingsItem
+                "and an array sheet is offered its settings"
+        }
+
+        test "a read-only sheet is offered neither" {
+            let readOnly =
+                ContextMenus.contextMenus |> List.find (fst >> (=) "CanvasReadOnly") |> snd
+            Expect.isFalse (List.contains ContextMenus.makeArraySheetItem readOnly)
+                "a library sheet being viewed is held at what it loaded with"
+            Expect.isFalse (List.contains ContextMenus.arraySheetSettingsItem readOnly)
+                "so nothing that would change it is offered"
+        }
+    ]
+
+let tests = testList "ArraySheets" [ joinTests; outlineTests; expansionTests; refusalTests; menuTests ]

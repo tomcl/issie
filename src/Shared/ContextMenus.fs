@@ -36,6 +36,15 @@ let addWireWaveItem = "Add wave to viewer"
 let viewLibraryItem = "View library component"
 let hideLibraryItem = "Hide library component"
 
+/// The item on a sheet's background that makes it an ARRAY DESIGN SHEET, or edits the settings of
+/// one that already is. Which of the two is offered is a question about the sheet, so - as with the
+/// library items above - the renderer decides by asking for a different menu.
+///
+/// This is where the feature lives: an array sheet is a rare thing, and the properties pane would
+/// otherwise carry a control for it on every ordinary sheet.
+let makeArraySheetItem = "Make this an array sheet"
+let arraySheetSettingsItem = "Array sheet settings"
+
 /// The items on a sheet in the Sheets menu. `Set as top` is offered only where naming this sheet
 /// as the top would settle something - which is a question about the whole project's shape, not
 /// about the sheet, so the renderer decides by asking for a different menu. See
@@ -59,6 +68,12 @@ let private customComponentItems =
 let private libraryInstanceItems (openItem: string) =
     [openItem ; "Properties" ; "Move ports" ; "Resize symbol"]
 
+/// What the sheet background offers whatever kind of sheet it is.
+// These labels spell their own keys, so they have to be kept in step with KeyTypes by hand - this
+// file cannot see it, being compiled into the main process as well.
+let private canvasItems =
+    ["Zoom-in (Ctrl+plus) and centre" ; "Zoom-out (Ctrl+minus)" ; "Fit to window (Ctrl+0)" ; "Paste (Ctrl+V)"; "Reroute all wires"; "Properties"]
+
 /// The context menu info is a map of menu name -> list of menu items
 /// menu and item names can be arbitrary strings
 /// add menus as here
@@ -78,9 +93,10 @@ let contextMenus = [
         "ScalingBox", ["Rotate Clockwise (Ctrl+Right)"; "Rotate AntiClockwise (Ctrl+Left)" ; "Flip Vertical (Ctrl+Up)"; "Flip Horizontal (Ctrl+Down)"; "Delete Box (DEL)"; "Copy Box (Ctrl+C)"; "Move Box (Drag any component)"]
         "Component", componentItems
         "ComponentWaveSim", componentItems @ [addWavesItem]
-        // These labels spell their own keys, so they have to be kept in step with KeyTypes by
-        // hand - this file cannot see it, being compiled into the main process as well.
-        "Canvas", ["Zoom-in (Ctrl+plus) and centre" ; "Zoom-out (Ctrl+minus)" ; "Fit to window (Ctrl+0)" ; "Paste (Ctrl+V)"; "Reroute all wires"; "Properties"]
+        "Canvas", canvasItems @ [makeArraySheetItem]
+        // the same menu on a sheet that already is an array design sheet, where the item edits its
+        // settings rather than making it one
+        "CanvasArray", canvasItems @ [arraySheetSettingsItem]
         "Wire", ["Unfix Wire"]
         "WireWaveSim", ["Unfix Wire"; addWireWaveItem]
         // Menus offered while a library component's sheet is being viewed. Every item that would

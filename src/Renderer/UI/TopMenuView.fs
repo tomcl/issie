@@ -844,8 +844,18 @@ let viewTopMenu model dispatch =
                     // rely on by itself.
                     BreadcrumbText =
                         Some (fun sheet ->
-                            if isViewedLibrarySheet sheet then $"👁 {sheet.SheetName}"
-                            else sheet.SheetName)
+                            // An ARRAY DESIGN SHEET says how many copies it is, because that is
+                            // what it means: nothing else in the menu would show that this sheet's
+                            // hardware is eight of what is drawn on it, and the right-click menu
+                            // that makes and edits one is not somewhere to go looking.
+                            let arrayMark =
+                                updatedProject.LoadedComponents
+                                |> List.tryFind (fun lc -> lc.Name = sheet.SheetName)
+                                |> Option.bind (fun lc -> lc.ArrayInfo)
+                                |> Option.map (fun info -> $" ×{copiesOfArray info}")
+                                |> Option.defaultValue ""
+                            if isViewedLibrarySheet sheet then $"👁 {sheet.SheetName}{arrayMark}"
+                            else $"{sheet.SheetName}{arrayMark}")
                     BreadcrumbIdPrefix = "SheetMenuBreadcrumb"
                 }
 

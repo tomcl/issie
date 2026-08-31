@@ -53,8 +53,25 @@ let paramSlotsOfModel_ = lcParameterInfoOfModel_ >?> paramSlots_
 let defaultBindingsOfModel_ = lcParameterInfoOfModel_ >?> defaultBindings_
 
 /// The open sheet's default bindings as an evaluation environment.
+///
+/// On an ARRAY DESIGN SHEET the loop variable is in scope too, at 0. It is not a declared property
+/// of the sheet - it is named by the array settings and has a value only inside a copy, which is
+/// why nothing else in the parameter system has to know about it: it is absent from
+/// DefaultBindings, so the properties list does not show it, no instance binds it and propagation
+/// never sees it. What it does need is to be in scope HERE, because using it is the whole point -
+/// a Bus select whose LSB is `i` is what makes one copy of the sheet differ from the next. Zero is
+/// the value the sheet is drawn at, so a box shows what copy 0 would have.
 let paramBindingsOfModel (model: Model) : ParamBindings =
-    model |> get defaultBindingsOfModel_ |> Option.defaultValue Map.empty |> bindingsOf
+    let declared = model |> get defaultBindingsOfModel_ |> Option.defaultValue Map.empty |> bindingsOf
+    match model.CurrentProj with
+    | None -> declared
+    | Some proj ->
+        proj.LoadedComponents
+        |> List.tryFind (fun ldc -> ldc.Name = proj.OpenFileName)
+        |> Option.bind (fun ldc -> ldc.ArrayInfo)
+        |> function
+           | None -> declared
+           | Some info -> declared |> Map.add info.LoopParam (PInt 0I)
 
 let modelToSymbols = sheet_ >-> SheetT.wire_ >-> BusWireT.symbol_ >-> SymbolT.symbols_
 
@@ -135,6 +152,7 @@ let getDefaultParamDefs loadedComponent : ParamDefinitions =
 /// Get default parameter bindings for LoadedComponent, for use as an evaluation environment
 let getDefaultParams loadedComponent : ParamBindings =
     getDefaultParamDefs loadedComponent |> bindingsOf
+
 
 /// Get the parameterised slots of a LoadedComponent
 let getParamSlots loadedComponent : ComponentSlotExpr =

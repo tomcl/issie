@@ -519,8 +519,14 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             |> Option.defaultValue 0
         let lhsPortNum = getNum Edge.Left
         let rhsPortNum = getNum Edge.Right
-        let offset:XYPos = 
+        let offset:XYPos =
             match lhsPortNum % 2, rhsPortNum % 2, symbol.Component.Type with
+            // The IO of an array component, before the port-parity rules below. Those nudge the
+            // legend ten pixels away from a lone port to leave room for the port's NAME, and these
+            // have none - so the nudge only pushed the legend off centre, one way for the three
+            // that have their single port on the left and the other way for the join that has its
+            // on the right. What they do need is the chevron shift added below.
+            | _, _, (BusOut _ | MuxOut _ | JoinOut _ | JoinIn _) -> {X = 0.; Y = 0.}
             | 1, 0, Custom _ -> {X = 10.; Y = 0}
             | 0, 1, Custom _ -> {X = -10.; Y = 0}
             | _, _, Custom _ -> {X = 0; Y = 0}

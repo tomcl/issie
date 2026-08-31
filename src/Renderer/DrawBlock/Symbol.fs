@@ -632,12 +632,20 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     // end is a fifth of the width and carries no text, so the measured width is divided by 0.8 to
     // leave the text the part of the symbol it can actually use.
     | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ ->
+        // A legend is drawn BOLD, and a '.' in it splits it over two lines (addLegendText), so
+        // "Join[3].(7:0)" is two lines and needs the width of the wider one, not of the whole
+        // string. Measured in the style it is actually drawn in: measuring the label style
+        // underestimated a bold legend and the text ran past the symbol.
         let legend = getComponentLegend compType Degree0
-        let text = DrawHelpers.getTextWidthInPixels {Constants.componentLabelStyle with FontSize = "14px"} legend
-        let w = max (3. * gS) ((text + 16.) / 0.8)
+        let style = {Constants.componentLabelStyle with FontSize = "14px"; FontWeight = "bold"}
+        let lines = legend.Split '.'
+        let text = lines |> Array.map (DrawHelpers.getTextWidthInPixels style) |> Array.max
+        // the chevron is the last fifth of the width and carries no text
+        let w = max (3. * gS) ((text + 14.) / 0.8)
+        let h = if lines.Length > 1 then 1.6 * gS else gS
         match compType with
-        | JoinIn _ -> ( 0 , 1, gS , w)
-        | _ -> ( 1 , 0, gS , w)
+        | JoinIn _ -> ( 0 , 1, h , w)
+        | _ -> ( 1 , 0, h , w)
     // Never drawn: these are made by expanding an array design sheet and exist only inside a
     // simulation. Sized as a MergeN and a Mux would be, so that anything which does reach for a
     // size gets a sane one rather than a raise.

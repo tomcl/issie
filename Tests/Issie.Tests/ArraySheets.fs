@@ -152,15 +152,26 @@ let private joinTests =
             Expect.isNonEmpty w.Problems "a property in a channel number must be reported"
         }
 
-        test "two joins on one side sharing a label are refused" {
-            // a JoinOut and a JoinIn share a label - that is the channel - but two of a kind are
-            // two ports of the copy with one name
+        test "two joins on one side sharing a channel AND a number are refused" {
+            // sharing a channel is fine - that is what a channel is - and two joins facing the same
+            // way at different numbers are two ports of the copy. Two at the SAME number are one
+            // wire driven twice.
             let a = makeComp 1 1 0 (JoinOut(1, 0)) "C"
-            let b = makeComp 2 1 0 (JoinOut(1, 1)) "C"
+            let b = makeComp 2 1 0 (JoinOut(1, 0)) "C"
             let canvas: CanvasState = stacked [ a; b ], []
             let w = ArrayExpand.joinsOf (arrayInfo 2) None canvas
-            Expect.isNonEmpty w.Problems "two Join outs called C must be reported"
-            Expect.stringContains (List.head w.Problems) "different names" "and say what to do"
+            Expect.isNonEmpty w.Problems "two Join outs on channel 0 of C must be reported"
+            Expect.stringContains (List.head w.Problems) "channel 0" "and the message must say which"
+        }
+
+        test "two joins on one side sharing only a channel are allowed" {
+            // a copy reading two of its neighbours: one channel, two numbers, two ports
+            let a = makeComp 1 0 1 (JoinIn(1, 0)) "C"
+            let b = makeComp 2 0 1 (JoinIn(1, 1)) "C"
+            let canvas: CanvasState = stacked [ a; b ], []
+            let defs = Some (joinNums [ 1, "i"; 2, "i+1" ])
+            let w = ArrayExpand.joinsOf (arrayInfo 3) defs canvas
+            Expect.isEmpty w.Problems "two Join ins at different numbers are two ports, not a clash"
         }
     ]
 
@@ -349,9 +360,9 @@ let private expansionTests =
             Expect.isNone wrapper.ArrayInfo "after expansion the wrapper is an ordinary sheet"
             Expect.isNone body.ArrayInfo "and so is the body"
             // the body is one copy: the array IO has become ordinary IO, keeping the connections
-            Expect.equal (names body.InputLabels) [ "A"; "B"; "C_in" ]
+            Expect.equal (names body.InputLabels) [ "A"; "B"; "C_in_0" ]
                 "a Join in becomes an input of the copy, named for its direction"
-            Expect.equal (names body.OutputLabels) [ "SUM"; "C_out" ]
+            Expect.equal (names body.OutputLabels) [ "SUM"; "C_out_1" ]
                 "and a BusOut and a Join out become outputs of it"
             Expect.equal (fst body.CanvasState |> List.length) 8 "the body holds what was drawn"
             Expect.equal (snd body.CanvasState) (snd sheet.CanvasState) "with its wires untouched"
@@ -634,10 +645,12 @@ let private symbolTests =
             // the legend grows with the channel number and the width, so the symbol has to
             for compType in [ JoinIn (1, 0); JoinIn (8, 1234); JoinOut (64, 999); BusOut 128; MuxOut 1 ] do
                 let _, _, _, w = Symbol.getComponentProperties compType "X"
+                // per LINE: a legend with a . in it is drawn over two, and bold
                 let text =
-                    DrawHelpers.getTextWidthInPixels
-                        {Symbol.Constants.componentLabelStyle with FontSize = "14px"}
-                        (Symbol.getComponentLegend compType Degree0)
+                    (Symbol.getComponentLegend compType Degree0).Split '.'
+                    |> Array.map (DrawHelpers.getTextWidthInPixels
+                                    {Symbol.Constants.componentLabelStyle with FontSize = "14px"; FontWeight = "bold"})
+                    |> Array.max
                 // the chevron is the last fifth and carries no text
                 Expect.isGreaterThan (w * 0.8) text $"%A{compType}: the legend must fit on one line"
         }

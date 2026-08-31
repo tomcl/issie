@@ -704,9 +704,31 @@ let private createJoinPopup typeStr (compType: int * int -> ComponentType) (mode
             0
     let boxes = [width; channel]
     let textBody = dialogPopupBodyOnlyText beforeText placeholder dispatch
+
+    /// The width the channel already carries, where the name typed names one that exists. A channel
+    /// is one signal, so every join on it is the same number of bits: the second join on a channel
+    /// does not get to choose, and is given the width rather than being refused one.
+    let existingWidth (model': Model) =
+        ParameterView.joinsOnChannel model' (getText model'.PopupDialogData)
+        |> List.tryPick (fun comp ->
+            match comp.Type with
+            | JoinOut (w, _) | JoinIn (w, _) -> Some w
+            | _ -> None)
+
     let body =
         fun (model': Model) ->
-            div [] [textBody model'; paramBox dispatch width model'; paramBox dispatch channel model']
+            div [] [
+                textBody model'
+                match existingWidth model' with
+                // the width box is still shown, but says what it will be overridden with rather
+                // than letting the user set a value that cannot hold
+                | Some w ->
+                    p [Style [FontSize "0.85em"; Color "grey"]] [
+                        str $"This channel already carries {w} bits, so this will too."
+                    ]
+                | None -> paramBox dispatch width model'
+                paramBox dispatch channel model'
+            ]
     let buttonAction =
         fun (model': Model) ->
             match paramBoxValues model'.PopupDialogData boxes with
@@ -714,8 +736,9 @@ let private createJoinPopup typeStr (compType: int * int -> ComponentType) (mode
             | Ok specs ->
                 let inputText = getText model'.PopupDialogData
                 let comp =
-                    match paramBoxInts specs with
-                    | [widthInt; numInt] -> compType (widthInt, numInt)
+                    match paramBoxInts specs, existingWidth model' with
+                    | [_; numInt], Some w -> compType (w, numInt)
+                    | [widthInt; numInt], None -> compType (widthInt, numInt)
                     | _ -> failwithf "createJoinPopup: two boxes must give two numbers"
                 createComponent
                     comp

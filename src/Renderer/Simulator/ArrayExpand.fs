@@ -128,9 +128,11 @@ let private endsOf (info: ArrayInfo) (slots: ComponentSlotExpr) (canvas: CanvasS
 /// copy, so two on a side sharing a label are two ports with one name.
 let private duplicateLabels (side: string) (comps: Component list) =
     comps
-    |> List.countBy (fun comp -> comp.Label)
+    |> List.countBy (fun comp -> comp.Label, snd (joinWidthAndNum comp))
     |> List.filter (fun (_, n) -> n > 1)
-    |> List.map (fun (label, n) -> $"{n} {side} components are labelled '{label}': each is one port of the copy, so they must have different names")
+    |> List.map (fun ((label, num), n) ->
+        $"{n} {side} components are on channel {num} of '{label}': each channel joins exactly two \
+          copies, so two facing the same way must differ in channel or in number")
 
 /// Which JoinOut in which copy drives which JoinIn in which copy, and which ends are left over.
 ///
@@ -158,33 +160,43 @@ let joinsOf (info: ArrayInfo) (paramDefs: ParameterDefs option) (canvas: CanvasS
         duplicateLabels "Join out" (joinComps true canvas)
         @ duplicateLabels "Join in" (joinComps false canvas)
 
-    /// Ends by channel, and the channels a side puts two ends on - two JoinOuts on one channel are
-    /// two drivers of one wire, and two JoinIns on one are two names for the same value.
-    let byChannel (side: string) (ends: JoinEnd list) =
-        let grouped = ends |> List.groupBy (fun e -> e.Comp.Label, e.Num)
-        let clashes =
-            grouped
-            |> List.filter (fun (_, es) -> List.length es > 1)
-            |> List.map (fun ((label, num), es) ->
-                let copies = es |> List.map (fun e -> string e.Copy) |> String.concat ", "
-                $"{side} '{label}' is on channel {num} in more than one copy ({copies}): each channel \
-                  joins exactly two copies, so its number must differ from copy to copy")
-        grouped |> List.choose (fun (key, es) -> es |> List.tryHead |> Option.map (fun e -> key, e)) |> Map.ofList,
-        clashes
+    /// The end DRIVING each channel. One only: two JoinOut ends on one channel are two drivers of
+    /// one wire, which is the mistake a net with two sources always is.
+    ///
+    /// Its twin does not exist, and deliberately. Several JoinIn ends may sit on one channel and
+    /// that is ordinary fan-out - two copies both reading the carry that a third produces - so the
+    /// in ends are kept as a list and every one of them is wired.
+    let grouped = outEnds |> List.groupBy (fun e -> e.Comp.Label, e.Num)
 
-    let outByChannel, outClashes = byChannel "Join out" outEnds
-    let inByChannel, inClashes = byChannel "Join in" inEnds
+    let outClashes =
+        grouped
+        |> List.filter (fun (_, es) -> List.length es > 1)
+        |> List.map (fun ((label, num), es) ->
+            let copies = es |> List.map (fun e -> string e.Copy) |> String.concat ", "
+            $"Join out '{label}' is on channel {num} in more than one copy ({copies}): a channel \
+              carries one signal, so only one copy may drive it")
 
+    let outByChannel =
+        grouped
+        |> List.choose (fun (key, es) -> es |> List.tryHead |> Option.map (fun e -> key, e))
+        |> Map.ofList
+
+    /// Every in end paired with the out end driving its channel: one wire each, so a channel read
+    /// by two copies gives two wires from the one that drives it.
     let matched =
-        outByChannel
-        |> Map.toList
-        |> List.choose (fun (key, outEnd) -> Map.tryFind key inByChannel |> Option.map (fun inEnd -> outEnd, inEnd))
-        |> List.sortBy (fun (o, _) -> o.Comp.Y, o.Comp.X, o.Copy)
+        inEnds
+        |> List.choose (fun inEnd ->
+            Map.tryFind (inEnd.Comp.Label, inEnd.Num) outByChannel
+            |> Option.map (fun outEnd -> outEnd, inEnd))
+        |> List.sortBy (fun (o, i) -> o.Comp.Y, o.Comp.X, o.Copy, i.Copy)
+
+    /// The channels something reads, so that a driver with no reader can be told from one with two.
+    let channelsRead = inEnds |> List.map (fun e -> e.Comp.Label, e.Num) |> Set.ofList
 
     { Matched = matched
-      UnmatchedOut = outEnds |> List.filter (fun e -> not (Map.containsKey (e.Comp.Label, e.Num) inByChannel))
+      UnmatchedOut = outEnds |> List.filter (fun e -> not (Set.contains (e.Comp.Label, e.Num) channelsRead))
       UnmatchedIn = inEnds |> List.filter (fun e -> not (Map.containsKey (e.Comp.Label, e.Num) outByChannel))
-      Problems = nameProblems @ outProblems @ inProblems @ negatives @ outClashes @ inClashes }
+      Problems = nameProblems @ outProblems @ inProblems @ negatives @ outClashes }
 
 /// The ports an array design sheet has, and what is wrong with the sheet if anything.
 ///

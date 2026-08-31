@@ -62,8 +62,13 @@ let bodyNameOf (sheetName: string) = sheetName + bodyMarker + "copy"
 /// which is already unique among the sheet's outputs.
 let private bodyPortLabel (comp: Component) =
     match comp.Type with
-    | JoinIn _ -> comp.Label + "_in"
-    | JoinOut _ -> comp.Label + "_out"
+    // A join's own label names a CHANNEL, and a sheet may have several joins on one channel at
+    // different numbers - a copy that reads two of its neighbours, say. Each is a separate port of
+    // the copy, so the body label carries the number as well as the direction. The number here is
+    // the one the sheet is DRAWN at, which is only an identifier: what makes it distinct is the
+    // rule that two joins facing the same way may not share a channel and a number.
+    | JoinIn (_, n) -> $"{comp.Label}_in_{n}"
+    | JoinOut (_, n) -> $"{comp.Label}_out_{n}"
     | _ -> comp.Label
 
 /// The array design sheet as ONE copy: an ordinary sheet.

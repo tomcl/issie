@@ -679,6 +679,61 @@ Steps 1 and 2 are both idempotent, which is what the whole arrangement rests on:
 restore the primary state and run it again, and no edit has to reason about which sheets a binding
 might reach.
 
+## Array design sheets
+
+The rule stated at the top of `CompSlotName` — *a parameter records a value, not a change of
+topology* — has exactly one exception, and it is a sheet-level one rather than a slot.
+
+An **array design sheet** has a loop variable and a copy count, and its hardware is that many copies
+of what is drawn on it, one per value of the variable. `CommonTypes.ArrayInfo` is what a sheet
+carries; `ArrayExpand` is what it means; `ArrayElaborate` is what it becomes.
+
+### The copy count is not a parameter, deliberately
+
+`ArrayInfo.EndValue` is a plain integer. Every instinct says it should be a `ParamExpression` — then
+one sheet would serve an 8-copy and a 16-copy array — and that is exactly what must not happen. The
+copy count decides how many **ports** the sheet has (an `Output` gives one per copy, a `BusOut` is
+`n` times as wide), so an expression would make a sheet's port LIST depend on who instantiated it.
+Every other sheet in Issie has one port list and a family of widths; this would have been the only
+one with a family of port lists, and everything that compares an instance against a sheet would have
+had to learn about it.
+
+Fixing it buys the whole design: the expansion becomes a plain per-sheet rewrite done once before
+anything else looks at the design, `GraphMerger` needs no part in it, and the budget check, the
+flatten and the waveform selector do their ordinary work on ordinary sheets. Widths stay
+parameterised exactly as everywhere else.
+
+### The loop variable is not a declared property
+
+It is named by the array settings and is absent from `DefaultBindings`. That is what keeps it out of
+the rest of the parameter system without a special case anywhere: the properties list does not show
+it, `bindParamOnInstances` does not fill it in, no instance binds it, and `propagateParameterValues`
+never sees it. It needs to be in scope in exactly one place — `ParameterView.paramBindingsOfModel`,
+where a properties box is evaluated — at 0, the value the sheet is drawn at.
+
+Where it IS an ordinary declared property is on the **body** sheet the expansion generates, because
+binding it per copy is how one copy differs from the next.
+
+### Two rules on a join's channel number
+
+A `JoinOut` and a `JoinIn` match when they share a label and a channel number, and the number is a
+parameter slot (`JoinNum`). Two restrictions on it, both load-bearing:
+
+- **It may name the loop variable and nothing else.** Which joins are left unmatched decides the
+  sheet's ports, so a number depending on an ordinary property would make the port list depend on
+  what an instance bound — the thing the fixed copy count exists to prevent.
+- **It may never be negative, in any copy.** An unmatched join becomes a port named after its
+  channel, and a minus sign is not a character a label may contain. It costs no generality: a
+  backward chain is `JoinOut(w, i)` against `JoinIn(w, i+1)` rather than `i-1`.
+
+### What the parameter system sees after expansion
+
+Nothing about arrays. Each copy is an ordinary `Custom` instance of the body sheet binding every
+property the array sheet declares straight through by name, plus the loop variable as a `PInt`. The
+wrapper's own outline ports carry the width expressions of the array components they come from — the
+`BusOut`'s multiplied by the copy count — so an instance binding a width resizes the copies and the
+array's own ports together. `resolveSheet` resolves all of it without knowing any of this happened.
+
 ## Component Support
 
 ### Currently Parameterizable Components

@@ -559,6 +559,57 @@ let private refusalTests =
         }
     ]
 
+//-------------------------------------------------------------------------------------------//
+//----------------------------------INSTANCES ELSEWHERE--------------------------------------//
+//-------------------------------------------------------------------------------------------//
+
+let private instanceTests =
+    testList "instances" [
+        // Changing the copy count changes how many ports the array sheet has, so every component
+        // made from it elsewhere is then out of date. That is the one edit in the feature reaching
+        // beyond its own sheet, and it must go through the machinery a sheet's ports changing
+        // already has rather than needing one of its own.
+        test "changing the copy count makes instances of the array sheet out of date" {
+            let parent, sheet = rippleParent 4
+            let instance = fst parent.CanvasState |> List.find (fun c -> c.Label = "ARR")
+            let cc = match instance.Type with | Custom cc -> cc | t -> failtestf "%A" t
+
+            /// The instance record CustomCompPorts works on: what the instance stores against what
+            /// its own bindings give it, which is the whole definition of out of date.
+            let against (sheets: LoadedComponent list) =
+                let expected =
+                    CanvasExtractor.signatureOfInstance sheets Map.empty cc.Name Map.empty
+                    |> Option.defaultWith (fun () -> failtest "no signature for the array instance")
+                ({ Sheet = parent.Name
+                   CompId = instance.Id
+                   Label = instance.Label
+                   Old = (cc.InputLabels, cc.OutputLabels)
+                   Expected = expected }: CustomCompPorts.Instance)
+
+            Expect.isFalse (CustomCompPorts.instanceIsOutOfDate (against [ parent; sheet ]))
+                "an instance placed at the sheet's own copy count is up to date"
+
+            // eight copies rather than four: the sum bus doubles and the carry out is on a
+            // different channel, so the instance's ports are no longer the sheet's
+            let widened = { sheet with ArrayInfo = Some (arrayInfo 8 []) }
+            Expect.isTrue (CustomCompPorts.instanceIsOutOfDate (against [ parent; widened ]))
+                "and is out of date once the sheet has a different number of copies"
+        }
+
+        test "an array sheet's stored ports are its outline, so the project agrees about them" {
+            // LoadedComponent.InputLabels is what the rest of Issie reads; on an array sheet it
+            // must be the derived outline and not the sheet's Input1 and Output components
+            let sheet = rippleSheet 4
+            let expected = outline (arrayInfo 4 []) sheet.LCParameterSlots sheet.CanvasState
+            let stored =
+                CanvasExtractor.parseDiagramSignatureFor
+                    sheet.ArrayInfo sheet.LCParameterSlots sheet.CanvasState
+            Expect.equal stored expected "the sheet's ports are its outline"
+            Expect.notEqual stored (CanvasExtractor.parseDiagramSignature sheet.CanvasState)
+                "which is not what reading its Input1 and Output components would give"
+        }
+    ]
+
 let private menuTests =
     testList "menu" [
         // ContextMenus.fs is compiled into the main process and cannot see the model, so an item
@@ -591,4 +642,5 @@ let private menuTests =
         }
     ]
 
-let tests = testList "ArraySheets" [ joinTests; outlineTests; expansionTests; refusalTests; menuTests ]
+let tests =
+    testList "ArraySheets" [ joinTests; outlineTests; expansionTests; refusalTests; instanceTests; menuTests ]

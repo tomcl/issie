@@ -99,6 +99,17 @@ component check and `CustomCompPorts` all go through it — keep it that way. "I
 means differs from what its OWN bindings give it; compared against the sheet instead, every
 parameterised design reports as changed.
 
+**An array design sheet's ports are not its IO components.** Such a sheet's hardware is several
+copies of what is drawn on it (`CommonTypes.ArrayInfo`), so an `Output` gives one port per copy, a
+`BusOut` one port as wide as all of them, and a join left unmatched by any other copy an end of a
+chain — `ArrayExpand.arrayOutlineOf` derives the lot, and `CanvasExtractor.parseDiagramSignatureFor`
+is where the two kinds of sheet meet. **The copy count is a plain integer and deliberately not a
+parameter**: it fixes the port LIST, so an array sheet has one signature per bindings as every other
+sheet does, and that is what lets `ArrayElaborate` rewrite one into two ordinary sheets — a wrapper
+and a body — before anything else looks at the design. After that nothing in the simulator has seen
+an array. **Joins match by label AND channel number**, not by wire; the number may name only the
+loop variable and may never be negative. See [docs/parameterSystem.md](docs/parameterSystem.md).
+
 **Fable emits `.fs.js` and `.fs.js.map` under `build-fable/main` and `build-fable/renderer`, one
 tree per project.** When JS behaviour disagrees with the F# you just wrote, read the emitted
 `.fs.js`. Each tree mirrors `src/`, so `src/Renderer/UI/Update.fs` becomes

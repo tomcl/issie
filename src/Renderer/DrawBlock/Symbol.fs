@@ -181,7 +181,9 @@ let getSymbolColour compType clocked (theme:ThemeType) =
         | Counter _ |CounterNoEnable _ | CounterNoLoad _  |CounterNoEnableLoad _ -> "lightblue"
         | Custom _ when clocked
             -> "lightblue"  //for clocked components
-        |Input _ |Input1 (_,_) |Output _ |Viewer _ |Constant _ |Constant1 _ 
+        |Input _ |Input1 (_,_) |Output _ |Viewer _ |Constant _ |Constant1 _
+        // the IO of an array design sheet is IO, and reads as such beside the ordinary kind
+        |BusOut _ |ArrayOut _ |JoinOut _ |JoinIn _
             -> "#E8D0A9"  //dark orange: for IO
         | SplitWire _ | MergeWires | NotConnected ->
             "rgb(120,120,120)"
@@ -320,6 +322,11 @@ let getPrefix (compType:ComponentType) =
     | MergeN _ -> "MN"
     | SplitWire _ -> "SW"
     | SplitN _ -> "SN"
+    // the IO of an array design sheet
+    | BusOut _ -> "BO"
+    | ArrayOut _ -> "AO"
+    | JoinOut _ -> "JO"
+    | JoinIn _ -> "JI"
     |_  -> ""
 
 
@@ -381,6 +388,14 @@ let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     // beside it at one of four hand-placed offsets.
     | NbitSpreader 1 -> "Spread"
     | NbitSpreader n -> $"Spread.1→{n}"
+    // The IO of an array design sheet. The label already names it, so the legend says what the
+    // copies do with the value - which is the whole of what distinguishes these from an Output.
+    // A join shows its channel number, because which end joins which is read off those numbers and
+    // nothing else on the symbol carries them.
+    | BusOut _ -> "Bus out"
+    | ArrayOut _ -> "Array out"
+    | JoinOut (_, n) -> $"Join out.{n}"
+    | JoinIn (_, n) -> $"Join in.{n}"
     | _ -> ""
 
 
@@ -601,8 +616,19 @@ let getComponentProperties (compType:ComponentType) (label: string)=
             else n
         (1 , n, 2.*gS * (float k)/2. , 3.*gS)
     | Not -> ( 1 , 1, 1.0*gS ,  1.0*gS) 
-    | Input1 _ -> ( 0 , 1, gS ,  2.*gS)                
-    | ComponentType.Output (a) -> (  1 , 0, gS ,  2.*gS) 
+    | Input1 _ -> ( 0 , 1, gS ,  2.*gS)
+    | ComponentType.Output (a) -> (  1 , 0, gS ,  2.*gS)
+    // The IO of an array design sheet. A BusOut, an ArrayOut and a JoinOut each take one value per
+    // copy and so are shaped like an Output; a JoinIn supplies one and is shaped like an Input.
+    // Wider than the ordinary IO because their legends are longer - "BUS", "ARRAY", "n+1" - and a
+    // join's channel number has to be readable to see which end joins which.
+    | BusOut _ | ArrayOut _ | JoinOut _ -> ( 1 , 0, gS ,  3.*gS)
+    | JoinIn _ -> ( 0 , 1, gS ,  3.*gS)
+    // Never drawn: these are made by expanding an array design sheet and exist only inside a
+    // simulation. Sized as a MergeN and a Mux would be, so that anything which does reach for a
+    // size gets a sane one rather than a raise.
+    | ArrayMerge n -> ( n , 1, 2.*gS * (float (max n 3))/2. , 3.*gS)
+    | ArrayMux n -> ( n + 1 , 1, 2.*gS * (float (max n 3))/2. , 2.*gS)
     | ComponentType.Viewer a -> (  1 , 0, gS ,  gS) 
     | ComponentType.IOLabel  -> (  1 , 1, gS/2. ,  gS) 
     | ComponentType.NotConnected -> (  1, 0, gS , gS)

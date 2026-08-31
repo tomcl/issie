@@ -102,6 +102,13 @@ let getPortNumbers (sc: SimulationComponent) =
         | RAM _
         | ROM _ -> failwithf "legacy component type is not supported"
         | Input _ -> failwithf "Legacy Input component types should never occur"
+        // ArrayExpand rewrites an array design sheet into ordinary sheets before any graph is
+        // built, so none of these can reach the simulator. See CommonTypes.ArrayInfo.
+        | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ ->
+            failwithf "Array sheet IO is removed by expansion and should never reach the simulator"
+        // the glue of an expanded array sheet: the select is the LAST input, as a Mux2's is
+        | ArrayMerge n -> n, 1
+        | ArrayMux n -> n + 1, 1
 
     ins, outs
 
@@ -206,6 +213,23 @@ let findBigIntState (fc: FastComponent) =
     | AsyncROM _
     | ROM _
     | RAM _ -> failwith "Legacy components, not Implemented"
+    // The glue of an expanded array sheet. Every input of each shares one width, so a single
+    // input decides the path - but the merge's OUTPUT is n times that and may cross 32 where its
+    // inputs do not, which is the case a per-input test alone would get wrong.
+    | ArrayMerge n ->
+        fc.OutputWidth 0 > 32 || fc.InputWidth 0 > 32,
+        Some
+            { InputIsBigInt = Array.init n (fun i -> fc.InputWidth i > 32)
+              OutputIsBigInt = [| fc.OutputWidth 0 > 32 |] }
+    | ArrayMux n ->
+        fc.OutputWidth 0 > 32,
+        Some
+            { InputIsBigInt = Array.init (n + 1) (fun i -> fc.InputWidth i > 32)
+              OutputIsBigInt = [| fc.OutputWidth 0 > 32 |] }
+    // ArrayExpand rewrites an array design sheet into ordinary sheets before any graph is built,
+    // so none of these can reach the simulator. See CommonTypes.ArrayInfo.
+    | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ ->
+        failwith "Array sheet IO is removed by expansion and should never reach the simulator"
 
 let mutable stepArrayIndex = -1
 
@@ -824,6 +848,8 @@ let portCarriesWave (f: FastSimulation) (fc: FastComponent) (pType: PortType) =
         | MergeWires
         | MergeN _
         | SplitN _
+        // a wiring component like MergeN - see PortView.carriesWaveOfSlice, which must agree
+        | ArrayMerge _
         | Constant1 _ -> false
         // in a subsheet: the port belongs to the enclosing custom component instance, and is
         // named after that. AccessPath is the chain of instances, so empty means the top sheet.

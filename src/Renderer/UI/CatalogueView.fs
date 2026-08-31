@@ -662,6 +662,52 @@ let private createInputPopup typeStr (compType: int * bigint option -> Component
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
+/// A Join out or a Join in: a width and the channel it uses. Two boxes rather than one, on the same
+/// pattern as an Input's width and default value, because the channel number is the interesting
+/// half - it is what decides which copy of the array sheet joins to which, and it is nearly always
+/// an expression in the sheet's loop variable.
+let private createJoinPopup typeStr (compType: int * int -> ComponentType) (model: Model) (dispatch: Msg -> unit) =
+    let title = sprintf "Add %s node" typeStr
+    let beforeText = fun _ -> str <| sprintf "What channel name should this %s use?" typeStr
+    let placeholder = "Channel name"
+    let width =
+        slotParam (compType (1, 0)) (IO "")
+            (sprintf "How many bits should the %s carry?" typeStr)
+            model.LastUsedDialogWidth
+    let channel =
+        slotParam (compType (1, 0)) JoinNum
+            "Which channel? Usually an expression in this sheet's loop variable, such as i or i+1."
+            0
+    let boxes = [width; channel]
+    let textBody = dialogPopupBodyOnlyText beforeText placeholder dispatch
+    let body =
+        fun (model': Model) ->
+            div [] [textBody model'; paramBox dispatch width model'; paramBox dispatch channel model']
+    let buttonAction =
+        fun (model': Model) ->
+            match paramBoxValues model'.PopupDialogData boxes with
+            | Error _ -> ()             // the button is disabled in this case
+            | Ok specs ->
+                let inputText = getText model'.PopupDialogData
+                let comp =
+                    match paramBoxInts specs with
+                    | [widthInt; numInt] -> compType (widthInt, numInt)
+                    | _ -> failwithf "createJoinPopup: two boxes must give two numbers"
+                createComponent
+                    comp
+                    (MenuHelpers.formatLabelFromType comp inputText)
+                    (paramSlotsOf dispatch specs)
+                    model
+                    dispatch
+                dispatch ClosePopup
+    let isDisabled =
+        fun (model': Model) ->
+            let notGoodLabel =
+                getText model'.PopupDialogData
+                |> (fun s -> s = "" || not (String.startsWithLetter s))
+            notGoodLabel || (paramBoxValues model'.PopupDialogData boxes |> Result.isError)
+    dialogPopup title body "Add" buttonAction isDisabled [] dispatch
+
 let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
     let title = sprintf "Add %s node" typeStr
     let beforeText =
@@ -1519,7 +1565,8 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
                                 Form = Some (Verilog name);
                                 Description=None;
                                 ParameterDefinitions = None
-                                IsTopSheet = None})
+                                IsTopSheet = None
+                                ArrayInfo = None})
 
                 match toSaveCanvasState |> Result.bind (writeFile path2) with
                 | Ok _ -> 
@@ -2010,6 +2057,37 @@ let viewCatalogue model dispatch =
                                                    data in the clock cycle after the address is presented" 
                           catTip1 "RAM (async read)" (AsyncRAM1 ghostMemory) (fun  _ -> dispatchAsFunc (createMemoryPopup AsyncRAM1))  "A RAM whose output contains the addressed \
                                                    data in the same clock cycle as address is presented" ]
+
+                    // Only on an array design sheet: these four are legal nowhere else, and every
+                    // other sheet would otherwise carry a section its user can make no use of.
+                    // startPlacement refuses the gesture too, since a component can also be
+                    // dragged, and analyseState refuses one that arrived by paste or by hand.
+                    (match openSheetArrayInfo model with
+                     | None -> null
+                     | Some _ ->
+                        groupWithTip
+                            "Array sheet"
+                            "This sheet's hardware is several copies of what is drawn on it, one per \
+                             value of its loop variable. These say how the copies join to each other \
+                             and to the outside. An ordinary Input goes to every copy, and an \
+                             ordinary Output gives one port per copy."
+                            (List.concat [
+                                catTip1 "Bus out" (BusOut 1) (fun _ -> dispatchAsFunc (createIOPopup true "bus output" BusOut))
+                                    "Takes one value from each copy and joins them into a single bus, \
+                                     copy 0 in the least significant bits. The sheet gets one output \
+                                     of width (number of copies) x (this width)."
+                                catTip1 "Array out" (ArrayOut 1) (fun _ -> dispatchAsFunc (createIOPopup true "array output" ArrayOut))
+                                    "Takes one value from each copy, to be selected between by the \
+                                     multiplexers declared in this sheet's array settings. It adds no \
+                                     port of its own: each multiplexer adds a select input and an output."
+                                catTip1 "Join out" (JoinOut (1, 0)) (fun _ -> dispatchAsFunc (createJoinPopup "join out" JoinOut))
+                                    "Sends this copy's value to the copy whose Join in has the same \
+                                     name and the same channel number. Where no copy takes it - at \
+                                     the end of a chain - it becomes an output of this sheet."
+                                catTip1 "Join in" (JoinIn (1, 0)) (fun _ -> dispatchAsFunc (createJoinPopup "join in" JoinIn))
+                                    "Takes this copy's value from the copy whose Join out has the \
+                                     same name and the same channel number. Where no copy sends it - \
+                                     at the start of a chain - it becomes an input of this sheet." ]))
 
                     groupWithTip
                         "This project"

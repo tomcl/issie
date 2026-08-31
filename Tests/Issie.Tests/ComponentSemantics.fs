@@ -176,6 +176,54 @@ let tests =
         checkExhaustive "MergeN 2" (MergeN 2) [ 2; w ] [ 2 + w ] (fun (In2(a, b)) -> [ (b <<< 2) ||| a ])
         checkExhaustive "SplitN 3" (SplitN(3, [ 1; 2; 2 ], [ 0; 1; 3 ])) [ 5 ] [ 1; 2; 2 ] (fun (In1(a)) ->
             [ mask 1 a; mask 2 (a >>> 1); mask 2 (a >>> 3) ])
+        // The glue an expanded array design sheet leaves behind. Both take any fixed number of
+        // inputs at ONE width, which is what a MergeN and a Mux tree cannot do in one component.
+        // ArrayMerge is little-endian like MergeN: input 0 is the least significant copy.
+        checkExhaustive "ArrayMerge 3" (ArrayMerge 3) [ 2; 2; 2 ] [ 6 ] (fun (In3(a, b, c)) ->
+            [ a ||| (b <<< 2) ||| (c <<< 4) ])
+        checkExhaustive "ArrayMerge 2" (ArrayMerge 2) [ 3; 3 ] [ 6 ] (fun (In2(a, b)) ->
+            [ a ||| (b <<< 3) ])
+        // The select is the LAST input, as a Mux2's is. n = 4 is the power-of-two case, where every
+        // select value picks a copy.
+        checkExhaustive "ArrayMux 4" (ArrayMux 4) [ 2; 2; 2; 2; 2 ] [ 2 ] (fun l ->
+            match l with
+            | [ a; b; c; d; sel ] -> [ [ a; b; c; d ][int sel] ]
+            | _ -> failwithf "ArrayMux 4 reference: %A" l)
+        // n = 3 is the case that says what an out-of-range select does. clog2 3 = 2, so the select
+        // can be 3, which no copy answers: the reducer gives 0, and that is a definition rather
+        // than an accident of how the tree was built.
+        checkExhaustive "ArrayMux 3, select out of range" (ArrayMux 3) [ 2; 2; 2; 2 ] [ 2 ] (fun l ->
+            match l with
+            | [ a; b; c; sel ] -> [ if sel < 3I then [ a; b; c ][int sel] else 0I ]
+            | _ -> failwithf "ArrayMux 3 reference: %A" l)
+        // n = 1 is the degenerate array: clog2 1 is 0, so the select is one bit by the max(_,1)
+        // rule and half its values are out of range.
+        checkExhaustive "ArrayMux 1" (ArrayMux 1) [ 2; 1 ] [ 2 ] (fun (In2(a, sel)) ->
+            [ if sel = 0I then a else 0I ])
+
+        // The bigint path of both, which no exhaustive check can reach. ArrayMerge is the one that
+        // needs it: its inputs are narrow and its OUTPUT is n times as wide, so it crosses 32 where
+        // a per-input test would say it had not.
+        test "ArrayMerge and ArrayMux over 32 bits" {
+            let cases =
+                [ [ 0I; 0I; 0I ]
+                  [ 4095I; 0I; 0I ]
+                  [ 0I; 0I; 4095I ]
+                  [ 1I; 2I; 3I ]
+                  [ 4095I; 4095I; 4095I ]
+                  [ 2730I; 1365I; 4095I ] ]
+            for vals in cases do
+                let expected = [ vals[0] ||| (vals[1] <<< 12) ||| (vals[2] <<< 24) ]
+                let actual = simulate (ArrayMerge 3) [ 12; 12; 12 ] [ 36 ] vals
+                Expect.equal actual expected $"ArrayMerge 3 x 12 bits on %A{vals}"
+            // and a mux whose data is wider than 32, selected every way including out of range
+            let wide = [ 68719476735I; 1I; 0I ]     // 36 ones, then two small values
+            for sel in 0I .. 3I do
+                let expected = [ if sel < 3I then wide[int sel] else 0I ]
+                let actual = simulate (ArrayMux 3) [ 36; 36; 36; 2 ] [ 36 ] (wide @ [ sel ])
+                Expect.equal actual expected $"ArrayMux 3 x 36 bits at select {sel}"
+        }
+
         checkExhaustive "BusSelection" (BusSelection(2, 1)) [ w + 2 ] [ 2 ] (fun (In1(a)) ->
             [ mask 2 (a >>> 1) ])
         checkExhaustive "BusCompare1" (BusCompare1(w, 5I, "5")) [ w ] [ 1 ] (fun (In1(a)) ->

@@ -544,6 +544,29 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     | Input _
     | AsyncROM _ | RAM _ | ROM _ ->
         failwithf $"Invalid legacy component type '{fc.FType}'"
+    // ArrayExpand rewrites an array design sheet into ordinary sheets before any graph is built, so
+    // Verilog is emitted from the expansion and never sees these. See CommonTypes.ArrayInfo.
+    | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ ->
+        failwithf $"Array sheet IO is removed by expansion and cannot reach Verilog output: '{fc.FType}'"
+    // The glue of an expanded array sheet. Unlike the four above, these DO reach Verilog: they are
+    // what the expansion leaves behind, so a design holding an array sheet emits them.
+    //
+    // The concatenation is MergeN's, with input 0 least significant, so the braces list the inputs
+    // in reverse - Verilog's {} puts its leftmost operand in the most significant bits.
+    | ArrayMerge n ->
+        let inputs = [| for i in n - 1 .. -1 .. 0 -> ins i |] |> String.concat ","
+        $"assign {outs 0} = {{ {inputs} }};\n"
+    // A chain of conditionals rather than a case statement, because this is a continuous assign as
+    // every other component here is. Out of range gives 0, which is the reducer's answer too - the
+    // number of copies need not be a power of two, so it is a value the select really can take.
+    | ArrayMux n ->
+        let sel = ins n
+        let w = fc.OutputWidth 0
+        let selW = fc.InputWidth n
+        let chain =
+            [0 .. n - 1]
+            |> List.fold (fun acc i -> acc + $"({sel} == {makeBits selW (bigint i)}) ? {ins i} : ") ""
+        $"assign {outs 0} = {chain}{makeBits w 0I};\n"
     | Shift (n,m,tp) ->
         let input = ins 0
         let shifter = ins 1

@@ -308,8 +308,11 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             match comp.Type with
             // legacy component: to be deleted
             | Input _
-            | Input1 _ |Output _ -> 
-                [|{X=0;Y=0};{X=0;Y=H};{X=W*4./5.;Y=H};{X=W;Y=H/2.};{X=W*0.8;Y=0}|] 
+            | Input1 _ |Output _
+            // The IO of an array design sheet takes the ordinary IO outline: whatever the copies
+            // do with the value, each of these is one port of the sheet and reads best as one.
+            | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ ->
+                [|{X=0;Y=0};{X=0;Y=H};{X=W*4./5.;Y=H};{X=W;Y=H/2.};{X=W*0.8;Y=0}|]
             //| Output _ -> 
             //    [|{X=W/5.;Y=0};{X=0;Y=H/2.};{X=W/5.;Y=H};{X=W;Y=H};{X=W;Y=0}|]
             | Constant1 _ -> 
@@ -455,7 +458,9 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             (addText {X = w/2.-2.; Y = h/2.7-1.} ("= " + t) "middle" "bold" "10px")
         // legacy component type: to be deleted
         | Input x
-        | Input1 (x, _) | Output x-> 
+        | Input1 (x, _) | Output x
+        // array sheet IO: its width matters here as it does on any other port of a sheet
+        | BusOut x | ArrayOut x | JoinOut (x, _) | JoinIn (x, _) ->
             (addText {X = w/2.; Y = h/2.7} (busTitleAndBits "" x) "middle" "normal" "12px")
         | Viewer (x) -> 
             (addText {X = w/2.; Y = h/2.7 - 1.25} (busTitleAndBits "" x) "middle" "normal" "9px")

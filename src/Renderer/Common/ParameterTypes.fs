@@ -182,6 +182,12 @@ type CompSlotName =
     | MemoryAddressWidth
     /// How many bits a memory holds at each location.
     | MemoryWordWidth
+    /// Which channel a JoinOut publishes on, or a JoinIn takes from, in one copy of an array design
+    /// sheet. Its own slot rather than Buswidth because a join has a width as well, and the two are
+    /// edited from the same properties pane. The expression may name the sheet's loop variable and
+    /// nothing else: which joins are left unmatched decides the array sheet's ports, so it must not
+    /// depend on what an instance binds.
+    | JoinNum
 
 /// A slot in a component instance that can be bound to a parameter expression.
 /// ComponentId 0 is the sentinel for "no component" - a popup's dialog box.

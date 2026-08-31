@@ -300,6 +300,14 @@ module Fields =
                  for the top sheet's own inputs in the waveform viewer. Both simulators use it, so it \
                  is the place to set the input values a waveform simulation should start from."
 
+            // ---- array design sheets ----
+            "Channel number",
+                "Which channel this join uses, in the copy of the array sheet it is in. A Join out \
+                 and a Join in with the same name and the same number are one wire between two \
+                 copies. Usually an expression in the sheet's loop variable, so a carry chain is a \
+                 Join out numbered i+1 against a Join in numbered i. It may name the loop variable \
+                 and nothing else, and must never be negative in any copy."
+
             // ---- shape ----
             "Number of inputs",
                 "How many input ports this component has. Reducing it deletes the wires on the ports \

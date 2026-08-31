@@ -46,7 +46,7 @@ let updateVerilogFileAction newCS name model (dispatch: Msg -> Unit)=
             project.LoadedComponents
             |> List.tryFind (fun lc -> lc.Name = name)
             |> Option.map (fun lc -> lc.IsTopSheet)
-        let sheetInfo: SheetInfo = {Form=Some (Verilog name);Description=None; ParameterDefinitions=None; IsTopSheet = wasTop} //only user defined sheets are editable and thus saveable
+        let sheetInfo: SheetInfo = {Form=Some (Verilog name);Description=None; ParameterDefinitions=None; IsTopSheet = wasTop; ArrayInfo = None} //only user defined sheets are editable and thus saveable
         let design = designWithSheet project name newCS
         let savedState = newCS, getSavedWave design model,(Some sheetInfo)
         ComponentLibraries.writeSheetFile (ComponentLibraries.sheetFilePath project name) savedState
@@ -61,7 +61,7 @@ let updateVerilogFileAction newCS name model (dispatch: Msg -> Unit)=
         let (SheetInfo:SheetInfo option) =
             match origLdComp.Form with
             |None -> None
-            |Some form -> Some {Form=Some form;Description=origLdComp.Description; ParameterDefinitions=origLdComp.LCParameterSlots; IsTopSheet = Some origLdComp.IsTopSheet}
+            |Some form -> Some {Form=Some form;Description=origLdComp.Description; ParameterDefinitions=origLdComp.LCParameterSlots; IsTopSheet = Some origLdComp.IsTopSheet; ArrayInfo = origLdComp.ArrayInfo}
         let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData newCS origLdComp.FilePath DateTime.Now savedWaveSim SheetInfo
         let newState =
             newCS
@@ -126,6 +126,7 @@ let createEmptyComponentAndFile (pPath:string)  (sheetName: string): LoadedCompo
         Form = Some User
         Description = None
         LCParameterSlots = None
+        ArrayInfo = None
         IsTopSheet = false
     }
 
@@ -269,6 +270,7 @@ let addFileToProject model dispatch =
                         Form = Some User
                         Description = None
                         LCParameterSlots = None
+                        ArrayInfo = None
                         IsTopSheet = false
                     }
                     let updatedProject =

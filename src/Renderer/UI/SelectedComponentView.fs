@@ -126,6 +126,14 @@ let componentTypeName (ct: ComponentType) : string =
     match ct with
     | Input1 _ | Input _ -> "Input"
     | Output _ -> "Output"
+    | BusOut _ -> "Bus output"
+    | ArrayOut _ -> "Array output"
+    | JoinOut _ -> "Join out"
+    | JoinIn _ -> "Join in"
+    // never selected on a canvas: made by expanding an array sheet, and named here because the
+    // waveform viewer shows them and this match is what names a component to the user
+    | ArrayMerge _ -> "Array bus merge"
+    | ArrayMux _ -> "Array multiplexer"
     | Viewer _ -> "Viewer"
     | IOLabel -> "Net label"
     | NotConnected -> "Not connected"
@@ -558,7 +566,10 @@ let private makeNumberOfBitsField model (comp: Component) text dispatch =
     // the same idea; only the two that qualify WHICH width still differ.
     let title, width, slot =
         match comp.Type with
-        | Input1 (w, _) | Output w -> "Width (bits)", w, IO comp.Label
+        // The IO of an array design sheet uses the IO slot for its width, as an Input1 and an
+        // Output do: it is the width of one port of the sheet, and is edited in the same box.
+        | Input1 (w, _) | Output w
+        | BusOut w | ArrayOut w | JoinOut (w, _) | JoinIn (w, _) -> "Width (bits)", w, IO comp.Label
         | NbitsAdder w | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w
         | NbitsXor (w, _) | NbitsAnd w | NbitsOr w |NbitsNot w
         | Register w | RegisterE w
@@ -768,6 +779,24 @@ let makeDefaultValueField (model: Model) (comp: Component) dispatch: ReactElemen
     // share a parameter slot
     ParameterView.paramInputField model title 0I (Some defValue) None constraints None (Some comp) InputDefault dispatch
 
+/// Used for JoinOut and JoinIn. Which channel this join uses, in the copy of the array design
+/// sheet it is in. Almost always an expression in the sheet's loop variable - `i`, `i+1`, `i-1` -
+/// which is what makes copy i's Join out meet copy i+1's Join in.
+let makeJoinNumField (model: Model) (comp: Component) dispatch: ReactElement =
+    let title = "Channel number"
+
+    let num =
+        match comp.Type with
+        | JoinOut (_, n) | JoinIn (_, n) -> n
+        | t -> failwithf $"makeJoinNumField called on {t}, which is not a join"
+
+    // Non-negative, and nothing else: see ComponentSlots.constraintsFor. The number is checked
+    // again for every copy when the sheet is expanded, which is the check that can see them all.
+    let constraints = ComponentSlots.constraintsFor JoinNum comp.Type
+
+    // JoinNum, not IO: IO is this join's width, and two fields of one component cannot share a slot
+    ParameterView.paramInputField model title 0I (Some (bigint num)) None constraints None (Some comp) JoinNum dispatch
+
 let mockDispatchS msgFun msg =
     match msg with
     | Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol sMsg)) ->
@@ -874,6 +903,8 @@ let private describeComponent (comp:Component) model : ReactElement list =
     | ROM _ | RAM _ | AsyncROM _ ->
         failwithf "What? Legacy RAM component types should never occur"
     | Input _ -> failwithf "Legacy Input component types should never occur"
+    // never on a canvas, so never selected: expanding an array sheet makes these
+    | ArrayMerge _ | ArrayMux _ -> []
     // the header names these, and there is nothing further worth saying
     | Input1 _ | Output _ | Viewer _ | NotConnected | Constant1 _ | Constant _
     | Not | GateN _ | Decode4
@@ -885,6 +916,27 @@ let private describeComponent (comp:Component) model : ReactElement list =
     | BusCompare _ | BusCompare1 _ ->
         [str "The output is one if the bus unsigned binary value is equal to the integer specified. \
               This will display in hex on the design sheet."]
+    // The array IO components. Each explains what the copies of this sheet do with the value, since
+    // that is the whole of what makes them different from an ordinary Output.
+    | BusOut _ ->
+        [ str "Takes one value from each copy of this array sheet and joins them into a single bus, \
+               with copy 0 in the least significant bits. The sheet gets one output of width \
+               (number of copies) x (this width)." ]
+    | ArrayOut _ ->
+        [ str "Takes one value from each copy of this array sheet, to be selected between by the \
+               multiplexers declared in the sheet's array settings. It adds no port of its own: \
+               each multiplexer adds a select input and an output." ]
+    | JoinOut _ ->
+        [ str "Sends this copy's value to the copy whose Join in has the same name and the same \
+               channel number. Where no copy takes it - at the end of a chain - it becomes an \
+               output of the array sheet."
+          br []; br []
+          str "The channel number is usually written in terms of the loop variable, so a carry \
+               chain is a Join out numbered i+1 against a Join in numbered i." ]
+    | JoinIn _ ->
+        [ str "Takes this copy's value from the copy whose Join out has the same name and the same \
+               channel number. Where no copy sends it - at the start of a chain - it becomes an \
+               input of the array sheet." ]
     | BusSelection _ ->
         [ str "The output is the subrange [width+lsb-1..lsb] of the input bits. If width = 1 this \
                selects one bit. Error if the input has less than width + lsb bits."
@@ -1050,8 +1102,20 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
             [
                 changeMergeN model comp dispatch
             ]
-    | Output _ |NbitsAnd _ |NbitsOr _ |NbitsNot _ |NbitSpreader _ | NbitsXor _ | Viewer _ | Shift _ ->
+    | Output _ |NbitsAnd _ |NbitsOr _ |NbitsNot _ |NbitSpreader _ | NbitsXor _ | Viewer _ | Shift _
+    // The IO of an array design sheet. A BusOut and an ArrayOut have only a width, as an Output
+    // does; what the copies do with the value is fixed by the component type and the sheet's array
+    // settings, and there is nothing about it to edit here.
+    | BusOut _ | ArrayOut _ ->
         makeNumberOfBitsField model comp text dispatch
+    // A join has a width and a channel number, and the number is the interesting one: it is what
+    // decides which copy joins to which.
+    | JoinOut _ | JoinIn _ ->
+        div []
+            [
+                makeNumberOfBitsField model comp text dispatch
+                makeJoinNumField model comp dispatch
+            ]
     | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ ->
         div []
             [

@@ -846,7 +846,7 @@ let saveStateToFileExperimental folderPath baseName state =
 
 /// Create new empty diagram file. Automatically add the .dgm suffix.
 let createEmptyDgmFile folderPath baseName =
-    saveStateToFile folderPath baseName (([],[]), None, Some {Form=Some User;Description=None;ParameterDefinitions = None; IsTopSheet = None})
+    saveStateToFile folderPath baseName (([],[]), None, Some {Form=Some User;Description=None;ParameterDefinitions = None; IsTopSheet = None; ArrayInfo = None})
 
 let stripVertices (conn: LegacyCanvas.LegacyConnection) =
     {conn with Vertices = []}
@@ -958,6 +958,7 @@ let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp w
             LoadedComponentIsOutOfDate = false
             LCParameterSlots = sheetInfo |> Option.bind (fun sI -> sI.ParameterDefinitions)
             IsTopSheet = sheetInfo |> Option.bind (fun sI -> sI.IsTopSheet) |> Option.defaultValue false
+            ArrayInfo = sheetInfo |> Option.bind (fun sI -> sI.ArrayInfo)
         }
     ldc, ramChanges
 

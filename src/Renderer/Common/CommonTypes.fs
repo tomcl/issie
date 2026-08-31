@@ -300,7 +300,54 @@ type ComponentType =
     // legacy cases to be deleted?
     | BusCompare of BusWidth: int * CompareValue: bigint
     | Input of BusWidth: int
-    | Constant of Width: int * ConstValue: bigint 
+    | Constant of Width: int * ConstValue: bigint
+    //-------------------------------------------------------------------------------------------//
+    // The IO of an ARRAY DESIGN SHEET - see CommonTypes.ArrayInfo. Such a sheet's hardware is
+    // EndValue+1 copies of what is drawn on it, and these say how the copies join to each other and
+    // to the outside. They are legal ONLY on an array sheet, and an array sheet is the only place
+    // they may be placed - CanvasStateAnalyser refuses either way round.
+    //
+    // Two ordinary components have an array reading on such a sheet and are unchanged by it: an
+    // Input1 is driven to EVERY copy, and an Output gives one port per copy.
+    //
+    // None of them reaches the simulator. ArrayExpand rewrites them away when it expands the sheet,
+    // before any graph is built - which is why the evaluators, Verilog and the truth table have
+    // nothing to say about them.
+    //
+    // Appended rather than grouped with the other IO components because a saved file keys a DU case
+    // by its NAME (SimpleJson/Json.Converter.fs), and appending is the shape that has been checked.
+    //-------------------------------------------------------------------------------------------//
+    /// One value per copy of an array sheet, concatenated into a single bus on the sheet's outline:
+    /// one output of width copies*BusWidth, with copy 0 in the least significant bits.
+    | BusOut of BusWidth: int
+    /// One value per copy of an array sheet, as the inputs of the muxes declared over it in the
+    /// sheet's array settings. It contributes no port of its own: a mux declaration is what creates
+    /// the pair of outline ports that reads these values.
+    | ArrayOut of BusWidth: int
+    /// Publishes this copy's value on channel Num of the channel named by the component's label.
+    /// A JoinOut and a JoinIn with the same label and the same Num are one wire between two copies;
+    /// a JoinOut no copy's JoinIn matches becomes an output on the sheet's outline.
+    | JoinOut of BusWidth: int * Num: int
+    /// Takes this copy's value from channel Num of the channel named by the component's label.
+    /// A JoinIn no copy's JoinOut matches becomes an input on the sheet's outline.
+    | JoinIn of BusWidth: int * Num: int
+    //-------------------------------------------------------------------------------------------//
+    // Created ONLY by expanding an array design sheet, and legal nowhere else - not in the
+    // catalogue, not drawn, and refused by CanvasStateAnalyser on any sheet at all. They exist so
+    // that an array's glue is one component per BusOut and one per mux, rather than a tree of
+    // MergeN bounded at 19 inputs and a tree of Mux2.
+    //
+    // Neither carries a width, as MergeN does not: width inference requires the inputs to agree
+    // and works the rest out. "Any fixed number of inputs, all of one width" is the whole of what
+    // makes these different from the components Issie already has.
+    //-------------------------------------------------------------------------------------------//
+    /// NumInputs inputs, all of one width, concatenated: input 0 in the least significant bits,
+    /// so the output is NumInputs times the width they share.
+    | ArrayMerge of NumInputs: int
+    /// NumInputs data inputs, all of one width, on ports 0 .. NumInputs-1, and a select input on
+    /// port NumInputs of width max(clog2 NumInputs, 1) - the select LAST, as Mux2's is. The output
+    /// is the selected input, and a select value at or above NumInputs gives 0.
+    | ArrayMux of NumInputs: int
 
 
 
@@ -613,7 +660,15 @@ module JSONComponent =
         //---------------Legacy cases not in the Issie ComponentType here-------------------//
         | BusCompare of BusWidth: int * CompareValue: bigint
         | Input of BusWidth: int
-        | Constant of Width: int * ConstValue: bigint 
+        | Constant of Width: int * ConstValue: bigint
+        //-----------------The IO of an array design sheet - see ComponentType--------------//
+        | BusOut of BusWidth: int
+        | ArrayOut of BusWidth: int
+        | JoinOut of BusWidth: int * Num: int
+        | JoinIn of BusWidth: int * Num: int
+        //---------Created only by expanding an array design sheet - see ComponentType---------//
+        | ArrayMerge of NumInputs: int
+        | ArrayMux of NumInputs: int
 
 
 
@@ -724,6 +779,13 @@ let convertFromJSONComponent (mapCompId: string -> ComponentId) (mapPortId: stri
         | JSONComponent.ComponentType.ROM x -> ROM x
         | JSONComponent.ComponentType.RAM x -> RAM x
         | JSONComponent.ComponentType.Shift (a,b,c) -> Shift (a,b,c)
+        // the IO of an array design sheet
+        | JSONComponent.ComponentType.BusOut w -> BusOut w
+        | JSONComponent.ComponentType.ArrayOut w -> ArrayOut w
+        | JSONComponent.ComponentType.JoinOut (w,n) -> JoinOut (w,n)
+        | JSONComponent.ComponentType.JoinIn (w,n) -> JoinIn (w,n)
+        | JSONComponent.ComponentType.ArrayMerge n -> ArrayMerge n
+        | JSONComponent.ComponentType.ArrayMux n -> ArrayMux n
         //-----------------------Changes are made in these conversions---------------------------//
         | JSONComponent.Constant(w,v) -> Constant1(w,v,sprintf "%A" v)
         | JSONComponent.Input n -> Input1(n, None)
@@ -838,6 +900,13 @@ let convertToJSONComponent (comp: Component) : JSONComponent.Component =
         | BusCompare (w, v) -> JSONComponent.ComponentType.BusCompare (w, v)
         | Input w -> JSONComponent.ComponentType.Input w
         | Constant (w, v) -> JSONComponent.ComponentType.Constant (w, v)
+        // the IO of an array design sheet
+        | BusOut w -> JSONComponent.ComponentType.BusOut w
+        | ArrayOut w -> JSONComponent.ComponentType.ArrayOut w
+        | JoinOut (w, n) -> JSONComponent.ComponentType.JoinOut (w, n)
+        | JoinIn (w, n) -> JSONComponent.ComponentType.JoinIn (w, n)
+        | ArrayMerge n -> JSONComponent.ComponentType.ArrayMerge n
+        | ArrayMux n -> JSONComponent.ComponentType.ArrayMux n
     let jsonPort (port: Port) : JSONComponent.Port =
         { Id = string (pToInt port.Id)
           PortNumber = port.PortNumber
@@ -1107,6 +1176,56 @@ type SavedWaveInfo = {
     DisplayedPortIds: string array option
 }
 
+/// One mux declared over an ArrayOut in an array design sheet's settings.
+///
+/// A declaration rather than something ArrayOut implies, so that one ArrayOut's per-copy values can
+/// be selected several ways at once - each declaration is what creates a pair of ports on the array
+/// sheet's outline, and two muxes over one ArrayOut are two independent selections of it.
+/// The field names are prefixed because F# resolves an unannotated record field to the LAST type
+/// declaring it: bare `Source` would capture every `{Source = _; Target = _}` that means a
+/// Connection, and bare `Name` every one that means a LoadedComponent. Same reason as WavePath's.
+type ArrayMuxSpec = {
+    /// The label of the ArrayOut component whose per-copy values this mux selects between.
+    MuxSource: string
+    /// The name of the outline output. Its select input is named <MuxName>_sel.
+    MuxName: string
+}
+
+/// The array settings of an array design sheet; absent on an ordinary sheet.
+///
+/// An array sheet's hardware is EndValue+1 copies of what is drawn on it, one per value of the loop
+/// variable. What joins the copies to each other and to the outside is the array IO components -
+/// see ComponentType's BusOut, ArrayOut, JoinOut and JoinIn.
+///
+/// EndValue is a plain integer and deliberately NOT a parameter expression. It fixes how many
+/// copies there are, and so fixes the ports of every custom component instance of this sheet: an
+/// array sheet has ONE signature per set of bindings, exactly as any other sheet does. Making it an
+/// expression would make a sheet's port LIST depend on who instantiated it, which nothing else in
+/// Issie has to cope with. Widths remain parameterisable as they are everywhere else.
+type ArrayInfo = {
+    /// The name of the loop variable, which takes the values 0 .. EndValue, one per copy.
+    ///
+    /// NOT a declared property of this sheet: it is declared here, it has a value only inside a
+    /// copy, and no instance may bind it - so it is absent from DefaultBindings and every part of
+    /// the parameter system that walks a sheet's declared properties ignores it without being
+    /// asked to. It IS in scope in the slot expressions of components on this sheet, which is what
+    /// makes one copy differ from the next; but not in a slot that sets a width, since every copy
+    /// must have the same ports, and in a join's number it is the only name allowed.
+    LoopParam: ParameterTypes.ParamName
+    /// The last value the loop variable takes; the first is always 0, so there are EndValue+1
+    /// copies. Never negative.
+    EndValue: int
+    Muxes: ArrayMuxSpec list
+}
+
+/// Lenses for ArrayInfo
+let loopParam_ = Lens.create (fun a -> a.LoopParam) (fun s a -> {a with LoopParam = s})
+let endValue_ = Lens.create (fun a -> a.EndValue) (fun s a -> {a with EndValue = s})
+let muxes_ = Lens.create (fun a -> a.Muxes) (fun s a -> {a with Muxes = s})
+
+/// How many copies an array sheet has.
+let copiesOfArray (info: ArrayInfo) = info.EndValue + 1
+
 /// Info regarding sheet saved in the .dgm file
 type SheetInfo = {
     Form: CCForm option
@@ -1116,6 +1235,9 @@ type SheetInfo = {
     /// purposes. View state, not semantics: it changes what the editor displays, never what
     /// anything means. Optional so files saved by older Issie versions load unchanged.
     IsTopSheet: bool option
+    /// The array settings, on a sheet that is an array design sheet. Optional both because most
+    /// sheets are not, and so that files saved by older Issie versions load unchanged.
+    ArrayInfo: ArrayInfo option
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1146,11 +1268,13 @@ module JSONWave =
         DisplayedPortIds: string array option
     }
 
+    // ArrayInfo has no id in it, so it needs no file form distinct from the memory one.
     type SheetInfo = {
         Form: CCForm option
         Description: string option
         ParameterDefinitions: ParameterTypes.JSONParams.ParameterDefs option
         IsTopSheet: bool option
+        ArrayInfo: ArrayInfo option
     }
 
 let waveInfoToJson (wi: SavedWaveInfo) : JSONWave.SavedWaveInfo =
@@ -1185,13 +1309,15 @@ let sheetInfoToJson (si: SheetInfo) : JSONWave.SheetInfo =
     { Form = si.Form
       Description = si.Description
       ParameterDefinitions = si.ParameterDefinitions |> Option.map ParameterTypes.paramDefsToJson
-      IsTopSheet = si.IsTopSheet }
+      IsTopSheet = si.IsTopSheet
+      ArrayInfo = si.ArrayInfo }
 
 let sheetInfoOfJson (mapCompId: string -> ComponentId) (si: JSONWave.SheetInfo) : SheetInfo =
     { Form = si.Form
       Description = si.Description
       ParameterDefinitions = si.ParameterDefinitions |> Option.map (ParameterTypes.paramDefsOfJson mapCompId)
-      IsTopSheet = si.IsTopSheet }
+      IsTopSheet = si.IsTopSheet
+      ArrayInfo = si.ArrayInfo }
 
 (*--------------------------------------------------------------------------------------------------*)
 
@@ -1231,6 +1357,10 @@ type LoadedComponent = {
     /// True on the sheet chosen as the current top of the design for display purposes.
     /// View state persisted in the sheet's file; never affects elaboration.
     IsTopSheet: bool
+    /// The array settings, on a sheet that is an array design sheet. See ArrayInfo: the hardware
+    /// of such a sheet is EndValue+1 copies of what is drawn on it, and its ports are derived from
+    /// its contents and that count rather than being its Input1 and Output components.
+    ArrayInfo: ArrayInfo option
 }
 
 open Optics.Operators
@@ -1257,6 +1387,12 @@ let lcParameterDefs_ =
         (fun s a -> {a with LCParameterSlots = Some s})
 
 let isTopSheet_ = Lens.create (fun a -> a.IsTopSheet) (fun s a -> {a with IsTopSheet = s})
+
+/// A sheet's array settings, where it has any.
+let arrayInfo_ = Lens.create (fun a -> a.ArrayInfo) (fun s a -> {a with ArrayInfo = s})
+
+/// Whether a sheet is an array design sheet.
+let isArraySheet (ldc: LoadedComponent) = ldc.ArrayInfo.IsSome
 
 /// Whether a component is clocked in itself - without looking inside a custom component, which is
 /// a question about the sheet it names rather than about the component.

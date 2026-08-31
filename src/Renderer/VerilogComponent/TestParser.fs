@@ -879,7 +879,8 @@ let runMemoryTests () =
                                 Form = Some (Verilog "name")
                                 Description = None
                                 ParameterDefinitions = None
-                                IsTopSheet = None}) |> ignore
+                                IsTopSheet = None
+                                ArrayInfo = None}) |> ignore
                         )
 
                     let parseNet  = parseAfter  - parseBefore

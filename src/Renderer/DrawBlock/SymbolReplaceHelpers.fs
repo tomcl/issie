@@ -60,6 +60,19 @@ let changeLsbf (symModel:Model) (compId:ComponentId) (newLsb:bigint) =
 
     set (component_ >-> type_) newcompotype symbol
 
+/// Set which channel a join uses. The width is left alone: a join carries both, and the properties
+/// pane edits them in two boxes.
+let changeJoinNum (symModel: Model) (compId: ComponentId) (newNum: int) =
+    let symbol = Map.find compId symModel.Symbols
+
+    let newcompotype =
+        match symbol.Component.Type with
+        | JoinOut (w, _) -> JoinOut (w, newNum)
+        | JoinIn (w, _) -> JoinIn (w, newNum)
+        | t -> failwithf $"changeJoinNum should only be called for a join, not {t}"
+
+    set (component_ >-> type_) newcompotype symbol
+
 /// This function should be called for Input1 components only. Sets the default
 /// value to be used in simulations for an Input1 component if it is not driven.
 let changeInputValue (symModel: Model) (compId: ComponentId) (newVal: bigint) =

@@ -18,7 +18,8 @@ let private ldc (name: string) (form: CCForm) (canvas: CanvasState) : LoadedComp
       Form = Some form
       Description = None
       LCParameterSlots = None
-      IsTopSheet = false }
+      IsTopSheet = false
+      ArrayInfo = None }
 
 /// an instance of sheet `name`, as a Custom component
 let private instanceOf (id: int) (name: string) (label: string) =
@@ -64,7 +65,7 @@ let private header (name: string) (offered: bool) (requires: string list) : Comp
 let private bodyOf (name: string) (comps: Component list) =
     let sheetInfo: SheetInfo =
         {Form = Some User; Description = Some $"test component {name}"
-         ParameterDefinitions = None; IsTopSheet = Some false}
+         ParameterDefinitions = None; IsTopSheet = Some false; ArrayInfo = None}
     match Helpers.JsonHelpers.stateToJsonString ((comps, []), None, Some sheetInfo) with
     | Ok json -> json
     | Error msg -> failwithf "%s" msg
@@ -239,7 +240,7 @@ let tests =
                 // saved with a different sub-sheet on the canvas, and no description of its own
                 let canvas: CanvasState = [ instanceOf 1 "lookahead" "L1" ], []
                 let sheetInfo: SheetInfo =
-                    {Form = Some User; Description = None; ParameterDefinitions = None; IsTopSheet = Some false}
+                    {Form = Some User; Description = None; ParameterDefinitions = None; IsTopSheet = Some false; ArrayInfo = None}
                 match ComponentLibraries.writeSheetFile path (canvas, None, Some sheetInfo) with
                 | Error msg -> failtest msg
                 | Ok () ->
@@ -261,7 +262,7 @@ let tests =
                 writeComponent libPath (header "adder" true []) (bodyOf "adder" [])
                 let canvas: CanvasState = [ instanceOf 7 "carry" "C1" ], []
                 let sheetInfo: SheetInfo =
-                    {Form = Some User; Description = Some "now with carry"; ParameterDefinitions = None; IsTopSheet = Some false}
+                    {Form = Some User; Description = Some "now with carry"; ParameterDefinitions = None; IsTopSheet = Some false; ArrayInfo = None}
                 ComponentLibraries.writeSheetFile path (canvas, None, Some sheetInfo) |> Result.isOk
                 |> fun ok -> Expect.isTrue ok "the save succeeded"
 

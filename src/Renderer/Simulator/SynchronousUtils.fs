@@ -59,7 +59,15 @@ let couldBeSynchronousComponent compType : bool =
     | NbitsAnd _
     | Decode4
     | AsyncROM1 _
-    | Viewer _ -> false
+    | Viewer _
+    // The IO of an array design sheet. Expansion removes these before any graph is built, so they
+    // cannot reach the simulator - but false is the right answer for them anyway (they are wires,
+    // and hold no state), so this says that rather than raising. It also keeps this in step with
+    // CommonTypes.isClockedPrimitive, which sees them on the canvas and answers the same.
+    | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ -> false
+    // the glue an expanded array sheet leaves behind: combinational, and it DOES reach the
+    // simulator, so this arm is load-bearing rather than defensive
+    | ArrayMerge _ | ArrayMux _ -> false
     | _ -> failwithf $"Legacy components {compType} should never be read!"
 
 /// used to do asynchronous cycle checking on atomic components with non-trivial asynch paths.
@@ -132,7 +140,10 @@ let rec hasSynchronousComponents graph : bool =
         | Decode4
         | AsyncROM1 _
         | Constant1 _
-        | Viewer _ -> false
+        | Viewer _
+        // array sheet IO - see couldBeSynchronousComponent above for why false rather than a raise
+        | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ -> false
+        | ArrayMerge _ | ArrayMux _ -> false
         | _ -> failwithf $"legacy components should never be read {comp.Type}")
     |> Map.tryPick (fun compId isSync -> if isSync then Some() else None)
     |> function

@@ -85,6 +85,17 @@ let portNames (componentType:ComponentType)  = //(input port names, output port 
     | NbitsNot _ | NbitSpreader _ -> (["IN"],["OUT"])
     | Shift _ -> (["IN" ; "SHIFT"],["OUT"])
     | Custom x -> (List.map fst x.InputLabels), (List.map fst x.OutputLabels)
+    // Array design sheet IO. Each has one port and the symbol's own label names it, so a port name
+    // would only repeat what is already drawn - as it would on an Input1 or an Output, which have
+    // none either.
+    | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ -> ([],[])
+    // The glue an expanded array design sheet leaves behind. Named as MergeN and Mux2 are, because
+    // the waveform viewer shows their ports even though no canvas ever draws one.
+    | ArrayMerge n ->
+        (List.init n (fun i ->
+            if i = 0 then "LSB" elif i = n - 1 then "MSB" else ""), ["OUT"])
+    | ArrayMux n ->
+        (List.init n string @ ["SEL"], ["OUT"])
     | _ -> ([],[])
    // |Demux8 -> (["IN"; "SEL"],["0"; "1"; "2" ; "3" ; "4" ; "5" ; "6" ; "7"])
    // |_ -> ([],[])
@@ -538,7 +549,9 @@ let private checkIOLabels (canvasState: CanvasState) : SimulationError option =
         components
         |> List.filter (fun comp ->
             match comp.Type with
-            | Output _ -> true
+            // BusOut and ArrayOut are outputs of an array design sheet, so their labels share the
+            // output name space with Output's and a clash between them is the same mistake
+            | Output _ | BusOut _ | ArrayOut _ -> true
             | _ -> false)
 
     let labels =
@@ -753,6 +766,13 @@ let checkComponentNamesAreOk ((comps, conns): CanvasState) =
         comps
         |> List.filter (function
             | { Type = IOLabel }
+            // A join's label names a CHANNEL between the copies of an array sheet, not the
+            // component - exactly as a net label's does - so a JoinOut and the JoinIn that reads
+            // it share one, and a sheet may have several of each on one channel at different
+            // numbers. What must be distinct is the (label, number) pair on each side, which is a
+            // fact about the whole array and is checked with the other array rules.
+            | { Type = JoinOut _ }
+            | { Type = JoinIn _ }
             | { Type = MergeWires }
             | { Type = SplitWire _ }
             | { Type = BusSelection _ }

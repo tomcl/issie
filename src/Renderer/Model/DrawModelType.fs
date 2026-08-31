@@ -259,8 +259,12 @@ module SymbolT =
         | ColorSymbols of compList : ComponentId list * colour : HighLightColor
         | ErrorSymbols of errorIds: ComponentId list * selectIds: ComponentId list * isDragAndDrop: bool
         | ChangeNumberOfBits of compId:ComponentId * NewBits:int 
-        | ChangeLsb of compId: ComponentId * NewBits:bigint 
+        | ChangeLsb of compId: ComponentId * NewBits:bigint
         | ChangeInputValue of compId: ComponentId * newVal: bigint
+        /// Which channel a JoinOut publishes on, or a JoinIn takes from, in one copy of an array
+        /// design sheet. Its own message rather than ChangeLsb's because a join also has a width,
+        /// and the two must be settable without disturbing each other.
+        | ChangeJoinNum of compId: ComponentId * newNum: int
         | ChangeScale of compId:ComponentId * newScale:float * whichScale:ScaleAdjustment
         | ChangeConstant of compId: ComponentId * NewBits:bigint * NewText:string
         | ChangeBusCompare of compId: ComponentId * NewBits:bigint * NewText:string

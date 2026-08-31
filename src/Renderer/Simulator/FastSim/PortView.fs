@@ -155,6 +155,9 @@ let private carriesWaveOfSlice
         | MergeWires
         | MergeN _
         | SplitN _
+        // ArrayMerge is a wiring component like MergeN: it carries no signal distinct from the copy
+        // outputs wired to it. ArrayMux is NOT here - a multiplexer's output is its own signal.
+        | ArrayMerge _
         | Constant1 _ -> false
         | Output _ when inSubSheet -> false
         | Input1 _ when inSubSheet -> false

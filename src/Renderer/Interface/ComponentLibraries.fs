@@ -411,7 +411,7 @@ let tryLoadSheetFile (filePath: string) : Result<LoadedComponent, string> =
 let createEmptySheetFile (project: Project) (name: string) =
     writeSheetFile
         (sheetFilePath project name)
-        (([], []), None, Some {Form = Some User; Description = None; ParameterDefinitions = None; IsTopSheet = None})
+        (([], []), None, Some {Form = Some User; Description = None; ParameterDefinitions = None; IsTopSheet = None; ArrayInfo = None})
 
 /// Write every sheet of a project to disk. Used where a change reaches sheets other than the open
 /// one - a custom component's ports changing shape, and a project being renamed.
@@ -420,7 +420,7 @@ let writeAllSheetFiles (project: Project) =
     |> List.iter (fun ldc ->
         let sheetInfo: SheetInfo =
             {Form = ldc.Form; Description = ldc.Description
-             ParameterDefinitions = ldc.LCParameterSlots; IsTopSheet = Some ldc.IsTopSheet}
+             ParameterDefinitions = ldc.LCParameterSlots; IsTopSheet = Some ldc.IsTopSheet; ArrayInfo = ldc.ArrayInfo}
         writeSheetFile (sheetFilePath project ldc.Name) (ldc.CanvasState, ldc.WaveInfo, Some sheetInfo) |> ignore
         removeFileWithExtn ".dgmauto" project.ProjectPath ldc.Name)
 
@@ -439,7 +439,7 @@ let copySheetWithNewIds (sourcePath: string) (newPath: string) =
         // a copied sheet never claims to be the top of the design it is copied into
         let sheetInfo: SheetInfo =
             {Form = ldc'.Form; Description = ldc'.Description
-             ParameterDefinitions = ldc'.LCParameterSlots; IsTopSheet = None}
+             ParameterDefinitions = ldc'.LCParameterSlots; IsTopSheet = None; ArrayInfo = ldc'.ArrayInfo}
         match writeSheetFile newPath (ldc'.CanvasState, ldc'.WaveInfo, Some sheetInfo) with
         | Ok () -> ()
         | Error msg -> Log.error msg

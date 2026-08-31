@@ -586,7 +586,7 @@ let saveSheet (folder: string) (sheet: SheetDescription) : Result<unit, string> 
         paramDefsOf sheet
         |> Result.bind (fun defs ->
             let sheetInfo: SheetInfo =
-                { Form = Some User; Description = None; ParameterDefinitions = defs; IsTopSheet = Some false }
+                { Form = Some User; Description = None; ParameterDefinitions = defs; IsTopSheet = Some false; ArrayInfo = None }
             FilesIO.saveStateToFile folder sheet.Name (canvas, None, Some sheetInfo)))
 
 /// The text a sheet would be saved as: exactly the body an .ldgm carries.
@@ -596,7 +596,7 @@ let private sheetBody (sheet: SheetDescription) : Result<string, string> =
         paramDefsOf sheet
         |> Result.bind (fun defs ->
             let sheetInfo: SheetInfo =
-                { Form = Some User; Description = None; ParameterDefinitions = defs; IsTopSheet = Some false }
+                { Form = Some User; Description = None; ParameterDefinitions = defs; IsTopSheet = Some false; ArrayInfo = None }
             Helpers.JsonHelpers.stateToJsonString (canvas, None, Some sheetInfo)))
 
 /// Write `sheet` into the library at `libPath` as a component offered in the catalogue, along with

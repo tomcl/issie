@@ -72,6 +72,15 @@ let private trySetIntSlotValue (slot: CompSlotName) (value: int) (compType: Comp
     // an IO port's width
     | IO _, Input1 (_, dv) -> Some (Input1 (value, dv))
     | IO _, Output _ -> Some (Output value)
+    // the IO of an array design sheet: each is one port of the sheet, so its width is an IO width
+    | IO _, BusOut _ -> Some (BusOut value)
+    | IO _, ArrayOut _ -> Some (ArrayOut value)
+    | IO _, JoinOut (_, n) -> Some (JoinOut (value, n))
+    | IO _, JoinIn (_, n) -> Some (JoinIn (value, n))
+    // which channel a join uses. Its own slot because a join has a width as well, and Buswidth is
+    // not it - the width is the IO width above, as it is for every other port of a sheet.
+    | JoinNum, JoinOut (w, _) -> Some (JoinOut (w, value))
+    | JoinNum, JoinIn (w, _) -> Some (JoinIn (w, value))
     // the field that shares the IO slot for want of anywhere else. The other one, a BusCompare's
     // comparison value, is a bigint and so is set in trySetSlotValue itself.
     | IO _, BusSelection (w, _) -> Some (BusSelection (w, value))
@@ -212,6 +221,14 @@ let constraintsFor (slot: CompSlotName) (compType: ComponentType) : ParamConstra
         // says which of the two was too large.
         | MemoryAddressWidth, _ -> widthConstraints "Address width"
         | MemoryWordWidth, _ -> widthConstraints "Word width"
+        // which channel a join uses. Non-negative, and that is the whole bound: a channel number is
+        // not a width, 0 is an ordinary value for one, and a number past the last copy is how a
+        // chain's far end is left unmatched. Refusing negatives here is what keeps every derived
+        // port name a valid label - a minus sign is not a character a label may contain - and it
+        // costs nothing, since a chain running the other way is written by shifting the numbers up
+        // rather than down. The number is checked again for every copy when the sheet is expanded,
+        // because this bound sees only the value the sheet is drawn at.
+        | JoinNum, _ -> [MinVal (PInt 0I, "Channel number must be non-negative")]
         | SplitNWidth _, _ -> widthConstraints "Width"
         | SplitNLSB _, _ ->
             [ MinVal (PInt 0I, "LSB must be non-negative")

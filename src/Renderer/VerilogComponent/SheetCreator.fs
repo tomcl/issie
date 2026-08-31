@@ -2361,7 +2361,8 @@ let rec compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioT
                                         Form = Some (Verilog name);
                                         Description=None;
                                         ParameterDefinitions = None
-                                        IsTopSheet = None})
+                                        IsTopSheet = None
+                                        ArrayInfo = None})
                     // failwithf "cs: %A" toSaveCanvasState
                     // failwithf "path2 = %s" path2
 

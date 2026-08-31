@@ -323,6 +323,13 @@ let updateComponentSlots dispatch (model: Model) (compId: ComponentId) (slotValu
             | Input1 _, InputDefault -> model.Sheet.ChangeInputValue sheetDispatch compId value
             | _, InputDefault -> failwithf $"Default value cannot be set on {comp.Type}"
             | _, (SplitNWidth _ | SplitNLSB _) -> failwithf $"SplitN slots cannot be applied to {comp.Type}"
+            // A join's channel number. ChangeJoinNum, not ChangeWidth: a join carries both and the
+            // width is in the IO slot above, so setting one must leave the other alone. No width
+            // inference follows, because the number changes which copies join to which and not
+            // any width on this sheet.
+            | (JoinOut _ | JoinIn _), JoinNum ->
+                asInt slot value |> Option.iter (model.Sheet.ChangeJoinNum sheetDispatch compId)
+            | _, JoinNum -> failwithf $"A channel number cannot be set on {comp.Type}"
             | _, CustomCompParam _ -> failwithf $"CustomCompParam can only be used with Custom components")
 
     // Update most recent bus width
@@ -1092,6 +1099,7 @@ let slotFieldName (slot: CompSlotName) : string =
     | InputDefault -> "Default value"
     | MemoryAddressWidth -> "Address width"
     | MemoryWordWidth -> "Data width"
+    | JoinNum -> "Channel number"
 
 /// Human readable name of the slot a parameter expression fills, for use in messages.
 let describeSlot (model: Model) (slot: ParamSlot) =

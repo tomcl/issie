@@ -24,7 +24,8 @@ let private ldc (name: string) (canvas: CanvasState) : LoadedComponent =
       Form = Some User
       Description = None
       LCParameterSlots = None
-      IsTopSheet = false }
+      IsTopSheet = false
+      ArrayInfo = None }
 
 /// an instance of sheet `name`, as a Custom component
 let private instanceOf (id: int) (name: string) (label: string) =
@@ -329,7 +330,10 @@ let tests =
                   ROM1 { Init = FromData; AddressWidth = 2; WordWidth = 3; Data = Map.empty; Comments = None }
                   AsyncROM1 { Init = FromData; AddressWidth = 2; WordWidth = 3; Data = Map.empty; Comments = None }
                   Input1(1, None); Output 1; Viewer 1; IOLabel; Not; GateN(And, 2); Mux2; Demux2
-                  NbitsAdder 4; BusSelection(1, 0); MergeWires; SplitWire 1 ]
+                  NbitsAdder 4; BusSelection(1, 0); MergeWires; SplitWire 1
+                  // the IO of an array design sheet: wires, so combinational, and both predicates
+                  // must say so rather than raising - one of them sees these on the canvas
+                  BusOut 1; ArrayOut 1; JoinOut(1, 0); JoinIn(1, 0) ]
 
             sample
             |> List.iter (fun compType ->

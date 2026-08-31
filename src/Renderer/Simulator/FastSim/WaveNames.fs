@@ -68,6 +68,10 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
         muxPortName 4
     | Mux8 ->
         muxPortName 8
+    // The multiplexer an array design sheet's expansion makes. Its ports are a Mux's - the data
+    // inputs then the select - so they are named the same way.
+    | ArrayMux n ->
+        muxPortName n
 
     | Decode4 ->
         match port with
@@ -143,11 +147,16 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
     | SplitWire _ -> failwithf "SplitWire should not occur in getInputPortName"
     | SplitN _ -> failwithf "SplitN should not occur in getInputPortName"
     | BusSelection _ -> failwithf "BusSelection should not occur in getInputPortName"
+    | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ ->
+        failwithf "Array sheet IO is removed by expansion and should not occur in getInputPortName"
+    // a wiring component, like MergeN: PortView.carriesWaveOfSlice keeps it out of the viewer
+    | ArrayMerge _ -> failwithf "ArrayMerge should not occur in getInputPortName"
 
 /// Get port names for waves that are from Output ports
 /// Appended to comp.Label
 let getOutputPortName (compType: ComponentType) (port: OutputPortNumber) : string =
     match compType with
+    | ArrayMux _
     | Not | GateN _ | Decode4 | Mux2 | Mux4 | Mux8 | BusCompare _ | BusCompare1 _ | NbitsXor _ | NbitsNot _  | NbitSpreader _ | NbitsAnd _ | NbitsOr _ |Shift _->
         ".OUT"
     | Input1 _ | Output _ | Constant1 _ | Constant _ | Viewer _ | IOLabel | NotConnected ->
@@ -177,6 +186,9 @@ let getOutputPortName (compType: ComponentType) (port: OutputPortNumber) : strin
     | SplitWire _ -> failwithf "SplitWire should not occur in getOutputName"
     | SplitN _ -> failwithf "SplitN should not occur in getOutputName"
     | BusSelection _ -> failwithf "BusSeleciton should not occur in getOutputName"
+    | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ ->
+        failwithf "Array sheet IO is removed by expansion and should not occur in getOutputName"
+    | ArrayMerge _ -> failwithf "ArrayMerge should not occur in getOutputName"
 
 // ------------------------------------------------------------------------------------------------
 // The same names, from the design plus the port slice - no FastComponent.
@@ -227,6 +239,8 @@ let getInputNameW
         | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _
         | BusCompare _ | BusCompare1 _ | Register _ | RegisterE _
         | Counter _ | CounterNoEnable _
+        // an ArrayMux port is as wide as the value it carries, select included
+        | ArrayMux _
         | Custom _ ->
             bitLimsString (widthAt insWidths pn - 1, 0)
         | Not | GateN _
@@ -244,6 +258,9 @@ let getInputNameW
         | SplitWire _ -> failwithf "SplitWire should not occur in getInputNameW"
         | SplitN _ -> failwithf "SplitN should not occur in getInputNameW"
         | BusSelection _ -> failwithf "BusSelection should not occur in getInputNameW"
+        | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ ->
+            failwithf "Array sheet IO is removed by expansion and should not occur in getInputNameW"
+        | ArrayMerge _ -> failwithf "ArrayMerge should not occur in getInputNameW"
 
     if withComp then
         label + portName + bitLims
@@ -285,6 +302,7 @@ let getOutputNameW
         | Counter _ | CounterNoEnable _ | CounterNoLoad _ | CounterNoEnableLoad _
         | Shift _
         | RAM1 _ | AsyncRAM1 _ | AsyncROM1 _ | ROM1 _
+        | ArrayMux _
         | Custom _ ->
             bitLimsString (widthAt outsWidths pn - 1, 0)
         | IOLabel ->
@@ -299,6 +317,9 @@ let getOutputNameW
         | SplitWire _ -> failwithf "SplitWire should not occur in getOutputNameW"
         | SplitN _ -> failwithf "SplitN should not occur in getOutputNameW"
         | BusSelection _ -> failwithf "BusSelection should not occur in getOutputNameW"
+        | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ ->
+            failwithf "Array sheet IO is removed by expansion and should not occur in getOutputNameW"
+        | ArrayMerge _ -> failwithf "ArrayMerge should not occur in getOutputNameW"
 
     if withComp then
         label + portName + bitLims

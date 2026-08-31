@@ -226,6 +226,29 @@ let userDataToDrawBlockModel (model: Model) =
                         }}}}
 
 //-------------------------------------------------------------------------------------------//
+//----------------------------------ARRAY DESIGN SHEETS--------------------------------------//
+//-------------------------------------------------------------------------------------------//
+
+/// The array settings of the sheet now open, where it is an array design sheet.
+///
+/// Asked by everything that has to behave differently on one: which components the catalogue
+/// offers, which the placement gesture accepts, and which item the sheet's right-click menu holds.
+let openSheetArrayInfo (model: Model) : ArrayInfo option =
+    model.CurrentProj
+    |> Option.bind (fun p ->
+        p.LoadedComponents
+        |> List.tryFind (fun ldc -> ldc.Name = p.OpenFileName)
+        |> Option.bind (fun ldc -> ldc.ArrayInfo))
+
+/// Whether a component type may only be placed on an array design sheet, and so must be refused
+/// anywhere else. The four of them are the IO that says how an array sheet's copies join up; on an
+/// ordinary sheet there are no copies for them to mean anything about.
+let isArrayOnlyComponent (compType: ComponentType) =
+    match compType with
+    | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ -> true
+    | _ -> false
+
+//-------------------------------------------------------------------------------------------//
 //------------------------READ-ONLY SHEETS (VIEWED LIBRARY COMPONENTS)-----------------------//
 //-------------------------------------------------------------------------------------------//
 

@@ -102,7 +102,13 @@ let generateCopiedLabel (model: Model) (oldSymbol:Symbol) (compType: ComponentTy
     match compType with
     | IOLabel | NotConnected -> oldSymbol.Component.Label
     | BusSelection _ -> prefix
-    |Input _ | Input1 (_,_) |Output _ |Viewer _ -> generateIOLabel model compType oldSymbol.Component.Label
+    // The IO of an array design sheet is IO, and a copy of one wants a fresh numbered label for
+    // the same reason an Output's copy does - two of these sharing a label is two ports of the
+    // array sheet with one name. A join is the exception: its label names a CHANNEL, so a copied
+    // join keeps it and joins the same chain, exactly as a copied net label does.
+    |Input _ | Input1 (_,_) |Output _ |Viewer _
+    |BusOut _ |ArrayOut _ -> generateIOLabel model compType oldSymbol.Component.Label
+    |JoinOut _ |JoinIn _ -> oldSymbol.Component.Label
     | _ -> prefix + (generateLabelNumber listSymbols compType)
 
 
@@ -773,6 +779,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
     | ChangeInputValue (compId, newVal) ->
         let newSymbol = changeInputValue model compId newVal
+        (replaceSymbol model newSymbol compId), Cmd.none
+
+    | ChangeJoinNum (compId, newNum) ->
+        let newSymbol = changeJoinNum model compId newNum
         (replaceSymbol model newSymbol compId), Cmd.none
 
     | ChangeReversedInputs (compId) ->

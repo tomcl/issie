@@ -42,6 +42,13 @@ let getCompGroup (compType: ComponentType) =
     match compType with
     | Input1 _ | Output _ | Constant1 _ | Viewer _ | IOLabel | NotConnected ->
         InputOutput
+    // These reach the simulator only if expansion has failed to remove them, in which case a wrong
+    // grouping in the wave selector is not the problem worth reporting. See CommonTypes.ArrayInfo.
+    | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ ->
+        InputOutput
+    // the glue an expanded array sheet leaves behind, which DOES reach the wave selector
+    | ArrayMerge _ -> Buses
+    | ArrayMux _ -> MuxDemux
     | Not | GateN _ ->
         Gates
     | BusCompare _ | BusCompare1 _->

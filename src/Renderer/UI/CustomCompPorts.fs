@@ -64,7 +64,7 @@ let syncLoadedComponentsToDisk newProj oldProj =
     let saveToDisk ldc =
         let state = ldc.CanvasState
         let waveInfo = ldc.WaveInfo
-        let sheetInfo: SheetInfo = {Form=ldc.Form;Description=ldc.Description; ParameterDefinitions=ldc.LCParameterSlots; IsTopSheet = Some ldc.IsTopSheet}
+        let sheetInfo: SheetInfo = {Form=ldc.Form;Description=ldc.Description; ParameterDefinitions=ldc.LCParameterSlots; IsTopSheet = Some ldc.IsTopSheet; ArrayInfo = ldc.ArrayInfo}
         ComponentLibraries.writeSheetFile (ComponentLibraries.sheetFilePath newProj ldc.Name) (state,waveInfo,Some sheetInfo)
         |> ignore
 

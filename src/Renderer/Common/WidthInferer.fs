@@ -184,14 +184,23 @@ let private calculateOutputPortsWidth
         assertInputsSize inputConnectionsWidth 0 comp
         Ok <| Map.empty.Add (getOutputPortId comp 0, width)
         
-    | Output width | Viewer width ->
+    | Output width | Viewer width
+    // On an array design sheet these three take one value per copy and drive nothing on the sheet
+    // itself: what happens to the values is decided by the outline (concatenation, a mux, or a wire
+    // to another copy), which is ArrayExpand's business and not this sheet's. So each is an Output.
+    | BusOut width | ArrayOut width | JoinOut (width, _) ->
         assertInputsSize inputConnectionsWidth 1 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
         | [None] -> Ok Map.empty
         | [Some n] -> if n = width then Ok Map.empty // Output node has no outputs.
-                      else  
+                      else
                         makeWidthInferErrorEqual width n [getConnectionIdForPort 0]
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
+    // A JoinIn is a source on the sheet it is drawn on: the value arrives from another copy, or
+    // from the array's own input where no copy supplies it.
+    | JoinIn (width, _) ->
+        assertInputsSize inputConnectionsWidth 0 comp
+        Ok <| Map.empty.Add (getOutputPortId comp 0, width)
     | NotConnected ->
         assertInputsSize inputConnectionsWidth 1 comp
         Ok Map.empty
@@ -475,6 +484,42 @@ let private calculateOutputPortsWidth
             | false -> Map.empty.Add (getOutputPortId comp 0, portWidths |> List.sumBy (fun x -> match x with | Some x -> x| None -> 0)) |> Ok
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
         
+    // The glue of an expanded array design sheet. Both take any fixed number of inputs, all of ONE
+    // width - which is what makes them different from MergeN and Mux2, and what lets an array's
+    // concatenation and its multiplexer each be a single component instead of a tree.
+    //
+    // Neither carries a width of its own: the copies decide it, so it is inferred here and the
+    // agreement of the inputs is the check. Waiting while any is unknown is the same "keep on
+    // waiting" MergeN does - inference runs to a fixed point and an early answer would be a guess.
+    | ArrayMerge n ->
+        assertInputsSize inputConnectionsWidth n comp
+        let portWidths = getWidthsForPorts inputConnectionsWidth (List.init n (fun i -> InputPortNumber i))
+        match List.exists Option.isNone portWidths with
+        | true -> Ok Map.empty
+        | false ->
+            let widths = portWidths |> List.map Option.get
+            match widths |> List.tryFindIndex (fun w -> w <> List.head widths) with
+            | Some idx ->
+                makeWidthInferErrorEqual (List.head widths) widths[idx] [getConnectionIdForPort idx]
+            | None -> Ok <| Map.empty.Add (getOutputPortId comp 0, List.head widths * n)
+    | ArrayMux n ->
+        assertInputsSize inputConnectionsWidth (n + 1) comp
+        let dataWidths = getWidthsForPorts inputConnectionsWidth (List.init n (fun i -> InputPortNumber i))
+        // the select is the LAST port, as a Mux2's is, and its width follows the number of copies
+        let selWidth = max 1 (int (ParameterTypes.clog2 (bigint n)))
+        let selGiven = getWidthsForPorts inputConnectionsWidth [InputPortNumber n]
+        match selGiven with
+        | [Some w] when w <> selWidth -> makeWidthInferErrorEqual selWidth w [getConnectionIdForPort n]
+        | _ ->
+            match List.exists Option.isNone dataWidths with
+            | true -> Ok Map.empty
+            | false ->
+                let widths = dataWidths |> List.map Option.get
+                match widths |> List.tryFindIndex (fun w -> w <> List.head widths) with
+                | Some idx ->
+                    makeWidthInferErrorEqual (List.head widths) widths[idx] [getConnectionIdForPort idx]
+                | None -> Ok <| Map.empty.Add (getOutputPortId comp 0, List.head widths)
+
     | SplitWire topWireWidth ->
         assertInputsSize inputConnectionsWidth 1 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with

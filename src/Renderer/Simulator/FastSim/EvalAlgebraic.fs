@@ -944,6 +944,62 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             |> Alg
             |> put 0
     
+    // ---- the glue of an expanded array design sheet ----
+    // The same concatenation as MergeN above, and the same two paths: all data, or an append
+    // expression over whatever mixture arrives. Every input is one width here, but nothing below
+    // needs to know that, so this is MergeN's logic with n taken from the component.
+    | ArrayMerge n ->
+        let fDataL = List.map ins [0 .. n - 1]
+        match fDataL |> List.forall (fun fd -> match fd with | Data _ -> true | _ -> false) with
+        | true ->
+            let bitsList =
+                fDataL
+                |> List.map (fun fd ->
+                    match fd with
+                    | Data bits -> bits
+                    | _ -> failwithf "Cannot simulate truth tables with array merge inputs part-algebraic")
+            let wOut = List.sumBy (fun (bits: FastData) -> bits.Width) bitsList
+            let outBits =
+                bitsList
+                |> List.map (fun bits ->
+                    match bits.Dat with
+                    | Word b -> b, bits.Width
+                    | BigWord _ -> tooWideForTable bits)
+                |> List.fold
+                    (fun (lSBits, lSWidth) (inBits, inWidth) -> (inBits <<< lSWidth) ||| lSBits, inWidth + lSWidth)
+                    (0u, 0)
+                |> (fun (v, _) -> convertIntToFastData wOut v)
+            put 0 <| Data outBits
+        | false ->
+            ([], fDataL)
+            ||> List.fold (fun acc data ->
+                    match data with
+                    | Alg(AppendExp exps) -> exps @ acc
+                    | fd -> (fd.toExp) :: acc)
+            |> foldAppends
+            |> AppendExp
+            |> Alg
+            |> put 0
+    // An indexed read of the copies. The select must be a value for the same reason a Mux's must:
+    // there is no way to index by an unknown. The data inputs may be algebraic, and the one chosen
+    // is passed through as it is. Out of range gives zero, as the reference reducer does.
+    | ArrayMux n ->
+        match ins n with
+        | Data bitSelect ->
+            let sel = int (convertFastDataToInt bitSelect)
+            if sel >= 0 && sel < n then
+                put 0 (ins sel)
+            else
+                put 0 <| Data (convertIntToFastData (getAlgExpWidth (ins 0).toExp) 0u)
+        | Alg _ ->
+            let err =
+                { ErrType = AlgInpNotAllowed "The chosen set of Algebraic inputs results in algebra being passed to the
+                    SEL port of an array multiplexer. Only values can be passed to this port."
+                  InDependency = Some(comp.FullName)
+                  ComponentsAffected = [ comp.cId ]
+                  ConnectionsAffected = [] }
+            raise (AlgebraNotImplemented err)
+
     | SplitWire topWireWidth ->
         let fd = ins 0
 #if ASSERTS

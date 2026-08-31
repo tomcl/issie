@@ -271,6 +271,10 @@ module SheetInterface =
         member this.ChangeInputValue (dispatch: Dispatch<Msg>) (compId: ComponentId) (newVal: bigint) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeInputValue (compId, newVal))))
 
+        /// Given a compId and a channel number, set which channel a join uses.
+        member this.ChangeJoinNum (dispatch: Dispatch<Msg>) (compId: ComponentId) (newNum: int) =
+            dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeJoinNum (compId, newNum))))
+
         /// Return Some string if Sheet / BusWire / Symbol has a notification, if there is none then return None
         member this.GetNotifications =
             // Currently only BusWire has notifications

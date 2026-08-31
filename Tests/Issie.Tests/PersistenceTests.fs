@@ -9,7 +9,7 @@ open Helpers.JsonHelpers
 open CanvasBuilder
 
 let private sheetInfo: SheetInfo =
-    { Form = Some User; Description = None; ParameterDefinitions = None; IsTopSheet = Some false }
+    { Form = Some User; Description = None; ParameterDefinitions = None; IsTopSheet = Some false; ArrayInfo = None }
 
 /// Run `body` against a fresh empty directory, which is removed afterwards.
 let private withTempDir (body: string -> unit) =
@@ -87,7 +87,8 @@ let private saveAll (folder: string) (ldcs: LoadedComponent list) =
             { Form = ldc.Form
               Description = ldc.Description
               ParameterDefinitions = ldc.LCParameterSlots
-              IsTopSheet = Some ldc.IsTopSheet }
+              IsTopSheet = Some ldc.IsTopSheet
+              ArrayInfo = ldc.ArrayInfo }
 
         FilesIO.saveStateToFile folder ldc.Name (ldc.CanvasState, ldc.WaveInfo, Some sheetInfo)
         |> function
@@ -426,6 +427,50 @@ let tests =
                         ([ ComponentId 1, Input1(3, None); ComponentId 2, NbitsNot 3; ComponentId 3, Output 3 ]
                          |> List.sort)
                         "component ids and types survive the round trip"
+        }
+
+        test "an array sheet's settings survive save and load" {
+            let arrayInfo =
+                { LoopParam = ParameterTypes.ParamName "i"
+                  EndValue = 7
+                  Muxes = [ { MuxSource = "SUM"; MuxName = "PICK" }
+                            { MuxSource = "SUM"; MuxName = "PICK2" } ] }
+            let canvas: CanvasState = [ makeComp 1 0 1 (Input1(3, None)) "I0" ], []
+            match stateToJsonString (canvas, None, Some { sheetInfo with ArrayInfo = Some arrayInfo }) with
+            | Error e -> failtest $"serialisation failed: {e}"
+            | Ok json ->
+                match jsonStringToState json with
+                | Error e -> failtest $"parse of freshly saved JSON failed: {e}"
+                | Ok saved ->
+                    match saved.getSheetInfo with
+                    | None -> failtest "the sheet info did not survive the round trip"
+                    | Some si ->
+                        // ArrayInfo holds no id, so its file form IS its memory form
+                        Expect.equal si.ArrayInfo (Some arrayInfo)
+                            "loop variable, copy count and every mux declaration come back unchanged"
+        }
+
+        test "a sheet saved before array sheets existed loads as an ordinary sheet" {
+            // Both forms a sheet file takes, because the two writers differ: the .NET writer
+            // (Thoth) OMITS a None option, so its output already IS a pre-feature file, while the
+            // app's writer (SimpleJson, under Fable) emits the key as null. A file written by an
+            // older Issie is the first form; this version's own saves are the second. Both must
+            // load, and neither can be checked by round-tripping alone - hence the text surgery.
+            let canvas: CanvasState = [ makeComp 1 0 1 (Input1(3, None)) "I0" ], []
+            match stateToJsonString (canvas, None, Some sheetInfo) with
+            | Error e -> failtest $"serialisation failed: {e}"
+            | Ok json ->
+                Expect.isFalse (json.Contains "\"ArrayInfo\"")
+                    "the .NET writer omits a None option, so its output is already the older form"
+                let withNull = json.Replace("\"IsTopSheet\":false", "\"IsTopSheet\":false,\"ArrayInfo\":null")
+                Expect.notEqual withNull json "the substitution must have found somewhere to go"
+                for form, name in [ json, "field absent"; withNull, "field present as null" ] do
+                    match jsonStringToState form with
+                    | Error e -> failtest $"a sheet with the {name} must load: {e}"
+                    | Ok saved ->
+                        match saved.getSheetInfo with
+                        | None -> failtest $"the sheet info did not load with the {name}"
+                        | Some si -> Expect.isNone si.ArrayInfo $"{name} means no array settings"
         }
 
         test "a wave selection saved as a label path resolves back to the same signal" {

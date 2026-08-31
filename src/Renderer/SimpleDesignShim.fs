@@ -83,6 +83,7 @@ let sheetToLoadedComponent (sheet: SimpleSheet) : LoadedComponent =
       Form = Some User
       LoadedComponentIsOutOfDate = false
       IsTopSheet = false
+      ArrayInfo = None
       Description = None }
 
 /// The whole design as skeleton LoadedComponents, ready for Simulator.startCircuitSimulation.

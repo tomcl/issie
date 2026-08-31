@@ -816,6 +816,44 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
                 let input = if ins[i] then insBigInt i else bigint (insUInt32 i)
                 res <- (res <<< comp.InputWidth i) ||| input
             putBigInt 0 res
+    // ---- the glue of an expanded array design sheet ----
+    // The same little-endian concatenation MergeN does, but every input is one width, so the shift
+    // is a constant. See the note above MergeN: the fold runs downwards so each input is shifted
+    // above what has already been accumulated.
+    | ArrayMerge n, false ->
+        let w = comp.InputWidth 0
+        let mutable res = 0u
+        for i = n - 1 downto 0 do
+            res <- (res <<< w) ||| insUInt32 i
+        putUInt32 0 res
+    | ArrayMerge n, true ->
+        match comp.BigIntState with
+        | None -> failwith "ArrayMerge with BigIntState"
+        | Some { InputIsBigInt = ins } ->
+            // the total width is over 32 so the output is always a bigint; each input may be either
+            let w = comp.InputWidth 0
+            let mutable res = 0I
+            for i = n - 1 downto 0 do
+                let input = if ins[i] then insBigInt i else bigint (insUInt32 i)
+                res <- (res <<< w) ||| input
+            putBigInt 0 res
+    // An indexed read of the copies. The select is the LAST input, as a Mux2's is; out of range it
+    // gives 0, which is a definition rather than a consequence - the number of copies need not be a
+    // power of two, so a select value with no copy behind it is an ordinary thing to be handed.
+    | ArrayMux n, false ->
+        let sel = int (insUInt32 n)
+        putUInt32 0 (if sel >= 0 && sel < n then insUInt32 sel else 0u)
+    | ArrayMux n, true ->
+        match comp.BigIntState with
+        | None -> failwith "ArrayMux with BigIntState"
+        | Some { InputIsBigInt = ins } ->
+            let sel = int (insUInt32 n)
+            let out =
+                if sel >= 0 && sel < n then
+                    (if ins[sel] then insBigInt sel else bigint (insUInt32 sel))
+                else 0I
+            putBigInt 0 out
+
     | SplitWire topWireWidth, false ->
         let bits = insUInt32 0
 #if ASSERTS

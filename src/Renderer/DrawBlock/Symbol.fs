@@ -190,9 +190,15 @@ let getSymbolColour compType clocked (theme:ThemeType) =
         | Custom _ when clocked
             -> "lightblue"  //for clocked components
         |Input _ |Input1 (_,_) |Output _ |Viewer _ |Constant _ |Constant1 _
-        // the IO of an array design sheet is IO, and reads as such beside the ordinary kind
-        |BusOut _ |MuxOut _ |JoinOut _ |JoinIn _
             -> "#E8D0A9"  //dark orange: for IO
+        // The IO of an array component gets a colour of its own rather than the IO orange. It is
+        // IO, but it is IO that only works on one kind of sheet and means something different from
+        // the port beside it - a BusOut is n ports wide where the Output next to it is n ports -
+        // so the eye should not be told they are the same thing. Violet is the one pastel not
+        // already spoken for: orange is IO, blue is clocked, yellow is combinational, grey is a
+        // wire shape, and green is what a symbol turns while its ports are being dragged.
+        |BusOut _ |MuxOut _ |JoinOut _ |JoinIn _
+            -> "#DCCAE8"  //violet: for the IO of an array component
         | SplitWire _ | MergeWires | NotConnected ->
             "rgb(120,120,120)"
         | MergeN _| SplitN _ ->

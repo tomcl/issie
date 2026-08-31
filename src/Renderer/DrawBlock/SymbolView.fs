@@ -510,6 +510,22 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             
     let labelcolour = outlineColor symbol.Appearance.Colour
 
+    // The style getComponentProperties SIZED this symbol against - see Symbol.arrayLegendStyle,
+    // which is where the two are kept the same.
+    let isArrayIO (ct:ComponentType) =
+        match ct with
+        | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ -> true
+        | _ -> false
+
+    let legendFontSize (ct:ComponentType) =
+        match ct with
+        | Custom _ -> Constants.customLegendFontSizeInPixels
+        | ct when isArrayIO ct -> Constants.arrayLegendFontSizeInPixels
+        | _ -> Constants.otherLegendFontSizeInPixels
+
+    let legendFontWeight (ct:ComponentType) =
+        if isArrayIO ct then "normal" else "bold"
+
     let legendOffset (compWidth: float) (compHeight:float) (symbol: Symbol) : XYPos=
         let pMap = symbol.PortMaps.Order
         let vertFlip = symbol.STransform.Rotation = Degree180
@@ -553,23 +569,12 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                 {X = -compWidth * 0.1; Y = 0.}
             | _ -> {X = 0.; Y = 0.}
 
-        {X=compWidth / 2.; Y=compHeight / 2. - 7.} + offset + chevronShift
-
-    // The style getComponentProperties SIZED this symbol against - see Symbol.arrayLegendStyle,
-    // which is where the two are kept the same.
-    let isArrayIO (ct:ComponentType) =
-        match ct with
-        | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ -> true
-        | _ -> false
-
-    let legendFontSize (ct:ComponentType) =
-        match ct with
-        | Custom _ -> Constants.customLegendFontSizeInPixels
-        | ct when isArrayIO ct -> Constants.arrayLegendFontSizeInPixels
-        | _ -> Constants.otherLegendFontSizeInPixels
-
-    let legendFontWeight (ct:ComponentType) =
-        if isArrayIO ct then "normal" else "bold"
+        // The legend is drawn with a HANGING baseline, so Y is its top and centring it means
+        // lifting it by half its height. That was written as a flat 7 - half of the 14px every
+        // legend but a custom component's used to be - so a legend in any other size came out
+        // above centre. Taken from the size actually used now.
+        {X=compWidth / 2.; Y=compHeight / 2. - legendFontSize symbol.Component.Type / 2.}
+        + offset + chevronShift
 
     // Put everything together 
     (drawPorts PortType.Output comp.OutputPorts showPorts symbol)

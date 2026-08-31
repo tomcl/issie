@@ -13,6 +13,7 @@ open SimTypes
 open ParameterTypes
 open CanvasBuilder
 open Optics
+open DrawModelType
 open Optics.Operators
 
 /// A sheet with `copies` copies, whose loop variable is `i`.
@@ -686,6 +687,19 @@ let private symbolTests =
                 |> SymbolReplaceHelpers.resizedForLegend
             Expect.isGreaterThan wide.Component.W narrow.Component.W
                 "a wider join needs a longer symbol, and nothing else will give it one"
+        }
+
+        test "array IO is not drawn in the colour of ordinary IO" {
+            // it IS io, but it is io that means something different from the port beside it - a
+            // BusOut is n ports WIDE where the Output next to it is n ports - so the colour should
+            // not say they are the same thing
+            let colourOf ct = Symbol.getSymbolColour ct false SymbolT.ThemeType.Colourful
+            let ordinary = [ Output 1; Input1 (1, None); Constant1 (1, 0I, "0") ] |> List.map colourOf
+            for ct in [ BusOut 1; MuxOut 1; JoinOut (1, 0); JoinIn (1, 0) ] do
+                Expect.isFalse (List.contains (colourOf ct) ordinary)
+                    $"%A{ct} must not be the colour of an ordinary IO component"
+                Expect.equal (colourOf ct) (colourOf (BusOut 1))
+                    $"%A{ct} is one of a family and is coloured as one"
         }
 
         test "a select is as many bits as it takes to index the copies, and never none" {

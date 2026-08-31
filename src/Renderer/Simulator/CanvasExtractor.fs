@@ -636,8 +636,7 @@ let simpleSheetOfLoadedComponent (ldc: LoadedComponent) : SimpleSheet =
       Components = List.map simpleComp comps
       Connections = List.map simpleConn conns
       DefaultBindings = defaultBindings
-      ParamSlots = paramSlots
-      ArrayInfo = ldc.ArrayInfo }
+      ParamSlots = paramSlots }
 
 /// The whole design. TopSheet is the flagged top sheet when there is one; otherwise a root of
 /// the instantiation forest (a sheet no other sheet instantiates), otherwise the first sheet -

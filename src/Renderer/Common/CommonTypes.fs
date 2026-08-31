@@ -557,13 +557,13 @@ type SimpleSheet = {
     /// the sheet's parameterised slots - LCParameterSlots.ParamSlots, with every
     /// ParamSlot.CompId being a reduced-int string, so int slot.CompId matches CompId above
     ParamSlots : ParameterTypes.ComponentSlotExpr
-    /// the sheet's array settings, when it is an ARRAY COMPONENT - LoadedComponent.ArrayInfo.
-    ///
-    /// Electrical, though it looks like metadata: how many copies there are is what the sheet's
-    /// components MEAN, so a receiver without it reads the same canvas as a different circuit -
-    /// and, since the ports are derived from it, as a sheet with different ports.
-    ArrayInfo : ArrayInfo option
 }
+
+// NB there is deliberately no ArrayInfo here. A design crosses this boundary already EXPANDED -
+// see Simulator.designForSidecar - so every sheet on the wire is an ordinary one, and the process
+// at the far end needs to know nothing about array components. Adding it back would let an
+// unexpanded design cross, which puts a second expansion at the far end; the two would then have
+// to mint the same ids for everything they make, and SimSetInputs names a component by id.
 
 /// A whole design: the sheets and which one is the top.
 type SimpleDesign = {

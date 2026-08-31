@@ -75,10 +75,9 @@ let sheetToLoadedComponent (sheet: SimpleSheet) : LoadedComponent =
         else
             Some { DefaultBindings = sheet.DefaultBindings; ParamSlots = sheet.ParamSlots }
 
-    // parseDiagramSignatureFor, not parseDiagramSignature: an ARRAY COMPONENT's ports are derived
-    // from its array settings, so reading them without those gives a sheet with different ports
-    // from the one that was sent - which is exactly what the instances of it are checked against.
-    let inputs, outputs = CanvasExtractor.parseDiagramSignatureFor sheet.ArrayInfo paramSlots canvas
+    // The plain signature, and correctly: a design crosses the wire already expanded, so no sheet
+    // arriving here is an array component and none has ports that are not on its canvas.
+    let inputs, outputs = CanvasExtractor.parseDiagramSignature canvas
 
     { Name = sheet.SheetName
       TimeStamp = System.DateTime.MinValue
@@ -91,7 +90,7 @@ let sheetToLoadedComponent (sheet: SimpleSheet) : LoadedComponent =
       Form = Some User
       LoadedComponentIsOutOfDate = false
       IsTopSheet = false
-      ArrayInfo = sheet.ArrayInfo
+      ArrayInfo = None
       Description = None }
 
 /// The whole design as skeleton LoadedComponents, ready for Simulator.startCircuitSimulation.

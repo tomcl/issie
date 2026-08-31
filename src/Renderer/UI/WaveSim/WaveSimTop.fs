@@ -605,10 +605,7 @@ let private missingForWaves (model: Model) (project: Project) : Missing option =
                   // LastClock, and a run target short of the gate would run forever reaching it
                   MissRunTo = max readableAt (min ws.WSConfig.LastClock (readableAt + window.SampleCount * window.Multiplier))
                   MissArraySize = arraySize
-                  MissDesign =
-                    ModelHelpers.designOf project (model.Sheet.GetCanvasState())
-                    |> CanvasExtractor.simpleDesignOfLoadedComponents
-                    |> fun d -> { d with TopSheet = fs.SimulatedTopSheet }
+                  MissDesign = Simulator.designForSidecar fs
                   MissWaves = toFetch
                   MissWindow = window
                   MissRam = ram
@@ -643,10 +640,7 @@ let private missingForPanel (model: Model) (project: Project) : Missing option =
                       MissArraySize =
                         SimulationView.stepSimArraySize model
                         |> Result.defaultValue SimulationView.Constants.maxArraySize
-                      MissDesign =
-                        ModelHelpers.designOf project (model.Sheet.GetCanvasState())
-                        |> CanvasExtractor.simpleDesignOfLoadedComponents
-                        |> fun d -> { d with TopSheet = simData.FastSim.SimulatedTopSheet }
+                      MissDesign = Simulator.designForSidecar simData.FastSim
                       MissWaves = []
                       MissWindow =
                         { StartSample = cycle
@@ -1154,10 +1148,7 @@ let startWaveSimulation (model: Model) : Model * Elmish.Cmd<Msg> =
             let model, buildCmd =
                 match model.CurrentProj with
                 | Some project when not model.SimulateInRenderer ->
-                    let design =
-                        ModelHelpers.designOf project canvasState
-                        |> CanvasExtractor.simpleDesignOfLoadedComponents
-                        |> fun d -> { d with TopSheet = wsSheet }
+                    let design = Simulator.designForSidecar simData.FastSim
 
                     // what the SIDECAR allocates, from the configuration - the renderer's own
                     // carrier holds no arrays whatever this says

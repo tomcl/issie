@@ -79,12 +79,7 @@ let private representativeDesign : SimpleDesign =
               Map.ofList
                   [ {CompId = ComponentId 2; CompSlot = CustomCompParam "W" },
                     { Expression = PParameter(ParamName "W")
-                      Constraints = [ MinVal(PInt 1I, "width must be at least 1") ] } ]
-            // An array component's settings are electrical, not decoration: how many copies there
-            // are is what the sheet's components MEAN, and its ports are derived from them. A
-            // receiver without them reads the same canvas as a different circuit with different
-            // ports - which is what the sidecar did, so its instances failed to match.
-            ArrayInfo = Some { LoopParam = ParamName "i"; Copies = 4 } } ] }
+                      Constraints = [ MinVal(PInt 1I, "width must be at least 1") ] } ] } ] }
 
 let tests =
     testList "SimpleDesign" [

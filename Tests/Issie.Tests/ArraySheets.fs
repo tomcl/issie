@@ -1,4 +1,4 @@
-/// Array design sheets: how the copies of such a sheet join to each other, and what ports the
+﻿/// Array design sheets: how the copies of such a sheet join to each other, and what ports the
 /// sheet therefore has. See CommonTypes.ArrayInfo and ArrayExpand.
 ///
 /// These are pure tests over a canvas plus its array settings - no simulation, no draw block - so
@@ -489,31 +489,37 @@ let private expansionTests =
                 Expect.equal got["O"] expected $"W={w}: three copies of a broadcast value"
         }
 
-        test "an array component survives the trip to the dotnet sidecar" {
-            // SimpleDesign is the wire format the sidecar is sent, and it carried no array
-            // settings - so the sidecar read the same canvas as an ordinary sheet, whose ports are
-            // the drawn IO alone. Every instance then failed to match the sheet it names, and with
-            // no session built the step panel's inputs went nowhere and read back as 0.
+        test "what crosses to the sidecar is the expanded design, and no array component" {
+            // The boundary. The renderer has already turned the project into the circuit it
+            // simulates, and hands the sidecar THAT - so the far end never sees an array component
+            // and needs to know nothing about them.
             //
-            // Simulated through the shim, which is what the sidecar runs: same design, same
-            // answers, or the two simulators are not simulating the same circuit.
+            // It also settles a hazard that had nothing to do with any of the bugs: expansion MINTS
+            // component ids, and SimSetInputs names a component by id across the wire. Two
+            // expansions agreeing was luck. Only one of the two expands now, so what the step panel
+            // sets an input on is the very component the sidecar holds.
             let parent, sheet = rippleParent 3
-            let shimmed =
-                [ parent; sheet ]
-                |> CanvasExtractor.simpleDesignOfLoadedComponents
-                |> SimpleDesignShim.designToLoadedComponents
-            let top = shimmed |> List.find (fun ldc -> ldc.Name = parent.Name)
-            let shimmedSheet = shimmed |> List.find (fun l -> l.Name = sheet.Name)
-            let wantIns, _ = outline (arrayInfo 3) sheet.LCParameterSlots sheet.CanvasState
-            Expect.isSome shimmedSheet.ArrayInfo "the array settings must survive the wire"
-            Expect.equal (names shimmedSheet.InputLabels) (names wantIns)
-                "and so must the ports derived from them, or every instance stops matching its sheet"
-            let inputs = Map [ "X", 5I; "Y", 3I; "CIN", 0I ]
-            let got = runParent top (shimmed |> List.filter (fun l -> l.Name <> parent.Name)) inputs
-            let want = runParent parent [ sheet ] inputs
-            Expect.equal got["S"] want["S"]
-                "the sidecar's copy of the design must give the answers the renderer's does"
-            Expect.equal got["COUT"] want["COUT"] "carry out too"
+            match Simulator.startCircuitSimulation maxArraySize parent.Name parent.CanvasState [ parent; sheet ] with
+            | Error e -> failtestf "%A" e.ErrType
+            | Ok sd ->
+                let design = Simulator.designForSidecar sd.FastSim
+                let onTheWire = design.Sheets |> List.map (fun s -> s.SheetName)
+                Expect.contains onTheWire (ArrayElaborate.bodyNameOf sheet.Name)
+                    "the body sheet crosses, which is what says the design was expanded first"
+                for s in design.Sheets do
+                    for c in s.Components do
+                        match c.TypeS with
+                        | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ ->
+                            failtestf $"'{s.SheetName}' put %A{c.TypeS} on the wire: the far end has                                         no way to read it, and must never need one"
+                        | _ -> ()
+                // and it still simulates, to the same answers, at the far end
+                let shimmed = SimpleDesignShim.designToLoadedComponents design
+                let top = shimmed |> List.find (fun l -> l.Name = design.TopSheet)
+                let inputs = Map [ "X", 5I; "Y", 3I; "CIN", 0I ]
+                let want = runParent parent [ sheet ] inputs
+                let got = runParent top (shimmed |> List.filter (fun l -> l.Name <> top.Name)) inputs
+                Expect.equal got["S"] want["S"] "the sidecar's copy must give the answers the renderer's does"
+                Expect.equal got["COUT"] want["COUT"] "carry out too"
         }
 
         test "a simulation of an array design does not report itself edited the moment it starts" {

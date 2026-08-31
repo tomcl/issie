@@ -108,16 +108,17 @@ let tests =
                 "the canvas still arrives; it is only what the canvas cannot say that is lost"
         }
 
-        test "the design sent to the sidecar carries them too" {
-            // the same invariant across the wire: SimpleSheet is a projection of a sheet, and a
-            // projection that drops these describes a different circuit at the other end
+        test "the design sent to the sidecar carries its parameters" {
+            // The same invariant across the wire, for the fields the wire is meant to carry. Array
+            // settings deliberately are NOT among them: a design crosses that boundary already
+            // expanded, so no sheet on the wire is an array component - see
+            // Simulator.designForSidecar, and ArraySheets for what crosses instead.
             let sheet = distinctive ()
             let shimmed =
                 [ sheet ]
                 |> CanvasExtractor.simpleDesignOfLoadedComponents
                 |> SimpleDesignShim.designToLoadedComponents
                 |> List.find (fun l -> l.Name = sheet.Name)
-            Expect.equal shimmed.ArrayInfo sheet.ArrayInfo "array settings must cross the wire"
             Expect.equal
                 (shimmed.LCParameterSlots |> Option.map (fun d -> d.DefaultBindings))
                 (sheet.LCParameterSlots |> Option.map (fun d -> d.DefaultBindings))

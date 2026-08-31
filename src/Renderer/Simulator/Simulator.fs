@@ -192,7 +192,23 @@ let saveStateInSimulation
                     DesignComponentsById = compMap
                     DesignConnectionsByPort = portMap } })
 
-
+/// The design to send to the .NET sidecar: THE sheets this simulation was built from.
+///
+/// **Built from the simulation and not from the project, and that is the point.** The renderer has
+/// already turned the project into the circuit it simulates - array components expanded into a
+/// wrapper and a body - and this hands the sidecar that, so the two processes simulate the same
+/// sheets rather than each deriving them from the same input and hoping to agree.
+///
+/// They had to agree exactly, because SimSetInputs names a component by ID across the wire and
+/// expansion MINTS ids for everything it makes. Two expansions agreeing was luck: the same code
+/// over the same list in the same order. Nothing enforced it and nothing tested it. Now only one
+/// of the two ever expands, so there is nothing to agree about.
+///
+/// It is also why the wire format knows nothing about array components, and must not learn: a
+/// SimpleSheet that crossed this boundary is an ordinary sheet by construction.
+let designForSidecar (fs: FastSimulation) : SimpleDesign =
+    CanvasExtractor.simpleDesignOfLoadedComponents fs.Design.DesignSheets
+    |> fun d -> { d with TopSheet = fs.SimulatedTopSheet }
 
 /// The design as the simulator must see it: every ARRAY DESIGN SHEET replaced by the two ordinary
 /// sheets it expands to - a wrapper holding n instances of a body sheet, wired up, with the glue

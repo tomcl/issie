@@ -1412,10 +1412,8 @@ let issueStepBuild (model: Model) (simData: SimulationData) : Model * Elmish.Cmd
     | Some project ->
         let top = simData.FastSim.SimulatedTopSheet
 
-        let design =
-            ModelHelpers.designOf project (model.Sheet.GetCanvasState())
-            |> CanvasExtractor.simpleDesignOfLoadedComponents
-            |> fun d -> { d with TopSheet = top }
+        // the sheets this simulation was BUILT from, not the project - see designForSidecar
+        let design = Simulator.designForSidecar simData.FastSim
 
         let arraySize = stepSimArraySize model |> Result.defaultValue Constants.maxArraySize
         let seq = ModelHelpers.newSeq ()

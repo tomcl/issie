@@ -245,7 +245,7 @@ let openSheetArrayInfo (model: Model) : ArrayInfo option =
 /// ordinary sheet there are no copies for them to mean anything about.
 let isArrayOnlyComponent (compType: ComponentType) =
     match compType with
-    | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ -> true
+    | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ -> true
     | _ -> false
 
 //-------------------------------------------------------------------------------------------//

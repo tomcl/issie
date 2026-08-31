@@ -546,7 +546,7 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         failwithf $"Invalid legacy component type '{fc.FType}'"
     // ArrayExpand rewrites an array design sheet into ordinary sheets before any graph is built, so
     // Verilog is emitted from the expansion and never sees these. See CommonTypes.ArrayInfo.
-    | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ ->
+    | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ ->
         failwithf $"Array sheet IO is removed by expansion and cannot reach Verilog output: '{fc.FType}'"
     // The glue of an expanded array sheet. Unlike the four above, these DO reach Verilog: they are
     // what the expansion leaves behind, so a design holding an array sheet emits them.

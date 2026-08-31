@@ -127,7 +127,7 @@ let componentTypeName (ct: ComponentType) : string =
     | Input1 _ | Input _ -> "Input"
     | Output _ -> "Output"
     | BusOut _ -> "Bus output"
-    | ArrayOut _ -> "Array output"
+    | MuxOut _ -> "Array output"
     | JoinOut _ -> "Join out"
     | JoinIn _ -> "Join in"
     // never selected on a canvas: made by expanding an array sheet, and named here because the
@@ -569,7 +569,7 @@ let private makeNumberOfBitsField model (comp: Component) text dispatch =
         // The IO of an array design sheet uses the IO slot for its width, as an Input1 and an
         // Output do: it is the width of one port of the sheet, and is edited in the same box.
         | Input1 (w, _) | Output w
-        | BusOut w | ArrayOut w | JoinOut (w, _) | JoinIn (w, _) -> "Width (bits)", w, IO comp.Label
+        | BusOut w | MuxOut w | JoinOut (w, _) | JoinIn (w, _) -> "Width (bits)", w, IO comp.Label
         | NbitsAdder w | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w
         | NbitsXor (w, _) | NbitsAnd w | NbitsOr w |NbitsNot w
         | Register w | RegisterE w
@@ -922,7 +922,7 @@ let private describeComponent (comp:Component) model : ReactElement list =
         [ str "Takes one value from each copy of this array sheet and joins them into a single bus, \
                with copy 0 in the least significant bits. The sheet gets one output of width \
                (number of copies) x (this width)." ]
-    | ArrayOut _ ->
+    | MuxOut _ ->
         [ str "Takes one value from each copy of this array sheet, to be selected between by the \
                multiplexers declared in the sheet's array settings. It adds no port of its own: \
                each multiplexer adds a select input and an output." ]
@@ -1103,10 +1103,10 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
                 changeMergeN model comp dispatch
             ]
     | Output _ |NbitsAnd _ |NbitsOr _ |NbitsNot _ |NbitSpreader _ | NbitsXor _ | Viewer _ | Shift _
-    // The IO of an array design sheet. A BusOut and an ArrayOut have only a width, as an Output
+    // The IO of an array design sheet. A BusOut and an MuxOut have only a width, as an Output
     // does; what the copies do with the value is fixed by the component type and the sheet's array
     // settings, and there is nothing about it to edit here.
-    | BusOut _ | ArrayOut _ ->
+    | BusOut _ | MuxOut _ ->
         makeNumberOfBitsField model comp text dispatch
     // A join has a width and a channel number, and the number is the interesting one: it is what
     // decides which copy joins to which.
@@ -1357,6 +1357,9 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                 descriptionButton
                 br []
                 br []
+                // null on an ordinary sheet, so a sheet that is not an array component shows
+                // nothing at all about the feature
+                ArraySheetView.viewArraySettings model dispatch
                 ParameterView.viewParameters model dispatch
                 ]
         |None -> null

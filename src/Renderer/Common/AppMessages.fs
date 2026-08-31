@@ -198,24 +198,28 @@ value when there are no instances. So the same sheet can appear at several sizes
 This is an advanced feature: designs that do not need it are unaffected by it.
 """
 
-    /// Before making the first array design sheet in a project. As with the first property, this is
+    /// Before making the first array component in a project. As with the first property, this is
     /// the moment to say what the feature is for: until one exists nothing in the editor hints that
     /// array sheets are there, and it is a feature a design can perfectly well never use.
     let usingArraySheets = """
-An **array design sheet** is one whose hardware is several copies of what is drawn on it - one per
+An **array component** is a sheet whose hardware is several copies of what is drawn on it - one per
 value of a loop variable that counts from 0. Draw one bit of an adder and get an adder of any width;
 draw one stage of a pipeline and get the pipeline.
+
+It has a sheet of its own, which is where you draw the one copy. Its Properties pane says how many
+copies, and its loop variable counts 0 to one less than that; write the loop variable in any property
+box and one copy differs from the next.
 
 The copies have to join up, and four components in the **Array sheet** section of the Catalogue say
 how:
 
-*Join out* and *Join in* pass a value from one copy to another - a carry, say. Each is on a numbered
-channel, and the numbers are usually written in terms of the loop variable, so a *Join out* numbered
-`i+1` meets the *Join in* numbered `i` in the next copy. Where a chain runs out - at the first and
-last copies - the loose ends become inputs and outputs of the sheet itself.
+*JoinOut* and *JoinIn* pass a value from one copy to another - a carry, say. Each is on a numbered
+channel, and the numbers are usually written in terms of the loop variable, so a *JoinOut* numbered
+`i+1` meets the *JoinIn* numbered `i` in the next copy. Where a chain runs out - at the first and
+last copies - the loose ends become inputs and outputs of the component itself.
 
-*Bus out* takes one value from each copy and joins them into a single bus. *Array out* takes one
-value from each copy to be read back by a multiplexer, which you declare in these settings.
+*BusOut* takes one value from each copy and joins them into a single bus. *MuxOut* takes one value
+from each copy and reads one of them back, adding a select input and an output.
 
 An ordinary **Input** goes to every copy. An ordinary **Output** gives one port per copy.
 

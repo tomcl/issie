@@ -311,7 +311,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             | Input1 _ |Output _
             // The IO of an array design sheet takes the ordinary IO outline: whatever the copies
             // do with the value, each of these is one port of the sheet and reads best as one.
-            | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ ->
+            | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ ->
                 [|{X=0;Y=0};{X=0;Y=H};{X=W*4./5.;Y=H};{X=W;Y=H/2.};{X=W*0.8;Y=0}|]
             //| Output _ -> 
             //    [|{X=W/5.;Y=0};{X=0;Y=H/2.};{X=W/5.;Y=H};{X=W;Y=H};{X=W;Y=0}|]
@@ -460,7 +460,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
         | Input x
         | Input1 (x, _) | Output x
         // array sheet IO: its width matters here as it does on any other port of a sheet
-        | BusOut x | ArrayOut x | JoinOut (x, _) | JoinIn (x, _) ->
+        | BusOut x | MuxOut x | JoinOut (x, _) | JoinIn (x, _) ->
             (addText {X = w/2.; Y = h/2.7} (busTitleAndBits "" x) "middle" "normal" "12px")
         | Viewer (x) -> 
             (addText {X = w/2.; Y = h/2.7 - 1.25} (busTitleAndBits "" x) "middle" "normal" "9px")
@@ -534,7 +534,19 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             | 0, 1, _ -> {X = -10.; Y = 0.}
             | _ -> failwithf "What? Can't happen"
 
-        {X=compWidth / 2.; Y=compHeight / 2. - 7.} + offset
+        /// The IO shapes are a rectangle with a chevron on one end, and the chevron is the last
+        /// fifth of the width. Centring the legend on the whole width therefore puts it a tenth of
+        /// the way into the point, which reads as pushed to the right - most visibly on the array
+        /// components, whose legends are words rather than a bit count. Centred on the body
+        /// instead. Applies to every component drawn with that outline, which is why it is here
+        /// rather than beside the array types.
+        let chevronShift =
+            match symbol.Component.Type with
+            | Input _ | Input1 _ | Output _ | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ ->
+                {X = -compWidth * 0.1; Y = 0.}
+            | _ -> {X = 0.; Y = 0.}
+
+        {X=compWidth / 2.; Y=compHeight / 2. - 7.} + offset + chevronShift
 
     let legendFontSize (ct:ComponentType) =
         match ct with

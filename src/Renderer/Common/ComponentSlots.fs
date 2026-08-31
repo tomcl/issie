@@ -74,7 +74,7 @@ let private trySetIntSlotValue (slot: CompSlotName) (value: int) (compType: Comp
     | IO _, Output _ -> Some (Output value)
     // the IO of an array design sheet: each is one port of the sheet, so its width is an IO width
     | IO _, BusOut _ -> Some (BusOut value)
-    | IO _, ArrayOut _ -> Some (ArrayOut value)
+    | IO _, MuxOut _ -> Some (MuxOut value)
     | IO _, JoinOut (_, n) -> Some (JoinOut (value, n))
     | IO _, JoinIn (_, n) -> Some (JoinIn (value, n))
     // which channel a join uses. Its own slot because a join has a width as well, and Buswidth is

@@ -64,7 +64,7 @@ let couldBeSynchronousComponent compType : bool =
     // cannot reach the simulator - but false is the right answer for them anyway (they are wires,
     // and hold no state), so this says that rather than raising. It also keeps this in step with
     // CommonTypes.isClockedPrimitive, which sees them on the canvas and answers the same.
-    | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ -> false
+    | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ -> false
     // the glue an expanded array sheet leaves behind: combinational, and it DOES reach the
     // simulator, so this arm is load-bearing rather than defensive
     | ArrayMerge _ | ArrayMux _ -> false
@@ -142,7 +142,7 @@ let rec hasSynchronousComponents graph : bool =
         | Constant1 _
         | Viewer _
         // array sheet IO - see couldBeSynchronousComponent above for why false rather than a raise
-        | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ -> false
+        | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ -> false
         | ArrayMerge _ | ArrayMux _ -> false
         | _ -> failwithf $"legacy components should never be read {comp.Type}")
     |> Map.tryPick (fun compId isSync -> if isSync then Some() else None)

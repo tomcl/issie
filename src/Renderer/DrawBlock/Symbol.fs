@@ -183,7 +183,7 @@ let getSymbolColour compType clocked (theme:ThemeType) =
             -> "lightblue"  //for clocked components
         |Input _ |Input1 (_,_) |Output _ |Viewer _ |Constant _ |Constant1 _
         // the IO of an array design sheet is IO, and reads as such beside the ordinary kind
-        |BusOut _ |ArrayOut _ |JoinOut _ |JoinIn _
+        |BusOut _ |MuxOut _ |JoinOut _ |JoinIn _
             -> "#E8D0A9"  //dark orange: for IO
         | SplitWire _ | MergeWires | NotConnected ->
             "rgb(120,120,120)"
@@ -324,7 +324,7 @@ let getPrefix (compType:ComponentType) =
     | SplitN _ -> "SN"
     // the IO of an array design sheet
     | BusOut _ -> "BO"
-    | ArrayOut _ -> "AO"
+    | MuxOut _ -> "MO"
     | JoinOut _ -> "JO"
     | JoinIn _ -> "JI"
     |_  -> ""
@@ -392,10 +392,10 @@ let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     // copies do with the value - which is the whole of what distinguishes these from an Output.
     // A join shows its channel number, because which end joins which is read off those numbers and
     // nothing else on the symbol carries them.
-    | BusOut _ -> "Bus out"
-    | ArrayOut _ -> "Array out"
-    | JoinOut (_, n) -> $"Join out.{n}"
-    | JoinIn (_, n) -> $"Join in.{n}"
+    | BusOut _ -> "BusOut"
+    | MuxOut _ -> "MuxOut"
+    | JoinOut (_, n) -> $"JoinOut[{n}]"
+    | JoinIn (_, n) -> $"JoinIn[{n}]"
     | _ -> ""
 
 
@@ -618,12 +618,21 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | Not -> ( 1 , 1, 1.0*gS ,  1.0*gS) 
     | Input1 _ -> ( 0 , 1, gS ,  2.*gS)
     | ComponentType.Output (a) -> (  1 , 0, gS ,  2.*gS)
-    // The IO of an array design sheet. A BusOut, an ArrayOut and a JoinOut each take one value per
-    // copy and so are shaped like an Output; a JoinIn supplies one and is shaped like an Input.
-    // Wider than the ordinary IO because their legends are longer - "BUS", "ARRAY", "n+1" - and a
-    // join's channel number has to be readable to see which end joins which.
-    | BusOut _ | ArrayOut _ | JoinOut _ -> ( 1 , 0, gS ,  3.*gS)
-    | JoinIn _ -> ( 0 , 1, gS ,  3.*gS)
+    // The IO of an array component. A BusOut, a MuxOut and a JoinOut each take one value per copy
+    // and so are shaped like an Output; a JoinIn supplies one and is shaped like an Input.
+    //
+    // Wide enough for the legend to sit on ONE line, measured rather than guessed: these say what
+    // they are - "BusOut", "JoinOut[12]" - where an Input's legend is its width alone, and a join's
+    // channel number has to be readable to see which end joins which. The chevron on the pointed
+    // end is a fifth of the width and carries no text, so the measured width is divided by 0.8 to
+    // leave the text the part of the symbol it can actually use.
+    | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ ->
+        let legend = getComponentLegend compType Degree0
+        let text = DrawHelpers.getTextWidthInPixels {Constants.componentLabelStyle with FontSize = "14px"} legend
+        let w = max (3. * gS) ((text + 16.) / 0.8)
+        match compType with
+        | JoinIn _ -> ( 0 , 1, gS , w)
+        | _ -> ( 1 , 0, gS , w)
     // Never drawn: these are made by expanding an array design sheet and exist only inside a
     // simulation. Sized as a MergeN and a Mux would be, so that anything which does reach for a
     // size gets a sane one rather than a raise.

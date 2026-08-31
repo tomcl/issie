@@ -529,13 +529,7 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
         if readOnly then "ComponentReadOnly"
         else ifWavesToOffer sym "ComponentWaveSim" "Component"
     | DBCanvas _ ->
-        // The sheet background is where an array design sheet is made and where its settings are
-        // edited, so which of those two items the menu holds is a question about the sheet.
-        // ContextMenus.fs is compiled into the main process and cannot see the model, so the choice
-        // is made here, as it is for the library and waveform items above.
-        if readOnly then "CanvasReadOnly"
-        elif (ModelHelpers.openSheetArrayInfo model).IsSome then "CanvasArray"
-        else "Canvas"
+        if readOnly then "CanvasReadOnly" else "Canvas"
     | DBWire(wire, _) ->
         if readOnly then ""
         // with a wave simulation running, and the wire carrying exactly one of its signals
@@ -869,17 +863,6 @@ let processContextMenuClick
 
     | WaveSimHelp, feature ->
         UIPopups.viewWaveInfoPopup dispatch feature
-        withNoCmd model
-
-    // An array design sheet is made, and its settings edited, from the sheet's own background.
-    // Which of the two items the menu holds is decided in getContextMenu, so only one of these can
-    // ever be clicked on a given sheet.
-    | DBCanvas _, item when item = ContextMenus.makeArraySheetItem ->
-        ArraySheetView.makeArraySheetPopup model dispatch
-        withNoCmd model
-
-    | DBCanvas _, item when item = ContextMenus.arraySheetSettingsItem ->
-        ArraySheetView.arraySheetSettingsPopup model dispatch
         withNoCmd model
 
     | DBCanvas _, "Properties" ->

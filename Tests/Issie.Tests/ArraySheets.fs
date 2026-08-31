@@ -14,8 +14,8 @@ open ParameterTypes
 open CanvasBuilder
 
 /// A sheet with `copies` copies, whose loop variable is `i`.
-let private arrayInfo copies muxes =
-    { LoopParam = ParamName "i"; EndValue = copies - 1; Muxes = muxes }
+let private arrayInfo copies =
+    { LoopParam = ParamName "i"; Copies = copies }
 
 /// Parameter definitions holding one JoinNum expression per named component.
 /// The loop variable is deliberately NOT in DefaultBindings: it is not a declared property of the
@@ -52,7 +52,7 @@ let private carryChain copies =
     let jOut = makeComp 1 1 0 (JoinOut(1, 1)) "C"
     let jIn = makeComp 2 0 1 (JoinIn(1, 0)) "C"
     let canvas: CanvasState = stacked [ jIn; jOut ], []
-    arrayInfo copies [], Some (joinNums [ 1, "i+1"; 2, "i" ]), canvas
+    arrayInfo copies, Some (joinNums [ 1, "i+1"; 2, "i" ]), canvas
 
 let private joinTests =
     testList "joins" [
@@ -79,7 +79,7 @@ let private joinTests =
             let jOut = makeComp 1 1 0 (JoinOut(1, 0)) "B"
             let jIn = makeComp 2 0 1 (JoinIn(1, 1)) "B"
             let canvas: CanvasState = stacked [ jIn; jOut ], []
-            let info = arrayInfo 4 []
+            let info = arrayInfo 4
             let defs = Some (joinNums [ 1, "i"; 2, "i+1" ])
             let w = ArrayExpand.joinsOf info defs canvas
             Expect.isEmpty w.Problems "a backward chain is an ordinary chain"
@@ -97,7 +97,7 @@ let private joinTests =
             let jOut = makeComp 1 1 0 (JoinOut(1, 2)) "S"
             let jIn = makeComp 2 0 1 (JoinIn(1, 0)) "S"
             let canvas: CanvasState = stacked [ jIn; jOut ], []
-            let w = ArrayExpand.joinsOf (arrayInfo 6 []) (Some (joinNums [ 1, "i+2"; 2, "i" ])) canvas
+            let w = ArrayExpand.joinsOf (arrayInfo 6) (Some (joinNums [ 1, "i+2"; 2, "i" ])) canvas
             Expect.isEmpty w.Problems "a skip chain is an ordinary chain"
             Expect.equal (List.length w.Matched) 4 "six copies, skipping two, leaves four joins"
             Expect.equal (w.UnmatchedIn |> List.map (fun e -> e.Copy)) [ 0; 1 ]
@@ -115,7 +115,7 @@ let private joinTests =
             let dIn = makeComp 4 0 1 (JoinIn(4, 0)) "D"
             let canvas: CanvasState = stacked [ cIn; dIn; cOut; dOut ], []
             let defs = Some (joinNums [ 1, "i+1"; 2, "i"; 3, "i+1"; 4, "i" ])
-            let w = ArrayExpand.joinsOf (arrayInfo 3 []) defs canvas
+            let w = ArrayExpand.joinsOf (arrayInfo 3) defs canvas
             Expect.isEmpty w.Problems "two independent chains are not a mistake"
             Expect.equal (List.length w.Matched) 4 "each chain joins two pairs of copies"
             for (o, i) in w.Matched do
@@ -127,7 +127,7 @@ let private joinTests =
             // wire, which is the mistake this check exists for
             let jOut = makeComp 1 1 0 (JoinOut(1, 5)) "C"
             let canvas: CanvasState = stacked [ jOut ], []
-            let w = ArrayExpand.joinsOf (arrayInfo 3 []) None canvas
+            let w = ArrayExpand.joinsOf (arrayInfo 3) None canvas
             Expect.isNonEmpty w.Problems "three copies on one channel must be reported"
             Expect.stringContains (List.head w.Problems) "more than one copy"
                 "and the message must say what is wrong"
@@ -138,7 +138,7 @@ let private joinTests =
             // C_out_-1 - which is not a name a label may have
             let jOut = makeComp 1 1 0 (JoinOut(1, 0)) "C"
             let canvas: CanvasState = stacked [ jOut ], []
-            let w = ArrayExpand.joinsOf (arrayInfo 4 []) (Some (joinNums [ 1, "i-1" ])) canvas
+            let w = ArrayExpand.joinsOf (arrayInfo 4) (Some (joinNums [ 1, "i-1" ])) canvas
             Expect.isNonEmpty w.Problems "a channel number that goes negative must be reported"
             Expect.stringContains (List.head w.Problems) "negative" "and say so"
         }
@@ -148,7 +148,7 @@ let private joinTests =
             // depended on a property would make the port list depend on who instantiated the sheet
             let jOut = makeComp 1 1 0 (JoinOut(1, 0)) "C"
             let canvas: CanvasState = stacked [ jOut ], []
-            let w = ArrayExpand.joinsOf (arrayInfo 2 []) (Some (joinNums [ 1, "WIDTH+1" ])) canvas
+            let w = ArrayExpand.joinsOf (arrayInfo 2) (Some (joinNums [ 1, "WIDTH+1" ])) canvas
             Expect.isNonEmpty w.Problems "a property in a channel number must be reported"
         }
 
@@ -158,7 +158,7 @@ let private joinTests =
             let a = makeComp 1 1 0 (JoinOut(1, 0)) "C"
             let b = makeComp 2 1 0 (JoinOut(1, 1)) "C"
             let canvas: CanvasState = stacked [ a; b ], []
-            let w = ArrayExpand.joinsOf (arrayInfo 2 []) None canvas
+            let w = ArrayExpand.joinsOf (arrayInfo 2) None canvas
             Expect.isNonEmpty w.Problems "two Join outs called C must be reported"
             Expect.stringContains (List.head w.Problems) "different names" "and say what to do"
         }
@@ -175,7 +175,7 @@ let private outlineTests =
             let outp = makeComp 2 1 0 (Output 4) "S"
             let canvas: CanvasState = stacked [ inp; outp ], []
             for copies in [ 1; 2; 5; 8 ] do
-                let ins, outs = outline (arrayInfo copies []) None canvas
+                let ins, outs = outline (arrayInfo copies) None canvas
                 Expect.equal ins [ "A", 4 ] $"{copies} copies: one input however many copies there are"
                 Expect.equal outs [ for i in 0 .. copies - 1 -> $"S_{i}", 4 ]
                     $"{copies} copies: one output port per copy, numbered"
@@ -185,42 +185,29 @@ let private outlineTests =
             let b = makeComp 1 1 0 (BusOut 3) "SUM"
             let canvas: CanvasState = stacked [ b ], []
             for copies in [ 1; 2; 5; 8 ] do
-                let _, outs = outline (arrayInfo copies []) None canvas
+                let _, outs = outline (arrayInfo copies) None canvas
                 Expect.equal outs [ "SUM", 3 * copies ] $"{copies} copies of 3 bits is one {3 * copies}-bit bus"
         }
 
-        test "a declared multiplexer adds a select input and an output, and an ArrayOut adds none" {
-            let a = makeComp 1 1 0 (ArrayOut 6) "V"
-            let canvas: CanvasState = stacked [ a ], []
-            // no multiplexer: the ArrayOut contributes nothing at all
-            let ins, outs = outline (arrayInfo 5 []) None canvas
-            Expect.isEmpty ins "an Array out is not an input"
-            Expect.isEmpty outs "and contributes no output of its own"
-            // one multiplexer over it, and then a second, independent one
-            let muxes = [ {MuxSource = "V"; MuxName = "PICK"}; {MuxSource = "V"; MuxName = "ALSO"} ]
-            let ins, outs = outline (arrayInfo 5 muxes) None canvas
+        test "a MuxOut makes its own multiplexer: a select input and an output" {
+            // no declaration list any more - a MuxOut IS a multiplexer, and two of them are two
+            let v = makeComp 1 1 0 (MuxOut 6) "PICK"
+            let w = makeComp 2 1 0 (MuxOut 6) "ALSO"
+            let canvas: CanvasState = stacked [ v; w ], []
+            let ins, outs = outline (arrayInfo 5) None canvas
             Expect.equal ins [ "PICK_sel", 3; "ALSO_sel", 3 ]
-                "five copies need three select bits, and each multiplexer has its own select"
+                "five copies need three select bits, and each MuxOut has its own select"
             Expect.equal outs [ "PICK", 6; "ALSO", 6 ]
-                "each multiplexer's output is as wide as the values it selects between"
+                "and each output is as wide as the values it selects between"
         }
 
-        test "a multiplexer's select is never zero bits wide" {
-            let a = makeComp 1 1 0 (ArrayOut 2) "V"
+        test "a multiplexer select is never zero bits wide" {
+            let a = makeComp 1 1 0 (MuxOut 2) "P"
             let canvas: CanvasState = stacked [ a ], []
-            let muxes = [ {MuxSource = "V"; MuxName = "P"} ]
             for copies, expected in [ 1, 1; 2, 1; 3, 2; 4, 2; 5, 3; 8, 3; 9, 4 ] do
-                let ins, _ = outline (arrayInfo copies muxes) None canvas
+                let ins, _ = outline (arrayInfo copies) None canvas
                 Expect.equal ins [ "P_sel", expected ]
                     $"{copies} copies need {expected} select bits - and one copy still needs a select"
-        }
-
-        test "a multiplexer over an Array out that is not there is reported" {
-            let canvas: CanvasState = stacked [ makeComp 1 0 1 (Input1(1, None)) "A" ], []
-            let muxes = [ {MuxSource = "GONE"; MuxName = "P"} ]
-            let probs = problems (arrayInfo 4 muxes) None canvas
-            Expect.isNonEmpty probs "a multiplexer must say what it selects between"
-            Expect.stringContains (List.head probs) "GONE" "and the message must name it"
         }
 
         test "loose join ends are the array's own inputs and outputs" {
@@ -236,18 +223,17 @@ let private outlineTests =
             let cIn = makeComp 1 0 1 (JoinIn(1, 0)) "C"
             let a = makeComp 2 0 1 (Input1(8, None)) "A"
             let b = makeComp 3 0 1 (Input1(8, None)) "B"
-            let carry = makeComp 4 1 0 (ArrayOut 1) "CARRY"
+            let carry = makeComp 4 1 0 (MuxOut 1) "CARRY"
             let sum = makeComp 5 1 0 (BusOut 1) "SUM"
             let cOut = makeComp 6 1 0 (JoinOut(1, 1)) "C"
             let canvas: CanvasState = stacked [ cIn; a; b; carry; sum; cOut ], []
-            let muxes = [ {MuxSource = "CARRY"; MuxName = "CBIT"} ]
             let defs = Some (joinNums [ 6, "i+1"; 1, "i" ])
-            let ins, outs = outline (arrayInfo 8 muxes) defs canvas
-            Expect.equal (names ins) [ "C_in_0"; "A"; "B"; "CBIT_sel" ]
-                "inputs follow the components down the sheet, with the multiplexer selects last"
-            Expect.equal (names outs) [ "SUM"; "C_out_8"; "CBIT" ]
-                "outputs likewise - the Array out gives none, and the multiplexer's comes last"
-            Expect.equal outs [ "SUM", 8; "C_out_8", 1; "CBIT", 1 ]
+            let ins, outs = outline (arrayInfo 8) defs canvas
+            Expect.equal (names ins) [ "C_in_0"; "A"; "B"; "CARRY_sel" ]
+                "inputs follow the components down the sheet, the MuxOut select among them"
+            Expect.equal (names outs) [ "CARRY"; "SUM"; "C_out_8" ]
+                "and so do the outputs, each component in the place it is drawn"
+            Expect.equal outs [ "CARRY", 1; "SUM", 8; "C_out_8", 1 ]
                 "the sum bus is one bit per copy; a carry is one bit wherever it appears"
         }
 
@@ -256,7 +242,7 @@ let private outlineTests =
             let outp = makeComp 1 1 0 (Output 2) "S"
             let clash = makeComp 2 1 0 (BusOut 2) "S_1"
             let canvas: CanvasState = stacked [ outp; clash ], []
-            let probs = problems (arrayInfo 3 []) None canvas
+            let probs = problems (arrayInfo 3) None canvas
             Expect.isNonEmpty probs "a name derived twice must be reported"
             Expect.stringContains (List.head probs) "S_1" "and the message must name it"
         }
@@ -267,8 +253,8 @@ let private outlineTests =
             let jOut = makeComp 1 1 0 (JoinOut(1, 5)) "C"
             let inp = makeComp 2 0 1 (Input1(2, None)) "A"
             let canvas: CanvasState = stacked [ jOut; inp ], []
-            let ins, outs = outline (arrayInfo 3 []) None canvas
-            Expect.isNonEmpty (problems (arrayInfo 3 []) None canvas) "the sheet is wrong"
+            let ins, outs = outline (arrayInfo 3) None canvas
+            Expect.isNonEmpty (problems (arrayInfo 3) None canvas) "the sheet is wrong"
             Expect.equal ins [ "A", 2 ] "and its ordinary input is still a port"
             Expect.equal outs [ "C_out_5", 1 ] "and the join still reads as a loose end"
         }
@@ -313,12 +299,12 @@ let private rippleSheet (copies: int) =
                 | Ok expr -> {CompId = ComponentId compId; CompSlot = slot}, {Expression = expr; Constraints = []}
                 | Error msg -> failwithf $"test expression '{exprText}' does not parse: {msg}")
             |> Map.ofList }
-    { makeLdc "ripple" (Some defs) canvas with ArrayInfo = Some (arrayInfo copies []) }
+    { makeLdc "ripple" (Some defs) canvas with ArrayInfo = Some (arrayInfo copies) }
 
 /// A parent sheet holding one instance of the array sheet, with the outline ports it derives.
 let private rippleParent (copies: int) =
     let sheet = rippleSheet copies
-    let ins, outs = outline (arrayInfo copies []) sheet.LCParameterSlots sheet.CanvasState
+    let ins, outs = outline (arrayInfo copies) sheet.LCParameterSlots sheet.CanvasState
     let a = makeComp 11 0 1 (Input1(8, None)) "X"
     let b = makeComp 12 0 1 (Input1(8, None)) "Y"
     let cin = makeComp 13 0 1 (Input1(1, None)) "CIN"
@@ -374,7 +360,7 @@ let private expansionTests =
         test "the wrapper's own ports are the outline its instances were given" {
             for copies in [ 1; 2; 5; 8 ] do
                 let sheet = rippleSheet copies
-                let expected = outline (arrayInfo copies []) sheet.LCParameterSlots sheet.CanvasState
+                let expected = outline (arrayInfo copies) sheet.LCParameterSlots sheet.CanvasState
                 let expanded, _ = ArrayElaborate.expandArraySheets [ sheet ]
                 let wrapper = expanded |> List.find (fun l -> l.Name = "ripple")
                 // read the ordinary way, off the wrapper's Input1 and Output components in (Y, X)
@@ -429,7 +415,7 @@ let private expansionTests =
         test "a multiplexer over an Array out selects the copy the index names" {
             // every copy emits its own index, and the multiplexer reads one of them back
             let idx = makeComp 1 0 1 (Constant1(3, 0I, "0")) "I"
-            let v = makeComp 2 1 0 (ArrayOut 3) "V"
+            let v = makeComp 2 1 0 (MuxOut 3) "V"
             let canvas: CanvasState = stacked [ idx; v ], [ conn idx 0 v 0 ]
             let defs =
                 { DefaultBindings = Map.empty
@@ -437,11 +423,10 @@ let private expansionTests =
                     Map [ {CompId = ComponentId 1; CompSlot = IO "I"},
                           {Expression = (match parseExpression "i" with | Ok e -> e | Error m -> failwith m)
                            Constraints = []} ] }
-            let muxes = [ {MuxSource = "V"; MuxName = "PICK"} ]
             let sheet =
-                { makeLdc "vals" (Some defs) canvas with ArrayInfo = Some (arrayInfo 5 muxes) }
+                { makeLdc "vals" (Some defs) canvas with ArrayInfo = Some (arrayInfo 5) }
             let sel = makeComp 11 0 1 (Input1(3, None)) "SEL"
-            let ins, outs = outline (arrayInfo 5 muxes) (Some defs) canvas
+            let ins, outs = outline (arrayInfo 5) (Some defs) canvas
             let arr = makeComp 12 (List.length ins) (List.length outs) (customOf sheet ins outs None) "A"
             let out = makeComp 13 1 0 (Output 3) "O"
             let parent =
@@ -469,12 +454,12 @@ let private expansionTests =
                   ParamSlots =
                     Map [ {CompId = ComponentId 1; CompSlot = IO "D"}, wExpr
                           {CompId = ComponentId 2; CompSlot = IO "Q"}, wExpr ] }
-            let sheet = { makeLdc "wide" (Some defs) canvas with ArrayInfo = Some (arrayInfo 3 []) }
+            let sheet = { makeLdc "wide" (Some defs) canvas with ArrayInfo = Some (arrayInfo 3) }
             for w in [ 2; 5 ] do
                 let bindings = Map [ ParamName "W", PInt (bigint w) ]
                 let resolved =
                     ComponentSlots.resolveCanvasAtBindings bindings defs.ParamSlots canvas
-                let ins, outs = outline (arrayInfo 3 []) (Some defs) resolved
+                let ins, outs = outline (arrayInfo 3) (Some defs) resolved
                 Expect.equal ins [ "D", w ] $"W={w}: the broadcast input is one copy wide"
                 Expect.equal outs [ "Q", 3 * w ] $"W={w}: the bus output is three copies wide"
                 let src = makeComp 11 0 1 (Input1(w, None)) "IN"
@@ -524,10 +509,10 @@ let private refusalTests =
 
         test "a broken array sheet is refused when the design uses it" {
             let parent, sheet = rippleParent 2
-            let broken = { sheet with ArrayInfo = Some (arrayInfo -1 []) }
+            let broken = { sheet with ArrayInfo = Some (arrayInfo 0) }
             match simError parent [ broken ] with
             | None -> failtest "a copy count that makes no sense must be refused"
-            | Some msg -> Expect.stringContains msg "before it starts" "and the message must say why"
+            | Some msg -> Expect.stringContains msg "at least one" "and the message must say why"
         }
 
         test "a broken array sheet elsewhere in the project does not stop an unrelated design" {
@@ -536,7 +521,7 @@ let private refusalTests =
             let inp = makeComp 1 0 1 (Input1(1, None)) "A"
             let outp = makeComp 2 1 0 (Output 1) "B"
             let plain = makeLdc "plain" None (stacked [ inp; outp ], [ conn inp 0 outp 0 ])
-            let broken = { rippleSheet 2 with ArrayInfo = Some (arrayInfo -1 []) }
+            let broken = { rippleSheet 2 with ArrayInfo = Some (arrayInfo 0) }
             Expect.isNone (simError plain [ broken ])
                 "a design that instantiates nothing is not affected by a sheet it does not use"
         }
@@ -591,7 +576,7 @@ let private instanceTests =
 
             // eight copies rather than four: the sum bus doubles and the carry out is on a
             // different channel, so the instance's ports are no longer the sheet's
-            let widened = { sheet with ArrayInfo = Some (arrayInfo 8 []) }
+            let widened = { sheet with ArrayInfo = Some (arrayInfo 8) }
             Expect.isTrue (CustomCompPorts.instanceIsOutOfDate (against [ parent; widened ]))
                 "and is out of date once the sheet has a different number of copies"
         }
@@ -600,7 +585,7 @@ let private instanceTests =
             // LoadedComponent.InputLabels is what the rest of Issie reads; on an array sheet it
             // must be the derived outline and not the sheet's Input1 and Output components
             let sheet = rippleSheet 4
-            let expected = outline (arrayInfo 4 []) sheet.LCParameterSlots sheet.CanvasState
+            let expected = outline (arrayInfo 4) sheet.LCParameterSlots sheet.CanvasState
             let stored =
                 CanvasExtractor.parseDiagramSignatureFor
                     sheet.ArrayInfo sheet.LCParameterSlots sheet.CanvasState
@@ -610,37 +595,5 @@ let private instanceTests =
         }
     ]
 
-let private menuTests =
-    testList "menu" [
-        // ContextMenus.fs is compiled into the main process and cannot see the model, so an item
-        // offered only sometimes is expressed as a second menu that the renderer chooses. The two
-        // must otherwise be the same menu, or the sheet background would gain or lose ordinary
-        // items depending on what kind of sheet it is.
-        test "the two canvas menus differ by exactly the array item" {
-            let menu name =
-                ContextMenus.contextMenus |> List.find (fst >> (=) name) |> snd
-            let plain = menu "Canvas"
-            let array = menu "CanvasArray"
-            Expect.equal (List.length plain) (List.length array) "the two menus are the same size"
-            Expect.equal
-                (plain |> List.filter (fun i -> i <> ContextMenus.makeArraySheetItem))
-                (array |> List.filter (fun i -> i <> ContextMenus.arraySheetSettingsItem))
-                "and hold the same items but for the one that differs"
-            Expect.contains plain ContextMenus.makeArraySheetItem
-                "an ordinary sheet is offered becoming an array sheet"
-            Expect.contains array ContextMenus.arraySheetSettingsItem
-                "and an array sheet is offered its settings"
-        }
-
-        test "a read-only sheet is offered neither" {
-            let readOnly =
-                ContextMenus.contextMenus |> List.find (fst >> (=) "CanvasReadOnly") |> snd
-            Expect.isFalse (List.contains ContextMenus.makeArraySheetItem readOnly)
-                "a library sheet being viewed is held at what it loaded with"
-            Expect.isFalse (List.contains ContextMenus.arraySheetSettingsItem readOnly)
-                "so nothing that would change it is offered"
-        }
-    ]
-
 let tests =
-    testList "ArraySheets" [ joinTests; outlineTests; expansionTests; refusalTests; instanceTests; menuTests ]
+    testList "ArraySheets" [ joinTests; outlineTests; expansionTests; refusalTests; instanceTests ]

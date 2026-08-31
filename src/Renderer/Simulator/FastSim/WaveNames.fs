@@ -147,7 +147,7 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
     | SplitWire _ -> failwithf "SplitWire should not occur in getInputPortName"
     | SplitN _ -> failwithf "SplitN should not occur in getInputPortName"
     | BusSelection _ -> failwithf "BusSelection should not occur in getInputPortName"
-    | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ ->
+    | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ ->
         failwithf "Array sheet IO is removed by expansion and should not occur in getInputPortName"
     // a wiring component, like MergeN: PortView.carriesWaveOfSlice keeps it out of the viewer
     | ArrayMerge _ -> failwithf "ArrayMerge should not occur in getInputPortName"
@@ -186,7 +186,7 @@ let getOutputPortName (compType: ComponentType) (port: OutputPortNumber) : strin
     | SplitWire _ -> failwithf "SplitWire should not occur in getOutputName"
     | SplitN _ -> failwithf "SplitN should not occur in getOutputName"
     | BusSelection _ -> failwithf "BusSeleciton should not occur in getOutputName"
-    | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ ->
+    | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ ->
         failwithf "Array sheet IO is removed by expansion and should not occur in getOutputName"
     | ArrayMerge _ -> failwithf "ArrayMerge should not occur in getOutputName"
 
@@ -258,7 +258,7 @@ let getInputNameW
         | SplitWire _ -> failwithf "SplitWire should not occur in getInputNameW"
         | SplitN _ -> failwithf "SplitN should not occur in getInputNameW"
         | BusSelection _ -> failwithf "BusSelection should not occur in getInputNameW"
-        | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ ->
+        | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ ->
             failwithf "Array sheet IO is removed by expansion and should not occur in getInputNameW"
         | ArrayMerge _ -> failwithf "ArrayMerge should not occur in getInputNameW"
 
@@ -317,7 +317,7 @@ let getOutputNameW
         | SplitWire _ -> failwithf "SplitWire should not occur in getOutputNameW"
         | SplitN _ -> failwithf "SplitN should not occur in getOutputNameW"
         | BusSelection _ -> failwithf "BusSelection should not occur in getOutputNameW"
-        | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ ->
+        | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ ->
             failwithf "Array sheet IO is removed by expansion and should not occur in getOutputNameW"
         | ArrayMerge _ -> failwithf "ArrayMerge should not occur in getOutputNameW"
 

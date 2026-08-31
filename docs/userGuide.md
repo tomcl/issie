@@ -351,45 +351,50 @@ widths — a 4-bit one and a 32-bit one — and ISSIE tracks each against its ow
 
 The [Parameter System](parameterSystem.html) page has the full details.
 
-## Array Design Sheets
+## Array Components
 
-A parameter changes what a number on a sheet is. An **array design sheet** changes how much hardware
+A parameter changes what a number on a sheet is. An **array component** changes how much hardware
 there is: draw one bit of an adder and get an adder of any width, or one stage of a pipeline and get
 the pipeline.
 
-Right-click the background of a sheet and choose `Make this an array sheet`. ISSIE asks for a **loop
-variable** — call it `i` — and how many copies. The sheet's hardware is then that many copies of what
-is drawn on it, with `i` counting from 0, and you can write `i` in any property box, so copy 3 can
-select bit 3 of a bus where copy 0 selects bit 0. The sheet's pill in the Sheets menu says how many
-copies it is.
+An array component is made from the Catalogue, like a Verilog component. Choose **Array components >
+New array component**, and ISSIE offers three ways to get one: a new empty sheet, an existing sheet
+made into one, or a copy of an existing sheet. The middle one is the usual way - you generally find
+out that you want an array after drawing one copy of it.
 
-The copies have to join up, and the Catalogue grows an **Array sheet** section — only on an array
-sheet — with four components for saying how:
+It then has a sheet of its own, in the Sheets menu, which is where you draw the one copy. Its
+Properties pane holds the number of **Copies**, and its loop variable - `i` by default - counts from
+0 to one less than that. Write `i` in any property box and one copy differs from the next: copy 3
+selects bit 3 of a bus where copy 0 selects bit 0. The sheet pill says how many copies it is.
 
-- **Join out** and **Join in** pass a value from one copy to another. Each sits on a numbered
-  channel, and the numbers are normally written in terms of the loop variable: a `Join out` numbered
-  `i+1` meets the `Join in` numbered `i` in the *next* copy, which is a carry chain. Where the chain
-  runs out — the first copy has nothing to take from, the last has nowhere to send — the loose ends
+The copies have to join up, and the Catalogue grows an **Array sheet** section - only on an array
+component - with four components for saying how:
+
+- **JoinOut** and **JoinIn** pass a value from one copy to another. Each sits on a numbered channel,
+  and the numbers are normally written in terms of the loop variable: a `JoinOut` numbered `i+1`
+  meets the `JoinIn` numbered `i` in the *next* copy, which is a carry chain. Where the chain runs
+  out - the first copy has nothing to take from, the last has nowhere to send - the loose ends
   become an input and an output of the array itself. Nothing says which copies those are; it falls
-  out of the numbering, so `i+2` gives you a chain that skips, and `JoinOut i` against `JoinIn i+1`
-  gives you one running backwards.
-- **Bus out** takes one value from each copy and joins them into a single bus, copy 0 in the least
+  out of the numbering, so `i+2` gives a chain that skips, and `JoinOut i` against `JoinIn i+1`
+  gives one running backwards.
+- **BusOut** takes one value from each copy and joins them into a single bus, copy 0 in the least
   significant bits. Eight copies of a one-bit sum is an eight-bit sum.
-- **Array out** takes one value from each copy to be read back later. It adds no port by itself: in
-  the array settings you declare a **multiplexer** over it, which adds a select input and an output,
-  so the design around the array can ask for copy 5's value.
+- **MuxOut** takes one value from each copy and reads one of them back. It adds a multiplexer: a
+  select input named after it and an output, so the design around the array can ask for copy 5's
+  value. A select naming no copy - possible when the number of copies is not a power of two - gives
+  zero.
 
-Two components you already know change meaning on an array sheet: an ordinary **Input** goes to
+Two components you already know change meaning on an array component: an ordinary **Input** goes to
 *every* copy, and an ordinary **Output** gives one port *per* copy.
 
-Place the array sheet on another sheet as a custom component in the usual way, and it has all of
-those ports. In the waveform viewer it appears as its own ports plus one instance per copy, which
-you can open and probe like any other sub-sheet.
+Place the array component on another sheet from the Catalogue, and it has all of those ports. In the
+waveform viewer it appears as its own ports plus one instance per copy, which you can open and probe
+like any other sub-sheet.
 
 Two rules worth knowing before you meet them as error messages. A channel number may mention the
-loop variable and nothing else — which joins are left loose decides the sheet's ports, so it must
-not depend on what an instance chose. And a channel number may never be negative, because the port
-an unmatched join becomes is named after it; write a backward chain by shifting the numbers up
+loop variable and nothing else - which joins are left loose decides the component's ports, so it
+must not depend on what an instance chose. And a channel number may never be negative, because the
+port an unmatched join becomes is named after it; write a backward chain by shifting the numbers up
 rather than down.
 
 ## Component Libraries

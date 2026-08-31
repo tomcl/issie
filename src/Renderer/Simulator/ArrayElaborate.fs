@@ -78,7 +78,7 @@ let bodyCanvasOf ((comps, conns): CanvasState) : CanvasState =
             | JoinIn (w, _) -> Some (Input1 (w, None))
             // everything else that is array IO takes one value per copy, so on the body it is one
             // ordinary output; what the copies DO with the value is the wrapper's business
-            | JoinOut (w, _) | BusOut w | ArrayOut w -> Some (Output w)
+            | JoinOut (w, _) | BusOut w | MuxOut w -> Some (Output w)
             | _ -> None
         match newType with
         | None -> comp
@@ -114,7 +114,7 @@ type private OutputDriver =
     | FromMerge of BodyPort: int
     /// every copy's body port, selected between - a declared multiplexer, and which of the
     /// generated select inputs drives it
-    | FromMux of BodyPort: int * SelectIndex: int
+    | FromMux of BodyPort: int * Select: Component
 
 /// A source of ids for the components, ports and connections the expansion makes.
 ///
@@ -257,15 +257,6 @@ let private wrapperOf
 
     let ordered = comps |> List.sortBy (fun comp -> comp.Y, comp.X)
 
-    /// The multiplexers whose source is actually on the sheet. One that names an Array out the
-    /// sheet does not have is reported by arrayOutlineOf and contributes nothing here.
-    let muxes =
-        info.Muxes
-        |> List.choose (fun spec ->
-            ordered
-            |> List.tryFind (fun comp ->
-                match comp.Type with | ArrayOut _ -> comp.Label = spec.MuxSource | _ -> false)
-            |> Option.map (fun source -> spec, source))
 
     // ---- the copies ----
     // Each binds every parameter the sheet declares straight through by name, and the loop variable
@@ -291,7 +282,12 @@ let private wrapperOf
             comp :: acc, b)
         |> fun (acc, b) -> List.rev acc |> Array.ofList, b
 
-    // ---- the sheet's own inputs, in outline order, wired to whatever they drive ----
+    // ---- the sheet own ports, in outline order ----
+    // One pass over the components in (Y, X) order, because that is the order arrayOutlineOf gives
+    // the ports and the wrapper own signature has to come out as the outline its instances were
+    // given. A MuxOut contributes BOTH an input and an output, so the two passes cannot be over
+    // different things: they are over the same list, in the same order, and a mux select landing in
+    // the middle of the inputs is exactly where the outline puts it.
     let b =
         ordered
         |> List.collect (fun comp ->
@@ -302,31 +298,30 @@ let private wrapperOf
             | JoinIn (w, _) ->
                 looseEndsOf wiring.UnmatchedIn comp
                 |> List.map (fun e -> joinInPortName comp.Label e.Num, w, widthExprOf comp, [e.Copy, bodyIn comp])
+            // a mux select. A plain number of bits and never an expression: it follows the copy
+            // count, which is a plain number on the sheet. It drives no copy - the mux reads it -
+            // so it is wired below rather than here.
+            | MuxOut _ -> [muxSelectPortName comp.Label, arraySelectWidth copies, None, []]
             | _ -> [])
         |> List.fold (fun b (label, w, expr, targets) ->
             let comp, b = addComp b (Input1 (w, None)) label 0 1
             let b = addWidthSlot b comp expr
             targets |> List.fold (fun b (copy, port) -> wire b comp 0 copyComps[copy] port) b) b
 
-    // ---- a select input per multiplexer, after the ports the components generate ----
-    // A select is a plain number of bits and never an expression: it follows the copy count, which
-    // is a plain number on the sheet.
-    let selectComps, b =
-        (([], b), muxes)
-        ||> List.fold (fun (acc, b) (spec, _) ->
-            let comp, b = addComp b (Input1 (arraySelectWidth copies, None)) (muxSelectPortName spec) 0 1
-            comp :: acc, b)
-        |> fun (acc, b) -> List.rev acc |> Array.ofList, b
+    /// The select input of each MuxOut, by the MuxOut it belongs to. Found by the name it was given
+    /// rather than remembered through the fold, so the two cannot drift apart.
+    let selectOf (source: Component) =
+        b.Comps |> List.find (fun c -> c.Label = muxSelectPortName source.Label)
 
-    // ---- the sheet's own outputs, in outline order, and what drives each ----
+    // ---- the sheet own outputs, in the same order, and what drives each ----
     let outputSpecs =
-        (ordered
-         |> List.collect (fun comp ->
+        ordered
+        |> List.collect (fun comp ->
             match comp.Type with
             // an ordinary Output is one port per copy
             | Output w ->
                 [for i in 0 .. copies - 1 -> $"{comp.Label}_{i}", w, widthExprOf comp, FromCopy (i, bodyOut comp)]
-            // the copies' values concatenated: as many times as wide, so the width expression is too
+            // the copies values concatenated: as many times as wide, so the width expression is too
             | BusOut w ->
                 [ comp.Label, w * copies,
                   widthExprOf comp
@@ -336,12 +331,9 @@ let private wrapperOf
                 looseEndsOf wiring.UnmatchedOut comp
                 |> List.map (fun e ->
                     joinOutPortName comp.Label e.Num, w, widthExprOf comp, FromCopy (e.Copy, bodyOut comp))
-            | _ -> []))
-        // a multiplexer's output is as wide as the values it selects between
-        @ (muxes
-           |> List.mapi (fun i (spec, source) ->
-                let w = match source.Type with | ArrayOut w -> w | _ -> 1
-                spec.MuxName, w, widthExprOf source, FromMux (bodyOut source, i)))
+            // one multiplexer per MuxOut, reading the copy its own select names
+            | MuxOut w -> [comp.Label, w, widthExprOf comp, FromMux (bodyOut comp, selectOf comp)]
+            | _ -> [])
 
     let outputComps, b =
         (([], b), outputSpecs)
@@ -361,11 +353,11 @@ let private wrapperOf
                 let merge, b = addComp b (ArrayMerge copies) $"{outComp.Label}_merge" copies 1
                 let b = (b, [0 .. copies - 1]) ||> List.fold (fun b i -> wire b copyComps[i] port merge i)
                 wire b merge 0 outComp 0
-            | FromMux (port, selIx) ->
+            | FromMux (port, sel) ->
                 // the data inputs, then the select LAST, as a Mux2's is
                 let mux, b = addComp b (ArrayMux copies) $"{outComp.Label}_mux" (copies + 1) 1
                 let b = (b, [0 .. copies - 1]) ||> List.fold (fun b i -> wire b copyComps[i] port mux i)
-                let b = wire b selectComps[selIx] 0 mux copies
+                let b = wire b sel 0 mux copies
                 wire b mux 0 outComp 0) b
 
     // ---- and the wires between the copies: one per matched join ----
@@ -389,7 +381,7 @@ let private bodyNameProblems (sheetName: string) ((comps, _): CanvasState) =
     comps
     |> List.filter (fun comp ->
         match comp.Type with
-        | Input1 _ | Output _ | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ -> true
+        | Input1 _ | Output _ | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ -> true
         | _ -> false)
     |> List.countBy bodyPortLabel
     |> List.filter (fun (_, n) -> n > 1)
@@ -401,7 +393,7 @@ let private bodyNameProblems (sheetName: string) ((comps, _): CanvasState) =
 /// is wrong with any of them - each problem paired with the sheet it is about, so that a caller can
 /// tell which of them the design being simulated actually depends on.
 ///
-/// After this the simulator has never seen an array sheet: BusOut, ArrayOut, JoinOut and JoinIn are
+/// After this the simulator has never seen an array sheet: BusOut, MuxOut, JoinOut and JoinIn are
 /// gone from every canvas, and what is left is custom components, wires and the two array glue
 /// types. That is why the evaluators, the truth table and the dependency machinery need no part in
 /// this, and why the wave selector shows the copies without being told about arrays.
@@ -411,8 +403,8 @@ let expandArraySheets (ldcs: LoadedComponent list) : LoadedComponent list * (str
     let expandOne (sheet: LoadedComponent) (info: ArrayInfo) =
         let copies = copiesOfArray info
         let sizeProblems =
-            if info.EndValue < 0 then
-                [$"'{sheet.Name}' says its loop variable ends at {info.EndValue}, which is before it starts"]
+            if copies < 1 then
+                [$"'{sheet.Name}' asks for {copies} copies, and an array component is at least one"]
             elif copies > Constants.maxArrayCopies then
                 [$"'{sheet.Name}' asks for {copies} copies, and Issie expands at most {Constants.maxArrayCopies}"]
             else []

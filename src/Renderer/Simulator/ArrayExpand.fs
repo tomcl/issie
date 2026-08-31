@@ -8,7 +8,7 @@ module ArrayExpand
     ports the sheet therefore has, and (later) the expansion itself.
 
     See CommonTypes.ArrayInfo for the settings a sheet carries, and CommonTypes.ComponentType for
-    the four components that say how the copies join up - BusOut, ArrayOut, JoinOut and JoinIn.
+    the four components that say how the copies join up - BusOut, MuxOut, JoinOut and JoinIn.
 
     Compiled before CanvasExtractor, because parseDiagramSignature asks this module what an array
     sheet's ports are. It therefore depends on nothing but CommonTypes and the parameter types,
@@ -37,8 +37,8 @@ let joinInPortName (label: string) (num: int) = $"{label}_in_{num}"
 /// The name of the sheet port an unmatched JoinOut becomes.
 let joinOutPortName (label: string) (num: int) = $"{label}_out_{num}"
 
-/// The name of the select input a declared multiplexer adds to the sheet.
-let muxSelectPortName (spec: ArrayMuxSpec) = $"{spec.MuxName}_sel"
+/// The name of the select input a MuxOut adds to the sheet, beside the output of its own name.
+let muxSelectPortName (label: string) = label + "_sel"
 
 /// One end of a channel: a join component, in one copy, on the channel that copy puts it on.
 type JoinEnd = {
@@ -227,6 +227,8 @@ let arrayOutlineOf
             | JoinIn (w, _) ->
                 looseEndsOf wiring.UnmatchedIn comp
                 |> List.map (fun e -> joinInPortName comp.Label e.Num, w)
+            // a MuxOut reads one copy's value back, so the select saying which copy is an input
+            | MuxOut _ -> [muxSelectPortName comp.Label, arraySelectWidth copies]
             | _ -> [])
 
     let outputs =
@@ -240,27 +242,9 @@ let arrayOutlineOf
             | JoinOut (w, _) ->
                 looseEndsOf wiring.UnmatchedOut comp
                 |> List.map (fun e -> joinOutPortName comp.Label e.Num, w)
-            // an ArrayOut contributes nothing of its own: the multiplexers declared over it do
+            // the value of whichever copy the select names, and 0 where it names none
+            | MuxOut w -> [comp.Label, w]
             | _ -> [])
-
-    /// A declared multiplexer: a select input and an output as wide as the ArrayOut it reads.
-    let muxPorts =
-        info.Muxes
-        |> List.map (fun spec ->
-            let source =
-                comps
-                |> List.tryPick (fun comp ->
-                    match comp.Type with
-                    | ArrayOut w when comp.Label = spec.MuxSource -> Some w
-                    | _ -> None)
-            match source with
-            | Some w -> Ok ((muxSelectPortName spec, arraySelectWidth copies), (spec.MuxName, w))
-            | None ->
-                Error $"the multiplexer '{spec.MuxName}' selects between the values of an Array out \
-                        called '{spec.MuxSource}', and this sheet has none")
-
-    let muxProblems = muxPorts |> List.choose (function | Error msg -> Some msg | Ok _ -> None)
-    let muxOk = muxPorts |> List.choose (function | Ok pair -> Some pair | Error _ -> None)
 
     /// Every port name the sheet derives, and the ones it derives twice.
     ///
@@ -277,8 +261,5 @@ let arrayOutlineOf
             $"this sheet derives two {side}s called '{name}': rename one of the components they \
               come from, since a sheet cannot have two ports of one name")
 
-    let allInputs = inputs @ List.map fst muxOk
-    let allOutputs = outputs @ List.map snd muxOk
-
-    (allInputs, allOutputs),
-    wiring.Problems @ muxProblems @ collisions "input" allInputs @ collisions "output" allOutputs
+    (inputs, outputs),
+    wiring.Problems @ collisions "input" inputs @ collisions "output" outputs

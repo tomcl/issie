@@ -320,10 +320,10 @@ type ComponentType =
     /// One value per copy of an array sheet, concatenated into a single bus on the sheet's outline:
     /// one output of width copies*BusWidth, with copy 0 in the least significant bits.
     | BusOut of BusWidth: int
-    /// One value per copy of an array sheet, as the inputs of the muxes declared over it in the
-    /// sheet's array settings. It contributes no port of its own: a mux declaration is what creates
-    /// the pair of outline ports that reads these values.
-    | ArrayOut of BusWidth: int
+    /// One value per copy of an array sheet, read back through a multiplexer. It puts a pair of
+    /// ports on the sheet: a select input of clog2(copies) bits, and an output as wide as this.
+    /// A select naming no copy - possible when the copy count is not a power of two - gives 0.
+    | MuxOut of BusWidth: int
     /// Publishes this copy's value on channel Num of the channel named by the component's label.
     /// A JoinOut and a JoinIn with the same label and the same Num are one wire between two copies;
     /// a JoinOut no copy's JoinIn matches becomes an output on the sheet's outline.
@@ -663,7 +663,7 @@ module JSONComponent =
         | Constant of Width: int * ConstValue: bigint
         //-----------------The IO of an array design sheet - see ComponentType--------------//
         | BusOut of BusWidth: int
-        | ArrayOut of BusWidth: int
+        | MuxOut of BusWidth: int
         | JoinOut of BusWidth: int * Num: int
         | JoinIn of BusWidth: int * Num: int
         //---------Created only by expanding an array design sheet - see ComponentType---------//
@@ -781,7 +781,7 @@ let convertFromJSONComponent (mapCompId: string -> ComponentId) (mapPortId: stri
         | JSONComponent.ComponentType.Shift (a,b,c) -> Shift (a,b,c)
         // the IO of an array design sheet
         | JSONComponent.ComponentType.BusOut w -> BusOut w
-        | JSONComponent.ComponentType.ArrayOut w -> ArrayOut w
+        | JSONComponent.ComponentType.MuxOut w -> MuxOut w
         | JSONComponent.ComponentType.JoinOut (w,n) -> JoinOut (w,n)
         | JSONComponent.ComponentType.JoinIn (w,n) -> JoinIn (w,n)
         | JSONComponent.ComponentType.ArrayMerge n -> ArrayMerge n
@@ -902,7 +902,7 @@ let convertToJSONComponent (comp: Component) : JSONComponent.Component =
         | Constant (w, v) -> JSONComponent.ComponentType.Constant (w, v)
         // the IO of an array design sheet
         | BusOut w -> JSONComponent.ComponentType.BusOut w
-        | ArrayOut w -> JSONComponent.ComponentType.ArrayOut w
+        | MuxOut w -> JSONComponent.ComponentType.MuxOut w
         | JoinOut (w, n) -> JSONComponent.ComponentType.JoinOut (w, n)
         | JoinIn (w, n) -> JSONComponent.ComponentType.JoinIn (w, n)
         | ArrayMerge n -> JSONComponent.ComponentType.ArrayMerge n
@@ -1176,34 +1176,19 @@ type SavedWaveInfo = {
     DisplayedPortIds: string array option
 }
 
-/// One mux declared over an ArrayOut in an array design sheet's settings.
+/// The array settings of an ARRAY COMPONENT; absent on an ordinary sheet.
 ///
-/// A declaration rather than something ArrayOut implies, so that one ArrayOut's per-copy values can
-/// be selected several ways at once - each declaration is what creates a pair of ports on the array
-/// sheet's outline, and two muxes over one ArrayOut are two independent selections of it.
-/// The field names are prefixed because F# resolves an unannotated record field to the LAST type
-/// declaring it: bare `Source` would capture every `{Source = _; Target = _}` that means a
-/// Connection, and bare `Name` every one that means a LoadedComponent. Same reason as WavePath's.
-type ArrayMuxSpec = {
-    /// The label of the ArrayOut component whose per-copy values this mux selects between.
-    MuxSource: string
-    /// The name of the outline output. Its select input is named <MuxName>_sel.
-    MuxName: string
-}
-
-/// The array settings of an array design sheet; absent on an ordinary sheet.
+/// An array component is a sheet whose hardware is `Copies` copies of what is drawn on it, one per
+/// value of the loop variable. What joins the copies to each other and to the outside is the array
+/// IO components - see ComponentType's BusOut, MuxOut, JoinOut and JoinIn.
 ///
-/// An array sheet's hardware is EndValue+1 copies of what is drawn on it, one per value of the loop
-/// variable. What joins the copies to each other and to the outside is the array IO components -
-/// see ComponentType's BusOut, ArrayOut, JoinOut and JoinIn.
-///
-/// EndValue is a plain integer and deliberately NOT a parameter expression. It fixes how many
-/// copies there are, and so fixes the ports of every custom component instance of this sheet: an
-/// array sheet has ONE signature per set of bindings, exactly as any other sheet does. Making it an
-/// expression would make a sheet's port LIST depend on who instantiated it, which nothing else in
-/// Issie has to cope with. Widths remain parameterisable as they are everywhere else.
+/// Copies is a plain integer and deliberately NOT a parameter expression. It fixes how many copies
+/// there are, and so fixes the ports of every instance of this sheet: an array component has ONE
+/// signature per set of bindings, exactly as any other sheet does. Making it an expression would
+/// make a sheet's port LIST depend on who instantiated it, which nothing else in Issie has to cope
+/// with. Widths remain parameterisable as they are everywhere else.
 type ArrayInfo = {
-    /// The name of the loop variable, which takes the values 0 .. EndValue, one per copy.
+    /// The name of the loop variable, which takes the values 0 .. Copies-1, one per copy.
     ///
     /// NOT a declared property of this sheet: it is declared here, it has a value only inside a
     /// copy, and no instance may bind it - so it is absent from DefaultBindings and every part of
@@ -1212,19 +1197,20 @@ type ArrayInfo = {
     /// makes one copy differ from the next; but not in a slot that sets a width, since every copy
     /// must have the same ports, and in a join's number it is the only name allowed.
     LoopParam: ParameterTypes.ParamName
-    /// The last value the loop variable takes; the first is always 0, so there are EndValue+1
-    /// copies. Never negative.
-    EndValue: int
-    Muxes: ArrayMuxSpec list
+    /// How many copies of the sheet the component is. At least 1.
+    ///
+    /// The number of COPIES rather than the last value of the loop variable, which is the same
+    /// number minus one: the box that sets it says "copies", and storing what the box says is what
+    /// stops the two drifting by one.
+    Copies: int
 }
 
 /// Lenses for ArrayInfo
 let loopParam_ = Lens.create (fun a -> a.LoopParam) (fun s a -> {a with LoopParam = s})
-let endValue_ = Lens.create (fun a -> a.EndValue) (fun s a -> {a with EndValue = s})
-let muxes_ = Lens.create (fun a -> a.Muxes) (fun s a -> {a with Muxes = s})
+let copies_ = Lens.create (fun a -> a.Copies) (fun s a -> {a with Copies = s})
 
-/// How many copies an array sheet has.
-let copiesOfArray (info: ArrayInfo) = info.EndValue + 1
+/// How many copies an array component has.
+let copiesOfArray (info: ArrayInfo) = info.Copies
 
 /// Info regarding sheet saved in the .dgm file
 type SheetInfo = {

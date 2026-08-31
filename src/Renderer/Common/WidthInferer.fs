@@ -188,7 +188,7 @@ let private calculateOutputPortsWidth
     // On an array design sheet these three take one value per copy and drive nothing on the sheet
     // itself: what happens to the values is decided by the outline (concatenation, a mux, or a wire
     // to another copy), which is ArrayExpand's business and not this sheet's. So each is an Output.
-    | BusOut width | ArrayOut width | JoinOut (width, _) ->
+    | BusOut width | MuxOut width | JoinOut (width, _) ->
         assertInputsSize inputConnectionsWidth 1 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
         | [None] -> Ok Map.empty

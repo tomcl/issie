@@ -500,6 +500,21 @@ let private makeCustomList keep styles model dispatch =
             |true -> (comp.Form = Some User || comp.Form = Some ProtectedTopLevel || comp.Form = Some ProtectedSubSheet)
             |false -> (comp.Form = Some User || comp.Form = Some ProtectedTopLevel)
         )
+        // an array component has a section of its own, as a Verilog component does: it is a
+        // different kind of thing to place, and listing it twice would say it was two
+        |> List.filter (fun comp -> comp.ArrayInfo.IsNone)
+        |> List.filter (fun comp -> keep comp.Name (Option.defaultValue "" comp.Description))
+        |> List.sortBy (fun x -> x.Name)
+        |> List.map (makeCustom styles model dispatch)
+
+/// The project's array components, offered to be placed exactly as any other sheet is.
+let private makeArrayList keep styles model dispatch =
+    match model.CurrentProj with
+    | None -> []
+    | Some project ->
+        project.LoadedComponents
+        |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+        |> List.filter (fun comp -> comp.ArrayInfo.IsSome)
         |> List.filter (fun comp -> keep comp.Name (Option.defaultValue "" comp.Description))
         |> List.sortBy (fun x -> x.Name)
         |> List.map (makeCustom styles model dispatch)
@@ -2085,7 +2100,7 @@ let viewCatalogue model dispatch =
                                     "Takes one value from each copy and joins them into a single bus, \
                                      copy 0 in the least significant bits. The sheet gets one output \
                                      of width (number of copies) x (this width)."
-                                catTip1 "Array out" (ArrayOut 1) (fun _ -> dispatchAsFunc (createIOPopup true "array output" ArrayOut))
+                                catTip1 "Array out" (MuxOut 1) (fun _ -> dispatchAsFunc (createIOPopup true "array output" MuxOut))
                                     "Takes one value from each copy, to be selected between by the \
                                      multiplexers declared in this sheet's array settings. It adds no \
                                      port of its own: each multiplexer adds a select input and an output."
@@ -2103,6 +2118,17 @@ let viewCatalogue model dispatch =
                         "Every design sheet is available for use in other sheets as a custom component: \
                         it can be added any number of times, each instance replicating the sheet logic"
                         (makeCustomList keep styles model dispatch)
+
+                    groupWithTip
+                        "Array components"
+                        "A sheet whose hardware is several copies of what is drawn on it, one per                          value of a loop variable. Draw one bit of an adder and get an adder of any                          width. Made here, edited on its own sheet, and placed like any other                          component."
+                        (List.append
+                            // "New array component" makes one rather than placing one, so it is not
+                            // something a search for a component should turn up.
+                            (if searching then [] else
+                                [menuItem styles "New array component" (
+                                    fun _ -> dispatchAsFunc (fun model _ -> ArraySheetView.newArrayComponentPopup model dispatch)) ])
+                            (makeArrayList keep styles model dispatch))
 
                     groupWithTip
                         "Verilog"

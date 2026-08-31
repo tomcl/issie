@@ -104,7 +104,7 @@ let getPortNumbers (sc: SimulationComponent) =
         | Input _ -> failwithf "Legacy Input component types should never occur"
         // ArrayExpand rewrites an array design sheet into ordinary sheets before any graph is
         // built, so none of these can reach the simulator. See CommonTypes.ArrayInfo.
-        | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ ->
+        | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ ->
             failwithf "Array sheet IO is removed by expansion and should never reach the simulator"
         // the glue of an expanded array sheet: the select is the LAST input, as a Mux2's is
         | ArrayMerge n -> n, 1
@@ -228,7 +228,7 @@ let findBigIntState (fc: FastComponent) =
               OutputIsBigInt = [| fc.OutputWidth 0 > 32 |] }
     // ArrayExpand rewrites an array design sheet into ordinary sheets before any graph is built,
     // so none of these can reach the simulator. See CommonTypes.ArrayInfo.
-    | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ ->
+    | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ ->
         failwith "Array sheet IO is removed by expansion and should never reach the simulator"
 
 let mutable stepArrayIndex = -1

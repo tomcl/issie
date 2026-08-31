@@ -333,7 +333,7 @@ let tests =
                   NbitsAdder 4; BusSelection(1, 0); MergeWires; SplitWire 1
                   // the IO of an array design sheet: wires, so combinational, and both predicates
                   // must say so rather than raising - one of them sees these on the canvas
-                  BusOut 1; ArrayOut 1; JoinOut(1, 0); JoinIn(1, 0) ]
+                  BusOut 1; MuxOut 1; JoinOut(1, 0); JoinIn(1, 0) ]
 
             sample
             |> List.iter (fun compType ->

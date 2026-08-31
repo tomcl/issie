@@ -679,18 +679,18 @@ Steps 1 and 2 are both idempotent, which is what the whole arrangement rests on:
 restore the primary state and run it again, and no edit has to reason about which sheets a binding
 might reach.
 
-## Array design sheets
+## Array components
 
 The rule stated at the top of `CompSlotName` — *a parameter records a value, not a change of
 topology* — has exactly one exception, and it is a sheet-level one rather than a slot.
 
-An **array design sheet** has a loop variable and a copy count, and its hardware is that many copies
+An **array component** has a loop variable and a copy count, and its hardware is that many copies
 of what is drawn on it, one per value of the variable. `CommonTypes.ArrayInfo` is what a sheet
 carries; `ArrayExpand` is what it means; `ArrayElaborate` is what it becomes.
 
 ### The copy count is not a parameter, deliberately
 
-`ArrayInfo.EndValue` is a plain integer. Every instinct says it should be a `ParamExpression` — then
+`ArrayInfo.Copies` is a plain integer. Every instinct says it should be a `ParamExpression` — then
 one sheet would serve an 8-copy and a 16-copy array — and that is exactly what must not happen. The
 copy count decides how many **ports** the sheet has (an `Output` gives one per copy, a `BusOut` is
 `n` times as wide), so an expression would make a sheet's port LIST depend on who instantiated it.

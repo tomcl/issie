@@ -102,7 +102,7 @@ let private getDefaultState compType =
     | Input _ -> failwithf "Legacy Input component types should never occur"
     // ArrayExpand rewrites an array design sheet into ordinary sheets before any graph is built,
     // so none of these can reach the simulator. See CommonTypes.ArrayInfo.
-    | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ ->
+    | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ ->
         failwithf "What? Array sheet IO is removed by expansion and should never reach the simulator"
     // The glue of an expanded array sheet: wires, so no state. See CommonTypes.ArrayMerge.
     | ArrayMerge _ | ArrayMux _ -> NoState

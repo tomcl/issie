@@ -431,10 +431,7 @@ let tests =
 
         test "an array sheet's settings survive save and load" {
             let arrayInfo =
-                { LoopParam = ParameterTypes.ParamName "i"
-                  EndValue = 7
-                  Muxes = [ { MuxSource = "SUM"; MuxName = "PICK" }
-                            { MuxSource = "SUM"; MuxName = "PICK2" } ] }
+                { LoopParam = ParameterTypes.ParamName "i"; Copies = 8 }
             let canvas: CanvasState = [ makeComp 1 0 1 (Input1(3, None)) "I0" ], []
             match stateToJsonString (canvas, None, Some { sheetInfo with ArrayInfo = Some arrayInfo }) with
             | Error e -> failtest $"serialisation failed: {e}"
@@ -447,7 +444,7 @@ let tests =
                     | Some si ->
                         // ArrayInfo holds no id, so its file form IS its memory form
                         Expect.equal si.ArrayInfo (Some arrayInfo)
-                            "loop variable, copy count and every mux declaration come back unchanged"
+                            "the loop variable and the copy count come back unchanged"
         }
 
         test "a sheet saved before array sheets existed loads as an ordinary sheet" {

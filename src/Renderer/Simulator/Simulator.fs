@@ -184,7 +184,7 @@ let saveStateInSimulation
 /// that makes the array's own ports. See ArrayElaborate.
 ///
 /// Done here, once, before anything else looks at the design, and that is the whole of the array
-/// feature as far as the simulator is concerned: after this no canvas holds a BusOut, an ArrayOut
+/// feature as far as the simulator is concerned: after this no canvas holds a BusOut, an MuxOut
 /// or a join, so the dependency machinery, the parameter resolution, the budget check, the flatten
 /// and the waveform selector all do their ordinary work on ordinary sheets. It can be a plain
 /// rewrite because the number of copies is a fixed integer on the sheet rather than a parameter

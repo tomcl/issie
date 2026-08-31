@@ -107,7 +107,7 @@ let generateCopiedLabel (model: Model) (oldSymbol:Symbol) (compType: ComponentTy
     // array sheet with one name. A join is the exception: its label names a CHANNEL, so a copied
     // join keeps it and joins the same chain, exactly as a copied net label does.
     |Input _ | Input1 (_,_) |Output _ |Viewer _
-    |BusOut _ |ArrayOut _ -> generateIOLabel model compType oldSymbol.Component.Label
+    |BusOut _ |MuxOut _ -> generateIOLabel model compType oldSymbol.Component.Label
     |JoinOut _ |JoinIn _ -> oldSymbol.Component.Label
     | _ -> prefix + (generateLabelNumber listSymbols compType)
 

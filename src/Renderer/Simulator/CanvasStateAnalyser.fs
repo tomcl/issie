@@ -88,7 +88,7 @@ let portNames (componentType:ComponentType)  = //(input port names, output port 
     // Array design sheet IO. Each has one port and the symbol's own label names it, so a port name
     // would only repeat what is already drawn - as it would on an Input1 or an Output, which have
     // none either.
-    | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ -> ([],[])
+    | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ -> ([],[])
     // The glue an expanded array design sheet leaves behind. Named as MergeN and Mux2 are, because
     // the waveform viewer shows their ports even though no canvas ever draws one.
     | ArrayMerge n ->
@@ -549,9 +549,9 @@ let private checkIOLabels (canvasState: CanvasState) : SimulationError option =
         components
         |> List.filter (fun comp ->
             match comp.Type with
-            // BusOut and ArrayOut are outputs of an array design sheet, so their labels share the
+            // BusOut and MuxOut are outputs of an array design sheet, so their labels share the
             // output name space with Output's and a clash between them is the same mistake
-            | Output _ | BusOut _ | ArrayOut _ -> true
+            | Output _ | BusOut _ | MuxOut _ -> true
             | _ -> false)
 
     let labels =
@@ -797,7 +797,7 @@ let checkComponentNamesAreOk ((comps, conns): CanvasState) =
 /// The IO of an array design sheet, on a sheet that is not one.
 ///
 /// By the time a canvas reaches here, every array design sheet has been replaced by the two
-/// ordinary sheets it expands to (ArrayElaborate) - so a BusOut, an ArrayOut or a join surviving to
+/// ordinary sheets it expands to (ArrayElaborate) - so a BusOut, an MuxOut or a join surviving to
 /// this point is one on a sheet with no array settings, where there are no copies for it to mean
 /// anything about. That is how a component pasted onto an ordinary sheet, or left behind when a
 /// sheet stopped being an array sheet, is caught.
@@ -809,7 +809,7 @@ let private checkArrayIOIsOnAnArraySheet ((comps, _): CanvasState) : SimulationE
     comps
     |> List.filter (fun comp ->
         match comp.Type with
-        | BusOut _ | ArrayOut _ | JoinOut _ | JoinIn _ -> true
+        | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ -> true
         | _ -> false)
     |> function
        | [] -> None

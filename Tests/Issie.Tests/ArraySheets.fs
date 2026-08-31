@@ -8,6 +8,8 @@ module ArraySheets
 
 open Expecto
 open CommonTypes
+open SimGraphTypes
+open SimTypes
 open ParameterTypes
 open CanvasBuilder
 
@@ -272,4 +274,221 @@ let private outlineTests =
         }
     ]
 
-let tests = testList "ArraySheets" [ joinTests; outlineTests ]
+//-------------------------------------------------------------------------------------------//
+//-------------------------------------THE EXPANSION-----------------------------------------//
+//-------------------------------------------------------------------------------------------//
+
+let private maxArraySize = 40
+
+/// A one-bit full adder drawn as an ARRAY DESIGN SHEET, so that n copies of it are an n-bit
+/// ripple-carry adder. This is the design the whole feature exists for.
+///
+///   A, B          8-bit operands, driven to EVERY copy
+///   ABIT, BBIT    copy i's operand bits, selected at LSB i - which is the loop variable doing
+///                 the one thing that makes one copy differ from the next
+///   C             the carry channel: copy i publishes on i+1 and takes i, so it goes to i+1
+///   SUM           one bit per copy, concatenated into the array's sum bus
+let private rippleSheet (copies: int) =
+    let a = makeComp 1 0 1 (Input1(8, None)) "A"
+    let b = makeComp 2 0 1 (Input1(8, None)) "B"
+    let cIn = makeComp 3 0 1 (JoinIn(1, 0)) "C"
+    let aBit = makeComp 4 1 1 (BusSelection(1, 0)) "ABIT"
+    let bBit = makeComp 5 1 1 (BusSelection(1, 0)) "BBIT"
+    // one bit of sum and a carry out: an adder over one-bit busses is exactly a full adder
+    let add = makeComp 6 3 2 (NbitsAdder 1) "FA"
+    let sum = makeComp 7 1 0 (BusOut 1) "SUM"
+    let cOut = makeComp 8 1 0 (JoinOut(1, 1)) "C"
+    let canvas: CanvasState =
+        stacked [ a; b; cIn; aBit; bBit; add; sum; cOut ],
+        [ conn a 0 aBit 0; conn b 0 bBit 0
+          conn cIn 0 add 0; conn aBit 0 add 1; conn bBit 0 add 2
+          conn add 0 sum 0; conn add 1 cOut 0 ]
+    // the bit each copy takes is its own index; the carry channel numbering makes the chain
+    let defs =
+        { DefaultBindings = Map.empty
+          ParamSlots =
+            [ 4, IO "ABIT", "i"; 5, IO "BBIT", "i"; 8, JoinNum, "i+1"; 3, JoinNum, "i" ]
+            |> List.map (fun (compId, slot, exprText) ->
+                match parseExpression exprText with
+                | Ok expr -> {CompId = ComponentId compId; CompSlot = slot}, {Expression = expr; Constraints = []}
+                | Error msg -> failwithf $"test expression '{exprText}' does not parse: {msg}")
+            |> Map.ofList }
+    { makeLdc "ripple" (Some defs) canvas with ArrayInfo = Some (arrayInfo copies []) }
+
+/// A parent sheet holding one instance of the array sheet, with the outline ports it derives.
+let private rippleParent (copies: int) =
+    let sheet = rippleSheet copies
+    let ins, outs = outline (arrayInfo copies []) sheet.LCParameterSlots sheet.CanvasState
+    let a = makeComp 11 0 1 (Input1(8, None)) "X"
+    let b = makeComp 12 0 1 (Input1(8, None)) "Y"
+    let cin = makeComp 13 0 1 (Input1(1, None)) "CIN"
+    let arr = makeComp 14 (List.length ins) (List.length outs) (customOf sheet ins outs None) "ARR"
+    let sum = makeComp 15 1 0 (Output copies) "S"
+    let cout = makeComp 16 1 0 (Output 1) "COUT"
+    // the outline is C_in_0, A, B in and SUM, C_out_n out - the order the components are laid out
+    let inIx name = ins |> List.findIndex (fun (l, _) -> l = name)
+    let outIx name = outs |> List.findIndex (fun (l, _) -> l = name)
+    let canvas: CanvasState =
+        stacked [ a; b; cin; arr; sum; cout ],
+        [ conn a 0 arr (inIx "A"); conn b 0 arr (inIx "B"); conn cin 0 arr (inIx "C_in_0")
+          conn arr (outIx "SUM") sum 0; conn arr (outIx $"C_out_{copies}") cout 0 ]
+    makeLdc "top" None canvas, sheet
+
+/// Drive the parent's inputs and read its outputs by label.
+let private runParent (parent: LoadedComponent) (deps: LoadedComponent list) (inputVals: Map<string, bigint>) =
+    match Simulator.startCircuitSimulation maxArraySize parent.Name parent.CanvasState (parent :: deps) with
+    | Error e -> failtestf "%A" e
+    | Ok simData ->
+        simData.Inputs
+        |> List.iter (fun (cid, ComponentLabel label, width) ->
+            let fd = NumberHelpers.convertBigintToFastData width inputVals[label]
+            FastExtract.changeInput cid (IData fd) 0 simData.FastSim)
+        simData.Outputs
+        |> List.map (fun (cid, ComponentLabel label, _) ->
+            match FastExtract.extractFastSimulationOutput simData.FastSim 0 (cid, []) (OutputPortNumber 0) with
+            | IData fd -> label, fd.GetBigInt
+            | IAlg _ -> failwith "algebraic output")
+        |> Map.ofList
+
+let private expansionTests =
+    testList "expansion" [
+        test "one array sheet becomes a wrapper and a body, and the body is one copy" {
+            let sheet = rippleSheet 4
+            let expanded, problems = ArrayElaborate.expandArraySheets [ sheet ]
+            Expect.isEmpty problems "a ripple-carry array sheet is a correct design"
+            Expect.equal (expanded |> List.map (fun l -> l.Name)) [ "ripple"; "ripple/copy" ]
+                "the sheet keeps its name and place, and its body follows it"
+            let wrapper = expanded |> List.find (fun l -> l.Name = "ripple")
+            let body = expanded |> List.find (fun l -> l.Name = "ripple/copy")
+            Expect.isNone wrapper.ArrayInfo "after expansion the wrapper is an ordinary sheet"
+            Expect.isNone body.ArrayInfo "and so is the body"
+            // the body is one copy: the array IO has become ordinary IO, keeping the connections
+            Expect.equal (names body.InputLabels) [ "A"; "B"; "C_in" ]
+                "a Join in becomes an input of the copy, named for its direction"
+            Expect.equal (names body.OutputLabels) [ "SUM"; "C_out" ]
+                "and a BusOut and a Join out become outputs of it"
+            Expect.equal (fst body.CanvasState |> List.length) 8 "the body holds what was drawn"
+            Expect.equal (snd body.CanvasState) (snd sheet.CanvasState) "with its wires untouched"
+        }
+
+        test "the wrapper's own ports are the outline its instances were given" {
+            for copies in [ 1; 2; 5; 8 ] do
+                let sheet = rippleSheet copies
+                let expected = outline (arrayInfo copies []) sheet.LCParameterSlots sheet.CanvasState
+                let expanded, _ = ArrayElaborate.expandArraySheets [ sheet ]
+                let wrapper = expanded |> List.find (fun l -> l.Name = "ripple")
+                // read the ordinary way, off the wrapper's Input1 and Output components in (Y, X)
+                // order - which is what everything downstream will do
+                Expect.equal (CanvasExtractor.parseDiagramSignature wrapper.CanvasState) expected
+                    $"{copies} copies: the wrapper's signature must be the outline, in order"
+        }
+
+        test "the wrapper holds one numbered instance of the body per copy" {
+            let expanded, _ = ArrayElaborate.expandArraySheets [ rippleSheet 5 ]
+            let wrapper = expanded |> List.find (fun l -> l.Name = "ripple")
+            let instances =
+                fst wrapper.CanvasState
+                |> List.choose (fun c -> match c.Type with | Custom cc -> Some (c.Label, cc.Name) | _ -> None)
+            Expect.equal instances [for i in 0 .. 4 -> $"ripple{i}", "ripple/copy"]
+                "five numbered instances of the body, which is what the wave selector will show"
+        }
+
+        test "generated ids are above every id the design already uses" {
+            // FastCreate indexes arrays by the raw integer id, so a generated one that collided
+            // with a real one would make two components one, and a negative one would corrupt the
+            // build under Fable without saying so
+            let sheet = rippleSheet 4
+            let existing =
+                fst sheet.CanvasState |> List.map (fun c -> cToInt c.Id) |> List.max
+            let expanded, _ = ArrayElaborate.expandArraySheets [ sheet ]
+            let wrapper = expanded |> List.find (fun l -> l.Name = "ripple")
+            let ids = fst wrapper.CanvasState |> List.map (fun c -> cToInt c.Id)
+            Expect.all ids (fun id -> id > existing) "every generated id is above the design's"
+            Expect.equal (List.length (List.distinct ids)) (List.length ids) "and they are distinct"
+        }
+
+        test "an array ripple-carry adder adds, at every width" {
+            // the test the feature exists for: n copies of a full adder, chained by their carries,
+            // against Issie's own n-bit adder over every pair of operands
+            for copies in [ 1; 2; 4 ] do
+                let parent, sheet = rippleParent copies
+                let limit = (1 <<< copies) - 1
+                for x in 0 .. limit do
+                    for y in 0 .. limit do
+                        for cin in 0 .. 1 do
+                            let got =
+                                runParent parent [ sheet ]
+                                    (Map [ "X", bigint x; "Y", bigint y; "CIN", bigint cin ])
+                            let total = x + y + cin
+                            Expect.equal got["S"] (bigint (total % (1 <<< copies)))
+                                $"{copies}-bit array adder: {x} + {y} + {cin} sum"
+                            Expect.equal got["COUT"] (bigint (total / (1 <<< copies)))
+                                $"{copies}-bit array adder: {x} + {y} + {cin} carry out"
+        }
+
+        test "a multiplexer over an Array out selects the copy the index names" {
+            // every copy emits its own index, and the multiplexer reads one of them back
+            let idx = makeComp 1 0 1 (Constant1(3, 0I, "0")) "I"
+            let v = makeComp 2 1 0 (ArrayOut 3) "V"
+            let canvas: CanvasState = stacked [ idx; v ], [ conn idx 0 v 0 ]
+            let defs =
+                { DefaultBindings = Map.empty
+                  ParamSlots =
+                    Map [ {CompId = ComponentId 1; CompSlot = IO "I"},
+                          {Expression = (match parseExpression "i" with | Ok e -> e | Error m -> failwith m)
+                           Constraints = []} ] }
+            let muxes = [ {MuxSource = "V"; MuxName = "PICK"} ]
+            let sheet =
+                { makeLdc "vals" (Some defs) canvas with ArrayInfo = Some (arrayInfo 5 muxes) }
+            let sel = makeComp 11 0 1 (Input1(3, None)) "SEL"
+            let ins, outs = outline (arrayInfo 5 muxes) (Some defs) canvas
+            let arr = makeComp 12 (List.length ins) (List.length outs) (customOf sheet ins outs None) "A"
+            let out = makeComp 13 1 0 (Output 3) "O"
+            let parent =
+                makeLdc "top" None
+                    (stacked [ sel; arr; out ], [ conn sel 0 arr 0; conn arr 0 out 0 ])
+            for i in 0 .. 4 do
+                let got = runParent parent [ sheet ] (Map [ "SEL", bigint i ])
+                Expect.equal got["O"] (bigint i) $"copy {i} emits {i}, so selecting it reads {i} back"
+            // and out of range, which five copies makes reachable with a three-bit select
+            for i in 5 .. 7 do
+                let got = runParent parent [ sheet ] (Map [ "SEL", bigint i ])
+                Expect.equal got["O"] 0I $"select {i} names no copy, so the output is 0"
+        }
+
+        test "an array sheet with a parameterised width follows what its instance binds" {
+            // the array feature and the property system meeting: the copies' width is a property of
+            // the array sheet, so the array's own bus output must widen with it
+            let inp = makeComp 1 0 1 (Input1(2, None)) "D"
+            let outp = makeComp 2 1 0 (BusOut 2) "Q"
+            let canvas: CanvasState = stacked [ inp; outp ], [ conn inp 0 outp 0 ]
+            let wExpr = { Expression = PParameter (ParamName "W"); Constraints = [] }
+            let defs =
+                { DefaultBindings =
+                    Map [ ParamName "W", {Expression = PInt 2I; Description = "the width of one copy"} ]
+                  ParamSlots =
+                    Map [ {CompId = ComponentId 1; CompSlot = IO "D"}, wExpr
+                          {CompId = ComponentId 2; CompSlot = IO "Q"}, wExpr ] }
+            let sheet = { makeLdc "wide" (Some defs) canvas with ArrayInfo = Some (arrayInfo 3 []) }
+            for w in [ 2; 5 ] do
+                let bindings = Map [ ParamName "W", PInt (bigint w) ]
+                let resolved =
+                    ComponentSlots.resolveCanvasAtBindings bindings defs.ParamSlots canvas
+                let ins, outs = outline (arrayInfo 3 []) (Some defs) resolved
+                Expect.equal ins [ "D", w ] $"W={w}: the broadcast input is one copy wide"
+                Expect.equal outs [ "Q", 3 * w ] $"W={w}: the bus output is three copies wide"
+                let src = makeComp 11 0 1 (Input1(w, None)) "IN"
+                let arr = makeComp 12 1 1 (customOf sheet ins outs (Some bindings)) "A"
+                let out = makeComp 13 1 0 (Output (3 * w)) "O"
+                let parent =
+                    makeLdc "top" None
+                        (stacked [ src; arr; out ], [ conn src 0 arr 0; conn arr 0 out 0 ])
+                // every copy sees the same value, so the bus is that value repeated three times
+                let value = bigint ((1 <<< w) - 1)
+                let got = runParent parent [ sheet ] (Map [ "IN", value ])
+                let expected = value + (value <<< w) + (value <<< (2 * w))
+                Expect.equal got["O"] expected $"W={w}: three copies of a broadcast value"
+        }
+    ]
+
+let tests = testList "ArraySheets" [ joinTests; outlineTests; expansionTests ]

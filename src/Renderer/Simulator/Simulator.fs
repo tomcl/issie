@@ -179,6 +179,45 @@ let saveStateInSimulation
 
 
 
+/// The design as the simulator must see it: every ARRAY DESIGN SHEET replaced by the two ordinary
+/// sheets it expands to - a wrapper holding n instances of a body sheet, wired up, with the glue
+/// that makes the array's own ports. See ArrayElaborate.
+///
+/// Done here, once, before anything else looks at the design, and that is the whole of the array
+/// feature as far as the simulator is concerned: after this no canvas holds a BusOut, an ArrayOut
+/// or a join, so the dependency machinery, the parameter resolution, the budget check, the flatten
+/// and the waveform selector all do their ordinary work on ordinary sheets. It can be a plain
+/// rewrite because the number of copies is a fixed integer on the sheet rather than a parameter
+/// expression, so it is a fact about the sheet and not about who instantiated it.
+///
+/// The top sheet is expanded too, when it is an array sheet: what is simulated then is the array
+/// itself, at whatever its own properties say, which is the honest meaning of simulating it.
+let private expandArrayDesign
+        (diagramName: string)
+        (canvasState: CanvasState)
+        (loadedDependencies: LoadedComponent list)
+        : Result<CanvasState * LoadedComponent list, SimulationError> =
+    match loadedDependencies |> List.exists (fun ldc -> ldc.ArrayInfo.IsSome) with
+    // by far the common case: nothing to do, and nothing allocated to find that out
+    | false -> Ok (canvasState, loadedDependencies)
+    | true ->
+        let expanded, problems = ArrayElaborate.expandArraySheets loadedDependencies
+        match problems with
+        | msg :: _ ->
+            Error
+                { ErrType = GenericSimError msg
+                  InDependency = None
+                  ComponentsAffected = []
+                  ConnectionsAffected = [] }
+        | [] ->
+            // where the top sheet was the array sheet, what is simulated is its wrapper
+            let topCanvas =
+                expanded
+                |> List.tryFind (fun ldc -> ldc.Name = diagramName)
+                |> Option.map (fun ldc -> ldc.CanvasState)
+                |> Option.defaultValue canvasState
+            Ok (topCanvas, expanded)
+
 /// Extract circuit data from inputs and return a valid SimulationGraph or an error
 let validateCircuitSimulation
     (diagramName: string)
@@ -217,6 +256,10 @@ let startCircuitSimulationWith
 
     SimLog.beginInvocation ()
     let buildStart = TimeHelpers.getTimeMs ()
+
+    match expandArrayDesign diagramName canvasState loadedDependencies with
+    | Error e -> Error e
+    | Ok (canvasState, loadedDependencies) ->
 
     match validateCircuitSimulation diagramName canvasState loadedDependencies with
     | Error e -> Error e
@@ -276,6 +319,10 @@ let startCircuitSimulationFData
     (loadedDependencies: LoadedComponent list)
     : Result<SimulationData, SimulationError>
     =
+
+    match expandArrayDesign diagramName canvasState loadedDependencies with
+    | Error e -> Error e
+    | Ok (canvasState, loadedDependencies) ->
 
     // Tune for performance of initial zero-length simulation versus longer run.
     // Probably this is not critical.
@@ -419,6 +466,10 @@ let designOnlySimulation
     (canvasState: CanvasState)
     (loadedDependencies: LoadedComponent list)
     : Result<SimulationData, SimulationError> =
+    match expandArrayDesign diagramName canvasState loadedDependencies with
+    | Error e -> Error e
+    | Ok (canvasState, loadedDependencies) ->
+
     match validateCircuitSimulation diagramName canvasState loadedDependencies with
     | Error e -> Error e
     | Ok graph ->
@@ -480,11 +531,21 @@ let prepareSimulationMemoized
         let simResult =
             getStateAndDependencies diagramName ldcs
             |> Result.mapError makeDummySimulationError
-            |> Result.bind (fun (_, state, ldcs) ->
+            |> Result.bind (fun (_, state, _) ->
+                // The whole design, the top sheet included, rather than the dependencies alone.
+                // The simulator needs the top sheet's own settings - whether it is an array design
+                // sheet, which decides what its hardware is - and those live on the sheet, which
+                // getStateAndDependencies drops. Harmless: checkDependenciesAndBuildMap keeps only
+                // the sheets the top reaches, and the top is not among them unless something
+                // instantiates it, which is a cycle and is caught as one.
+                let design =
+                    ldcs
+                    |> List.map (fun ldc ->
+                        if ldc.Name = diagramName then { ldc with CanvasState = state } else ldc)
                 if localBuild then
-                    startCircuitSimulation simulationArraySize diagramName state ldcs
+                    startCircuitSimulation simulationArraySize diagramName state design
                 else
-                    designOnlySimulation simulationArraySize diagramName state ldcs)
+                    designOnlySimulation simulationArraySize diagramName state design)
         let fastSim =
             simResult
             |> Result.map (fun sd -> sd.FastSim)

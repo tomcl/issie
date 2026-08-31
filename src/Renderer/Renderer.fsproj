@@ -80,6 +80,8 @@
          are, and it depends on nothing but CommonTypes and the parameter types -->
     <Compile Include="Simulator\ArrayExpand.fs" />
     <Compile Include="Simulator\CanvasExtractor.fs" />
+    <!-- after CanvasExtractor: a body sheet's ports are read the way every other sheet's are -->
+    <Compile Include="Simulator\ArrayElaborate.fs" />
     <Compile Include="Simulator\SynchronousUtils.fs" />
     <Compile Include="Simulator\CanvasStateAnalyser.fs" />
     <Compile Include="Simulator\GraphBuilder.fs" />

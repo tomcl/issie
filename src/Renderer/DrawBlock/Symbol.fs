@@ -39,6 +39,14 @@ module Constants =
     /// Font size for legends on otehr components
     let otherLegendFontSizeInPixels: float = 14
 
+    /// Font size for the legend of an array component's IO.
+    ///
+    /// Smaller and lighter than any other legend, and on one line: these say a name, a channel and
+    /// a bit range - "Join[3] (15:0)" - where an ordinary legend is a word. Set here rather than at
+    /// either use because getComponentProperties sizes the symbol with this style and SymbolView
+    /// draws with it, and a symbol sized against a different font is one the text runs out of.
+    let arrayLegendFontSizeInPixels: float = 11
+
     /// Text weight for bottom line (bit indication) of legends
     let bitIndicationFontWeight: string = "400"
 
@@ -274,6 +282,30 @@ let busTitleAndBits (t:string) (n:int) : string =
         failwith "non positive bus width"
 
 
+/// The legend of an array component's IO: what the copies do with the value, and its width.
+///
+/// One line, unlike busTitleAndBits, which puts the width on a second line by way of a "." that
+/// addLegendText splits on. Two lines were what stopped these resizing with their width - the
+/// symbol is sized by its widest LINE, which was always the first, so the bit range never reached
+/// it - and there is room for one line because the symbol is as long as it needs to be.
+let arrayLegend (t: string) (n: int) : string =
+    if n <= 1 then t else $"{t} ({n-1}:0)"
+
+/// The style an array component's legend is drawn in. Lighter and smaller than every other
+/// legend, because these say a name, a channel and a bit range where an ordinary legend says one
+/// word. Written down once because getComponentProperties SIZES the symbol with it and SymbolView
+/// DRAWS with it: a symbol sized against a different font is one the text runs out of.
+let arrayLegendStyle =
+    {Constants.componentLabelStyle with
+        FontSize = $"%%.0f{Constants.arrayLegendFontSizeInPixels}px"
+        FontWeight = "normal"}
+
+/// The widest legend a join is expected to have. Joins are sized to fit at least this, so that
+/// changing a width moves the symbol only where the text really is longer than a common case -
+/// a symbol that resizes under every keystroke in the properties box is a symbol that jumps
+/// about while being read.
+let widestExpectedJoinLegend = arrayLegend "Join[3]" 16
+
 let nBitsGateTitle (gateType:string) (n:int) : string =
     match n with
     |1 -> gateType
@@ -388,19 +420,14 @@ let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     // beside it at one of four hand-placed offsets.
     | NbitSpreader 1 -> "Spread"
     | NbitSpreader n -> $"Spread.1→{n}"
-    // The IO of an array design sheet. The label already names it, so the legend says what the
-    // copies do with the value - which is the whole of what distinguishes these from an Output.
-    // A join shows its channel number, because which end joins which is read off those numbers and
-    // nothing else on the symbol carries them.
-    // The IO of an array component. The width goes in the legend rather than being drawn
-    // separately, as it is for an Input or an Output: these have a name to show as well, and the
-    // two texts sat on top of each other. busTitleAndBits leaves a one-bit port with no range,
-    // which is the convention everywhere else.
-    | BusOut w -> busTitleAndBits "BusOut" w
-    | MuxOut w -> busTitleAndBits "MuxOut" w
+    // The IO of an array component. The label already names it, so the legend says what the copies
+    // do with the value - the whole of what distinguishes these from an Output - and the width,
+    // which is drawn separately for an Input or an Output but sat on top of the name here.
+    | BusOut w -> arrayLegend "BusOut" w
+    | MuxOut w -> arrayLegend "MuxOut" w
     // A join says its CHANNEL, which is what decides where it goes; the direction is already in
     // which side the port is on, so saying it as well made the legend longer for nothing.
-    | JoinOut (w, n) | JoinIn (w, n) -> busTitleAndBits $"Join[{n}]" w
+    | JoinOut (w, n) | JoinIn (w, n) -> arrayLegend $"Join[{n}]" w
     | _ -> ""
 
 
@@ -632,20 +659,21 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     // end is a fifth of the width and carries no text, so the measured width is divided by 0.8 to
     // leave the text the part of the symbol it can actually use.
     | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ ->
-        // A legend is drawn BOLD, and a '.' in it splits it over two lines (addLegendText), so
-        // "Join[3].(7:0)" is two lines and needs the width of the wider one, not of the whole
-        // string. Measured in the style it is actually drawn in: measuring the label style
-        // underestimated a bold legend and the text ran past the symbol.
-        let legend = getComponentLegend compType Degree0
-        let style = {Constants.componentLabelStyle with FontSize = "14px"; FontWeight = "bold"}
-        let lines = legend.Split '.'
-        let text = lines |> Array.map (DrawHelpers.getTextWidthInPixels style) |> Array.max
+        // Sized to the text it will hold, measured in the style SymbolView actually draws it in
+        // (arrayLegendStyle) - measuring some other style is how the text came to run past the
+        // symbol. The legend is one line by construction, so the whole string is what must fit.
+        //
+        // The floor is the width of the widest legend a join is EXPECTED to have, so that the
+        // common widths all give one size and only an unusually long one moves the symbol. A
+        // symbol that changed size under every keystroke in the properties box would jump about
+        // while being read.
+        let textWidth (str: string) = DrawHelpers.getTextWidthInPixels arrayLegendStyle str
         // the chevron is the last fifth of the width and carries no text
-        let w = max (3. * gS) ((text + 14.) / 0.8)
-        let h = if lines.Length > 1 then 1.6 * gS else gS
+        let widthFor (str: string) = (textWidth str + 14.) / 0.8
+        let w = List.max [ 3. * gS; widthFor widestExpectedJoinLegend; widthFor (getComponentLegend compType Degree0) ]
         match compType with
-        | JoinIn _ -> ( 0 , 1, h , w)
-        | _ -> ( 1 , 0, h , w)
+        | JoinIn _ -> ( 0 , 1, gS , w)
+        | _ -> ( 1 , 0, gS , w)
     // Never drawn: these are made by expanding an array design sheet and exist only inside a
     // simulation. Sized as a MergeN and a Mux would be, so that anything which does reach for a
     // size gets a sane one rather than a raise.

@@ -17,7 +17,13 @@ open Operators
 /// Only the IO of an array component needs it: its legend says its own name, its channel and its
 /// width - "Join[3].(7:0)" - so changing any of those changes how wide the symbol has to be, and
 /// nothing else in Issie has a size that depends on a field the Properties pane can edit.
-let private resizedForLegend (symbol: Symbol) =
+/// The symbol resized to fit the legend its CURRENT type gives it.
+///
+/// Array IO carries its width in its legend rather than in a separate line of text, so changing a
+/// width changes how much text there is to fit and the symbol has to follow. Public so that a test
+/// can ask whether it does: the resize is invisible from the type alone, and a symbol whose text
+/// has outgrown it is exactly what nobody notices until they see it drawn.
+let resizedForLegend (symbol: Symbol) =
     match symbol.Component.Type with
     | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ ->
         let _, _, h, w = Symbol.getComponentProperties symbol.Component.Type symbol.Component.Label

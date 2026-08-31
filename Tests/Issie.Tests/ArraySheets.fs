@@ -12,6 +12,8 @@ open SimGraphTypes
 open SimTypes
 open ParameterTypes
 open CanvasBuilder
+open Optics
+open Optics.Operators
 
 /// A sheet with `copies` copies, whose loop variable is `i`.
 let private arrayInfo copies =
@@ -632,12 +634,12 @@ let private symbolTests =
             // already says which way it goes.
             Expect.equal (Symbol.getComponentLegend (JoinIn (1, 3)) Degree0) "Join[3]"
                 "a one-bit join needs no bit range, as no other one-bit port does"
-            Expect.equal (Symbol.getComponentLegend (JoinOut (8, 12)) Degree0) "Join[12].(7:0)"
+            Expect.equal (Symbol.getComponentLegend (JoinOut (8, 12)) Degree0) "Join[12] (7:0)"
                 "and a wider one says its range"
             Expect.equal (Symbol.getComponentLegend (JoinIn (8, 12)) Degree0)
                 (Symbol.getComponentLegend (JoinOut (8, 12)) Degree0)
                 "the two directions read the same: which side the port is on says which it is"
-            Expect.equal (Symbol.getComponentLegend (BusOut 4) Degree0) "BusOut.(3:0)"
+            Expect.equal (Symbol.getComponentLegend (BusOut 4) Degree0) "BusOut (3:0)"
                 "a bus output says its per-copy width"
         }
 
@@ -645,14 +647,45 @@ let private symbolTests =
             // the legend grows with the channel number and the width, so the symbol has to
             for compType in [ JoinIn (1, 0); JoinIn (8, 1234); JoinOut (64, 999); BusOut 128; MuxOut 1 ] do
                 let _, _, _, w = Symbol.getComponentProperties compType "X"
-                // per LINE: a legend with a . in it is drawn over two, and bold
+                // ONE line, and measured in the style SymbolView draws it in
                 let text =
-                    (Symbol.getComponentLegend compType Degree0).Split '.'
-                    |> Array.map (DrawHelpers.getTextWidthInPixels
-                                    {Symbol.Constants.componentLabelStyle with FontSize = "14px"; FontWeight = "bold"})
-                    |> Array.max
+                    DrawHelpers.getTextWidthInPixels Symbol.arrayLegendStyle
+                        (Symbol.getComponentLegend compType Degree0)
                 // the chevron is the last fifth and carries no text
                 Expect.isGreaterThan (w * 0.8) text $"%A{compType}: the legend must fit on one line"
+        }
+
+        test "a join is one size at every width anyone is likely to type" {
+            // The width is in the legend, so it changes how much text there is to fit. A symbol
+            // that resized under every keystroke in the properties box would jump about while
+            // being read, so joins are floored at the widest legend expected of one.
+            let widthOf w = let _, _, _, sw = Symbol.getComponentProperties (JoinIn (w, 3)) "X" in sw
+            let common = [ 1; 2; 4; 8; 16 ] |> List.map widthOf
+            Expect.equal (List.distinct common) [ List.head common ]
+                "the everyday widths must all give one size, or the symbol moves as a width is typed"
+            Expect.isGreaterThan (widthOf 1 |> int) (3 * Symbol.Constants.gridSize)
+                "and that size is not the bare minimum a component may be"
+        }
+
+        test "a join too long for that size does grow" {
+            // the other half of the floor: it is a floor and not a fixed size, so a legend that
+            // really is longer than the expected worst case still fits
+            let widthOf ct = let _, _, _, w = Symbol.getComponentProperties ct "X" in w
+            Expect.isGreaterThan (widthOf (JoinIn (1024, 123456))) (widthOf (JoinIn (1, 3)))
+                "a symbol whose text has outgrown it is what nobody notices until they see it drawn"
+        }
+
+        test "changing an array IO width resizes the symbol that holds it" {
+            // the whole chain the properties box runs: type in, symbol out. Reported as broken
+            // because the legend used to be split over two lines, so the symbol was sized by its
+            // FIRST line and the bit range - the only part that changes - never reached the size.
+            let narrow = Symbol.createNewSymbol [] {X=0.;Y=0.} (JoinIn (1, 3)) "J1" DrawModelType.SymbolT.ThemeType.Colourful
+            let wide =
+                narrow
+                |> Optic.set (DrawModelType.SymbolT.component_ >-> CommonTypes.type_) (JoinIn (1024, 123456))
+                |> SymbolReplaceHelpers.resizedForLegend
+            Expect.isGreaterThan wide.Component.W narrow.Component.W
+                "a wider join needs a longer symbol, and nothing else will give it one"
         }
 
         test "a select is as many bits as it takes to index the copies, and never none" {

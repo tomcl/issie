@@ -555,10 +555,21 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
 
         {X=compWidth / 2.; Y=compHeight / 2. - 7.} + offset + chevronShift
 
+    // The style getComponentProperties SIZED this symbol against - see Symbol.arrayLegendStyle,
+    // which is where the two are kept the same.
+    let isArrayIO (ct:ComponentType) =
+        match ct with
+        | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ -> true
+        | _ -> false
+
     let legendFontSize (ct:ComponentType) =
         match ct with
         | Custom _ -> Constants.customLegendFontSizeInPixels
+        | ct when isArrayIO ct -> Constants.arrayLegendFontSizeInPixels
         | _ -> Constants.otherLegendFontSizeInPixels
+
+    let legendFontWeight (ct:ComponentType) =
+        if isArrayIO ct then "normal" else "bold"
 
     // Put everything together 
     (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
@@ -569,7 +580,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                         (legendOffset w h symbol) 
                         (getComponentLegend comp.Type transform.Rotation) 
                         "middle" 
-                        "bold" 
+                        (legendFontWeight comp.Type) 
                         ($"{legendFontSize comp.Type}px"))
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)

@@ -570,10 +570,14 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             | _ -> {X = 0.; Y = 0.}
 
         // The legend is drawn with a HANGING baseline, so Y is its top and centring it means
-        // lifting it by half its height. That was written as a flat 7 - half of the 14px every
-        // legend but a custom component's used to be - so a legend in any other size came out
-        // above centre. Taken from the size actually used now.
-        {X=compWidth / 2.; Y=compHeight / 2. - legendFontSize symbol.Component.Type / 2.}
+        // lifting it by half its height. A flat 7 is half of the 14px nearly every legend is set
+        // in, so it centres those exactly - and it is left alone for them, since a legend that has
+        // looked right for years should not move because something else needed a smaller font.
+        // Array IO is that something else, and takes half of the size it is actually drawn in.
+        let halfTextHeight =
+            if isArrayIO symbol.Component.Type then legendFontSize symbol.Component.Type / 2. else 7.
+
+        {X=compWidth / 2.; Y=compHeight / 2. - halfTextHeight}
         + offset + chevronShift
 
     // Put everything together 

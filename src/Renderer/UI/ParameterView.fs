@@ -61,17 +61,28 @@ let defaultBindingsOfModel_ = lcParameterInfoOfModel_ >?> defaultBindings_
 /// never sees it. What it does need is to be in scope HERE, because using it is the whole point -
 /// a Bus select whose LSB is `i` is what makes one copy of the sheet differ from the next. Zero is
 /// the value the sheet is drawn at, so a box shows what copy 0 would have.
-let paramBindingsOfModel (model: Model) : ParamBindings =
-    let declared = model |> get defaultBindingsOfModel_ |> Option.defaultValue Map.empty |> bindingsOf
+/// Bindings with the open sheet's loop variable added, at 0, when it is an array component.
+///
+/// Separate from paramBindingsOfModel because the environment is not always the sheet's declared
+/// defaults: setting a property evaluates every slot against the value just typed, and doing that
+/// without the loop variable skipped exactly the slots the array feature exists for.
+let withLoopVariable (model: Model) (bindings: ParamBindings) : ParamBindings =
     match model.CurrentProj with
-    | None -> declared
+    | None -> bindings
     | Some proj ->
         proj.LoadedComponents
         |> List.tryFind (fun ldc -> ldc.Name = proj.OpenFileName)
         |> Option.bind (fun ldc -> ldc.ArrayInfo)
         |> function
-           | None -> declared
-           | Some info -> declared |> Map.add info.LoopParam (PInt 0I)
+           | None -> bindings
+           | Some info -> bindings |> Map.add info.LoopParam (PInt 0I)
+
+let paramBindingsOfModel (model: Model) : ParamBindings =
+    model
+    |> get defaultBindingsOfModel_
+    |> Option.defaultValue Map.empty
+    |> bindingsOf
+    |> withLoopVariable model
 
 let modelToSymbols = sheet_ >-> SheetT.wire_ >-> BusWireT.symbol_ >-> SymbolT.symbols_
 
@@ -754,7 +765,7 @@ let propagateParameters (model: Model) (dispatch: Msg -> unit) : unit =
             |> Option.bind (fun ldc -> ldc.LCParameterSlots)
             |> Option.map (fun defs -> bindingsOf defs.DefaultBindings)
             |> Option.defaultValue Map.empty
-        updateComponents openBindings model dispatch
+        updateComponents (withLoopVariable model openBindings) model dispatch
 
 
 /// Give each pasted component the parameter slot expressions of the component it was copied from,
@@ -1119,7 +1130,7 @@ let editParameterBox model parameterName dispatch   =
                 setDeclaredParam project parameterName newValue newDescription dispatch
 
                 // Value must meet constraints if able to click button
-                updateComponents (editedBindings model') model dispatch
+                updateComponents (withLoopVariable model (editedBindings model')) model dispatch
                 dispatch <| ClosePopup
 
         // Disabled if the value does not parse, the description has been emptied, or any constraint

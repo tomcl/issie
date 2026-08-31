@@ -815,12 +815,21 @@ let private checkArrayIOIsOnAnArraySheet ((comps, _): CanvasState) : SimulationE
        | [] -> None
        | bad ->
             let names = bad |> List.map (fun c -> $"'{c.Label}'") |> String.concat ", "
+            // The message opens with the list of what is wrong, so the sentence after it has to
+            // agree with that list: it named several components and then called them "this
+            // component". The route it advises had gone stale as well - an array component is made
+            // from the Catalogue now, as a Verilog component is, and not from a canvas menu.
+            let subject, components =
+                match bad with
+                | [ _ ] -> "this component says", "component"
+                | _ -> "these components say", "components"
             Some
                 { ErrType =
                     GenericSimError
-                        $"{names}: this component says how the copies of an ARRAY DESIGN SHEET join \
-                          up, and can only be on one. Either make this sheet an array sheet from the \
-                          right-click menu on its background, or delete the component."
+                        $"{names}: {subject} how the copies of an ARRAY COMPONENT join up, and can \
+                          only be on one. Either make this sheet an array component - New array \
+                          component, under Array components in the Catalogue - or delete the \
+                          {components}."
                   InDependency = None
                   ConnectionsAffected = []
                   ComponentsAffected = bad |> List.map (fun c -> c.Id) }

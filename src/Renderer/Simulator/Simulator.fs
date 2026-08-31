@@ -248,6 +248,15 @@ let validateCircuitSimulation
     (loadedDependencies: LoadedComponent list)
     : Result<SimulationGraph, SimulationError>
     =
+    // HERE rather than only at the entry points that build a simulation, because this is what
+    // everything asking "does this design work" goes through - the Simulation tab's verdict and the
+    // wave viewer's price among them - and an entry point that forgot expansion reported an array
+    // component as a sheet with array components illegally on it. Idempotent: expansion leaves no
+    // sheet with ArrayInfo, so the caller that has already expanded pays one List.exists.
+    match expandArrayDesign diagramName canvasState loadedDependencies with
+    | Error e -> Error e
+    | Ok (canvasState, loadedDependencies) ->
+
     // Tune for performance of initial zero-length simulation versus longer run.
     // Probably this is not critical.
     match runCanvasStateChecksAndBuildGraph canvasState loadedDependencies with

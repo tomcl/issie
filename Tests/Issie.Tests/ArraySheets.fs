@@ -512,13 +512,44 @@ let private refusalTests =
             | None -> failtest "array IO on an ordinary sheet must be refused"
             | Some msg ->
                 Expect.stringContains msg "'B'" "the message names the component"
-                Expect.stringContains msg "ARRAY DESIGN SHEET" "and says what kind of sheet it needs"
-                Expect.stringContains msg "right-click" "and where to make one"
+                Expect.stringContains msg "ARRAY COMPONENT" "and says what kind of sheet it needs"
+                Expect.stringContains msg "Catalogue" "and where to make one"
+                Expect.stringContains msg "this component says" "one component, so the singular"
+        }
+
+        test "the refusal says 'these components' when there is more than one" {
+            // it opens with the list of what is wrong, so a plural list followed by "this
+            // component" reads as nonsense - and several at once is the ordinary case, since a
+            // paste or a sheet losing its array settings brings all of them at once
+            let inp = makeComp 1 0 1 (Input1(1, None)) "A"
+            let one = makeComp 2 1 0 (BusOut 1) "B"
+            let two = makeComp 3 1 0 (JoinOut (1, 0)) "C"
+            let top = makeLdc "plain" None (stacked [ inp; one; two ], [ conn inp 0 one 0; conn inp 0 two 0 ])
+            match simError top [] with
+            | None -> failtest "array IO on an ordinary sheet must be refused"
+            | Some msg ->
+                Expect.stringContains msg "these components say" "two components, so the plural"
+                Expect.stringContains msg "delete the components" "and the plural to the end of it"
         }
 
         test "the same components are fine on an array sheet, which is the point" {
             let parent, sheet = rippleParent 2
             Expect.isNone (simError parent [ sheet ]) "an array sheet's own IO is not an error on it"
+        }
+
+        test "an array component can be checked while it is the sheet being looked at" {
+            // The bug this pins was not in the array code at all: expansion was called by the three
+            // entry points that BUILD a simulation, and the Simulation tab's verdict reaches
+            // validateCircuitSimulation directly. So opening an array component and asking whether
+            // it builds ran the checks on its unexpanded canvas, which refused its own IO as being
+            // on a sheet that is not an array component - advising the user to make it the thing it
+            // already was. Expansion belongs where every one of those paths goes through.
+            let _, sheet = rippleParent 2
+            let err =
+                match Simulator.validateCircuitSimulation sheet.Name sheet.CanvasState [ sheet ] with
+                | Ok _ -> None
+                | Error e -> Some (SimGraphTypes.errMsg e.ErrType)
+            Expect.isNone err "checking an array component must expand it, as simulating it does"
         }
 
         test "a broken array sheet is refused when the design uses it" {

@@ -392,10 +392,15 @@ let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     // copies do with the value - which is the whole of what distinguishes these from an Output.
     // A join shows its channel number, because which end joins which is read off those numbers and
     // nothing else on the symbol carries them.
-    | BusOut _ -> "BusOut"
-    | MuxOut _ -> "MuxOut"
-    | JoinOut (_, n) -> $"JoinOut[{n}]"
-    | JoinIn (_, n) -> $"JoinIn[{n}]"
+    // The IO of an array component. The width goes in the legend rather than being drawn
+    // separately, as it is for an Input or an Output: these have a name to show as well, and the
+    // two texts sat on top of each other. busTitleAndBits leaves a one-bit port with no range,
+    // which is the convention everywhere else.
+    | BusOut w -> busTitleAndBits "BusOut" w
+    | MuxOut w -> busTitleAndBits "MuxOut" w
+    // A join says its CHANNEL, which is what decides where it goes; the direction is already in
+    // which side the port is on, so saying it as well made the legend longer for nothing.
+    | JoinOut (w, n) | JoinIn (w, n) -> busTitleAndBits $"Join[{n}]" w
     | _ -> ""
 
 

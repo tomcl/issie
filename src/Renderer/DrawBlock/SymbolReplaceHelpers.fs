@@ -12,11 +12,27 @@ open Operators
 
 
 /// Helper function to change the number of bits expected in a port of each component type.
-let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
-    let symbol = Map.find compId symModel.Symbols
+/// A symbol whose width is worked out from the text it draws, redone after that text has changed.
+///
+/// Only the IO of an array component needs it: its legend says its own name, its channel and its
+/// width - "Join[3].(7:0)" - so changing any of those changes how wide the symbol has to be, and
+/// nothing else in Issie has a size that depends on a field the Properties pane can edit.
+let private resizedForLegend (symbol: Symbol) =
+    match symbol.Component.Type with
+    | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ ->
+        let _, _, h, w = Symbol.getComponentProperties symbol.Component.Type symbol.Component.Label
+        { symbol with Component = { symbol.Component with H = h; W = w } }
+    | _ -> symbol
 
-    let newcompotype = 
-        match symbol.Component.Type with
+/// The component type with a different bus width, for every component that has one.
+///
+/// Pure, and separate from the symbol it is applied to, so that "does a width change reach this
+/// component type" can be asked without a draw block model. It is worth asking: this match ends in
+/// a wildcard that returns the type UNCHANGED, so a component missing from it accepts a width typed
+/// into Properties and then silently throws it away - which is how the array IO components behaved
+/// until they were added below.
+let withNumberOfBits (newBits: int) (compType: ComponentType) : ComponentType =
+        match compType with
         | Input _ -> failwithf "Legacy Input component types should never occur"
         | Input1 (_, defaultVal) -> Input1 (newBits, defaultVal)
         | Output _ -> Output newBits
@@ -42,9 +58,18 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
         | BusCompare1 (_,v,t) -> BusCompare1 (newBits,v,t) 
         | Constant1 (_,b,txt) -> Constant1 (newBits,b,txt)
         | Shift (_, _, st) -> Shift (newBits, shifterWidthFor newBits, st)
+        // the IO of an array component: each carries a width the Properties pane can edit
+        | BusOut _ -> BusOut newBits
+        | MuxOut _ -> MuxOut newBits
+        | JoinOut (_, n) -> JoinOut (newBits, n)
+        | JoinIn (_, n) -> JoinIn (newBits, n)
         | c -> c
-        
-    set (component_ >-> type_) newcompotype symbol
+
+let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
+    let symbol = Map.find compId symModel.Symbols
+    symbol
+    |> set (component_ >-> type_) (withNumberOfBits newBits symbol.Component.Type)
+    |> resizedForLegend
 
 
 /// Helper function to change the number of bits expected in the LSB port of BusSelection and BusCompare
@@ -71,7 +96,8 @@ let changeJoinNum (symModel: Model) (compId: ComponentId) (newNum: int) =
         | JoinIn (w, _) -> JoinIn (w, newNum)
         | t -> failwithf $"changeJoinNum should only be called for a join, not {t}"
 
-    set (component_ >-> type_) newcompotype symbol
+    // the channel is IN the legend, so the symbol may need a different width for it
+    symbol |> set (component_ >-> type_) newcompotype |> resizedForLegend
 
 /// This function should be called for Input1 components only. Sets the default
 /// value to be used in simulations for an Input1 component if it is not driven.

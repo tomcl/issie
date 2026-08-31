@@ -458,10 +458,11 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             (addText {X = w/2.-2.; Y = h/2.7-1.} ("= " + t) "middle" "bold" "10px")
         // legacy component type: to be deleted
         | Input x
-        | Input1 (x, _) | Output x
-        // array sheet IO: its width matters here as it does on any other port of a sheet
-        | BusOut x | MuxOut x | JoinOut (x, _) | JoinIn (x, _) ->
+        | Input1 (x, _) | Output x ->
             (addText {X = w/2.; Y = h/2.7} (busTitleAndBits "" x) "middle" "normal" "12px")
+        // The IO of an array component says its width in its LEGEND, because it has a name to show
+        // as well. Drawn here too, the two texts sat one on top of the other.
+        | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ -> []
         | Viewer (x) -> 
             (addText {X = w/2.; Y = h/2.7 - 1.25} (busTitleAndBits "" x) "middle" "normal" "9px")
         | _ when symbol.IsClocked -> 

@@ -37,12 +37,13 @@ open ParameterTypes
 open ArrayExpand
 
 module Constants =
-    /// The most copies an array design sheet may have.
+    /// The most copies an array component may have.
     ///
-    /// A backstop rather than a considered limit: the expansion is n copies of a whole sheet, and
-    /// GraphMerger's own budget check prices that properly once it exists. This is here so that a
-    /// mistyped number is a message rather than a design Issie tries to build.
-    let maxArrayCopies = 256
+    /// A bound of the same kind as CommonTypes.Constants.maxIssieBusWidth: there is no real need
+    /// for one, since the expansion is priced properly by GraphMerger's budget check, but a copy
+    /// count is a small number by nature and a mistyped one should be a message rather than a
+    /// design Issie tries to build. It is also what makes a select width an int calculation.
+    let maxArrayCopies = 1024
 
 /// The character that makes a generated sheet name unreachable as a user's: a sheet name is a file
 /// name, so a path separator can never be typed into one.

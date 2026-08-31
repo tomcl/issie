@@ -595,5 +595,59 @@ let private instanceTests =
         }
     ]
 
+//-------------------------------------------------------------------------------------------//
+//---------------------------------------THE SYMBOLS-----------------------------------------//
+//-------------------------------------------------------------------------------------------//
+
+let private symbolTests =
+    testList "symbols" [
+        // The bug this pins: changeNumberOfBitsf ended in a wildcard, so a width typed into
+        // Properties for one of these was accepted and silently thrown away. Every component whose
+        // width the pane can edit has to be in that match, and a wildcard cannot say so.
+        test "the width of every array IO component can be changed" {
+            let cases =
+                [ BusOut 1, BusOut 7
+                  MuxOut 1, MuxOut 7
+                  JoinOut (1, 3), JoinOut (7, 3)
+                  JoinIn (1, 3), JoinIn (7, 3) ]
+            for before, after in cases do
+                Expect.equal (SymbolReplaceHelpers.withNumberOfBits 7 before) after
+                    $"a width change must reach %A{before}, and must leave its channel alone"
+        }
+
+        test "a join says its channel and its width, and only once" {
+            // both were drawn before: the legend and the separate bus-width text sat on top of one
+            // another. The width is in the legend now, and the direction is not - the port side
+            // already says which way it goes.
+            Expect.equal (Symbol.getComponentLegend (JoinIn (1, 3)) Degree0) "Join[3]"
+                "a one-bit join needs no bit range, as no other one-bit port does"
+            Expect.equal (Symbol.getComponentLegend (JoinOut (8, 12)) Degree0) "Join[12].(7:0)"
+                "and a wider one says its range"
+            Expect.equal (Symbol.getComponentLegend (JoinIn (8, 12)) Degree0)
+                (Symbol.getComponentLegend (JoinOut (8, 12)) Degree0)
+                "the two directions read the same: which side the port is on says which it is"
+            Expect.equal (Symbol.getComponentLegend (BusOut 4) Degree0) "BusOut.(3:0)"
+                "a bus output says its per-copy width"
+        }
+
+        test "an array IO symbol is wide enough for its legend" {
+            // the legend grows with the channel number and the width, so the symbol has to
+            for compType in [ JoinIn (1, 0); JoinIn (8, 1234); JoinOut (64, 999); BusOut 128; MuxOut 1 ] do
+                let _, _, _, w = Symbol.getComponentProperties compType "X"
+                let text =
+                    DrawHelpers.getTextWidthInPixels
+                        {Symbol.Constants.componentLabelStyle with FontSize = "14px"}
+                        (Symbol.getComponentLegend compType Degree0)
+                // the chevron is the last fifth and carries no text
+                Expect.isGreaterThan (w * 0.8) text $"%A{compType}: the legend must fit on one line"
+        }
+
+        test "a select is as many bits as it takes to index the copies, and never none" {
+            for copies, expected in [ 1, 1; 2, 1; 3, 2; 4, 2; 5, 3; 8, 3; 9, 4; 1024, 10 ] do
+                Expect.equal (ArrayExpand.arraySelectWidth copies) expected
+                    $"{copies} copies need {expected} select bits"
+        }
+    ]
+
 let tests =
-    testList "ArraySheets" [ joinTests; outlineTests; expansionTests; refusalTests; instanceTests ]
+    testList "ArraySheets" [ joinTests; outlineTests; expansionTests; refusalTests; instanceTests; symbolTests ]

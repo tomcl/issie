@@ -106,6 +106,19 @@ let viewArraySettings (model: Model) (dispatch: Msg -> unit) : ReactElement =
                 ]
             ]
 
+        // Shown, and not editable. Every property expression on the sheet refers to it BY NAME - a
+        // bus select whose LSB is `i` - so renaming it would silently break each of them, and there
+        // is nothing here that could rewrite them.
+        let loopBox =
+            div [ Style [ MarginTop "6px" ] ] [
+                PropertiesHelp.fieldLabel "Loop variable"
+                Input.text [
+                    Input.Props [ Style [ Width "120px" ] ]
+                    Input.Disabled true
+                    Input.Value loopName
+                ]
+            ]
+
         let explanation =
             p [ Style [ FontSize "0.85em"; Color "grey"; MarginTop "6px" ] ] [
                 str $"This sheet's hardware is {info.Copies} copies of what is drawn on it. Write \
@@ -138,6 +151,7 @@ let viewArraySettings (model: Model) (dispatch: Msg -> unit) : ReactElement =
         div [ Style [ MarginBottom "10px" ] ] [
             PropertiesHelp.fieldLabel "Array component"
             copyBox
+            loopBox
             explanation
             stopButton
         ]
@@ -153,40 +167,101 @@ let private candidateSheets (project: Project) =
     |> List.filter (fun lc -> lc.Form = Some User && lc.ArrayInfo.IsNone)
     |> List.sortBy (fun lc -> lc.Name)
 
-/// The settings a newly made array component starts with.
-let private startingInfo = { LoopParam = ParamName defaultLoopName; Copies = 4 }
+/// How many copies a newly made array component starts with.
+let private defaultCopies = 4
 
-/// Ask for a name, then run `make` with it. Refuses a name the project already has, or one the
-/// file system will not take, using the same check the New Sheet dialog uses.
-let private askForName title prompt (project: Project) (make: string -> Model -> unit) model dispatch =
-    let before =
+/// The loop variable a dialog box holds, with the default where nothing has been typed.
+///
+/// Empty means the default rather than an error: the name matters only to whoever writes it in a
+/// property box, `i` is what an index is called, and asking someone to type it before they know
+/// what it is for would be a question with one sensible answer.
+let private loopNameOf (typed: string) =
+    if typed.Trim() = "" then defaultLoopName else typed.Trim()
+
+/// Whether a loop variable name can be used on a sheet: one an expression could refer to, and not
+/// a property that sheet already declares - the two would be the same word meaning two things.
+let private loopNameProblem (sheet: LoadedComponent option) (typed: string) =
+    let name = loopNameOf typed
+    let declared =
+        sheet
+        |> Option.map (ParameterView.getDefaultParamDefs >> Map.toList >> List.map (fst >> fun (ParamName n) -> n))
+        |> Option.defaultValue []
+    if not (isValidParamName name) then
+        Some $"'{name}' cannot be a loop variable: a name is a letter followed by letters and digits, and not min, max or clog2"
+    elif List.contains name declared then
+        Some $"this sheet already has a property called '{name}'"
+    else None
+
+/// Ask for a sheet name and a loop variable, then run `make` with both. Refuses a name the project
+/// already has, or one the file system will not take, using the check the New Sheet dialog uses.
+let private askForName title prompt (project: Project) (make: string -> string -> Model -> unit) model dispatch =
+    let before1 =
         fun (dialogData: PopupDialogData) ->
-            let text = getText dialogData
             div [] [
                 str prompt
                 br []
-                Option.defaultValue (div [] []) (MiscMenuView.maybeWarning text project)
+                Option.defaultValue (div [] []) (MiscMenuView.maybeWarning (getText dialogData) project)
             ]
-    let body = dialogPopupBodyOnlyText before "Insert array component name" dispatch
+    let before2 =
+        fun (dialogData: PopupDialogData) ->
+            div [] [
+                br []
+                str "What should its loop variable be called? Write this in any property box on the                      sheet to make one copy differ from the next."
+                br []
+                match loopNameProblem None (getText2 dialogData) with
+                | Some msg -> span [ Style [ Color "red" ] ] [ str msg ]
+                | None -> null
+            ]
+    let body =
+        dialogPopupBodyTwoTexts
+            (before1, "Insert array component name")
+            (before2, $"default: {defaultLoopName}")
+            dispatch
     let buttonAction =
         fun (model': Model) ->
-            make ((getText model'.PopupDialogData).ToLower()) model'
+            make
+                ((getText model'.PopupDialogData).ToLower())
+                (loopNameOf (getText2 model'.PopupDialogData))
+                model'
             dispatch ClosePopup
             dispatch FinishUICmd
     let isDisabled =
         fun (model': Model) ->
             let text = getText model'.PopupDialogData
             text = "" || isFileInProject text project || (MiscMenuView.maybeWarning text project).IsSome
+            || (loopNameProblem None (getText2 model'.PopupDialogData)).IsSome
     dialogPopup title body "Create" buttonAction isDisabled [] dispatch
 
+/// Ask only for a loop variable, for a sheet that already exists and keeps its name.
+let private askForLoopVariable title (sheet: LoadedComponent) (make: string -> Model -> unit) dispatch =
+    let before =
+        fun (dialogData: PopupDialogData) ->
+            div [] [
+                str $"'{sheet.Name}' will become an array component. What should its loop variable                       be called? Write this in any property box on the sheet to make one copy differ                       from the next."
+                br []
+                match loopNameProblem (Some sheet) (getText dialogData) with
+                | Some msg -> span [ Style [ Color "red" ] ] [ str msg ]
+                | None -> null
+            ]
+    let body = dialogPopupBodyOnlyText before $"default: {defaultLoopName}" dispatch
+    let buttonAction =
+        fun (model': Model) ->
+            make (loopNameOf (getText model'.PopupDialogData)) model'
+            dispatch ClosePopup
+            dispatch FinishUICmd
+    let isDisabled =
+        fun (model': Model) -> (loopNameProblem (Some sheet) (getText model'.PopupDialogData)).IsSome
+    dialogPopup title body "Make it an array component" buttonAction isDisabled [] dispatch
+
 /// Add a sheet to the project, with array settings, and open it for editing.
-let private addArraySheet (project: Project) (name: string) (canvasFrom: LoadedComponent option) model dispatch =
+let private addArraySheet (project: Project) (name: string) (loopName: string) (canvasFrom: LoadedComponent option) model dispatch =
     match canvasFrom with
     | None -> ComponentLibraries.createEmptySheetFile project name |> displayAlertOnError dispatch
     | Some source ->
         // the copy gets fresh ids for everything, so it cannot clash with the sheet it came from
         ComponentLibraries.copySheetWithNewIds source.FilePath (ComponentLibraries.sheetFilePath project name)
 
+    let info loop = { LoopParam = ParamName loop; Copies = defaultCopies }
     match tryLoadComponentFromPath (ComponentLibraries.sheetFilePath project name) with
     | Error err -> displayFileErrorNotification err dispatch
     | Ok loaded ->
@@ -195,11 +270,11 @@ let private addArraySheet (project: Project) (name: string) (canvasFrom: LoadedC
         // them, so they are recomputed too.
         let ins, outs =
             CanvasExtractor.parseDiagramSignatureFor
-                (Some startingInfo) loaded.LCParameterSlots loaded.CanvasState
+                (Some (info loopName)) loaded.LCParameterSlots loaded.CanvasState
         let ldc =
             { loaded with
                 Name = name
-                ArrayInfo = Some startingInfo
+                ArrayInfo = Some (info loopName)
                 InputLabels = ins
                 OutputLabels = outs
                 LoadedComponentIsOutOfDate = true }
@@ -260,7 +335,7 @@ let newArrayComponentPopup (model: Model) (dispatch: Msg -> unit) =
                     true
                     (fun () ->
                         askForName "New array component" "A new sheet will be created for it:" project
-                            (fun name model' -> addArraySheet project name None model' dispatch)
+                            (fun name loop model' -> addArraySheet project name loop None model' dispatch)
                             model dispatch)
                 choice "Make an existing sheet an array component"
                     "The sheet is left as it is and becomes one copy of the array. This is the \
@@ -269,10 +344,17 @@ let newArrayComponentPopup (model: Model) (dispatch: Msg -> unit) =
                     (fun () ->
                         pickSheet "Make an array component" "Which sheet?"
                             (fun lc ->
-                                openFileInProject' true lc.Name project model dispatch
-                                dispatch
-                                <| ExecFuncInMessage ((fun model' dispatch' ->
-                                        setArrayInfo model' (Some startingInfo) dispatch'), dispatch)))
+                                askForLoopVariable "Make an array component" lc
+                                    (fun loop _ ->
+                                        // opened first: setArrayInfo works on the OPEN sheet, and
+                                        // reads its live canvas to derive the ports
+                                        openFileInProject' true lc.Name project model dispatch
+                                        dispatch
+                                        <| ExecFuncInMessage ((fun model' dispatch' ->
+                                                setArrayInfo model'
+                                                    (Some { LoopParam = ParamName loop; Copies = defaultCopies })
+                                                    dispatch'), dispatch))
+                                    dispatch))
                 choice "Copy an existing sheet as an array component"
                     "The sheet is left alone and a copy of it becomes the array, so an ordinary \
                      design and an array version of it can both exist."
@@ -281,7 +363,7 @@ let newArrayComponentPopup (model: Model) (dispatch: Msg -> unit) =
                         pickSheet "Copy as an array component" "Which sheet should be copied?"
                             (fun lc ->
                                 askForName "Copy as an array component" "The copy will be called:" project
-                                    (fun name model' -> addArraySheet project name (Some lc) model' dispatch)
+                                    (fun name loop model' -> addArraySheet project name loop (Some lc) model' dispatch)
                                     model dispatch))
             ]
 

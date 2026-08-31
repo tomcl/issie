@@ -986,9 +986,10 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
     | ArrayMux n ->
         match ins n with
         | Data bitSelect ->
-            let sel = int (convertFastDataToInt bitSelect)
-            if sel >= 0 && sel < n then
-                put 0 (ins sel)
+            // unsigned, as it is in the reference reducer: only the upper bound can fail
+            let sel = convertFastDataToInt bitSelect
+            if sel < uint32 n then
+                put 0 (ins (int sel))
             else
                 put 0 <| Data (convertIntToFastData (getAlgExpWidth (ins 0).toExp) 0u)
         | Alg _ ->

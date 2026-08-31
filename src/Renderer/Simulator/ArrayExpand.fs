@@ -24,10 +24,15 @@ open CommonTypes
 open ParameterTypes
 
 /// How many bits the select input of an array multiplexer has: enough to index the copies, and
-/// never zero, since a width of zero is not a width. The same formula as CommonTypes.shifterWidthFor
-/// and written out rather than shared with it, because a shifter's width and an array's select are
-/// the same arithmetic about different things.
-let arraySelectWidth (copies: int) = max 1 (int (clog2 (bigint copies)))
+/// never zero, since a width of zero is not a width.
+///
+/// ceil(log2 copies), counted by shifting an int rather than through ParameterTypes.clog2, which
+/// takes a bigint. A copy count is small by construction - ArrayElaborate.Constants.maxArrayCopies
+/// bounds it, as a bus width is bounded - so converting one to a bigint to count its bits would be
+/// work for nothing. The same answer as clog2 for every value this is asked about.
+let arraySelectWidth (copies: int) =
+    let rec bits v acc = if v <= 1 then acc else bits (v >>> 1) (acc + 1)
+    max 1 (if copies <= 1 then 0 else bits (copies - 1) 0 + 1)
 
 /// The name of the sheet port an unmatched JoinIn becomes. The direction is in the name as well as
 /// in the port list so that the two ends of one channel read apart, and so that the generated names

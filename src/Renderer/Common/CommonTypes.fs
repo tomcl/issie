@@ -490,6 +490,42 @@ let getSTransformWithDefault (infoOpt: SymbolInfo option) =
 /// component's port names and instance parameter bindings ride inside TypeS
 /// (CustomComponentType.InputLabels/OutputLabels/ParameterBindings), where port number n is by
 /// definition index n of the label list - so port names are never duplicated here.
+/// The array settings of an ARRAY COMPONENT; absent on an ordinary sheet.
+///
+/// An array component is a sheet whose hardware is `Copies` copies of what is drawn on it, one per
+/// value of the loop variable. What joins the copies to each other and to the outside is the array
+/// IO components - see ComponentType's BusOut, MuxOut, JoinOut and JoinIn.
+///
+/// Copies is a plain integer and deliberately NOT a parameter expression. It fixes how many copies
+/// there are, and so fixes the ports of every instance of this sheet: an array component has ONE
+/// signature per set of bindings, exactly as any other sheet does. Making it an expression would
+/// make a sheet's port LIST depend on who instantiated it, which nothing else in Issie has to cope
+/// with. Widths remain parameterisable as they are everywhere else.
+type ArrayInfo = {
+    /// The name of the loop variable, which takes the values 0 .. Copies-1, one per copy.
+    ///
+    /// NOT a declared property of this sheet: it is declared here, it has a value only inside a
+    /// copy, and no instance may bind it - so it is absent from DefaultBindings and every part of
+    /// the parameter system that walks a sheet's declared properties ignores it without being
+    /// asked to. It IS in scope in the slot expressions of components on this sheet, which is what
+    /// makes one copy differ from the next; but not in a slot that sets a width, since every copy
+    /// must have the same ports, and in a join's number it is the only name allowed.
+    LoopParam: ParameterTypes.ParamName
+    /// How many copies of the sheet the component is. At least 1.
+    ///
+    /// The number of COPIES rather than the last value of the loop variable, which is the same
+    /// number minus one: the box that sets it says "copies", and storing what the box says is what
+    /// stops the two drifting by one.
+    Copies: int
+}
+
+/// Lenses for ArrayInfo
+let loopParam_ = Lens.create (fun a -> a.LoopParam) (fun s a -> {a with LoopParam = s})
+let copies_ = Lens.create (fun a -> a.Copies) (fun s a -> {a with Copies = s})
+
+/// How many copies an array component has.
+let copiesOfArray (info: ArrayInfo) = info.Copies
+
 type SimpleComponent = {
     /// the reduced id, parsed to int
     CompId : int
@@ -521,6 +557,12 @@ type SimpleSheet = {
     /// the sheet's parameterised slots - LCParameterSlots.ParamSlots, with every
     /// ParamSlot.CompId being a reduced-int string, so int slot.CompId matches CompId above
     ParamSlots : ParameterTypes.ComponentSlotExpr
+    /// the sheet's array settings, when it is an ARRAY COMPONENT - LoadedComponent.ArrayInfo.
+    ///
+    /// Electrical, though it looks like metadata: how many copies there are is what the sheet's
+    /// components MEAN, so a receiver without it reads the same canvas as a different circuit -
+    /// and, since the ports are derived from it, as a sheet with different ports.
+    ArrayInfo : ArrayInfo option
 }
 
 /// A whole design: the sheets and which one is the top.
@@ -1176,41 +1218,6 @@ type SavedWaveInfo = {
     DisplayedPortIds: string array option
 }
 
-/// The array settings of an ARRAY COMPONENT; absent on an ordinary sheet.
-///
-/// An array component is a sheet whose hardware is `Copies` copies of what is drawn on it, one per
-/// value of the loop variable. What joins the copies to each other and to the outside is the array
-/// IO components - see ComponentType's BusOut, MuxOut, JoinOut and JoinIn.
-///
-/// Copies is a plain integer and deliberately NOT a parameter expression. It fixes how many copies
-/// there are, and so fixes the ports of every instance of this sheet: an array component has ONE
-/// signature per set of bindings, exactly as any other sheet does. Making it an expression would
-/// make a sheet's port LIST depend on who instantiated it, which nothing else in Issie has to cope
-/// with. Widths remain parameterisable as they are everywhere else.
-type ArrayInfo = {
-    /// The name of the loop variable, which takes the values 0 .. Copies-1, one per copy.
-    ///
-    /// NOT a declared property of this sheet: it is declared here, it has a value only inside a
-    /// copy, and no instance may bind it - so it is absent from DefaultBindings and every part of
-    /// the parameter system that walks a sheet's declared properties ignores it without being
-    /// asked to. It IS in scope in the slot expressions of components on this sheet, which is what
-    /// makes one copy differ from the next; but not in a slot that sets a width, since every copy
-    /// must have the same ports, and in a join's number it is the only name allowed.
-    LoopParam: ParameterTypes.ParamName
-    /// How many copies of the sheet the component is. At least 1.
-    ///
-    /// The number of COPIES rather than the last value of the loop variable, which is the same
-    /// number minus one: the box that sets it says "copies", and storing what the box says is what
-    /// stops the two drifting by one.
-    Copies: int
-}
-
-/// Lenses for ArrayInfo
-let loopParam_ = Lens.create (fun a -> a.LoopParam) (fun s a -> {a with LoopParam = s})
-let copies_ = Lens.create (fun a -> a.Copies) (fun s a -> {a with Copies = s})
-
-/// How many copies an array component has.
-let copiesOfArray (info: ArrayInfo) = info.Copies
 
 /// Info regarding sheet saved in the .dgm file
 type SheetInfo = {

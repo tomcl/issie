@@ -66,7 +66,19 @@ let sheetToLoadedComponent (sheet: SimpleSheet) : LoadedComponent =
               Vertices = [] })
 
     let canvas = comps, conns
-    let inputs, outputs = CanvasExtractor.parseDiagramSignature canvas
+
+    // annotated because SimpleSheet has these two field names as well, and being the later
+    // declaration it is what an unannotated record expression resolves to
+    let paramSlots : ParameterTypes.ParameterDefs option =
+        if Map.isEmpty sheet.DefaultBindings && Map.isEmpty sheet.ParamSlots then
+            None
+        else
+            Some { DefaultBindings = sheet.DefaultBindings; ParamSlots = sheet.ParamSlots }
+
+    // parseDiagramSignatureFor, not parseDiagramSignature: an ARRAY COMPONENT's ports are derived
+    // from its array settings, so reading them without those gives a sheet with different ports
+    // from the one that was sent - which is exactly what the instances of it are checked against.
+    let inputs, outputs = CanvasExtractor.parseDiagramSignatureFor sheet.ArrayInfo paramSlots canvas
 
     { Name = sheet.SheetName
       TimeStamp = System.DateTime.MinValue
@@ -75,15 +87,11 @@ let sheetToLoadedComponent (sheet: SimpleSheet) : LoadedComponent =
       CanvasState = canvas
       InputLabels = inputs
       OutputLabels = outputs
-      LCParameterSlots =
-        if Map.isEmpty sheet.DefaultBindings && Map.isEmpty sheet.ParamSlots then
-            None
-        else
-            Some { DefaultBindings = sheet.DefaultBindings; ParamSlots = sheet.ParamSlots }
+      LCParameterSlots = paramSlots
       Form = Some User
       LoadedComponentIsOutOfDate = false
       IsTopSheet = false
-      ArrayInfo = None
+      ArrayInfo = sheet.ArrayInfo
       Description = None }
 
 /// The whole design as skeleton LoadedComponents, ready for Simulator.startCircuitSimulation.

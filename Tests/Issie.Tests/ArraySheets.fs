@@ -488,6 +488,44 @@ let private expansionTests =
                 let expected = value + (value <<< w) + (value <<< (2 * w))
                 Expect.equal got["O"] expected $"W={w}: three copies of a broadcast value"
         }
+
+        test "an array component survives the trip to the dotnet sidecar" {
+            // SimpleDesign is the wire format the sidecar is sent, and it carried no array
+            // settings - so the sidecar read the same canvas as an ordinary sheet, whose ports are
+            // the drawn IO alone. Every instance then failed to match the sheet it names, and with
+            // no session built the step panel's inputs went nowhere and read back as 0.
+            //
+            // Simulated through the shim, which is what the sidecar runs: same design, same
+            // answers, or the two simulators are not simulating the same circuit.
+            let parent, sheet = rippleParent 3
+            let shimmed =
+                [ parent; sheet ]
+                |> CanvasExtractor.simpleDesignOfLoadedComponents
+                |> SimpleDesignShim.designToLoadedComponents
+            let top = shimmed |> List.find (fun ldc -> ldc.Name = parent.Name)
+            let shimmedSheet = shimmed |> List.find (fun l -> l.Name = sheet.Name)
+            let wantIns, _ = outline (arrayInfo 3) sheet.LCParameterSlots sheet.CanvasState
+            Expect.isSome shimmedSheet.ArrayInfo "the array settings must survive the wire"
+            Expect.equal (names shimmedSheet.InputLabels) (names wantIns)
+                "and so must the ports derived from them, or every instance stops matching its sheet"
+            let inputs = Map [ "X", 5I; "Y", 3I; "CIN", 0I ]
+            let got = runParent top (shimmed |> List.filter (fun l -> l.Name <> parent.Name)) inputs
+            let want = runParent parent [ sheet ] inputs
+            Expect.equal got["S"] want["S"]
+                "the sidecar's copy of the design must give the answers the renderer's does"
+            Expect.equal got["COUT"] want["COUT"] "carry out too"
+        }
+
+        test "an array component simulates when it is itself the sheet being simulated" {
+            // What someone does first: draw the array component, then press simulate while looking
+            // at it, before ever placing an instance. Everything above drives an array through a
+            // PARENT sheet, so nothing held the top-sheet case to producing right ANSWERS - only,
+            // since the previous commit, to building at all.
+            let _, sheet = rippleParent 3
+            let got = runParent sheet [] (Map [ "A", 5I; "B", 3I; "C_in_0", 0I ])
+            Expect.equal got["SUM"] 0I "5 + 3 is 8: bit 0 of each sum is 0, and three of those is 0"
+            Expect.equal got["C_out_3"] 1I "and the top carry is 1"
+        }
     ]
 
 //-------------------------------------------------------------------------------------------//

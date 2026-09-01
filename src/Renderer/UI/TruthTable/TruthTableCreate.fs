@@ -143,7 +143,7 @@ let simulateInputCombination
             | IData wd -> {IO = SimIO comp; Data = Bits (convertFastDataToWireData wd)}
             | IAlg exp -> {IO = SimIO comp; Data = Algebra exp})
     let viewerRow =
-        FastExtract.extractViewers simData
+        FastExtract.extractViewersFData simData
         |> List.map (fun ((l,f),w,fs) ->
             match fs with
             | IData wd -> {IO = Viewer ((l,f),w); Data = Bits (convertFastDataToWireData wd)}

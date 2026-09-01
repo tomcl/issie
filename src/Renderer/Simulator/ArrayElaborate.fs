@@ -53,7 +53,7 @@ module Constants =
 let private bodyMarker = "/"
 
 /// The name of the sheet holding one copy of an array design sheet.
-let bodyNameOf (sheetName: string) = sheetName + bodyMarker + "copy"
+let bodyNameOf (sheetName: string) = sheetName + bodyMarker + "instance"
 
 /// The label a body port takes from the array component that becomes it.
 ///

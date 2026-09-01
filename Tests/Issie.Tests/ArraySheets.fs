@@ -356,10 +356,10 @@ let private expansionTests =
             let sheet = rippleSheet 4
             let expanded, problems = ArrayElaborate.expandArraySheets [ sheet ]
             Expect.isEmpty problems "a ripple-carry array sheet is a correct design"
-            Expect.equal (expanded |> List.map (fun l -> l.Name)) [ "ripple"; "ripple/copy" ]
+            Expect.equal (expanded |> List.map (fun l -> l.Name)) [ "ripple"; "ripple/instance" ]
                 "the sheet keeps its name and place, and its body follows it"
             let wrapper = expanded |> List.find (fun l -> l.Name = "ripple")
-            let body = expanded |> List.find (fun l -> l.Name = "ripple/copy")
+            let body = expanded |> List.find (fun l -> l.Name = "ripple/instance")
             Expect.isNone wrapper.ArrayInfo "after expansion the wrapper is an ordinary sheet"
             Expect.isNone body.ArrayInfo "and so is the body"
             // the body is one copy: the array IO has become ordinary IO, keeping the connections
@@ -389,7 +389,7 @@ let private expansionTests =
             let instances =
                 fst wrapper.CanvasState
                 |> List.choose (fun c -> match c.Type with | Custom cc -> Some (c.Label, cc.Name) | _ -> None)
-            Expect.equal instances [for i in 0 .. 4 -> $"ripple{i}", "ripple/copy"]
+            Expect.equal instances [for i in 0 .. 4 -> $"ripple{i}", "ripple/instance"]
                 "five numbered instances of the body, which is what the wave selector will show"
         }
 

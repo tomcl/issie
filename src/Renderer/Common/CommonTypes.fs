@@ -1219,6 +1219,15 @@ type SavedWaveInfo = {
 }
 
 
+/// Is this the name of a sheet the EXPANSION made, rather than one somebody drew?
+///
+/// A sheet name is a file name, so a path separator can never be typed into one - which is what
+/// ArrayElaborate builds its generated names out of, and what makes this test exact rather than a
+/// guess about naming. What it is asked for: such a sheet and the instances of it were made
+/// together in one pass, so the checks that catch an instance drifting from a sheet somebody
+/// edited have nothing to say about them.
+let isGeneratedSheetName (sheetName: string) = sheetName.Contains "/"
+
 /// Info regarding sheet saved in the .dgm file
 type SheetInfo = {
     Form: CCForm option

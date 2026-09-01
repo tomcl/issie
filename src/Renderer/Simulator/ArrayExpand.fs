@@ -1,4 +1,4 @@
-module ArrayExpand
+﻿module ArrayExpand
 
 (*
     ArrayExpand.fs
@@ -64,6 +64,10 @@ type JoinWiring = {
     UnmatchedOut: JoinEnd list
     /// JoinIn ends no copy supplies. Each becomes an INPUT on the sheet's outline.
     UnmatchedIn: JoinEnd list
+    /// EVERY end, matched or not, in every copy: which channel each join component is on in each
+    /// copy of the array. What that is for is naming - a copy's ports are the channels it is
+    /// actually joined by, and copy 3's carry in is not the one drawn on the sheet.
+    Ends: JoinEnd list
     /// What is wrong with the joins, if anything. The wiring above is still the best reading of
     /// them, so a sheet being edited can still be drawn; analyseState is what refuses to simulate.
     Problems: string list
@@ -194,6 +198,7 @@ let joinsOf (info: ArrayInfo) (paramDefs: ParameterDefs option) (canvas: CanvasS
     let channelsRead = inEnds |> List.map (fun e -> e.Comp.Label, e.Num) |> Set.ofList
 
     { Matched = matched
+      Ends = outEnds @ inEnds
       UnmatchedOut = outEnds |> List.filter (fun e -> not (Set.contains (e.Comp.Label, e.Num) channelsRead))
       UnmatchedIn = inEnds |> List.filter (fun e -> not (Map.containsKey (e.Comp.Label, e.Num) outByChannel))
       Problems = nameProblems @ outProblems @ inProblems @ negatives @ outClashes }

@@ -576,6 +576,47 @@ let private expansionTests =
                 "the canvas keeps the body's labels, whichever copy it is"
         }
 
+        test "a big array offers its copies' ports inside them, not all at once" {
+            // Below the threshold the copies' ports are listed flat on the array, which is the
+            // quickest way to compare one copy with another. Above it that list is the wrong shape
+            // - it grows with the copies, and the bound on those is 1024 - so the ports move inside
+            // the copy, reachable one at a time through the combo box that chooses which.
+            //
+            // The two are one rule read from its two ends, and what is checked is that exactly one
+            // end offers them: not both, which is the same signal twice, and not neither.
+            //
+            // A broadcast rather than the ripple chain, because this needs to run at 65 copies and
+            // a ripple's operand bus would have to be 65 bits wide to be sliced that far.
+            let arrayOf copies =
+                let inp = makeComp 1 0 1 (Input1(1, None)) "D"
+                let outp = makeComp 2 1 0 (BusOut 1) "Q"
+                { makeLdc "wide" None (stacked [ inp; outp ], [ conn inp 0 outp 0 ]) with
+                    ArrayInfo = Some (arrayInfo copies) }
+            let portsOf (fs: FastSimulation) instance = (PortView.ofInstance fs instance).ViewPorts |> List.length
+            let below = ArrayElaborate.Constants.copiesShownFlattened
+            for copies in [ below; below + 1 ] do
+                let sheet = arrayOf copies
+                match Simulator.startCircuitSimulation maxArraySize sheet.Name sheet.CanvasState [ sheet ] with
+                | Error e -> failtestf "%i copies: %A" copies e.ErrType
+                | Ok sd ->
+                    let fs = sd.FastSim
+                    let copyInstances =
+                        fs.Design.InstancesInside (InstancePath [], ArrayElaborate.bodyNameOf sheet.Name)
+                    Expect.equal (List.length copyInstances) copies $"{copies} copies of the body"
+                    let onTheArray = portsOf fs (InstancePath [])
+                    let insideACopy = portsOf fs (List.head copyInstances)
+                    if copies <= below then
+                        Expect.equal insideACopy 0
+                            $"{copies} copies: a copy's own IO is offered on the array, so not here as well"
+                        Expect.isGreaterThan onTheArray copies
+                            $"{copies} copies: and the array offers a port for each of them"
+                    else
+                        Expect.isGreaterThan insideACopy 0
+                            $"{copies} copies: too many to list, so a copy's ports are offered inside it"
+                        Expect.isLessThan onTheArray copies
+                            $"{copies} copies: and no longer all at once on the array"
+        }
+
         test "an array component simulates when it is itself the sheet being simulated" {
             // What someone does first: draw the array component, then press simulate while looking
             // at it, before ever placing an instance. Everything above drives an array through a

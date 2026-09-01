@@ -45,6 +45,17 @@ module Constants =
     /// design Issie tries to build. It is also what makes a select width an int calculation.
     let maxArrayCopies = 1024
 
+    /// The most copies an array component may have before the waveform selector stops offering
+    /// every copy's ports at once.
+    ///
+    /// Below it, the copies' ports are listed flat on the array itself, which is the quickest way
+    /// to compare one copy with another. Above it that list is the wrong shape - 64 copies of a
+    /// five-port body is 320 signals in one group, and the bound is 1024 - so the ports are offered
+    /// INSIDE the copy instead, one copy at a time, through the combo box that is already there for
+    /// choosing which. Nothing is unreachable either way; what changes is whether they arrive all
+    /// at once or one copy at a time.
+    let copiesShownFlattened = 64
+
 /// The character that makes a generated sheet name unreachable as a user's: a sheet name is a file
 /// name, so a path separator can never be typed into one.
 ///

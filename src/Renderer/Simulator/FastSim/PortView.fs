@@ -165,6 +165,53 @@ let private carriesWaveOfSlice
 
 /// The rich per-instance view, derived from the DESIGN plus the port slice - no FastComponent
 /// anywhere. This is the memoised function the selector runs: its real inputs are the design and
+/// How many copies each generated BODY sheet has, by its name.
+///
+/// Derived from the design's own sheets and nothing else, which is what makes it safe: this decides
+/// which ports carry a wave, and the renderer and the .NET sidecar must reach the same answer from
+/// the same design. Anything the renderer knew and the sidecar did not would have the two offering
+/// different sets of signals.
+///
+/// Memoised on the design, as the design-sized questions in the selector are: it is asked once per
+/// instance, and a large design has tens of thousands of them.
+let private copiesOfBodySheet: SimulatedDesign -> Map<string, int> =
+    Helpers.memoizeByIdentity (fun (design: SimulatedDesign) ->
+        design.DesignSheets
+        |> List.collect (fun ldc ->
+            fst ldc.CanvasState
+            |> List.choose (fun comp ->
+                match comp.Type with
+                // a Custom naming a GENERATED sheet is a copy the expansion made - nobody can draw
+                // one, since such a name holds a character a sheet name cannot
+                | Custom ct when isGeneratedSheetName ct.Name -> Some ct.Name
+                | _ -> None))
+        |> List.countBy id
+        |> Map.ofList)
+
+/// An array with more copies than are worth listing at once - see
+/// ArrayElaborate.Constants.copiesShownFlattened.
+let private tooManyToList (design: SimulatedDesign) (bodySheet: string) =
+    match Map.tryFind bodySheet (copiesOfBodySheet design) with
+    | Some copies -> copies > ArrayElaborate.Constants.copiesShownFlattened
+    | None -> false
+
+/// Are an instance's own Input and Output components offered on the PARENT, as the ports of the
+/// custom component that introduces it, rather than inside it?
+///
+/// Yes for every ordinary subsheet, which is what stops one signal being offered twice. No for a
+/// copy of a big array: there the parent does not offer them either, so inside the copy is the only
+/// place they can be reached - one copy at a time, through the combo box that chooses which.
+let private ioOfferedOnParent (design: SimulatedDesign) (sheet: string) (ap: ComponentId list) =
+    not (List.isEmpty ap) && not (tooManyToList design sheet)
+
+/// Does this component offer its own ports where it stands? A copy of a big array does not: they
+/// are offered inside it instead. This and ioOfferedOnParent are one rule read from its two ends,
+/// so exactly one of the two places offers a copy's ports.
+let private offersItsPorts (design: SimulatedDesign) (comp: Component) =
+    match comp.Type with
+    | Custom ct -> not (tooManyToList design ct.Name)
+    | _ -> true
+
 /// two ints a port, and it merely happens that a .NET simulator computed the ints.
 let ofSlice (design: SimulatedDesign) (InstancePath ap as instance) (slice: ComponentSlots list) : InstanceView =
     let sheet = design.SheetOfInstance instance
@@ -172,7 +219,7 @@ let ofSlice (design: SimulatedDesign) (InstancePath ap as instance) (slice: Comp
     let compsById =
         Map.tryFind sheet design.DesignComponentsById |> Option.defaultValue Map.empty
 
-    let inSubSheet = not (List.isEmpty ap)
+    let inSubSheet = ioOfferedOnParent design sheet ap
 
     /// The member of an IOLabel group the build elects: the one a wire drives. The others read
     /// and re-drive the same net, so name and data are the same whichever is shown - but ONE is
@@ -192,7 +239,8 @@ let ofSlice (design: SimulatedDesign) (InstancePath ap as instance) (slice: Comp
                 let outsWidths = slots.SlotsOuts |> Array.map (fun s -> s.SlotWidth)
 
                 let portsOf portType (portSlots: PortSlot array) =
-                    if not (carriesWaveOfSlice comp.Type inSubSheet (electedIOLabel comp) portType) then
+                    if not (offersItsPorts design comp)
+                       || not (carriesWaveOfSlice comp.Type inSubSheet (electedIOLabel comp) portType) then
                         []
                     else
                         portSlots
@@ -265,7 +313,7 @@ let private trySliceOf (fs: FastSimulation) (instance: InstancePath) : Component
 /// such a wave as having no driver.
 let waveIndicesOfDesign (design: SimulatedDesign) (InstancePath ap as instance) : WaveIndexT list =
     let sheet = design.SheetOfInstance instance
-    let inSubSheet = not (List.isEmpty ap)
+    let inSubSheet = ioOfferedOnParent design sheet ap
 
     let electedIOLabel (comp: Component) =
         match List.tryItem 0 comp.InputPorts with
@@ -278,7 +326,8 @@ let waveIndicesOfDesign (design: SimulatedDesign) (InstancePath ap as instance) 
         fst ldc.CanvasState
         |> List.collect (fun comp ->
             let portsOf portType count =
-                if not (carriesWaveOfSlice comp.Type inSubSheet (electedIOLabel comp) portType) then
+                if not (offersItsPorts design comp)
+                   || not (carriesWaveOfSlice comp.Type inSubSheet (electedIOLabel comp) portType) then
                     []
                 else
                     [ 0 .. count - 1 ]

@@ -1,4 +1,4 @@
-module ArraySheetView
+﻿module ArraySheetView
 
 (*
     ArraySheetView.fs
@@ -328,6 +328,10 @@ let newArrayComponentPopup (model: Model) (dispatch: Msg -> unit) =
     let body =
         fun (_: Model) ->
             div [] [
+                // First, and cut off from the rest: somebody who wanted the simple thing should be
+                // able to read one paragraph and leave, rather than a page about the advanced one.
+                UIPopups.helpText AppMessages.Confirm.arrayComponentIsAdvanced
+                hr []
                 UIPopups.helpText AppMessages.Confirm.usingArraySheets
                 hr []
                 choice "New array component"
@@ -373,4 +377,11 @@ let newArrayComponentPopup (model: Model) (dispatch: Msg -> unit) =
                 Button.button [ Button.OnClick (fun _ -> dispatch ClosePopup) ] [ str "Cancel" ]
             ]
 
-    dynamicClosablePopup "New array component" body foot [] dispatch
+    // Wider than a popup's default, because what this holds is prose - three choices, each
+    // explained in a sentence or two - and at the default width every one of those wrapped to four
+    // or five lines.
+    //
+    // Bounded by the WINDOW as well, and not just given a number: 800 is wider than an Issie window
+    // that has been narrowed or is on a small screen, and a modal wider than the window it is in
+    // hangs off the side of it with no way to scroll to what it is hiding.
+    dynamicClosablePopup "New array component" body foot [ Width 800; MaxWidth "90vw" ] dispatch

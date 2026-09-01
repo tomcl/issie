@@ -1,4 +1,4 @@
-/// The words Issie says to the user, where they are long enough to be worth reading as prose.
+﻿/// The words Issie says to the user, where they are long enough to be worth reading as prose.
 ///
 /// WHAT IS HERE. The Info window's four written tabs, the waveform simulator's five help panels,
 /// the memory help, the twenty field explanations in the Properties pane, and the confirmation
@@ -201,6 +201,20 @@ This is an advanced feature: designs that do not need it are unaffected by it.
     /// Before making the first array component in a project. As with the first property, this is
     /// the moment to say what the feature is for: until one exists nothing in the editor hints that
     /// array sheets are there, and it is a feature a design can perfectly well never use.
+    /// What the New array component dialog says before anything else: what it is about to make,
+    /// and the far simpler thing most people wanting "an array" actually want.
+    ///
+    /// Said FIRST and on its own, because somebody who wanted the simple thing should be able to
+    /// leave before reading a page about the advanced one. Pasting an array copies components and
+    /// wires as they are; an array component is a sheet whose hardware is n copies of itself, which
+    /// is more to learn and is only worth it when the copies have to join up.
+    let arrayComponentIsAdvanced = """
+This dialog makes an **array component**: an array of logic built as a sheet of its own.
+
+It is an advanced feature. The simpler way to make an array is to copy a group of components and
+wires and paste an array of them onto a sheet - **Edit > Paste array...**
+"""
+
     let usingArraySheets = """
 An **array component** is a sheet whose hardware is several copies of what is drawn on it - one per
 value of a loop variable that counts from 0. Draw one bit of an adder and get an adder of any width;

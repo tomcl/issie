@@ -138,6 +138,8 @@ let saveStateInSimulation
     /// The same design as the PROJECT holds it, before any array component was expanded - the only
     /// form in which "has this been edited since?" can be asked. See SimulatedDesign.DesignAsDrawn.
     ((drawnCanvasState, drawnComponents): CanvasState * LoadedComponent list)
+    /// The port labels each array copy is SHOWN with - see ArrayElaborate.CopyPortNames.
+    (copyNames: ArrayElaborate.CopyPortNames)
     (fs: FastSimulation)
     =
     let diagramName = openFileName
@@ -154,9 +156,20 @@ let saveStateInSimulation
             |> List.map (fun ldc ->
                 let comps, conns = ldc.CanvasState
 
+                // The DESIGN's copy of each component, which is what the waveform selector names
+                // ports from - so an array copy is shown with the channel numbers of the copy it
+                // is, rather than with copy 0's. Applied here and not to the canvas: the canvas is
+                // what the simulation is built from, and a Custom component's port labels are what
+                // wire it to its sheet. See ArrayElaborate.CopyPortNames.
+                let shown (comp: Component) =
+                    match comp.Type, Map.tryFind comp.Id copyNames with
+                    | Custom ct, Some (ins, outs) ->
+                        { comp with Type = Custom { ct with InputLabels = ins; OutputLabels = outs } }
+                    | _ -> comp
+
                 let compsWithIds =
                     comps
-                    |> List.map (fun comp -> comp.Id, comp)
+                    |> List.map (fun comp -> comp.Id, shown comp)
                     |> Map.ofList
 
                 let portSheetPort = portSheetPort compsWithIds ldc.Name
@@ -227,12 +240,12 @@ let private expandArrayDesign
         (diagramName: string)
         (canvasState: CanvasState)
         (loadedDependencies: LoadedComponent list)
-        : Result<CanvasState * LoadedComponent list, SimulationError> =
+        : Result<CanvasState * LoadedComponent list * ArrayElaborate.CopyPortNames, SimulationError> =
     match loadedDependencies |> List.exists (fun ldc -> ldc.ArrayInfo.IsSome) with
     // by far the common case: nothing to do, and nothing allocated to find that out
-    | false -> Ok (canvasState, loadedDependencies)
+    | false -> Ok (canvasState, loadedDependencies, Map.empty)
     | true ->
-        let expanded, problems = ArrayElaborate.expandArraySheets loadedDependencies
+        let expanded, problems, copyNames = ArrayElaborate.expandArraySheets loadedDependencies
 
         /// The sheets this design actually uses, by name.
         ///
@@ -270,7 +283,7 @@ let private expandArrayDesign
                 |> List.tryFind (fun ldc -> ldc.Name = diagramName)
                 |> Option.map (fun ldc -> ldc.CanvasState)
                 |> Option.defaultValue canvasState
-            Ok (topCanvas, expanded)
+            Ok (topCanvas, expanded, copyNames)
 
 /// Extract circuit data from inputs and return a valid SimulationGraph or an error
 let validateCircuitSimulation
@@ -286,7 +299,7 @@ let validateCircuitSimulation
     // sheet with ArrayInfo, so the caller that has already expanded pays one List.exists.
     match expandArrayDesign diagramName canvasState loadedDependencies with
     | Error e -> Error e
-    | Ok (canvasState, loadedDependencies) ->
+    | Ok (canvasState, loadedDependencies, copyNames) ->
 
     // Tune for performance of initial zero-length simulation versus longer run.
     // Probably this is not critical.
@@ -323,7 +336,7 @@ let startCircuitSimulationWith
     let asDrawn = canvasState, loadedDependencies
     match expandArrayDesign diagramName canvasState loadedDependencies with
     | Error e -> Error e
-    | Ok (canvasState, loadedDependencies) ->
+    | Ok (canvasState, loadedDependencies, copyNames) ->
 
     match validateCircuitSimulation diagramName canvasState loadedDependencies with
     | Error e -> Error e
@@ -331,7 +344,7 @@ let startCircuitSimulationWith
         try
             match FastBuild.buildFastSimulationWith waveTables simulationArraySize diagramName graph with
             | Ok fs ->
-                let fs = saveStateInSimulation canvasState diagramName loadedDependencies asDrawn fs
+                let fs = saveStateInSimulation canvasState diagramName loadedDependencies asDrawn copyNames fs
                 let components, _ = canvasState
                 let inputs, outputs = getSimulationIOs components
 
@@ -387,7 +400,7 @@ let startCircuitSimulationFData
     let asDrawn = canvasState, loadedDependencies
     match expandArrayDesign diagramName canvasState loadedDependencies with
     | Error e -> Error e
-    | Ok (canvasState, loadedDependencies) ->
+    | Ok (canvasState, loadedDependencies, copyNames) ->
 
     // Tune for performance of initial zero-length simulation versus longer run.
     // Probably this is not critical.
@@ -407,7 +420,7 @@ let startCircuitSimulationFData
                 try
                     match FastBuild.buildFastSimulationFData simulationArraySize diagramName graph with
                     | Ok fs ->
-                        let fs = saveStateInSimulation canvasState diagramName loadedDependencies asDrawn fs
+                        let fs = saveStateInSimulation canvasState diagramName loadedDependencies asDrawn copyNames fs
 
                         Ok
                             { FastSim = fs
@@ -534,14 +547,14 @@ let designOnlySimulation
     let asDrawn = canvasState, loadedDependencies
     match expandArrayDesign diagramName canvasState loadedDependencies with
     | Error e -> Error e
-    | Ok (canvasState, loadedDependencies) ->
+    | Ok (canvasState, loadedDependencies, copyNames) ->
 
     match validateCircuitSimulation diagramName canvasState loadedDependencies with
     | Error e -> Error e
     | Ok graph ->
         let fs =
             { FastCreate.emptyFastSimulation diagramName with MaxArraySize = simulationArraySize }
-            |> saveStateInSimulation canvasState diagramName loadedDependencies asDrawn
+            |> saveStateInSimulation canvasState diagramName loadedDependencies asDrawn copyNames
 
         let components, _ = canvasState
         let inputs, outputs = getSimulationIOs components

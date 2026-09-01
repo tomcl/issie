@@ -354,7 +354,7 @@ let private expansionTests =
     testList "expansion" [
         test "one array sheet becomes a wrapper and a body, and the body is one copy" {
             let sheet = rippleSheet 4
-            let expanded, problems = ArrayElaborate.expandArraySheets [ sheet ]
+            let expanded, problems, _ = ArrayElaborate.expandArraySheets [ sheet ]
             Expect.isEmpty problems "a ripple-carry array sheet is a correct design"
             Expect.equal (expanded |> List.map (fun l -> l.Name)) [ "ripple"; "ripple/instance" ]
                 "the sheet keeps its name and place, and its body follows it"
@@ -375,7 +375,7 @@ let private expansionTests =
             for copies in [ 1; 2; 5; 8 ] do
                 let sheet = rippleSheet copies
                 let expected = outline (arrayInfo copies) sheet.LCParameterSlots sheet.CanvasState
-                let expanded, _ = ArrayElaborate.expandArraySheets [ sheet ]
+                let expanded, _, _ = ArrayElaborate.expandArraySheets [ sheet ]
                 let wrapper = expanded |> List.find (fun l -> l.Name = "ripple")
                 // read the ordinary way, off the wrapper's Input1 and Output components in (Y, X)
                 // order - which is what everything downstream will do
@@ -384,7 +384,7 @@ let private expansionTests =
         }
 
         test "the wrapper holds one numbered instance of the body per copy" {
-            let expanded, _ = ArrayElaborate.expandArraySheets [ rippleSheet 5 ]
+            let expanded, _, _ = ArrayElaborate.expandArraySheets [ rippleSheet 5 ]
             let wrapper = expanded |> List.find (fun l -> l.Name = "ripple")
             let instances =
                 fst wrapper.CanvasState
@@ -400,7 +400,7 @@ let private expansionTests =
             let sheet = rippleSheet 4
             let existing =
                 fst sheet.CanvasState |> List.map (fun c -> cToInt c.Id) |> List.max
-            let expanded, _ = ArrayElaborate.expandArraySheets [ sheet ]
+            let expanded, _, _ = ArrayElaborate.expandArraySheets [ sheet ]
             let wrapper = expanded |> List.find (fun l -> l.Name = "ripple")
             let ids = fst wrapper.CanvasState |> List.map (fun c -> cToInt c.Id)
             Expect.all ids (fun id -> id > existing) "every generated id is above the design's"
@@ -544,6 +544,36 @@ let private expansionTests =
                     Expect.isTrue
                         (FastExtract.compareLoadedStates sd.FastSim top.CanvasState (Some project))
                         $"simulating '{top.Name}' must not look like an edit to it"
+        }
+
+        test "each copy is shown with the channel numbers it is really joined by" {
+            // A join's body port carries the channel the SHEET is drawn at, which is copy 0's - so
+            // every copy, being an instance of that one sheet, would read C_in_0. That says nothing
+            // about which copy's output feeds which copy's input, and it is the numbers that say
+            // it: copy k takes channel k and gives channel k+1, so the name of a copy's carry in
+            // is the name of the previous copy's carry out.
+            let _, sheet = rippleParent 4
+            let _, _, copyNames = ArrayElaborate.expandArraySheets [ sheet ]
+            let byCopy =
+                copyNames
+                |> Map.toList
+                |> List.sortBy fst
+                |> List.map (fun (_, (ins, outs)) -> names ins, names outs)
+            Expect.equal (List.length byCopy) 4 "one set of names per copy"
+            for copy, (ins, outs) in List.indexed byCopy do
+                Expect.contains ins $"C_in_{copy}" $"copy {copy} takes channel {copy}"
+                Expect.contains outs $"C_out_{copy + 1}" $"and gives channel {copy + 1}"
+                // the ports that are not joins are the same on every copy
+                Expect.contains ins "A" "a broadcast input is the same port in every copy"
+            // and the labels on the CANVAS are untouched, because they are what wires a copy to
+            // its body - FastCreate.indexOf finds a subsheet's IO by label and width
+            let expanded, _, _ = ArrayElaborate.expandArraySheets [ sheet ]
+            let wrapper = expanded |> List.find (fun l -> l.Name = sheet.Name)
+            let copyOnCanvas =
+                fst wrapper.CanvasState
+                |> List.pick (fun c -> match c.Type with | Custom ct -> Some ct | _ -> None)
+            Expect.equal (names copyOnCanvas.InputLabels) [ "A"; "B"; "C_in_0" ]
+                "the canvas keeps the body's labels, whichever copy it is"
         }
 
         test "an array component simulates when it is itself the sheet being simulated" {

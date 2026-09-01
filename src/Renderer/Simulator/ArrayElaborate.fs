@@ -116,6 +116,13 @@ let private bodyDefsOf (info: ArrayInfo) (defs: ParameterDefs option) : Paramete
 //----------------------------------BUILDING THE WRAPPER-------------------------------------//
 //-------------------------------------------------------------------------------------------//
 
+/// The port labels an array copy is SHOWN with, by the copy's component id.
+///
+/// Display only. A Custom component's port labels are what wire it to its sheet's Input and Output
+/// components, so they cannot carry anything but the body's; these go on the design's copy of the
+/// component, which is what names ports in the waveform selector. See wrapperOf.copyPortNames.
+type CopyPortNames = Map<ComponentId, (string * int) list * (string * int) list>
+
 /// What feeds one of the wrapper's own outputs.
 type private OutputDriver =
     /// one copy's body port, straight through - an ordinary Output, or a loose join end
@@ -234,14 +241,17 @@ let private addWidthSlot (b: Build) (comp: Component) (expr: ConstrainedExpr opt
     | Some e -> { b with Slots = addSlot {CompId = comp.Id; CompSlot = IO comp.Label} e b.Slots }
 
 /// The wrapper: n instances of the body, wired up, with the sheet's derived ports and the glue
-/// that makes them. Returns the canvas and the parameter data it declares.
+/// that makes them.
+///
+/// Returns the canvas, the parameter data it declares, and the port labels each copy is SHOWN
+/// with - see copyPortNames, which says why those are not the labels on the canvas.
 let private wrapperOf
         (ids: IdSource)
         (sheet: LoadedComponent)
         (info: ArrayInfo)
         (bodyName: string)
         ((bodyIns, bodyOuts): (string * int) list * (string * int) list)
-        : CanvasState * ParameterDefs =
+        : CanvasState * ParameterDefs * CopyPortNames =
     let addComp = addComp ids
     let wire = wire ids
     let copies = copiesOfArray info
@@ -253,6 +263,34 @@ let private wrapperOf
     /// Which port of a copy carries the value of the array component `comp`.
     let bodyIn (comp: Component) = bodyIns |> List.findIndex (fun (l, _) -> l = bodyPortLabel comp)
     let bodyOut (comp: Component) = bodyOuts |> List.findIndex (fun (l, _) -> l = bodyPortLabel comp)
+
+    /// The ports of ONE copy, named by the channels that copy is actually joined by.
+    ///
+    /// FOR DISPLAY ONLY, and it has to be: a Custom component's port labels are what links it to
+    /// its sheet's Input and Output components - FastCreate.indexOf finds each by label and width -
+    /// so a copy whose labels said anything but the body's would not be wired to its own body.
+    /// These are put on the design's copy of the component, which is what the waveform selector
+    /// names ports from, and never on the canvas the simulation is built from.
+    ///
+    /// Worth the trouble because a join's body port carries the channel the SHEET is drawn at,
+    /// which is copy 0's. Every copy being an instance of that one sheet, four carry-ins would
+    /// otherwise all read C_in_0 - saying nothing about which copy's output feeds which copy's
+    /// input, which is the whole of what a channel number is for. It matters most where it is
+    /// hardest to work out by hand: a novice reading a chain, and anyone reading a channel whose
+    /// number is a complicated expression in the loop variable.
+    let copyPortNames =
+        let byBodyLabel =
+            wiring.Ends
+            |> List.map (fun e -> (bodyPortLabel e.Comp, e.Copy), e)
+            |> Map.ofList
+        let renamed (copy: int) ((label, width): string * int) =
+            match Map.tryFind (label, copy) byBodyLabel with
+            | None -> label, width
+            | Some e ->
+                match e.Comp.Type with
+                | JoinIn _ -> joinInPortName e.Comp.Label e.Num, width
+                | _ -> joinOutPortName e.Comp.Label e.Num, width
+        fun (copy: int) -> List.map (renamed copy) bodyIns, List.map (renamed copy) bodyOuts
 
     /// The width expression the sheet gives an array component, where it gives one.
     let widthExprOf (comp: Component) =
@@ -268,9 +306,9 @@ let private wrapperOf
         |> Map.map (fun name _ -> PParameter name)
         |> Map.add info.LoopParam (PInt (bigint i))
 
-    let copyComps, b =
-        (([], emptyBuild), [0 .. copies - 1])
-        ||> List.fold (fun (acc, b) i ->
+    let copyComps, copyNames, b =
+        ((([], []), emptyBuild), [0 .. copies - 1])
+        ||> List.fold (fun ((acc, names), b) i ->
             let ct =
                 Custom
                     { Name = bodyName
@@ -280,8 +318,8 @@ let private wrapperOf
                       ParameterBindings = Some (copyBindings i)
                       Description = None }
             let comp, b = addComp b ct $"{sheet.Name}{i}" (List.length bodyIns) (List.length bodyOuts)
-            comp :: acc, b)
-        |> fun (acc, b) -> List.rev acc |> Array.ofList, b
+            (comp :: acc, (comp.Id, copyPortNames i) :: names), b)
+        |> fun ((acc, names), b) -> List.rev acc |> Array.ofList, Map.ofList names, b
 
     // ---- the sheet's own ports ----
     // Which ports there are, what they are called and what the array does with each is
@@ -360,7 +398,8 @@ let private wrapperOf
             wire b copyComps[outEnd.Copy] (bodyOut outEnd.Comp) copyComps[inEnd.Copy] (bodyIn inEnd.Comp)) b
 
     (List.rev b.Comps, List.rev b.Conns),
-    { DefaultBindings = sheetDefs.DefaultBindings; ParamSlots = b.Slots }
+    { DefaultBindings = sheetDefs.DefaultBindings; ParamSlots = b.Slots },
+    copyNames
 
 //-------------------------------------------------------------------------------------------//
 //------------------------------------THE WHOLE PASS-----------------------------------------//
@@ -390,7 +429,7 @@ let private bodyNameProblems (sheetName: string) ((comps, _): CanvasState) =
 /// gone from every canvas, and what is left is custom components, wires and the two array glue
 /// types. That is why the evaluators, the truth table and the dependency machinery need no part in
 /// this, and why the wave selector shows the copies without being told about arrays.
-let expandArraySheets (ldcs: LoadedComponent list) : LoadedComponent list * (string * string) list =
+let expandArraySheets (ldcs: LoadedComponent list) : LoadedComponent list * (string * string) list * CopyPortNames =
     withIdSource ldcs (fun ids ->
 
     let expandOne (sheet: LoadedComponent) (info: ArrayInfo) =
@@ -405,7 +444,7 @@ let expandArraySheets (ldcs: LoadedComponent list) : LoadedComponent list * (str
         | _ :: _ ->
             // nothing can be built from a copy count that makes no sense, so the sheet is passed
             // through as it is and the message is what the caller acts on
-            [sheet], sizeProblems |> List.map (fun msg -> sheet.Name, msg)
+            [sheet], (sizeProblems |> List.map (fun msg -> sheet.Name, msg)), Map.empty
         | [] ->
             let bodyCanvas = bodyCanvasOf sheet.CanvasState
             let bodyIns, bodyOuts = CanvasExtractor.parseDiagramSignature bodyCanvas
@@ -420,7 +459,7 @@ let expandArraySheets (ldcs: LoadedComponent list) : LoadedComponent list * (str
                     ArrayInfo = None
                     // the body is not a sheet of the project and is never its top
                     IsTopSheet = false }
-            let canvas, defs = wrapperOf ids sheet info bodyName (bodyIns, bodyOuts)
+            let canvas, defs, copyNames = wrapperOf ids sheet info bodyName (bodyIns, bodyOuts)
             let wrapperIns, wrapperOuts = CanvasExtractor.parseDiagramSignature canvas
             let wrapper =
                 { sheet with
@@ -433,14 +472,18 @@ let expandArraySheets (ldcs: LoadedComponent list) : LoadedComponent list * (str
             let _, problems = ArrayExpand.arrayOutlineOf info sheet.LCParameterSlots sheet.CanvasState
             [wrapper; body],
             (problems @ bodyNameProblems sheet.Name sheet.CanvasState
-             |> List.map (fun msg -> sheet.Name, $"array design sheet '{sheet.Name}': {msg}"))
+             |> List.map (fun msg -> sheet.Name, $"array design sheet '{sheet.Name}': {msg}")),
+            copyNames
 
-    (([], []), ldcs)
-    ||> List.fold (fun (sheets, problems) ldc ->
+    (([], [], Map.empty), ldcs)
+    ||> List.fold (fun (sheets, problems, names) ldc ->
         match ldc.ArrayInfo with
-        | None -> ldc :: sheets, problems
+        | None -> ldc :: sheets, problems, names
         | Some info ->
-            let made, newProblems = expandOne ldc info
+            let made, newProblems, newNames = expandOne ldc info
             // the wrapper keeps the sheet's place in the list; the body follows it
-            (List.rev made) @ sheets, problems @ newProblems)
-    |> fun (sheets, problems) -> List.rev sheets, problems)
+            (List.rev made) @ sheets,
+            problems @ newProblems,
+            // ids are design-unique, so no two arrays can name the same copy
+            Map.fold (fun acc k v -> Map.add k v acc) names newNames)
+    |> fun (sheets, problems, names) -> List.rev sheets, problems, names)

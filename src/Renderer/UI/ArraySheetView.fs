@@ -91,18 +91,46 @@ let viewArraySettings (model: Model) (dispatch: Msg -> unit) : ReactElement =
         let (ParamName loopName) = info.LoopParam
         let simIsOpen = ModelHelpers.simulationIsOpen model
 
+        /// Apply what has been typed, on BLUR and on Enter rather than on every keystroke.
+        ///
+        /// This box reaches beyond its own sheet: the number of copies decides how many ports the
+        /// component has, so changing it makes every instance of it elsewhere out of date. Applied
+        /// per keystroke, typing 12 over 4 passes through 1 on the way - briefly making it a
+        /// one-copy array, recomputing its ports at one, and telling every instance so.
+        ///
+        /// The box is uncontrolled, as the memory editor's cells are: what is half-typed lives in
+        /// the DOM, which is what an uncontrolled input is for, rather than in the model where it
+        /// would be state that means nothing. Key is the value the model holds, so the box is
+        /// rebuilt when that changes for any other reason - undoing, or moving to another sheet.
+        let commit (ev: Browser.Types.Event) =
+            let box = ev.target :?> Browser.Types.HTMLInputElement
+            match System.Int32.TryParse box.value with
+            | true, n when n >= 1 && n <= ArrayElaborate.Constants.maxArrayCopies ->
+                if n <> info.Copies then setArrayInfo model (Some { info with Copies = n }) dispatch
+            | _ ->
+                // nothing usable was typed, so the box goes back to saying what is true rather than
+                // sitting there showing a number the sheet does not have
+                box.value <- string info.Copies
+
         let copyBox =
             div [] [
                 PropertiesHelp.fieldLabel "Copies"
                 Input.number [
-                    Input.Props [ Style [ Width "120px" ]; Min 1; Max ArrayElaborate.Constants.maxArrayCopies ]
+                    Input.Props [
+                        Style [ Width "120px" ]
+                        Min 1
+                        Max ArrayElaborate.Constants.maxArrayCopies
+                        Key (string info.Copies)
+                        OnBlur commit
+                        // Enter commits by blurring, so that there is one way in and not two that
+                        // have to agree. stopPropagation because Enter is a shortcut on the canvas.
+                        OnKeyDown (fun ev ->
+                            if ev.key = "Enter" then
+                                ev.stopPropagation()
+                                (ev.target :?> Browser.Types.HTMLInputElement).blur())
+                    ]
                     Input.Disabled simIsOpen
                     Input.DefaultValue (string info.Copies)
-                    Input.OnChange (fun ev ->
-                        match System.Int32.TryParse (JSHelpers.getTextEventValue ev) with
-                        | true, n when n >= 1 && n <= ArrayElaborate.Constants.maxArrayCopies ->
-                            setArrayInfo model (Some { info with Copies = n }) dispatch
-                        | _ -> ())
                 ]
             ]
 

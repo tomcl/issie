@@ -384,4 +384,4 @@ let newArrayComponentPopup (model: Model) (dispatch: Msg -> unit) =
     // Bounded by the WINDOW as well, and not just given a number: 800 is wider than an Issie window
     // that has been narrowed or is on a small screen, and a modal wider than the window it is in
     // hangs off the side of it with no way to scroll to what it is hiding.
-    dynamicClosablePopup "New array component" body foot [ Width 800; MaxWidth "90vw" ] dispatch
+    dynamicClosablePopup "New array component" body foot [ Width 1200; MaxWidth "90vw" ] dispatch

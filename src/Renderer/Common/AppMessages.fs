@@ -209,7 +209,7 @@ This is an advanced feature: designs that do not need it are unaffected by it.
     /// wires as they are; an array component is a sheet whose hardware is n copies of itself, which
     /// is more to learn and is only worth it when the copies have to join up.
     let arrayComponentIsAdvanced = """
-This dialog makes an **array component**: an array of logic built as a sheet of its own.
+This dialog makes an **array component**: a conponent made from an array of copies of all the logic you write on a sheet.
 
 It is an advanced feature. The simpler way to make an array is to copy a group of components and
 wires and paste an array of them onto a sheet - **Edit > Paste array...**
@@ -218,26 +218,25 @@ wires and paste an array of them onto a sheet - **Edit > Paste array...**
     let usingArraySheets = """
 An **array component** is a sheet whose hardware is several copies of what is drawn on it - one per
 value of a loop variable that counts from 0. Draw one bit of an adder and get an adder of any width;
-draw one stage of a pipeline and get the pipeline.
+draw one register and get an array of registers making a register file.
 
-It has a sheet of its own, which is where you draw the one copy. Its Properties pane says how many
-copies, and its loop variable counts 0 to one less than that; write the loop variable in any property
-box and one copy differs from the next.
+An array component is defined by one design sheet which is where you draw one copy. The Properties pane says how many
+copies, and its loop variable counts 0 to one less than that. You can use the loop variable in component properties
+to configure behaviour.
 
-The copies have to join up, and four components in the **Array sheet** section of the Catalogue say
-how:
+Four components in the **Array sheet** section of the Catalogue say
+how each copy joins with otehr copies or the array component ports:
 
-*JoinOut* and *JoinIn* pass a value from one copy to another - a carry, say. Each is on a numbered
-channel, and the numbers are usually written in terms of the loop variable, so a *JoinOut* numbered
-`i+1` meets the *JoinIn* numbered `i` in the next copy. Where a chain runs out - at the first and
-last copies - the loose ends become inputs and outputs of the component itself.
-
-*BusOut* takes one value from each copy and joins them into a single bus. *MuxOut* takes one value
-from each copy and reads one of them back, adding a select input and an output.
-
-An ordinary **Input** goes to every copy. An ordinary **Output** gives one port per copy.
-
-This is an advanced feature: designs that do not need it are unaffected by it.
+- **JoinOut** and **JoinIn* pass a value from one copy to another. Each *Join* has a label, and a channel number. Both must match to connect.
+For example,
+to make an adder carry chain, where *i* is the loop variable, a *JoinOut* of the i-th copy is labelled "Carry" and numbered i+1,
+and a **JoinIn** of the i-th copy is labelled "Carry" and numbered i.
+- **BusOut** makes an output port from each copy's value joined into a single bus in loop variable order.
+- **MuxOut** takes one value from each copy as inputs to a MUX which selects one. A *MuxOut* will expose the MUX select input and output
+so that the design can choose which copy's value to read. 
+- **Input** port goes to every copy.
+- **Output** generates one port per copy, numbered by the loop variable.
+- To make a **DEMUX** (inverse of MuxOut) use a bus comparator with comparison constant the loop variable.
 """
 
     /// Before duplicating a sheet. Duplication is usually the wrong tool: what people want is

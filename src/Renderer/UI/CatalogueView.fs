@@ -1,4 +1,4 @@
-(*
+﻿(*
     CatalogueView.fs
 
     View for catalogue in the right tab.
@@ -500,21 +500,6 @@ let private makeCustomList keep styles model dispatch =
             |true -> (comp.Form = Some User || comp.Form = Some ProtectedTopLevel || comp.Form = Some ProtectedSubSheet)
             |false -> (comp.Form = Some User || comp.Form = Some ProtectedTopLevel)
         )
-        // an array component has a section of its own, as a Verilog component does: it is a
-        // different kind of thing to place, and listing it twice would say it was two
-        |> List.filter (fun comp -> comp.ArrayInfo.IsNone)
-        |> List.filter (fun comp -> keep comp.Name (Option.defaultValue "" comp.Description))
-        |> List.sortBy (fun x -> x.Name)
-        |> List.map (makeCustom styles model dispatch)
-
-/// The project's array components, offered to be placed exactly as any other sheet is.
-let private makeArrayList keep styles model dispatch =
-    match model.CurrentProj with
-    | None -> []
-    | Some project ->
-        project.LoadedComponents
-        |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-        |> List.filter (fun comp -> comp.ArrayInfo.IsSome)
         |> List.filter (fun comp -> keep comp.Name (Option.defaultValue "" comp.Description))
         |> List.sortBy (fun x -> x.Name)
         |> List.map (makeCustom styles model dispatch)
@@ -2105,53 +2090,47 @@ let viewCatalogue model dispatch =
                           catTip1 "RAM (async read)" (AsyncRAM1 ghostMemory) (fun  _ -> dispatchAsFunc (createMemoryPopup AsyncRAM1))  "A RAM whose output contains the addressed \
                                                    data in the same clock cycle as address is presented" ]
 
-                    // Only on an array design sheet: these four are legal nowhere else, and every
-                    // other sheet would otherwise carry a section its user can make no use of.
-                    // startPlacement refuses the gesture too, since a component can also be
-                    // dragged, and analyseState refuses one that arrived by paste or by hand.
-                    (match openSheetArrayInfo model with
-                     | None -> null
-                     | Some _ ->
-                        groupWithTip
-                            "Array sheet"
-                            "This sheet's hardware is several copies of what is drawn on it, one per \
-                             value of its loop variable. These say how the copies join to each other \
-                             and to the outside. An ordinary Input goes to every copy, and an \
-                             ordinary Output gives one port per copy."
-                            (List.concat [
-                                catTip1 "Bus out" (BusOut 1) (fun _ -> dispatchAsFunc (createIOPopup true "bus output" BusOut))
-                                    "Takes one value from each copy and joins them into a single bus, \
-                                     copy 0 in the least significant bits. The sheet gets one output \
-                                     of width (number of copies) x (this width)."
-                                catTip1 "Array out" (MuxOut 1) (fun _ -> dispatchAsFunc (createIOPopup true "array output" MuxOut))
-                                    "Takes one value from each copy, to be selected between by the \
-                                     multiplexers declared in this sheet's array settings. It adds no \
-                                     port of its own: each multiplexer adds a select input and an output."
-                                catTip1 "Join out" (JoinOut (1, 0)) (fun _ -> dispatchAsFunc (createJoinPopup "join out" JoinOut))
-                                    "Sends this copy's value to the copy whose Join in has the same \
-                                     name and the same channel number. Where no copy takes it - at \
-                                     the end of a chain - it becomes an output of this sheet."
-                                catTip1 "Join in" (JoinIn (1, 0)) (fun _ -> dispatchAsFunc (createJoinPopup "join in" JoinIn))
-                                    "Takes this copy's value from the copy whose Join out has the \
-                                     same name and the same channel number. Where no copy sends it - \
-                                     at the start of a chain - it becomes an input of this sheet." ]))
-
                     groupWithTip
                         "This project"
                         "Every design sheet is available for use in other sheets as a custom component: \
                         it can be added any number of times, each instance replicating the sheet logic"
                         (makeCustomList keep styles model dispatch)
 
+                    // One section, not two. An array component is MADE here and, on such a sheet,
+                    // the components that say how its copies join up are here too - which is where
+                    // somebody looks for them, having just made the thing they belong to. It is
+                    // PLACED from This project, because it is a sheet like any other sheet: it was
+                    // listed here as well, which said it was two different things.
                     groupWithTip
                         "Array components"
-                        "A sheet whose hardware is several copies of what is drawn on it, one per                          value of a loop variable. Draw one bit of an adder and get an adder of any                          width. Made here, edited on its own sheet, and placed like any other                          component."
-                        (List.append
+                        (match openSheetArrayInfo model with
+                         | None ->
+                            "A sheet whose hardware is several copies of what is drawn on it, one                              per value of a loop variable. Draw one bit of an adder and get an                              adder of any width. Made here, edited on its own sheet, and placed                              from This project like any other sheet."
+                         | Some _ ->
+                            "This sheet is an array component: its hardware is several copies of                              what is drawn on it, one per value of its loop variable. These                              components say how the copies join to each other and to the outside.                              An ordinary Input goes to every copy, and an ordinary Output gives one                              port per copy.")
+                        (List.concat [
                             // "New array component" makes one rather than placing one, so it is not
                             // something a search for a component should turn up.
                             (if searching then [] else
                                 [menuItem styles "New array component" (
                                     fun _ -> dispatchAsFunc (fun model _ -> ArraySheetView.newArrayComponentPopup model dispatch)) ])
-                            (makeArrayList keep styles model dispatch))
+                            // Only on an array component: these four are legal nowhere else, and
+                            // every other sheet would otherwise carry components its user can make
+                            // no use of. startPlacement refuses the gesture too, since a component
+                            // can also be dragged, and analyseState refuses one that arrived by
+                            // paste or by hand.
+                            (match openSheetArrayInfo model with
+                             | None -> []
+                             | Some _ ->
+                                List.concat [
+                                    catTip1 "Bus out" (BusOut 1) (fun _ -> dispatchAsFunc (createIOPopup true "bus output" BusOut))
+                                        "Takes one value from each copy and joins them into a single bus,                                          copy 0 in the least significant bits. The sheet gets one output                                          of width (number of copies) x (this width)."
+                                    catTip1 "Array out" (MuxOut 1) (fun _ -> dispatchAsFunc (createIOPopup true "array output" MuxOut))
+                                        "Takes one value from each copy, to be selected between by the                                          multiplexers declared in this sheet's array settings. It adds no                                          port of its own: each multiplexer adds a select input and an output."
+                                    catTip1 "Join out" (JoinOut (1, 0)) (fun _ -> dispatchAsFunc (createJoinPopup "join out" JoinOut))
+                                        "Sends this copy's value to the copy whose Join in has the same                                          name and the same channel number. Where no copy takes it - at                                          the end of a chain - it becomes an output of this sheet."
+                                    catTip1 "Join in" (JoinIn (1, 0)) (fun _ -> dispatchAsFunc (createJoinPopup "join in" JoinIn))
+                                        "Takes this copy's value from the copy whose Join out has the                                          same name and the same channel number. Where no copy sends it -                                          at the start of a chain - it becomes an input of this sheet." ]) ])
 
                     groupWithTip
                         "Verilog"

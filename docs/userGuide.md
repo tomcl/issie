@@ -360,15 +360,20 @@ the pipeline.
 An array component is made from the Catalogue, like a Verilog component. Choose **Array components >
 New array component**, and ISSIE offers three ways to get one: a new empty sheet, an existing sheet
 made into one, or a copy of an existing sheet. The middle one is the usual way - you generally find
-out that you want an array after drawing one copy of it.
+out that you want an array after drawing one copy of it. The last will copy an array component as
+well, which is how you get a second array of the same shape: the copy keeps the original's copy
+count and loop variable, and the two can then be changed apart.
+
+Once made, an array component is placed like any other sheet, from **This project** in the
+Catalogue: it is a sheet, and its array settings are a property of that sheet.
 
 It then has a sheet of its own, in the Sheets menu, which is where you draw the one copy. Its
 Properties pane holds the number of **Copies**, and its loop variable - `i` by default - counts from
 0 to one less than that. Write `i` in any property box and one copy differs from the next: copy 3
 selects bit 3 of a bus where copy 0 selects bit 0. The sheet pill says how many copies it is.
 
-The copies have to join up, and the Catalogue grows an **Array sheet** section - only on an array
-component - with four components for saying how:
+The copies have to join up, and while an array component is the sheet you are looking at, the
+**Array components** section of the Catalogue grows four more components for saying how:
 
 - **JoinOut** and **JoinIn** pass a value from one copy to another. Each sits on a numbered channel,
   and the numbers are normally written in terms of the loop variable: a `JoinOut` numbered `i+1`

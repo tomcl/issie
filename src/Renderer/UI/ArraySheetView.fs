@@ -160,11 +160,23 @@ let viewArraySettings (model: Model) (dispatch: Msg -> unit) : ReactElement =
 //---------------------------------MAKING AN ARRAY COMPONENT---------------------------------//
 //-------------------------------------------------------------------------------------------//
 
-/// The sheets that could be made, or copied, into an array component: the user's own, and not one
-/// already.
-let private candidateSheets (project: Project) =
+/// The sheets that could BECOME an array component: the user's own, and not one already - there is
+/// nothing to do to a sheet that is one.
+let private convertible (project: Project) =
     project.LoadedComponents
     |> List.filter (fun lc -> lc.Form = Some User && lc.ArrayInfo.IsNone)
+    |> List.sortBy (fun lc -> lc.Name)
+
+/// The sheets that could be COPIED into an array component: any of the user's own, an array
+/// component included.
+///
+/// Copying one is the ordinary way to get a second array of the same shape - a 4-bit adder and a
+/// 16-bit one - and it is the only way, since an array component's copy count is a property of the
+/// sheet and not of the instance. What comes out is a separate sheet with its own settings, so the
+/// two can then be changed apart.
+let private copyable (project: Project) =
+    project.LoadedComponents
+    |> List.filter (fun lc -> lc.Form = Some User)
     |> List.sortBy (fun lc -> lc.Name)
 
 /// How many copies a newly made array component starts with.
@@ -194,7 +206,7 @@ let private loopNameProblem (sheet: LoadedComponent option) (typed: string) =
 
 /// Ask for a sheet name and a loop variable, then run `make` with both. Refuses a name the project
 /// already has, or one the file system will not take, using the check the New Sheet dialog uses.
-let private askForName title prompt (project: Project) (make: string -> string -> Model -> unit) model dispatch =
+let private askForName title prompt (defaultLoop: string) (project: Project) (make: string -> string -> Model -> unit) model dispatch =
     let before1 =
         fun (dialogData: PopupDialogData) ->
             div [] [
@@ -215,13 +227,15 @@ let private askForName title prompt (project: Project) (make: string -> string -
     let body =
         dialogPopupBodyTwoTexts
             (before1, "Insert array component name")
-            (before2, $"default: {defaultLoopName}")
+            (before2, $"default: {defaultLoop}")
             dispatch
     let buttonAction =
         fun (model': Model) ->
             make
                 ((getText model'.PopupDialogData).ToLower())
-                (loopNameOf (getText2 model'.PopupDialogData))
+                (match (getText2 model'.PopupDialogData).Trim() with
+                 | "" -> defaultLoop
+                 | typed -> typed)
                 model'
             dispatch ClosePopup
             dispatch FinishUICmd
@@ -261,7 +275,15 @@ let private addArraySheet (project: Project) (name: string) (loopName: string) (
         // the copy gets fresh ids for everything, so it cannot clash with the sheet it came from
         ComponentLibraries.copySheetWithNewIds source.FilePath (ComponentLibraries.sheetFilePath project name)
 
-    let info loop = { LoopParam = ParamName loop; Copies = defaultCopies }
+    // A copy of an array component keeps ITS settings: copying one is how a second array of the
+    // same shape is made, and starting the copy at four copies of a sixteen-copy original would be
+    // a silent change to the thing being copied. Anything else starts at the default.
+    let copiesOf =
+        canvasFrom
+        |> Option.bind (fun source -> source.ArrayInfo)
+        |> Option.map copiesOfArray
+        |> Option.defaultValue defaultCopies
+    let info loop = { LoopParam = ParamName loop; Copies = copiesOf }
     match tryLoadComponentFromPath (ComponentLibraries.sheetFilePath project name) with
     | Error err -> displayFileErrorNotification err dispatch
     | Ok loaded ->
@@ -290,7 +312,8 @@ let newArrayComponentPopup (model: Model) (dispatch: Msg -> unit) =
     | None -> Log.warn "newArrayComponentPopup called with no project open"
     | Some project ->
 
-    let candidates = candidateSheets project
+    let convertible = convertible project
+    let copyable = copyable project
 
     /// One of the three ways in, as a button with a line saying what it does.
     let choice label description enabled action =
@@ -304,13 +327,16 @@ let newArrayComponentPopup (model: Model) (dispatch: Msg -> unit) =
         ]
 
     /// Pick one of the project's ordinary sheets, then do something with it.
-    let pickSheet title prompt (andThen: LoadedComponent -> unit) =
+    /// Pick one of a list of sheets, then do something with it. The list is a parameter because
+    /// the two ways in take different ones: any sheet can be COPIED into an array component, while
+    /// only a sheet that is not already one can BECOME one.
+    let pickSheet (sheets: LoadedComponent list) title prompt (andThen: LoadedComponent -> unit) =
         let body =
             fun (_: Model) ->
                 div [] [
                     p [ Style [ MarginBottom "8px" ] ] [ str prompt ]
                     div []
-                        (candidates
+                        (sheets
                          |> List.map (fun lc ->
                             Button.button [
                                 Button.Size IsSmall
@@ -338,15 +364,16 @@ let newArrayComponentPopup (model: Model) (dispatch: Msg -> unit) =
                     "An empty sheet to draw one copy on."
                     true
                     (fun () ->
-                        askForName "New array component" "A new sheet will be created for it:" project
+                        askForName "New array component" "A new sheet will be created for it:"
+                            defaultLoopName project
                             (fun name loop model' -> addArraySheet project name loop None model' dispatch)
                             model dispatch)
                 choice "Make an existing sheet an array component"
                     "The sheet is left as it is and becomes one copy of the array. This is the \
                      usual way: you find out you want an array after drawing one copy."
-                    (not candidates.IsEmpty)
+                    (not convertible.IsEmpty)
                     (fun () ->
-                        pickSheet "Make an array component" "Which sheet?"
+                        pickSheet convertible "Make an array component" "Which sheet?"
                             (fun lc ->
                                 askForLoopVariable "Make an array component" lc
                                     (fun loop _ ->
@@ -362,11 +389,22 @@ let newArrayComponentPopup (model: Model) (dispatch: Msg -> unit) =
                 choice "Copy an existing sheet as an array component"
                     "The sheet is left alone and a copy of it becomes the array, so an ordinary \
                      design and an array version of it can both exist."
-                    (not candidates.IsEmpty)
+                    (not copyable.IsEmpty)
                     (fun () ->
-                        pickSheet "Copy as an array component" "Which sheet should be copied?"
+                        pickSheet copyable "Copy as an array component" "Which sheet should be copied?"
                             (fun lc ->
-                                askForName "Copy as an array component" "The copy will be called:" project
+                                // Copying an array component is allowed, and is the ordinary way to
+                                // get a second array of the same shape. The copy keeps its source's
+                                // copy count and loop variable, so what is asked for is the one
+                                // thing that must differ - and the dialog says which it is copying,
+                                // since the button that led here does not.
+                                let prompt, loop =
+                                    match lc.ArrayInfo with
+                                    | Some info ->
+                                        $"'{lc.Name}' is already an array component, of                                           {copiesOfArray info} copies. A separate one will be made                                           from it, which can then be changed on its own. It will be                                           called:",
+                                        let (ParamName n) = info.LoopParam in n
+                                    | None -> "The copy will be called:", defaultLoopName
+                                askForName "Copy as an array component" prompt loop project
                                     (fun name loop model' -> addArraySheet project name loop (Some lc) model' dispatch)
                                     model dispatch))
             ]

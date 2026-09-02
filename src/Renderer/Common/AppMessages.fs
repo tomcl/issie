@@ -224,8 +224,9 @@ An array component is defined by one design sheet which is where you draw one co
 copies, and its loop variable counts 0 to one less than that. You can use the loop variable in component properties
 to configure behaviour.
 
-Four components in the **Array sheet** section of the Catalogue say
-how each copy joins with otehr copies or the array component ports:
+While such a sheet is open, four more components appear under **Array components** in the
+Catalogue. They say how each copy joins with other copies, or with the array component's own
+ports:
 
 - **JoinOut** and **JoinIn* pass a value from one copy to another. Each *Join* has a label, and a channel number. Both must match to connect.
 For example,

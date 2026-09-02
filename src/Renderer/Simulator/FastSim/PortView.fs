@@ -212,6 +212,39 @@ let private offersItsPorts (design: SimulatedDesign) (comp: Component) =
     | Custom ct -> not (tooManyToList design ct.Name)
     | _ -> true
 
+/// The component a wave should take the user TO, which is not always the one it comes from.
+///
+/// A wave on one of an array component's copies comes from a component the EXPANSION made - the
+/// copy, which is a custom component on a sheet nobody drew - so there is no symbol anywhere to go
+/// to, and the waveform viewer's "show me this" button did nothing at all. What the user means by
+/// it is the join, or the input or output, that this port IS: that is drawn on the array
+/// component's own sheet, and the body sheet keeps the ids of what is drawn there, so the body's
+/// IO component for this port is the drawn one.
+///
+/// Found by port NUMBER and not by label. A copy's port labels are the channels that copy is
+/// joined by, which is the whole point of them, and those are not the body's labels - see
+/// ArrayElaborate's copyPortNames.
+let drawnComponentOf (design: SimulatedDesign) (waveId: WaveIndexT) : ComponentId =
+    let compId = fst waveId.Id
+    match design.ComponentOfInstance waveId.Id with
+    | Some { Type = Custom ct } when isGeneratedSheetName ct.Name ->
+        design.DesignSheets
+        |> List.tryFind (fun ldc -> ldc.Name = ct.Name)
+        |> Option.bind (fun body ->
+            // a custom component's INPUT is the sheet's Input1, its OUTPUT the sheet's Output
+            let labels, isTheKind =
+                match waveId.PortType with
+                | PortType.Input -> body.InputLabels, (fun t -> match t with | Input1 _ -> true | _ -> false)
+                | PortType.Output -> body.OutputLabels, (fun t -> match t with | Output _ -> true | _ -> false)
+            labels
+            |> List.tryItem waveId.PortNumber
+            |> Option.bind (fun (label, _) ->
+                fst body.CanvasState
+                |> List.tryFind (fun comp -> comp.Label = label && isTheKind comp.Type)
+                |> Option.map (fun comp -> comp.Id)))
+        |> Option.defaultValue compId
+    | _ -> compId
+
 /// two ints a port, and it merely happens that a .NET simulator computed the ints.
 let ofSlice (design: SimulatedDesign) (InstancePath ap as instance) (slice: ComponentSlots list) : InstanceView =
     let sheet = design.SheetOfInstance instance

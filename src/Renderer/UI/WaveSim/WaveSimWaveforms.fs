@@ -70,6 +70,11 @@ let radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement 
 // outer edge of each name goes there: it changes sheet if it has to, then scrolls the component to
 // the middle of the canvas.
 
+/// The component a wave should take the user to - see PortView.drawnComponentOf, which is where
+/// the question is answered from the design.
+let private drawnComponentOf (wave: Wave) : ComponentId =
+    PortView.drawnComponentOf (Simulator.getFastSim()).Design wave.WaveId
+
 let highlightCircuit (model: Model) comps wave (dispatch: Msg -> Unit) =
     dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols comps)))
     // Only wires the open sheet still has. The connections come from the simulation, which holds
@@ -98,7 +103,7 @@ let highlightCircuit (model: Model) comps wave (dispatch: Msg -> Unit) =
 /// signal. Does nothing when the component is not on the sheet now open.
 let highlightWaveComps (model: Model) (wave: Wave) (dispatch: Msg -> Unit) =
     let symbols = model.Sheet.Wire.Symbol.Symbols
-    match Map.tryFind (fst wave.WaveId.Id) symbols with
+    match Map.tryFind (drawnComponentOf wave) symbols with
     | Some {Component={Type=IOLabel;Label=lab}} ->
         symbols
         |> Map.toList
@@ -107,7 +112,7 @@ let highlightWaveComps (model: Model) (wave: Wave) (dispatch: Msg -> Unit) =
         |> List.map (fun comp -> comp.Id)
         |> fun labelComps -> highlightCircuit model labelComps wave dispatch
     | Some _ ->
-        highlightCircuit model [fst wave.WaveId.Id] wave dispatch
+        highlightCircuit model [drawnComponentOf wave] wave dispatch
     | None -> ()
 
 /// The visible part of the schematic, in sheet coordinates, or None when it is not being shown.
@@ -125,7 +130,7 @@ let private visibleSheetArea (model: Model) : BoundingBox option =
 
 /// Where on the open sheet the component a wave comes from is, if it is on that sheet at all.
 let private symbolBoxOnOpenSheet (model: Model) (wave: Wave) : BoundingBox option =
-    Map.tryFind (fst wave.WaveId.Id) model.Sheet.BoundingBoxes
+    Map.tryFind (drawnComponentOf wave) model.Sheet.BoundingBoxes
 
 let private centreOf (box: BoundingBox) =
     {X = box.TopLeft.X + box.W / 2.; Y = box.TopLeft.Y + box.H / 2.}
@@ -154,7 +159,7 @@ let private scrollToSymbol (wave: Wave) (model: Model) (dispatch: Msg -> unit) =
 
 /// The sheet holding a component, found by the id it has on that sheet's canvas.
 let private sheetOfComponent (model: Model) (wave: Wave) : string option =
-    let compId = fst wave.WaveId.Id
+    let compId = drawnComponentOf wave
     model.CurrentProj
     |> Option.bind (fun project ->
         project.LoadedComponents

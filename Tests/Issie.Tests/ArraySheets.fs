@@ -617,6 +617,39 @@ let private expansionTests =
                             $"{copies} copies: and no longer all at once on the array"
         }
 
+        test "a wave on a copy leads back to the component drawn on the array's sheet" {
+            // The waveform viewer's "show me this" button goes to the component a wave comes from.
+            // For a wave on one of the copies that component is one the EXPANSION made - a custom
+            // component on a sheet nobody drew - so there was no symbol to go to and the button did
+            // nothing at all. What the user means by it is the join that port is, which is drawn on
+            // the array component's own sheet.
+            let parent, sheet = rippleParent 3
+            match Simulator.startCircuitSimulation maxArraySize parent.Name parent.CanvasState [ parent; sheet ] with
+            | Error e -> failtestf "%A" e.ErrType
+            | Ok sd ->
+                let fs = sd.FastSim
+                let arrayInstance =
+                    fs.Design.InstancesInside (InstancePath [], sheet.Name) |> List.exactlyOne
+                // every port the array itself offers - which at three copies is the copies' ports
+                let ports = (PortView.ofInstance fs arrayInstance).ViewPorts
+                let onCopies =
+                    ports
+                    |> List.filter (fun p ->
+                        match fs.Design.ComponentOfInstance (p.PortComp, (let (InstancePath ap) = arrayInstance in ap)) with
+                        | Some { Type = Custom _ } -> true
+                        | _ -> false)
+                Expect.isNonEmpty onCopies "three copies, so the array offers their ports"
+
+                let drawnOn = fst sheet.CanvasState |> List.map (fun c -> c.Id) |> Set.ofList
+                for p in onCopies do
+                    let waveId = PortView.waveIndexOf arrayInstance p
+                    let drawn = PortView.drawnComponentOf fs.Design waveId
+                    Expect.isTrue (Set.contains drawn drawnOn)
+                        $"a wave on a copy's port must lead to a component drawn on '{sheet.Name}',                           or the button has nowhere to go"
+                    Expect.notEqual drawn p.PortComp
+                        "and not to the copy itself, which is on a sheet nobody drew"
+        }
+
         test "an array component simulates when it is itself the sheet being simulated" {
             // What someone does first: draw the array component, then press simulate while looking
             // at it, before ever placing an instance. Everything above drives an array through a

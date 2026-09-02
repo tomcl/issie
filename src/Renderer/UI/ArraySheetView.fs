@@ -91,26 +91,34 @@ let viewArraySettings (model: Model) (dispatch: Msg -> unit) : ReactElement =
         let (ParamName loopName) = info.LoopParam
         let simIsOpen = ModelHelpers.simulationIsOpen model
 
-        /// Apply what has been typed, on BLUR and on Enter rather than on every keystroke.
+        /// What is in the box: what has been typed on THIS sheet, or the sheet's real copy count
+        /// where nothing has been. Model.ArrayCopiesTyped says why it is held in the model.
+        let openName = model.CurrentProj |> Option.map (fun p -> p.OpenFileName) |> Option.defaultValue ""
+        let typedHere =
+            match model.ArrayCopiesTyped with
+            | Some (sheet, text) when sheet = openName -> Some text
+            | _ -> None
+
+        let setTyped (text: string option) =
+            dispatch <| UpdateModel (fun m ->
+                { m with ArrayCopiesTyped = text |> Option.map (fun t -> openName, t) })
+
+        /// Apply what has been typed, and go back to showing the sheet's own count.
         ///
-        /// This box reaches beyond its own sheet: the number of copies decides how many ports the
-        /// component has, so changing it makes every instance of it elsewhere out of date. Applied
-        /// per keystroke, typing 12 over 4 passes through 1 on the way - briefly making it a
-        /// one-copy array, recomputing its ports at one, and telling every instance so.
-        ///
-        /// The box is uncontrolled, as the memory editor's cells are: what is half-typed lives in
-        /// the DOM, which is what an uncontrolled input is for, rather than in the model where it
-        /// would be state that means nothing. Key is the value the model holds, so the box is
-        /// rebuilt when that changes for any other reason - undoing, or moving to another sheet.
-        let commit (ev: Browser.Types.Event) =
-            let box = ev.target :?> Browser.Types.HTMLInputElement
-            match System.Int32.TryParse box.value with
-            | true, n when n >= 1 && n <= ArrayElaborate.Constants.maxArrayCopies ->
-                if n <> info.Copies then setArrayInfo model (Some { info with Copies = n }) dispatch
-            | _ ->
-                // nothing usable was typed, so the box goes back to saying what is true rather than
-                // sitting there showing a number the sheet does not have
-                box.value <- string info.Copies
+        /// On leaving the box or on Enter, not on every keystroke: the number of copies decides how
+        /// many ports the component has, so applying it per keystroke would make every instance of
+        /// it out of date on the way to the number wanted. Something unusable - empty, 0, more than
+        /// the limit - applies nothing, and the box goes back to saying what is true rather than
+        /// sitting there showing a number the sheet does not have.
+        let commit () =
+            match typedHere with
+            | None -> ()
+            | Some text ->
+                match System.Int32.TryParse (text.Trim()) with
+                | true, n when n >= 1 && n <= ArrayElaborate.Constants.maxArrayCopies && n <> info.Copies ->
+                    setArrayInfo model (Some { info with Copies = n }) dispatch
+                | _ -> ()
+                setTyped None
 
         let copyBox =
             div [] [
@@ -120,17 +128,17 @@ let viewArraySettings (model: Model) (dispatch: Msg -> unit) : ReactElement =
                         Style [ Width "120px" ]
                         Min 1
                         Max ArrayElaborate.Constants.maxArrayCopies
-                        Key (string info.Copies)
-                        OnBlur commit
-                        // Enter commits by blurring, so that there is one way in and not two that
-                        // have to agree. stopPropagation because Enter is a shortcut on the canvas.
+                        OnBlur (fun _ -> commit ())
+                        // Enter is a canvas shortcut, so it is stopped here rather than left to
+                        // reach the sheet behind the pane.
                         OnKeyDown (fun ev ->
                             if ev.key = "Enter" then
                                 ev.stopPropagation()
-                                (ev.target :?> Browser.Types.HTMLInputElement).blur())
+                                commit ())
                     ]
                     Input.Disabled simIsOpen
-                    Input.DefaultValue (string info.Copies)
+                    Input.Value (typedHere |> Option.defaultValue (string info.Copies))
+                    Input.OnChange (fun ev -> setTyped (Some (JSHelpers.getTextEventValue ev)))
                 ]
             ]
 

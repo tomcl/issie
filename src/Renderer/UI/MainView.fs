@@ -288,6 +288,7 @@ let init() = {
     ComponentLibraries = ComponentLibraries.findLibraries ()
     OpenLibrary = None
     CatalogueSearch = ""
+    ArrayCopiesTyped = None
     SimulateInRenderer = false
     SidecarSession = NoSession
     ProbeRead = None

@@ -1174,6 +1174,18 @@ type Model = {
     /// with its sections closed as before; anything else shows only components whose name or
     /// tooltip contains it, with the sections holding them open.
     CatalogueSearch : string
+    /// What the array component Properties pane's Copies box is showing, while somebody is typing
+    /// in it, paired with the sheet they are typing it on.
+    ///
+    /// Held here rather than left in the DOM because the box must NOT apply as it is typed: how
+    /// many copies an array component has decides how many ports it has, so every keystroke would
+    /// make every instance of it out of date - typing 12 over 4 would pass through 1 on the way,
+    /// briefly making it an array of one copy and telling every instance so. It applies when the
+    /// box is left, or on Enter.
+    ///
+    /// The sheet's name goes with the text so that a half-typed number cannot be shown on some
+    /// other sheet's box: leaving a sheet is not something the box gets told about.
+    ArrayCopiesTyped : (string * string) option
     /// Whether the sheets of placed library components appear in the Sheets menu. False at
     /// startup and not settable from the ordinary UI: a library component is meant to be one
     /// thing, and seeing its innards listed beside the user's own sheets is confusing rather

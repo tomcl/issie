@@ -367,7 +367,7 @@ let newArrayComponentPopup (model: Model) (dispatch: Msg -> unit) =
                 // only one answer. It also makes "the current sheet" in these descriptions true.
                 (match openSheet with
                  | Some ({ ArrayInfo = None } as lc) ->
-                    choice "Turn an existing sheet into an array component"
+                    choice "Turn the current design sheet into an array component"
                         "The current sheet is used as one copy of the array: you can add array components to it."
                         (fun () ->
                             askForLoopVariable "Make an array component" lc
@@ -384,7 +384,7 @@ let newArrayComponentPopup (model: Model) (dispatch: Msg -> unit) =
                                 dispatch)
                  | Some ({ ArrayInfo = Some info } as lc) ->
                     let (ParamName loop) = info.LoopParam
-                    choice "Copy an existing array component sheet as a new array component"
+                    choice "Copy the current array component design sheet as a new array component"
                         "A copy of the current sheet is made with properties and content you can modify"
                         (fun () ->
                             // Saved first when there is anything to save, exactly as duplicating a

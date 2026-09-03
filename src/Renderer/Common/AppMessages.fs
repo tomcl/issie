@@ -228,7 +228,7 @@ While such a sheet is open, four more components appear under **Array components
 Catalogue. They say how each copy joins with other copies, or with the array component's own
 ports:
 
-- **JoinOut** and **JoinIn* pass a value from one copy to another. Each *Join* has a label, and a channel number. Both must match to connect.
+- **JoinOut** and **JoinIn** pass a value from one copy to another. Each *Join* has a label, and a channel number. Both must match to connect.
 For example,
 to make an adder carry chain, where *i* is the loop variable, a *JoinOut* of the i-th copy is labelled "Carry" and numbered i+1,
 and a **JoinIn** of the i-th copy is labelled "Carry" and numbered i.

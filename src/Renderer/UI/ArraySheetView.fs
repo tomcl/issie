@@ -196,27 +196,6 @@ let viewArraySettings (model: Model) (dispatch: Msg -> unit) : ReactElement =
 //---------------------------------MAKING AN ARRAY COMPONENT---------------------------------//
 //-------------------------------------------------------------------------------------------//
 
-/// The sheets that could BECOME an array component: the user's own, and not one already - there is
-/// nothing to do to a sheet that is one.
-let private convertible (project: Project) =
-    project.LoadedComponents
-    |> List.filter (fun lc -> lc.Form = Some User && lc.ArrayInfo.IsNone)
-    |> List.sortBy (fun lc -> lc.Name)
-
-/// The sheets that could be COPIED into an array component: the ones that already are one.
-///
-/// The two lists are exactly the two halves of the user's own sheets, so any given sheet appears
-/// under one of the two ways in and never both. What can be done to a sheet follows from what it
-/// is: an ordinary one is turned into an array component, and an array component is copied, which
-/// is the way to get a second array of the same shape - a 4-bit adder and a 16-bit one - since the
-/// copy count belongs to the sheet and not to the instance. Copying an ORDINARY sheet is not
-/// offered: it would be the same as turning it into one, but leaving the original behind, which is
-/// what Sheets > Copy already does.
-let private copyable (project: Project) =
-    project.LoadedComponents
-    |> List.filter (fun lc -> lc.Form = Some User && lc.ArrayInfo.IsSome)
-    |> List.sortBy (fun lc -> lc.Name)
-
 /// How many copies a newly made array component starts with.
 let private defaultCopies = 4
 
@@ -350,44 +329,21 @@ let newArrayComponentPopup (model: Model) (dispatch: Msg -> unit) =
     | None -> Log.warn "newArrayComponentPopup called with no project open"
     | Some project ->
 
-    let convertible = convertible project
-    let copyable = copyable project
+    /// The sheet the user is looking at, which is the one these act on. Only the user's own
+    /// sheets: a library sheet is held at what it loaded with, and cannot become anything.
+    let openSheet =
+        project.LoadedComponents
+        |> List.tryFind (fun lc -> lc.Name = project.OpenFileName && lc.Form = Some User)
 
-    /// One of the three ways in, as a button with a line saying what it does.
-    let choice label description enabled action =
+    /// One of the ways in, as a button with a line saying what it does.
+    let choice label description action =
         div [ Style [ MarginBottom "10px" ] ] [
             Button.button [
                 Button.Color IsInfo
-                Button.Disabled (not enabled)
                 Button.OnClick (fun _ -> dispatch ClosePopup; action ())
             ] [ str label ]
             p [ Style [ FontSize "0.85em"; Color "grey"; MarginTop "4px" ] ] [ str description ]
         ]
-
-    /// Pick one of the project's ordinary sheets, then do something with it.
-    /// Pick one of a list of sheets, then do something with it. The list is a parameter because
-    /// the two ways in take different ones: any sheet can be COPIED into an array component, while
-    /// only a sheet that is not already one can BECOME one.
-    let pickSheet (sheets: LoadedComponent list) title prompt (andThen: LoadedComponent -> unit) =
-        let body =
-            fun (_: Model) ->
-                div [] [
-                    p [ Style [ MarginBottom "8px" ] ] [ str prompt ]
-                    div []
-                        (sheets
-                         |> List.map (fun lc ->
-                            Button.button [
-                                Button.Size IsSmall
-                                Button.Props [ Style [ MarginRight "6px"; MarginBottom "6px" ] ]
-                                Button.OnClick (fun _ -> dispatch ClosePopup; andThen lc)
-                            ] [ str lc.Name ]))
-                ]
-        let foot =
-            fun (_: Model) ->
-                div [ Style [ Display DisplayOptions.Flex; JustifyContent "flex-end" ] ] [
-                    Button.button [ Button.OnClick (fun _ -> dispatch ClosePopup) ] [ str "Cancel" ]
-                ]
-        dynamicClosablePopup title body foot [] dispatch
 
     let body =
         fun (_: Model) ->
@@ -400,49 +356,53 @@ let newArrayComponentPopup (model: Model) (dispatch: Msg -> unit) =
                 hr []
                 choice "New array component"
                     "An empty sheet to draw one copy on."
-                    true
                     (fun () ->
                         askForName "New array component" "A new sheet will be created for it:"
                             defaultLoopName project
                             (fun name loop model' -> addArraySheet project name loop None model' dispatch)
                             model dispatch)
-                choice "Turn an existing sheet into an array component"
-                    "The current sheet is used as one copy of the array: you can add array components to it."
-                    (not convertible.IsEmpty)
-                    (fun () ->
-                        pickSheet convertible "Make an array component" "Which sheet?"
-                            (fun lc ->
-                                askForLoopVariable "Make an array component" lc
-                                    (fun loop _ ->
-                                        // opened first: setArrayInfo works on the OPEN sheet, and
-                                        // reads its live canvas to derive the ports
-                                        openFileInProject' true lc.Name project model dispatch
-                                        dispatch
-                                        <| ExecFuncInMessage ((fun model' dispatch' ->
-                                                setArrayInfo model'
-                                                    (Some { LoopParam = ParamName loop; Copies = defaultCopies })
-                                                    dispatch'), dispatch))
-                                    dispatch))
-                choice "Copy an existing array component sheet as a new array component"
-                    "A copy of the current sheet is made with properties and content you can modify"
-                    (not copyable.IsEmpty)
-                    (fun () ->
-                        pickSheet copyable "Copy as an array component" "Which sheet should be copied?"
-                            (fun lc ->
-                                // The copy keeps its source's copy count and loop variable, so
-                                // what is asked for is the one thing that must differ - and the
-                                // dialog names what it is copying, since the button that led here
-                                // does not. Only an array component can be picked (see copyable),
-                                // so the other case is unreachable and says nothing about copies.
-                                let prompt, loop =
-                                    match lc.ArrayInfo with
-                                    | Some info ->
-                                        $"A separate array component will be made from '{lc.Name}',                                           which has {copiesOfArray info} copies. The copy starts                                           the same and can then be changed on its own. It will be                                           called:",
-                                        let (ParamName n) = info.LoopParam in n
-                                    | None -> $"The copy of '{lc.Name}' will be called:", defaultLoopName
-                                askForName "Copy as an array component" prompt loop project
-                                    (fun name loop model' -> addArraySheet project name loop (Some lc) model' dispatch)
-                                    model dispatch))
+                // Whichever of the two applies to the sheet the user is looking at, and not both:
+                // what can be done to a sheet follows from what it IS, so offering the other one -
+                // greyed out, or leading to a list of sheets - would be asking a question that has
+                // only one answer. It also makes "the current sheet" in these descriptions true.
+                (match openSheet with
+                 | Some ({ ArrayInfo = None } as lc) ->
+                    choice "Turn an existing sheet into an array component"
+                        "The current sheet is used as one copy of the array: you can add array components to it."
+                        (fun () ->
+                            askForLoopVariable "Make an array component" lc
+                                (fun loop _ ->
+                                    // setArrayInfo works on the OPEN sheet and reads its live
+                                    // canvas to derive the ports, which is this sheet - so nothing
+                                    // has to be opened first. ExecFuncInMessage for the model as it
+                                    // is when the dialog is answered, not as it was when it opened.
+                                    dispatch
+                                    <| ExecFuncInMessage ((fun model' dispatch' ->
+                                            setArrayInfo model'
+                                                (Some { LoopParam = ParamName loop; Copies = defaultCopies })
+                                                dispatch'), dispatch))
+                                dispatch)
+                 | Some ({ ArrayInfo = Some info } as lc) ->
+                    let (ParamName loop) = info.LoopParam
+                    choice "Copy an existing array component sheet as a new array component"
+                        "A copy of the current sheet is made with properties and content you can modify"
+                        (fun () ->
+                            // Saved first when there is anything to save, exactly as duplicating a
+                            // sheet does and for the same reason: the copy is made from the FILE,
+                            // so without this it would be of the last save rather than of what is
+                            // on screen.
+                            if model.SavedSheetIsOutOfDate then
+                                match MenuHelpers.saveOpenFileToModel model with
+                                | Some { CurrentProj = Some p } -> dispatch <| SetProject p
+                                | _ -> ()
+                            // The copy keeps this sheet's copy count and loop variable, so the name
+                            // is the one thing that has to differ and the only thing asked for.
+                            let prompt =
+                                $"A separate array component will be made from '{lc.Name}', which                                   has {copiesOfArray info} copies. The copy starts the same and can                                   then be changed on its own. It will be called:"
+                            askForName "Copy as an array component" prompt loop project
+                                (fun name loop model' -> addArraySheet project name loop (Some lc) model' dispatch)
+                                model dispatch)
+                 | None -> null)
             ]
 
     let foot =

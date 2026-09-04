@@ -8,6 +8,7 @@ open Expecto
 open CommonTypes
 open SimGraphTypes
 open SimTypes
+open TruthTableTypes
 open CanvasBuilder
 
 let private maxArraySize = 40
@@ -23,6 +24,15 @@ let private dutCanvas (compType: ComponentType) (inWidths: int list) (outWidths:
         @ (outs |> List.mapi (fun i c -> conn dut i c 0))
 
     dut :: ins @ outs, conns
+
+let private notWithViewerCanvas : CanvasState =
+    let input = makeComp 2 0 1 (Input1(1, None)) "I0"
+    let notGate = makeComp 1 1 1 (NbitsNot 1) "NOT"
+    let viewer = makeComp 3 1 0 (ComponentType.Viewer 1) "V"
+
+    [ notGate; input; viewer ],
+    [ conn input 0 notGate 0
+      conn notGate 0 viewer 0 ]
 
 let private inputIndex (label: string) = int (label.Substring 1)
 
@@ -208,5 +218,58 @@ let private widthLimitTests =
         }
     ]
 
+let private viewerTests =
+    let ttType : ModelType.TTType =
+        { BitLimit = 1
+          InputConstraints = TruthTableTypes.emptyConstraintSet
+          OutputConstraints = TruthTableTypes.emptyConstraintSet
+          HiddenColumns = []
+          SortType = None
+          IOOrder = [||]
+          GridStyles = Map.empty
+          GridCache = None
+          AlgebraIns = []
+          DraggedColumn = None
+          HoveredColumn = None
+          PrevIOOrder = None }
+
+    testList "Viewer extraction" [
+        test "Truth Table Viewer columns contain the simulated values" {
+            let canvas = notWithViewerCanvas
+            let ldc = makeLdc "viewer_sheet" None canvas
+
+            match Simulator.startCircuitSimulation maxArraySize "viewer_sheet" canvas [ ldc ] with
+            | Error e -> failtest $"simulation setup failed: %A{e}"
+            | Ok simData ->
+                let table = TruthTableCreate.truthTable simData ttType false
+
+                let valuesByInput =
+                    table.TableMap
+                    |> Map.toList
+                    |> List.map (fun (lhs, rhs) ->
+                        let inputValue =
+                            match (List.head lhs).Data with
+                            | CellData.Bits wd -> NumberHelpers.convertWireDataToInt wd
+                            | data -> failtest $"unexpected input data: %A{data}"
+
+                        let viewerCell =
+                            rhs
+                            |> List.find (fun cell ->
+                                match cell.IO with
+                                | CellIO.Viewer _ -> true
+                                | _ -> false)
+
+                        let viewerValue =
+                            match viewerCell.Data with
+                            | CellData.Bits wd -> NumberHelpers.convertWireDataToInt wd
+                            | data -> failtest $"unexpected viewer data: %A{data}"
+
+                        inputValue, viewerValue)
+                    |> Map.ofList
+
+                Expect.equal valuesByInput (Map.ofList [ 0I, 1I; 1I, 0I ]) "Viewer follows the NOT output"
+        }
+    ]
+
 let tests =
-    testList "TruthTableSim" [ maskingTests; memoryTests; parityTests; widthLimitTests ]
+    testList "TruthTableSim" [ maskingTests; memoryTests; parityTests; widthLimitTests; viewerTests ]

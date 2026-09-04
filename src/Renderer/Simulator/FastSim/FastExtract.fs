@@ -325,6 +325,25 @@ let extractViewers (simulationData: SimulationData) : ((string * string) * int *
         width,
         extractFastSimulationOutput fs simulationData.ClockTickNumber fc.fId (OutputPortNumber 0))
 
+/// As extractViewers but for FData - used by truth table logic.
+let extractViewersFData (simulationData: SimulationData) : ((string * string) * int * FSInterface) list =
+    let fs = simulationData.FastSim
+
+    let viewers =
+        fs.FCompsByIndex
+        |> Array.filter (fun fc ->
+            match fc.FType with
+            | Viewer _ -> true
+            | _ -> false)
+
+    viewers
+    |> Array.toList
+    |> List.map (fun fc ->
+        let width = fc.OutputWidth 0
+        getFLabel fs fc.fId,
+        width,
+        extractFastSimulationOutputFData fs simulationData.ClockTickNumber fc.fId (OutputPortNumber 0))
+
 /// Check if the components and connections of a fast simulation and a canvas are the same.
 /// Is the design the simulation was built from still what the project holds? False puts the
 /// Refresh button up.

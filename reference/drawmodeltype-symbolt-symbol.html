@@ -537,7 +537,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4726', 4726)" onmouseover="showTip(event, '4726', 4726)">
+              <code onmouseout="hideTip(event, '4836', 4836)" onmouseover="showTip(event, '4836', 4836)">
                 <p>
                   <a id="Annotation">
                     <a href="#Annotation">
@@ -546,7 +546,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4726">
+              <div class="fsdocs-tip" id="4836">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>Annotation</code>
@@ -589,7 +589,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4727', 4727)" onmouseover="showTip(event, '4727', 4727)">
+              <code onmouseout="hideTip(event, '4837', 4837)" onmouseover="showTip(event, '4837', 4837)">
                 <p>
                   <a id="Appearance">
                     <a href="#Appearance">
@@ -598,7 +598,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4727">
+              <div class="fsdocs-tip" id="4837">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>Appearance</code>
@@ -640,7 +640,71 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4728', 4728)" onmouseover="showTip(event, '4728', 4728)">
+              <code onmouseout="hideTip(event, '4838', 4838)" onmouseover="showTip(event, '4838', 4838)">
+                <p>
+                  <a id="ArrayText">
+                    <a href="#ArrayText">
+                      <code>ArrayText</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="4838">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>ArrayText</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span>string&#32;option</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L220-220" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <pre> What this symbol draws in place of a number, on an ARRAY COMPONENT's sheet.
+
+   - a Join out or Join in: the channel-number EXPRESSION, so a carry chain reads
+     `Join[i+1]` against `Join[i]` rather than `Join[1]` against `Join[0]`, which is
+     copy 0's answer and says nothing about which copy feeds which.
+   - an Output: the sheet's loop variable, so its label reads `SUM.i` - the sheet
+     gets one SUM port per copy, and this is the one belonging to copy i.
+
+ **Display only, and transient.** Nothing may read it for semantics: what a join is
+ really on is its parameter slot, which lives on the LoadedComponent. That is what
+ makes it safe for a missed update to be a stale legend rather than a wrong circuit.
+ Derived by SymbolUpdate.syncArrayText from the sheet's own slots and array settings,
+ which is the one place that writes it.
+
+ Not saved: SymbolInfo is the part of a Symbol that persists, and this is not in it.
+ It is rebuilt whenever the sheet it belongs to is loaded.</pre>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Field type: 
+                  </span>
+                  <code><span>string&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '4839', 4839)" onmouseover="showTip(event, '4839', 4839)">
                 <p>
                   <a id="CentrePos">
                     <a href="#CentrePos">
@@ -649,7 +713,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4728">
+              <div class="fsdocs-tip" id="4839">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>CentrePos</code>
@@ -691,7 +755,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4729', 4729)" onmouseover="showTip(event, '4729', 4729)">
+              <code onmouseout="hideTip(event, '4840', 4840)" onmouseover="showTip(event, '4840', 4840)">
                 <p>
                   <a id="Component">
                     <a href="#Component">
@@ -700,7 +764,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4729">
+              <div class="fsdocs-tip" id="4840">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>Component</code>
@@ -750,7 +814,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4730', 4730)" onmouseover="showTip(event, '4730', 4730)">
+              <code onmouseout="hideTip(event, '4841', 4841)" onmouseover="showTip(event, '4841', 4841)">
                 <p>
                   <a id="HScale">
                     <a href="#HScale">
@@ -759,7 +823,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4730">
+              <div class="fsdocs-tip" id="4841">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>HScale</code>
@@ -803,7 +867,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4731', 4731)" onmouseover="showTip(event, '4731', 4731)">
+              <code onmouseout="hideTip(event, '4842', 4842)" onmouseover="showTip(event, '4842', 4842)">
                 <p>
                   <a id="Id">
                     <a href="#Id">
@@ -812,7 +876,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4731">
+              <div class="fsdocs-tip" id="4842">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>Id</code>
@@ -856,7 +920,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4732', 4732)" onmouseover="showTip(event, '4732', 4732)">
+              <code onmouseout="hideTip(event, '4843', 4843)" onmouseover="showTip(event, '4843', 4843)">
                 <p>
                   <a id="InWidth0">
                     <a href="#InWidth0">
@@ -865,7 +929,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4732">
+              <div class="fsdocs-tip" id="4843">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>InWidth0</code>
@@ -911,7 +975,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4733', 4733)" onmouseover="showTip(event, '4733', 4733)">
+              <code onmouseout="hideTip(event, '4844', 4844)" onmouseover="showTip(event, '4844', 4844)">
                 <p>
                   <a id="InWidth1">
                     <a href="#InWidth1">
@@ -920,7 +984,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4733">
+              <div class="fsdocs-tip" id="4844">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>InWidth1</code>
@@ -950,7 +1014,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4734', 4734)" onmouseover="showTip(event, '4734', 4734)">
+              <code onmouseout="hideTip(event, '4845', 4845)" onmouseover="showTip(event, '4845', 4845)">
                 <p>
                   <a id="InWidths">
                     <a href="#InWidths">
@@ -959,7 +1023,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4734">
+              <div class="fsdocs-tip" id="4845">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>InWidths</code>
@@ -1001,7 +1065,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4735', 4735)" onmouseover="showTip(event, '4735', 4735)">
+              <code onmouseout="hideTip(event, '4846', 4846)" onmouseover="showTip(event, '4846', 4846)">
                 <p>
                   <a id="IsClocked">
                     <a href="#IsClocked">
@@ -1010,7 +1074,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4735">
+              <div class="fsdocs-tip" id="4846">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>IsClocked</code>
@@ -1053,7 +1117,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4736', 4736)" onmouseover="showTip(event, '4736', 4736)">
+              <code onmouseout="hideTip(event, '4847', 4847)" onmouseover="showTip(event, '4847', 4847)">
                 <p>
                   <a id="LabelBoundingBox">
                     <a href="#LabelBoundingBox">
@@ -1062,7 +1126,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4736">
+              <div class="fsdocs-tip" id="4847">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>LabelBoundingBox</code>
@@ -1106,7 +1170,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4737', 4737)" onmouseover="showTip(event, '4737', 4737)">
+              <code onmouseout="hideTip(event, '4848', 4848)" onmouseover="showTip(event, '4848', 4848)">
                 <p>
                   <a id="LabelHasDefaultPos">
                     <a href="#LabelHasDefaultPos">
@@ -1115,7 +1179,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4737">
+              <div class="fsdocs-tip" id="4848">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>LabelHasDefaultPos</code>
@@ -1145,7 +1209,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4738', 4738)" onmouseover="showTip(event, '4738', 4738)">
+              <code onmouseout="hideTip(event, '4849', 4849)" onmouseover="showTip(event, '4849', 4849)">
                 <p>
                   <a id="LabelRotation">
                     <a href="#LabelRotation">
@@ -1154,7 +1218,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4738">
+              <div class="fsdocs-tip" id="4849">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>LabelRotation</code>
@@ -1184,7 +1248,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4739', 4739)" onmouseover="showTip(event, '4739', 4739)">
+              <code onmouseout="hideTip(event, '4850', 4850)" onmouseover="showTip(event, '4850', 4850)">
                 <p>
                   <a id="Moving">
                     <a href="#Moving">
@@ -1193,7 +1257,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4739">
+              <div class="fsdocs-tip" id="4850">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>Moving</code>
@@ -1235,7 +1299,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4740', 4740)" onmouseover="showTip(event, '4740', 4740)">
+              <code onmouseout="hideTip(event, '4851', 4851)" onmouseover="showTip(event, '4851', 4851)">
                 <p>
                   <a id="MovingPort">
                     <a href="#MovingPort">
@@ -1244,7 +1308,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4740">
+              <div class="fsdocs-tip" id="4851">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>MovingPort</code>
@@ -1287,7 +1351,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4741', 4741)" onmouseover="showTip(event, '4741', 4741)">
+              <code onmouseout="hideTip(event, '4852', 4852)" onmouseover="showTip(event, '4852', 4852)">
                 <p>
                   <a id="MovingPortTarget">
                     <a href="#MovingPortTarget">
@@ -1296,7 +1360,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4741">
+              <div class="fsdocs-tip" id="4852">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>MovingPortTarget</code>
@@ -1338,7 +1402,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4742', 4742)" onmouseover="showTip(event, '4742', 4742)">
+              <code onmouseout="hideTip(event, '4853', 4853)" onmouseover="showTip(event, '4853', 4853)">
                 <p>
                   <a id="OffsetFromBBCentre">
                     <a href="#OffsetFromBBCentre">
@@ -1347,7 +1411,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4742">
+              <div class="fsdocs-tip" id="4853">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>OffsetFromBBCentre</code>
@@ -1389,7 +1453,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4743', 4743)" onmouseover="showTip(event, '4743', 4743)">
+              <code onmouseout="hideTip(event, '4854', 4854)" onmouseover="showTip(event, '4854', 4854)">
                 <p>
                   <a id="PortMaps">
                     <a href="#PortMaps">
@@ -1398,7 +1462,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4743">
+              <div class="fsdocs-tip" id="4854">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>PortMaps</code>
@@ -1443,7 +1507,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4744', 4744)" onmouseover="showTip(event, '4744', 4744)">
+              <code onmouseout="hideTip(event, '4855', 4855)" onmouseover="showTip(event, '4855', 4855)">
                 <p>
                   <a id="Pos">
                     <a href="#Pos">
@@ -1452,7 +1516,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4744">
+              <div class="fsdocs-tip" id="4855">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>Pos</code>
@@ -1495,7 +1559,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4745', 4745)" onmouseover="showTip(event, '4745', 4745)">
+              <code onmouseout="hideTip(event, '4856', 4856)" onmouseover="showTip(event, '4856', 4856)">
                 <p>
                   <a id="ReversedInputPorts">
                     <a href="#ReversedInputPorts">
@@ -1504,7 +1568,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4745">
+              <div class="fsdocs-tip" id="4856">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>ReversedInputPorts</code>
@@ -1534,7 +1598,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4746', 4746)" onmouseover="showTip(event, '4746', 4746)">
+              <code onmouseout="hideTip(event, '4857', 4857)" onmouseover="showTip(event, '4857', 4857)">
                 <p>
                   <a id="STransform">
                     <a href="#STransform">
@@ -1543,7 +1607,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4746">
+              <div class="fsdocs-tip" id="4857">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>STransform</code>
@@ -1585,7 +1649,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4747', 4747)" onmouseover="showTip(event, '4747', 4747)">
+              <code onmouseout="hideTip(event, '4858', 4858)" onmouseover="showTip(event, '4858', 4858)">
                 <p>
                   <a id="VScale">
                     <a href="#VScale">
@@ -1594,7 +1658,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4747">
+              <div class="fsdocs-tip" id="4858">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>VScale</code>

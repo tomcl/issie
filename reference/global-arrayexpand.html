@@ -1,0 +1,1575 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Renderer" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="ArrayExpand (issie)" />
+    <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="ArrayExpand (issie)">
+    
+    <title>ArrayExpand (issie) | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="api-docs">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header ">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/drivingTheApp.html">
+    Driving Issie from outside it
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/wireRouting.html">
+    How a wire gets its shape
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/wiki">Developers Wiki
+                </a></li>
+    
+        <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header ">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramOverTheWire.html">
+    Reading a RAM from either simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/drivingTheApp.html">
+    Driving Issie from outside it
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/wireRouting.html">
+    How a wire gets its shape
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/stepSimOnDotnet.html">
+    Run the step simulator under .NET
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarSimulation.html">
+    Simulation and waveform generation in a .NET sidecar
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sidecarInvariants.html">
+    Invariants of the .NET simulator and its protocol
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        <div>
+  <h2>
+    ArrayExpand Module
+  </h2>
+  <dl class="fsdocs-metadata">
+    <dt>
+      Namespace: 
+      <a href="/issie/reference/global.html">
+        global
+      </a>
+    </dt>
+    <dt>
+      Assembly: Renderer.dll
+    </dt>
+  </dl>
+  <div class="fsdocs-xmldoc">
+    <div>
+      <p class="fsdocs-summary">
+        
+      </p>
+    </div>
+  </div>
+  <div>
+    <h3>
+      Types
+    </h3>
+    <table class="table outer-list fsdocs-entity-list">
+      <thead>
+        <tr>
+          <td>
+            Type
+          </td>
+          <td>
+            Description
+          </td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="ArrayProblem">
+                <a href="/issie/reference/arrayexpand-arrayproblem.html">
+                  ArrayProblem
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:ArrayExpand.ArrayProblem`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ArrayExpand.ArrayProblem\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/ArrayExpand.fs#L56-56" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 Something wrong with an array component's sheet: what to say, and what to point at.
+
+ The message says WHAT IS NOT ALLOWED and stops. Why it is not allowed belongs in the
+ documentation - a user reading an error is trying to fix a sheet, not to learn the design of the
+ feature, and a sentence of reasoning after the fault buries it.
+
+ Components are what the simulator highlights in red, so a problem names the ones a user has to
+ look at. Empty only where the fault is the sheet's own settings and no component is at fault.
+              </p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="JoinEnd">
+                <a href="/issie/reference/arrayexpand-joinend.html">
+                  JoinEnd
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:ArrayExpand.JoinEnd`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ArrayExpand.JoinEnd\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/ArrayExpand.fs#L62-62" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 One end of a channel: a join component, in one copy, on the channel that copy puts it on.
+              </p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="JoinWiring">
+                <a href="/issie/reference/arrayexpand-joinwiring.html">
+                  JoinWiring
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:ArrayExpand.JoinWiring`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ArrayExpand.JoinWiring\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/ArrayExpand.fs#L73-73" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 What the joins of an array design sheet come to.
+              </p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="OutlinePort">
+                <a href="/issie/reference/arrayexpand-outlineport.html">
+                  OutlinePort
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:ArrayExpand.OutlinePort`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ArrayExpand.OutlinePort\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/ArrayExpand.fs#L285-285" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 One port of an array component's outline: what it is called, how wide it is, which drawn
+ component it comes from, and what the array does with it.
+              </p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="PortRole">
+                <a href="/issie/reference/arrayexpand-portrole.html">
+                  PortRole
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:ArrayExpand.PortRole`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ArrayExpand.PortRole\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/ArrayExpand.fs#L267-267" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 What the array does with one of its own ports - which is also how the wrapper must wire it.
+
+ The reason this is a type rather than two functions: the sheet's SIGNATURE and the wrapper that
+ realises it are the same seven rules read two ways, and stating them twice is how a sheet's
+ declared ports and its wrapper's actual ports come to disagree. They are stated once, here, and
+ arrayOutlineOf takes the names and widths off them while ArrayElaborate builds the components.
+              </p>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div>
+    <h3>
+      Functions and values
+    </h3>
+    <table class="table outer-list fsdocs-member-list">
+      <thead>
+        <tr>
+          <td class="fsdocs-member-list-header">
+            Function or value
+          </td>
+          <td class="fsdocs-member-list-header">
+            Description
+          </td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '230', 230)" onmouseover="showTip(event, '230', 230)">
+                <p>
+                  <a id="arrayOutlineOf">
+                    <a href="#arrayOutlineOf">
+                      <code><span>arrayOutlineOf&#32;<span>info&#32;paramDefs&#32;<span>(<span>arg3,&#32;arg4</span>)</span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="230">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>arrayOutlineOf&#32;<span>info&#32;paramDefs&#32;<span>(<span>arg3,&#32;arg4</span>)</span></span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        info
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-arrayinfo.html">ArrayInfo</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        paramDefs
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/parametertypes-parameterdefs.html">ParameterDefs</a>&#32;option</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arg2
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-component.html">Component</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arg3
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-connection.html">Connection</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><span>(<span><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span>&#32;*&#32;<span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></span>)</span>&#32;*&#32;<span><a href="/issie/reference/arrayexpand-arrayproblem.html">ArrayProblem</a>&#32;list</span></span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ArrayExpand.arrayOutlineOf`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ArrayExpand.arrayOutlineOf\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/ArrayExpand.fs#L356-356" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The array component's ports as names and widths - what every sheet signature is - and what is
+ wrong with the sheet if anything.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    info
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-arrayinfo.html">ArrayInfo</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    paramDefs
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/parametertypes-parameterdefs.html">ParameterDefs</a>&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arg2
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-component.html">Component</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arg3
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-connection.html">Connection</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span><span>(<span><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span>&#32;*&#32;<span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></span>)</span>&#32;*&#32;<span><a href="/issie/reference/arrayexpand-arrayproblem.html">ArrayProblem</a>&#32;list</span></span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '231', 231)" onmouseover="showTip(event, '231', 231)">
+                <p>
+                  <a id="arraySelectWidth">
+                    <a href="#arraySelectWidth">
+                      <code><span>arraySelectWidth&#32;<span>copies</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="231">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>arraySelectWidth&#32;<span>copies</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        copies
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ArrayExpand.arraySelectWidth`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ArrayExpand.arraySelectWidth\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/ArrayExpand.fs#L33-33" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     How many bits the select input of an array multiplexer has: enough to index the copies, and
+ never zero, since a width of zero is not a width.
+
+ ceil(log2 copies), counted by shifting an int rather than through ParameterTypes.clog2, which
+ takes a bigint. A copy count is small by construction - ArrayElaborate.Constants.maxArrayCopies
+ bounds it, as a bus width is bounded - so converting one to a bigint to count its bits would be
+ work for nothing. The same answer as clog2 for every value this is asked about.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    copies
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '232', 232)" onmouseover="showTip(event, '232', 232)">
+                <p>
+                  <a id="joinInPortName">
+                    <a href="#joinInPortName">
+                      <code><span>joinInPortName&#32;<span>label&#32;num</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="232">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>joinInPortName&#32;<span>label&#32;num</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        label
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        num
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>string</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ArrayExpand.joinInPortName`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ArrayExpand.joinInPortName\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/ArrayExpand.fs#L40-40" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The name of the sheet port an unmatched JoinIn becomes. The direction is in the name as well as
+ in the port list so that the two ends of one channel read apart, and so that the generated names
+ sit further from anything a user would write.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    label
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    num
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '233', 233)" onmouseover="showTip(event, '233', 233)">
+                <p>
+                  <a id="joinOutPortName">
+                    <a href="#joinOutPortName">
+                      <code><span>joinOutPortName&#32;<span>label&#32;num</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="233">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>joinOutPortName&#32;<span>label&#32;num</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        label
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        num
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>string</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ArrayExpand.joinOutPortName`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ArrayExpand.joinOutPortName\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/ArrayExpand.fs#L43-43" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The name of the sheet port an unmatched JoinOut becomes.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    label
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    num
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '234', 234)" onmouseover="showTip(event, '234', 234)">
+                <p>
+                  <a id="joinsOf">
+                    <a href="#joinsOf">
+                      <code><span>joinsOf&#32;<span>info&#32;paramDefs&#32;<span>(<span>arg3,&#32;arg4</span>)</span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="234">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>joinsOf&#32;<span>info&#32;paramDefs&#32;<span>(<span>arg3,&#32;arg4</span>)</span></span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        info
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-arrayinfo.html">ArrayInfo</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        paramDefs
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/parametertypes-parameterdefs.html">ParameterDefs</a>&#32;option</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arg2
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-component.html">Component</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arg3
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-connection.html">Connection</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/arrayexpand-joinwiring.html">JoinWiring</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ArrayExpand.joinsOf`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ArrayExpand.joinsOf\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/ArrayExpand.fs#L185-185" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Which JoinOut in which copy drives which JoinIn in which copy, and which ends are left over.
+
+ The one place join semantics live. parseDiagramSignature asks it what ports the sheet has, and
+ the expansion asks it what wires to draw between the copies, so the two cannot disagree about
+ which end of a chain is loose.
+
+ A JoinOut end and a JoinIn end MATCH when they carry the same label and the same channel number;
+ a match is a wire from one copy to another. Everything left over becomes a port on the sheet's
+ outline - an unmatched JoinOut an output, an unmatched JoinIn an input - which is what makes the
+ ends of a chain the array's own connections without anything having to say which copies they are.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    info
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-arrayinfo.html">ArrayInfo</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    paramDefs
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/parametertypes-parameterdefs.html">ParameterDefs</a>&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arg2
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-component.html">Component</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arg3
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-connection.html">Connection</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/arrayexpand-joinwiring.html">JoinWiring</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '235', 235)" onmouseover="showTip(event, '235', 235)">
+                <p>
+                  <a id="looseEndsOf">
+                    <a href="#looseEndsOf">
+                      <code><span>looseEndsOf&#32;<span>ends&#32;comp</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="235">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>looseEndsOf&#32;<span>ends&#32;comp</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ends
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/arrayexpand-joinend.html">JoinEnd</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        comp
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-component.html">Component</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><span>(<span>int&#32;*&#32;<span><a href="/issie/reference/arrayexpand-joinend.html">JoinEnd</a>&#32;list</span></span>)</span>&#32;list</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ArrayExpand.looseEndsOf`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ArrayExpand.looseEndsOf\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/ArrayExpand.fs#L255-255" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The unmatched ends of one join component, grouped by the channel they are on and in channel
+ order, so that a sheet with several loose ends lists them predictably.
+
+ One PORT per channel, and EVERY end on that channel with it. A port is named after the channel,
+ so a channel several copies are loose on can only be one port - but it is a port of all of them,
+ and each has to be wired to it. A number that does not vary with the loop variable is the
+ extreme case (every copy on one channel); `i/2` is the ordinary one, giving the array one input
+ per pair of copies. Keeping one end per channel and dropping the rest wired the first copy and
+ left the others' body ports dangling, which came out as an unconnected port on a sheet the user
+ cannot open.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ends
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/arrayexpand-joinend.html">JoinEnd</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    comp
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-component.html">Component</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span><span>(<span>int&#32;*&#32;<span><a href="/issie/reference/arrayexpand-joinend.html">JoinEnd</a>&#32;list</span></span>)</span>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '236', 236)" onmouseover="showTip(event, '236', 236)">
+                <p>
+                  <a id="muxSelectPortName">
+                    <a href="#muxSelectPortName">
+                      <code><span>muxSelectPortName&#32;<span>label</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="236">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>muxSelectPortName&#32;<span>label</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        label
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>string</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ArrayExpand.muxSelectPortName`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ArrayExpand.muxSelectPortName\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/ArrayExpand.fs#L46-46" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The name of the select input a MuxOut adds to the sheet, beside the output of its own name.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    label
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '237', 237)" onmouseover="showTip(event, '237', 237)">
+                <p>
+                  <a id="outlinePortsOf">
+                    <a href="#outlinePortsOf">
+                      <code><span>outlinePortsOf&#32;<span>info&#32;paramDefs&#32;<span>(<span>arg3,&#32;arg4</span>)</span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="237">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>outlinePortsOf&#32;<span>info&#32;paramDefs&#32;<span>(<span>arg3,&#32;arg4</span>)</span></span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        info
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-arrayinfo.html">ArrayInfo</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        paramDefs
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/parametertypes-parameterdefs.html">ParameterDefs</a>&#32;option</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arg2
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-component.html">Component</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arg3
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-connection.html">Connection</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><span>(<span><span><a href="/issie/reference/arrayexpand-outlineport.html">OutlinePort</a>&#32;list</span>&#32;*&#32;<span><a href="/issie/reference/arrayexpand-outlineport.html">OutlinePort</a>&#32;list</span></span>)</span>&#32;*&#32;<a href="/issie/reference/arrayexpand-joinwiring.html">JoinWiring</a></span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ArrayExpand.outlinePortsOf`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ArrayExpand.outlinePortsOf\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/ArrayExpand.fs#L310-310" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The ports an array design sheet has, and what is wrong with the sheet if anything.
+
+ DERIVED from the sheet's contents and its copy count, rather than being its Input1 and Output
+ components - which is the whole of what makes an array sheet different from every other sheet
+ as far as anything outside this module is concerned. The copy count is a plain integer on the
+ sheet, so this is a fact about the SHEET, exactly as an ordinary sheet's ports are.
+
+ Ports come in the (Y, X) order of the components that generate them - the order
+ getOrderedCompLabels already uses. A MuxOut contributes BOTH an input and an output, so the two
+ lists are over the same components in the same order and a mux select lands in the middle of the
+ inputs, which is exactly where the outline puts it.
+
+ The canvas passed in must already be resolved at whatever bindings are wanted, as
+ signatureOfInstance resolves it: the widths here are read off the components.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    info
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-arrayinfo.html">ArrayInfo</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    paramDefs
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/parametertypes-parameterdefs.html">ParameterDefs</a>&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arg2
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-component.html">Component</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arg3
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-connection.html">Connection</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span><span>(<span><span><a href="/issie/reference/arrayexpand-outlineport.html">OutlinePort</a>&#32;list</span>&#32;*&#32;<span><a href="/issie/reference/arrayexpand-outlineport.html">OutlinePort</a>&#32;list</span></span>)</span>&#32;*&#32;<a href="/issie/reference/arrayexpand-joinwiring.html">JoinWiring</a></span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+</div>
+        
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <div class="empty"></div>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-details-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

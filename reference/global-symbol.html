@@ -557,7 +557,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2517', 2517)" onmouseover="showTip(event, '2517', 2517)">
+              <code onmouseout="hideTip(event, '2556', 2556)" onmouseover="showTip(event, '2556', 2556)">
                 <p>
                   <a id="addPortToMaps">
                     <a href="#addPortToMaps">
@@ -566,7 +566,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2517">
+              <div class="fsdocs-tip" id="2556">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>addPortToMaps&#32;<span>edge&#32;portMaps&#32;portId</span></span></code>
@@ -650,7 +650,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2518', 2518)" onmouseover="showTip(event, '2518', 2518)">
+              <code onmouseout="hideTip(event, '2557', 2557)" onmouseover="showTip(event, '2557', 2557)">
                 <p>
                   <a id="addToPortModel">
                     <a href="#addToPortModel">
@@ -659,7 +659,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2518">
+              <div class="fsdocs-tip" id="2557">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>addToPortModel&#32;<span>model&#32;sym</span></span></code>
@@ -727,7 +727,269 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2519', 2519)" onmouseover="showTip(event, '2519', 2519)">
+              <code onmouseout="hideTip(event, '2558', 2558)" onmouseover="showTip(event, '2558', 2558)">
+                <p>
+                  <a id="arrayIOProperties">
+                    <a href="#arrayIOProperties">
+                      <code><span>arrayIOProperties&#32;<span>arrayText&#32;compType</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2558">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>arrayIOProperties&#32;<span>arrayText&#32;compType</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        arrayText
+                      </b>
+                      :
+                      <code><span>string&#32;option</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        compType
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span>int&#32;*&#32;int&#32;*&#32;float&#32;*&#32;float</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Symbol.arrayIOProperties`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.arrayIOProperties\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L648-648" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     return (num inputs, num outputs, height, width)
+ The port counts and size of one of an ARRAY COMPONENT's IO symbols, sized to the legend it will
+ actually draw.
+
+ Its own function because the legend can hold a channel EXPRESSION - `Join[i+10]` where the
+ component type alone says `Join[1]` - and only a symbol knows that text. getComponentProperties
+ sizes from the type and so passes None; SymbolReplaceHelpers.resizedForLegend has the symbol and
+ passes what it draws, which is what keeps the text inside the shape.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arrayText
+                  </span>
+                  :
+                  <code><span>string&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    compType
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span>int&#32;*&#32;int&#32;*&#32;float&#32;*&#32;float</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2559', 2559)" onmouseover="showTip(event, '2559', 2559)">
+                <p>
+                  <a id="arrayLegend">
+                    <a href="#arrayLegend">
+                      <code><span>arrayLegend&#32;<span>t&#32;n</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2559">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>arrayLegend&#32;<span>t&#32;n</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        t
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        n
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>string</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Symbol.arrayLegend`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.arrayLegend\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L297-297" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The legend of an array component's IO: what the copies do with the value, and its width.
+
+ One line, unlike busTitleAndBits, which puts the width on a second line by way of a "." that
+ addLegendText splits on. Two lines were what stopped these resizing with their width - the
+ symbol is sized by its widest LINE, which was always the first, so the bit range never reached
+ it - and there is room for one line because the symbol is as long as it needs to be.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    t
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    n
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2560', 2560)" onmouseover="showTip(event, '2560', 2560)">
+                <p>
+                  <a id="arrayLegendStyle">
+                    <a href="#arrayLegendStyle">
+                      <code><span>arrayLegendStyle&#32;<span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2560">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>arrayLegendStyle&#32;<span></span></span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawhelpers-text.html">Text</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:P:Symbol.arrayLegendStyle`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:Symbol.arrayLegendStyle\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L304-304" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The style an array component's legend is drawn in. Lighter and smaller than every other
+ legend, because these say a name, a channel and a bit range where an ordinary legend says one
+ word. Written down once because getComponentProperties SIZES the symbol with it and SymbolView
+ DRAWS with it: a symbol sized against a different font is one the text runs out of.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawhelpers-text.html">Text</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2561', 2561)" onmouseover="showTip(event, '2561', 2561)">
                 <p>
                   <a id="autoScaleHAndW">
                     <a href="#autoScaleHAndW">
@@ -736,7 +998,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2519">
+              <div class="fsdocs-tip" id="2561">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>autoScaleHAndW&#32;<span>sym</span></span></code>
@@ -773,7 +1035,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.autoScaleHAndW\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L536-536" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L594-594" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -807,7 +1069,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2520', 2520)" onmouseover="showTip(event, '2520', 2520)">
+              <code onmouseout="hideTip(event, '2562', 2562)" onmouseover="showTip(event, '2562', 2562)">
                 <p>
                   <a id="busSelectTitle">
                     <a href="#busSelectTitle">
@@ -816,7 +1078,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2520">
+              <div class="fsdocs-tip" id="2562">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>busSelectTitle&#32;<span>wob&#32;lsb</span></span></code>
@@ -861,7 +1123,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.busSelectTitle\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L281-281" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L321-321" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -902,7 +1164,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2521', 2521)" onmouseover="showTip(event, '2521', 2521)">
+              <code onmouseout="hideTip(event, '2563', 2563)" onmouseover="showTip(event, '2563', 2563)">
                 <p>
                   <a id="busTitleAndBits">
                     <a href="#busTitleAndBits">
@@ -911,7 +1173,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2521">
+              <div class="fsdocs-tip" id="2563">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>busTitleAndBits&#32;<span>t&#32;n</span></span></code>
@@ -956,7 +1218,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.busTitleAndBits\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L263-263" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L279-279" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -997,7 +1259,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2522', 2522)" onmouseover="showTip(event, '2522', 2522)">
+              <code onmouseout="hideTip(event, '2564', 2564)" onmouseover="showTip(event, '2564', 2564)">
                 <p>
                   <a id="calcLabelBoundingBox">
                     <a href="#calcLabelBoundingBox">
@@ -1006,7 +1268,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2522">
+              <div class="fsdocs-tip" id="2564">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>calcLabelBoundingBox&#32;<span>sym</span></span></code>
@@ -1043,7 +1305,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.calcLabelBoundingBox\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L219-219" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L235-235" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1079,7 +1341,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2523', 2523)" onmouseover="showTip(event, '2523', 2523)">
+              <code onmouseout="hideTip(event, '2565', 2565)" onmouseover="showTip(event, '2565', 2565)">
                 <p>
                   <a id="clockedSheetsOf">
                     <a href="#clockedSheetsOf">
@@ -1088,7 +1350,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2523">
+              <div class="fsdocs-tip" id="2565">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>clockedSheetsOf&#32;<span></span></span></code>
@@ -1113,7 +1375,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:Symbol.clockedSheetsOf\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L684-684" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L784-784" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1139,7 +1401,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2524', 2524)" onmouseover="showTip(event, '2524', 2524)">
+              <code onmouseout="hideTip(event, '2566', 2566)" onmouseover="showTip(event, '2566', 2566)">
                 <p>
                   <a id="combineRotation">
                     <a href="#combineRotation">
@@ -1148,7 +1410,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2524">
+              <div class="fsdocs-tip" id="2566">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>combineRotation&#32;<span>r1&#32;r2</span></span></code>
@@ -1196,7 +1458,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.combineRotation\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L152-152" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L160-160" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1237,7 +1499,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2525', 2525)" onmouseover="showTip(event, '2525', 2525)">
+              <code onmouseout="hideTip(event, '2567', 2567)" onmouseover="showTip(event, '2567', 2567)">
                 <p>
                   <a id="createNewSymbol">
                     <a href="#createNewSymbol">
@@ -1246,7 +1508,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2525">
+              <div class="fsdocs-tip" id="2567">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>createNewSymbol&#32;<span>ldcs&#32;pos&#32;comptype&#32;label&#32;theme</span></span></code>
@@ -1362,7 +1624,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2526', 2526)" onmouseover="showTip(event, '2526', 2526)">
+              <code onmouseout="hideTip(event, '2568', 2568)" onmouseover="showTip(event, '2568', 2568)">
                 <p>
                   <a id="customStringToLength">
                     <a href="#customStringToLength">
@@ -1371,7 +1633,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2526">
+              <div class="fsdocs-tip" id="2568">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>customStringToLength&#32;<span>lst</span></span></code>
@@ -1408,7 +1670,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.customStringToLength\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L439-439" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L497-497" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1442,7 +1704,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2527', 2527)" onmouseover="showTip(event, '2527', 2527)">
+              <code onmouseout="hideTip(event, '2569', 2569)" onmouseover="showTip(event, '2569', 2569)">
                 <p>
                   <a id="customToLength">
                     <a href="#customToLength">
@@ -1451,7 +1713,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2527">
+              <div class="fsdocs-tip" id="2569">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>customToLength&#32;<span>lst</span></span></code>
@@ -1503,7 +1765,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2528', 2528)" onmouseover="showTip(event, '2528', 2528)">
+              <code onmouseout="hideTip(event, '2570', 2570)" onmouseover="showTip(event, '2570', 2570)">
                 <p>
                   <a id="deletePortFromMaps">
                     <a href="#deletePortFromMaps">
@@ -1512,7 +1774,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2528">
+              <div class="fsdocs-tip" id="2570">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>deletePortFromMaps&#32;<span>port&#32;portMaps</span></span></code>
@@ -1580,7 +1842,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2529', 2529)" onmouseover="showTip(event, '2529', 2529)">
+              <code onmouseout="hideTip(event, '2571', 2571)" onmouseover="showTip(event, '2571', 2571)">
                 <p>
                   <a id="getBoundingBox">
                     <a href="#getBoundingBox">
@@ -1589,7 +1851,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2529">
+              <div class="fsdocs-tip" id="2571">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getBoundingBox&#32;<span>symModel&#32;compid</span></span></code>
@@ -1637,7 +1899,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getBoundingBox\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L129-129" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L137-137" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1678,7 +1940,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2530', 2530)" onmouseover="showTip(event, '2530', 2530)">
+              <code onmouseout="hideTip(event, '2572', 2572)" onmouseover="showTip(event, '2572', 2572)">
                 <p>
                   <a id="getBoundingBoxes">
                     <a href="#getBoundingBoxes">
@@ -1687,7 +1949,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2530">
+              <div class="fsdocs-tip" id="2572">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getBoundingBoxes&#32;<span>symModel</span></span></code>
@@ -1724,7 +1986,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getBoundingBoxes\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L125-125" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L133-133" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1757,7 +2019,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2531', 2531)" onmouseover="showTip(event, '2531', 2531)">
+              <code onmouseout="hideTip(event, '2573', 2573)" onmouseover="showTip(event, '2573', 2573)">
                 <p>
                   <a id="getCompRotatedHAndW">
                     <a href="#getCompRotatedHAndW">
@@ -1766,7 +2028,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2531">
+              <div class="fsdocs-tip" id="2573">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getCompRotatedHAndW&#32;<span>comp&#32;transform&#32;hScale&#32;vScale</span></span></code>
@@ -1830,7 +2092,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getCompRotatedHAndW\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L88-88" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L96-96" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1890,23 +2152,31 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2532', 2532)" onmouseover="showTip(event, '2532', 2532)">
+              <code onmouseout="hideTip(event, '2574', 2574)" onmouseover="showTip(event, '2574', 2574)">
                 <p>
                   <a id="getComponentLegend">
                     <a href="#getComponentLegend">
-                      <code><span>getComponentLegend&#32;<span>componentType&#32;rotation</span></span></code>
+                      <code><span>getComponentLegend&#32;<span>arrayText&#32;componentType&#32;rotation</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2532">
+              <div class="fsdocs-tip" id="2574">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>getComponentLegend&#32;<span>componentType&#32;rotation</span></span></code>
+                  <code><span>getComponentLegend&#32;<span>arrayText&#32;componentType&#32;rotation</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
+                    <span>
+                      <b>
+                        arrayText
+                      </b>
+                      :
+                      <code><span>string&#32;option</span></code>
+                    </span>
+                    <br/>
                     <span>
                       <b>
                         componentType
@@ -1935,39 +2205,68 @@
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  componentType
-                </span>
-                :
-                <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  rotation
-                </span>
-                :
-                <code><a href="/issie/reference/commontypes-rotation.html">Rotation</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>string</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Symbol.getComponentLegend`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getComponentLegend\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L397-397" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     `arrayText` is what an ARRAY COMPONENT's symbol draws in place of a number - see
+ SymbolT.Symbol.ArrayText. A join uses it for its channel, so a carry chain reads `Join[i+1]`
+ against `Join[i]` rather than showing what those expressions come to in copy 0. None everywhere
+ else, and on a join whose channel is a plain number, which draws that number as it always did.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arrayText
+                  </span>
+                  :
+                  <code><span>string&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    componentType
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    rotation
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-rotation.html">Rotation</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
           </td>
         </tr>
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2533', 2533)" onmouseover="showTip(event, '2533', 2533)">
+              <code onmouseout="hideTip(event, '2575', 2575)" onmouseover="showTip(event, '2575', 2575)">
                 <p>
                   <a id="getComponentProperties">
                     <a href="#getComponentProperties">
@@ -1976,7 +2275,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2533">
+              <div class="fsdocs-tip" id="2575">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getComponentProperties&#32;<span>compType&#32;label</span></span></code>
@@ -2012,57 +2311,39 @@
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Symbol.getComponentProperties`')">
-                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
-                  </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getComponentProperties\'/>')">
-                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
-                  </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L583-583" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     return (num inputs, num outputs, height, width)
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-params">
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    compType
-                  </span>
-                  :
-                  <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    label
-                  </span>
-                  :
-                  <code>string</code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-              </dl>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Returns: 
-                  </span>
-                  <code><span>int&#32;*&#32;int&#32;*&#32;float&#32;*&#32;float</span></code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  compType
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  label
+                </span>
+                :
+                <code>string</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><span>int&#32;*&#32;int&#32;*&#32;float&#32;*&#32;float</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
           </td>
         </tr>
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2534', 2534)" onmouseover="showTip(event, '2534', 2534)">
+              <code onmouseout="hideTip(event, '2576', 2576)" onmouseover="showTip(event, '2576', 2576)">
                 <p>
                   <a id="getCustomPortIdMap">
                     <a href="#getCustomPortIdMap">
@@ -2071,7 +2352,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2534">
+              <div class="fsdocs-tip" id="2576">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getCustomPortIdMap&#32;<span>comp</span></span></code>
@@ -2108,7 +2389,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getCustomPortIdMap\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L496-496" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L554-554" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2142,7 +2423,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2535', 2535)" onmouseover="showTip(event, '2535', 2535)">
+              <code onmouseout="hideTip(event, '2577', 2577)" onmouseover="showTip(event, '2577', 2577)">
                 <p>
                   <a id="getGateComponentLegend">
                     <a href="#getGateComponentLegend">
@@ -2151,7 +2432,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2535">
+              <div class="fsdocs-tip" id="2577">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getGateComponentLegend&#32;<span>gType</span></span></code>
@@ -2203,7 +2484,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2536', 2536)" onmouseover="showTip(event, '2536', 2536)">
+              <code onmouseout="hideTip(event, '2578', 2578)" onmouseover="showTip(event, '2578', 2578)">
                 <p>
                   <a id="getGateNComponentLegend">
                     <a href="#getGateNComponentLegend">
@@ -2212,7 +2493,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2536">
+              <div class="fsdocs-tip" id="2578">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getGateNComponentLegend&#32;<span>numInputs&#32;gType</span></span></code>
@@ -2280,7 +2561,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2537', 2537)" onmouseover="showTip(event, '2537', 2537)">
+              <code onmouseout="hideTip(event, '2579', 2579)" onmouseover="showTip(event, '2579', 2579)">
                 <p>
                   <a id="getInputPortLocation">
                     <a href="#getInputPortLocation">
@@ -2289,7 +2570,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2537">
+              <div class="fsdocs-tip" id="2579">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getInputPortLocation&#32;<span>defPos&#32;model&#32;portId</span></span></code>
@@ -2345,7 +2626,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getInputPortLocation\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L861-861" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L964-964" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2394,7 +2675,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2538', 2538)" onmouseover="showTip(event, '2538', 2538)">
+              <code onmouseout="hideTip(event, '2580', 2580)" onmouseover="showTip(event, '2580', 2580)">
                 <p>
                   <a id="getInputPortsLocationMap">
                     <a href="#getInputPortsLocationMap">
@@ -2403,7 +2684,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2538">
+              <div class="fsdocs-tip" id="2580">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getInputPortsLocationMap&#32;<span>model&#32;symbols</span></span></code>
@@ -2448,7 +2729,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getInputPortsLocationMap\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L875-875" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L978-978" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2489,7 +2770,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2539', 2539)" onmouseover="showTip(event, '2539', 2539)">
+              <code onmouseout="hideTip(event, '2581', 2581)" onmouseover="showTip(event, '2581', 2581)">
                 <p>
                   <a id="getLabelBoundingBox">
                     <a href="#getLabelBoundingBox">
@@ -2498,7 +2779,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2539">
+              <div class="fsdocs-tip" id="2581">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getLabelBoundingBox&#32;<span>model&#32;compId</span></span></code>
@@ -2543,7 +2824,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getLabelBoundingBox\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L139-139" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L147-147" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2584,7 +2865,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2540', 2540)" onmouseover="showTip(event, '2540', 2540)">
+              <code onmouseout="hideTip(event, '2582', 2582)" onmouseover="showTip(event, '2582', 2582)">
                 <p>
                   <a id="getLabelBoundingBoxes">
                     <a href="#getLabelBoundingBoxes">
@@ -2593,7 +2874,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2540">
+              <div class="fsdocs-tip" id="2582">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getLabelBoundingBoxes&#32;<span>model</span></span></code>
@@ -2630,7 +2911,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getLabelBoundingBoxes\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L134-134" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L142-142" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2663,7 +2944,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2541', 2541)" onmouseover="showTip(event, '2541', 2541)">
+              <code onmouseout="hideTip(event, '2583', 2583)" onmouseover="showTip(event, '2583', 2583)">
                 <p>
                   <a id="getMuxSelOffset">
                     <a href="#getMuxSelOffset">
@@ -2672,7 +2953,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2541">
+              <div class="fsdocs-tip" id="2583">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getMuxSelOffset&#32;<span>sym&#32;side</span></span></code>
@@ -2717,7 +2998,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getMuxSelOffset\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L786-786" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L889-889" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2758,7 +3039,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2542', 2542)" onmouseover="showTip(event, '2542', 2542)">
+              <code onmouseout="hideTip(event, '2584', 2584)" onmouseover="showTip(event, '2584', 2584)">
                 <p>
                   <a id="getOutputPortLocation">
                     <a href="#getOutputPortLocation">
@@ -2767,7 +3048,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2542">
+              <div class="fsdocs-tip" id="2584">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getOutputPortLocation&#32;<span>defPos&#32;model&#32;portId</span></span></code>
@@ -2823,7 +3104,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getOutputPortLocation\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L866-866" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L969-969" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2872,7 +3153,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2543', 2543)" onmouseover="showTip(event, '2543', 2543)">
+              <code onmouseout="hideTip(event, '2585', 2585)" onmouseover="showTip(event, '2585', 2585)">
                 <p>
                   <a id="getOutputPortsLocationMap">
                     <a href="#getOutputPortsLocationMap">
@@ -2881,7 +3162,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2543">
+              <div class="fsdocs-tip" id="2585">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getOutputPortsLocationMap&#32;<span>model&#32;symbols</span></span></code>
@@ -2926,7 +3207,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getOutputPortsLocationMap\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L885-885" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L988-988" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2967,7 +3248,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2544', 2544)" onmouseover="showTip(event, '2544', 2544)">
+              <code onmouseout="hideTip(event, '2586', 2586)" onmouseover="showTip(event, '2586', 2586)">
                 <p>
                   <a id="getPortBaseOffset">
                     <a href="#getPortBaseOffset">
@@ -2976,7 +3257,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2544">
+              <div class="fsdocs-tip" id="2586">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getPortBaseOffset&#32;<span>sym&#32;side</span></span></code>
@@ -3024,7 +3305,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getPortBaseOffset\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L763-763" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L866-866" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3065,7 +3346,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2545', 2545)" onmouseover="showTip(event, '2545', 2545)">
+              <code onmouseout="hideTip(event, '2587', 2587)" onmouseover="showTip(event, '2587', 2587)">
                 <p>
                   <a id="getPortLocation">
                     <a href="#getPortLocation">
@@ -3074,7 +3355,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2545">
+              <div class="fsdocs-tip" id="2587">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getPortLocation&#32;<span>defPos&#32;model&#32;portId</span></span></code>
@@ -3127,7 +3408,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getPortLocation\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L845-845" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L948-948" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3176,7 +3457,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2546', 2546)" onmouseover="showTip(event, '2546', 2546)">
+              <code onmouseout="hideTip(event, '2588', 2588)" onmouseover="showTip(event, '2588', 2588)">
                 <p>
                   <a id="getPortLocations">
                     <a href="#getPortLocations">
@@ -3185,7 +3466,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2546">
+              <div class="fsdocs-tip" id="2588">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getPortLocations&#32;<span>model&#32;symbolIds</span></span></code>
@@ -3230,7 +3511,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getPortLocations\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L896-896" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L999-999" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3271,7 +3552,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2547', 2547)" onmouseover="showTip(event, '2547', 2547)">
+              <code onmouseout="hideTip(event, '2589', 2589)" onmouseover="showTip(event, '2589', 2589)">
                 <p>
                   <a id="getPortPos">
                     <a href="#getPortPos">
@@ -3280,7 +3561,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2547">
+              <div class="fsdocs-tip" id="2589">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getPortPos&#32;<span>sym&#32;port</span></span></code>
@@ -3325,7 +3606,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getPortPos\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L807-807" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L910-910" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3366,7 +3647,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2548', 2548)" onmouseover="showTip(event, '2548', 2548)">
+              <code onmouseout="hideTip(event, '2590', 2590)" onmouseover="showTip(event, '2590', 2590)">
                 <p>
                   <a id="getPortPosEdgeGap">
                     <a href="#getPortPosEdgeGap">
@@ -3375,7 +3656,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2548">
+              <div class="fsdocs-tip" id="2590">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getPortPosEdgeGap&#32;<span>ct</span></span></code>
@@ -3415,7 +3696,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getPortPosEdgeGap\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L750-750" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L853-853" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3448,7 +3729,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2549', 2549)" onmouseover="showTip(event, '2549', 2549)">
+              <code onmouseout="hideTip(event, '2591', 2591)" onmouseover="showTip(event, '2591', 2591)">
                 <p>
                   <a id="getPortPosModel">
                     <a href="#getPortPosModel">
@@ -3457,7 +3738,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2549">
+              <div class="fsdocs-tip" id="2591">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getPortPosModel&#32;<span>model&#32;port</span></span></code>
@@ -3528,7 +3809,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2550', 2550)" onmouseover="showTip(event, '2550', 2550)">
+              <code onmouseout="hideTip(event, '2592', 2592)" onmouseover="showTip(event, '2592', 2592)">
                 <p>
                   <a id="getPortPosToRender">
                     <a href="#getPortPosToRender">
@@ -3537,7 +3818,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2550">
+              <div class="fsdocs-tip" id="2592">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getPortPosToRender&#32;<span>sym&#32;port</span></span></code>
@@ -3585,7 +3866,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getPortPosToRender\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L835-835" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L938-938" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3626,7 +3907,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2551', 2551)" onmouseover="showTip(event, '2551', 2551)">
+              <code onmouseout="hideTip(event, '2593', 2593)" onmouseover="showTip(event, '2593', 2593)">
                 <p>
                   <a id="getPrefix">
                     <a href="#getPrefix">
@@ -3635,7 +3916,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2551">
+              <div class="fsdocs-tip" id="2593">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getPrefix&#32;<span>compType</span></span></code>
@@ -3672,7 +3953,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getPrefix\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L288-288" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L328-328" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3705,7 +3986,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2552', 2552)" onmouseover="showTip(event, '2552', 2552)">
+              <code onmouseout="hideTip(event, '2594', 2594)" onmouseover="showTip(event, '2594', 2594)">
                 <p>
                   <a id="getRotatedCompCentre">
                     <a href="#getRotatedCompCentre">
@@ -3714,7 +3995,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2552">
+              <div class="fsdocs-tip" id="2594">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getRotatedCompCentre&#32;<span>comp&#32;transform&#32;hScale&#32;vScale</span></span></code>
@@ -3778,7 +4059,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getRotatedCompCentre\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L101-101" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L109-109" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3835,7 +4116,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2553', 2553)" onmouseover="showTip(event, '2553', 2553)">
+              <code onmouseout="hideTip(event, '2595', 2595)" onmouseover="showTip(event, '2595', 2595)">
                 <p>
                   <a id="getRotatedHAndW">
                     <a href="#getRotatedHAndW">
@@ -3844,7 +4125,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2553">
+              <div class="fsdocs-tip" id="2595">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getRotatedHAndW&#32;<span>sym</span></span></code>
@@ -3884,7 +4165,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getRotatedHAndW\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L98-98" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L106-106" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3920,7 +4201,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2554', 2554)" onmouseover="showTip(event, '2554', 2554)">
+              <code onmouseout="hideTip(event, '2596', 2596)" onmouseover="showTip(event, '2596', 2596)">
                 <p>
                   <a id="getRotatedSymbolCentre">
                     <a href="#getRotatedSymbolCentre">
@@ -3929,7 +4210,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2554">
+              <div class="fsdocs-tip" id="2596">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getRotatedSymbolCentre&#32;<span>symbol</span></span></code>
@@ -3969,7 +4250,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getRotatedSymbolCentre\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L110-110" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L118-118" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -4003,7 +4284,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2555', 2555)" onmouseover="showTip(event, '2555', 2555)">
+              <code onmouseout="hideTip(event, '2597', 2597)" onmouseover="showTip(event, '2597', 2597)">
                 <p>
                   <a id="getSymbolBoundingBox">
                     <a href="#getSymbolBoundingBox">
@@ -4012,7 +4293,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2555">
+              <div class="fsdocs-tip" id="2597">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getSymbolBoundingBox&#32;<span>sym</span></span></code>
@@ -4052,7 +4333,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getSymbolBoundingBox\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L114-114" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L122-122" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -4086,7 +4367,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2556', 2556)" onmouseover="showTip(event, '2556', 2556)">
+              <code onmouseout="hideTip(event, '2598', 2598)" onmouseover="showTip(event, '2598', 2598)">
                 <p>
                   <a id="getSymbolColour">
                     <a href="#getSymbolColour">
@@ -4095,7 +4376,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2556">
+              <div class="fsdocs-tip" id="2598">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getSymbolColour&#32;<span>compType&#32;clocked&#32;theme</span></span></code>
@@ -4148,7 +4429,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getSymbolColour\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L174-174" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L182-182" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -4198,7 +4479,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2557', 2557)" onmouseover="showTip(event, '2557', 2557)">
+              <code onmouseout="hideTip(event, '2599', 2599)" onmouseover="showTip(event, '2599', 2599)">
                 <p>
                   <a id="getSymbolPortOrientation">
                     <a href="#getSymbolPortOrientation">
@@ -4207,7 +4488,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2557">
+              <div class="fsdocs-tip" id="2599">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getSymbolPortOrientation&#32;<span>sym&#32;port</span></span></code>
@@ -4255,7 +4536,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getSymbolPortOrientation\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L757-757" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L860-860" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -4296,7 +4577,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2558', 2558)" onmouseover="showTip(event, '2558', 2558)">
+              <code onmouseout="hideTip(event, '2600', 2600)" onmouseover="showTip(event, '2600', 2600)">
                 <p>
                   <a id="getTextGateComponentLegend">
                     <a href="#getTextGateComponentLegend">
@@ -4305,7 +4586,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2558">
+              <div class="fsdocs-tip" id="2600">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getTextGateComponentLegend&#32;<span>gType</span></span></code>
@@ -4357,7 +4638,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2559', 2559)" onmouseover="showTip(event, '2559', 2559)">
+              <code onmouseout="hideTip(event, '2601', 2601)" onmouseover="showTip(event, '2601', 2601)">
                 <p>
                   <a id="getTwoPortLocations">
                     <a href="#getTwoPortLocations">
@@ -4366,7 +4647,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2559">
+              <div class="fsdocs-tip" id="2601">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getTwoPortLocations&#32;<span>model&#32;inputPortId&#32;outputPortId</span></span></code>
@@ -4422,7 +4703,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.getTwoPortLocations\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L871-871" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L974-974" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -4471,7 +4752,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2560', 2560)" onmouseover="showTip(event, '2560', 2560)">
+              <code onmouseout="hideTip(event, '2602', 2602)" onmouseover="showTip(event, '2602', 2602)">
                 <p>
                   <a id="initPortOrientation">
                     <a href="#initPortOrientation">
@@ -4480,7 +4761,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2560">
+              <div class="fsdocs-tip" id="2602">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>initPortOrientation&#32;<span>comp</span></span></code>
@@ -4517,7 +4798,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.initPortOrientation\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L465-465" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L523-523" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -4551,7 +4832,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2561', 2561)" onmouseover="showTip(event, '2561', 2561)">
+              <code onmouseout="hideTip(event, '2603', 2603)" onmouseover="showTip(event, '2603', 2603)">
                 <p>
                   <a id="invertRotation">
                     <a href="#invertRotation">
@@ -4560,7 +4841,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2561">
+              <div class="fsdocs-tip" id="2603">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>invertRotation&#32;<span>rot</span></span></code>
@@ -4615,7 +4896,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2562', 2562)" onmouseover="showTip(event, '2562', 2562)">
+              <code onmouseout="hideTip(event, '2604', 2604)" onmouseover="showTip(event, '2604', 2604)">
                 <p>
                   <a id="isMuxSel">
                     <a href="#isMuxSel">
@@ -4624,7 +4905,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2562">
+              <div class="fsdocs-tip" id="2604">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>isMuxSel&#32;<span>sym&#32;side</span></span></code>
@@ -4669,7 +4950,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.isMuxSel\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L772-772" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L875-875" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -4710,7 +4991,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2563', 2563)" onmouseover="showTip(event, '2563', 2563)">
+              <code onmouseout="hideTip(event, '2605', 2605)" onmouseover="showTip(event, '2605', 2605)">
                 <p>
                   <a id="makeComponent">
                     <a href="#makeComponent">
@@ -4719,7 +5000,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2563">
+              <div class="fsdocs-tip" id="2605">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>makeComponent&#32;<span>pos&#32;compType&#32;id&#32;label</span></span></code>
@@ -4780,7 +5061,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.makeComponent\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L648-648" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L748-748" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -4837,7 +5118,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2564', 2564)" onmouseover="showTip(event, '2564', 2564)">
+              <code onmouseout="hideTip(event, '2606', 2606)" onmouseover="showTip(event, '2606', 2606)">
                 <p>
                   <a id="makeMapsConsistent">
                     <a href="#makeMapsConsistent">
@@ -4846,7 +5127,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2564">
+              <div class="fsdocs-tip" id="2606">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>makeMapsConsistent&#32;<span>portIdMap&#32;sym</span></span></code>
@@ -4891,7 +5172,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.makeMapsConsistent\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L518-518" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L576-576" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -4934,7 +5215,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2565', 2565)" onmouseover="showTip(event, '2565', 2565)">
+              <code onmouseout="hideTip(event, '2607', 2607)" onmouseover="showTip(event, '2607', 2607)">
                 <p>
                   <a id="movePortToBottom">
                     <a href="#movePortToBottom">
@@ -4943,7 +5224,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2565">
+              <div class="fsdocs-tip" id="2607">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>movePortToBottom&#32;<span>portMaps&#32;index</span></span></code>
@@ -4988,7 +5269,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.movePortToBottom\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L200-200" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L216-216" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -5029,7 +5310,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2566', 2566)" onmouseover="showTip(event, '2566', 2566)">
+              <code onmouseout="hideTip(event, '2608', 2608)" onmouseover="showTip(event, '2608', 2608)">
                 <p>
                   <a id="movePortsToCorrectEdgeForComponentType">
                     <a href="#movePortsToCorrectEdgeForComponentType">
@@ -5038,7 +5319,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2566">
+              <div class="fsdocs-tip" id="2608">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>movePortsToCorrectEdgeForComponentType&#32;<span>ct&#32;portMaps</span></span></code>
@@ -5083,7 +5364,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.movePortsToCorrectEdgeForComponentType\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L390-390" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L448-448" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -5126,7 +5407,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2567', 2567)" onmouseover="showTip(event, '2567', 2567)">
+              <code onmouseout="hideTip(event, '2609', 2609)" onmouseover="showTip(event, '2609', 2609)">
                 <p>
                   <a id="nBitsGateTitle">
                     <a href="#nBitsGateTitle">
@@ -5135,7 +5416,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2567">
+              <div class="fsdocs-tip" id="2609">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>nBitsGateTitle&#32;<span>gateType&#32;n</span></span></code>
@@ -5203,7 +5484,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2568', 2568)" onmouseover="showTip(event, '2568', 2568)">
+              <code onmouseout="hideTip(event, '2610', 2610)" onmouseover="showTip(event, '2610', 2610)">
                 <p>
                   <a id="portLists">
                     <a href="#portLists">
@@ -5212,7 +5493,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2568">
+              <div class="fsdocs-tip" id="2610">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>portLists&#32;<span>numOfPorts&#32;hostID&#32;portType</span></span></code>
@@ -5265,7 +5546,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Symbol.portLists\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L414-414" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L472-472" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -5311,6 +5592,66 @@
             </details>
           </td>
         </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2611', 2611)" onmouseover="showTip(event, '2611', 2611)">
+                <p>
+                  <a id="widestExpectedJoinLegend">
+                    <a href="#widestExpectedJoinLegend">
+                      <code><span>widestExpectedJoinLegend&#32;<span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2611">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>widestExpectedJoinLegend&#32;<span></span></span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>string</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:P:Symbol.widestExpectedJoinLegend`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:Symbol.widestExpectedJoinLegend\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Symbol.fs#L313-313" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The widest legend a join is expected to have. Joins are sized to fit at least this, so that
+ changing a width moves the symbol only where the text really is longer than a common case -
+ a symbol that resizes under every keystroke in the properties box is a symbol that jumps
+ about while being read.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
       </tbody>
     </table>
   </div>
@@ -5333,7 +5674,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2569', 2569)" onmouseover="showTip(event, '2569', 2569)">
+              <code onmouseout="hideTip(event, '2612', 2612)" onmouseover="showTip(event, '2612', 2612)">
                 <p>
                   <a id="SymbolBoundingBox">
                     <a href="#SymbolBoundingBox">
@@ -5342,7 +5683,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2569">
+              <div class="fsdocs-tip" id="2612">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.SymbolBoundingBox</span></code>
@@ -5398,7 +5739,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2570', 2570)" onmouseover="showTip(event, '2570', 2570)">
+              <code onmouseout="hideTip(event, '2613', 2613)" onmouseover="showTip(event, '2613', 2613)">
                 <p>
                   <a id="SymbolBoundingBox">
                     <a href="#SymbolBoundingBox">
@@ -5407,7 +5748,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2570">
+              <div class="fsdocs-tip" id="2613">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.SymbolBoundingBox</span></code>

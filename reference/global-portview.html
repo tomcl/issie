@@ -668,7 +668,113 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1984', 1984)" onmouseover="showTip(event, '1984', 1984)">
+              <code onmouseout="hideTip(event, '2018', 2018)" onmouseover="showTip(event, '2018', 2018)">
+                <p>
+                  <a id="drawnComponentOf">
+                    <a href="#drawnComponentOf">
+                      <code><span>drawnComponentOf&#32;<span>design&#32;waveId</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2018">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>drawnComponentOf&#32;<span>design&#32;waveId</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        design
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simtypes-simulateddesign.html">SimulatedDesign</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        waveId
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-waveindext.html">WaveIndexT</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:PortView.drawnComponentOf`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:PortView.drawnComponentOf\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/PortView.fs#L227-227" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The component a wave should take the user TO, which is not always the one it comes from.
+
+ A wave on one of an array component's copies comes from a component the EXPANSION made - the
+ copy, which is a custom component on a sheet nobody drew - so there is no symbol anywhere to go
+ to, and the waveform viewer's "show me this" button did nothing at all. What the user means by
+ it is the join, or the input or output, that this port IS: that is drawn on the array
+ component's own sheet, and the body sheet keeps the ids of what is drawn there, so the body's
+ IO component for this port is the drawn one.
+
+ Found by port NUMBER and not by label. A copy's port labels are the channels that copy is
+ joined by, which is the whole point of them, and those are not the body's labels - see
+ ArrayElaborate's copyPortNames.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    design
+                  </span>
+                  :
+                  <code><a href="/issie/reference/simtypes-simulateddesign.html">SimulatedDesign</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    waveId
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-waveindext.html">WaveIndexT</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/ids-componentid.html">ComponentId</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2019', 2019)" onmouseover="showTip(event, '2019', 2019)">
                 <p>
                   <a id="nameOfPort">
                     <a href="#nameOfPort">
@@ -677,7 +783,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1984">
+              <div class="fsdocs-tip" id="2019">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>nameOfPort&#32;<span>fs&#32;wi</span></span></code>
@@ -722,7 +828,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:PortView.nameOfPort\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/PortView.fs#L304-304" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/PortView.fs#L389-389" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -765,7 +871,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1985', 1985)" onmouseover="showTip(event, '1985', 1985)">
+              <code onmouseout="hideTip(event, '2020', 2020)" onmouseover="showTip(event, '2020', 2020)">
                 <p>
                   <a id="ofInstance">
                     <a href="#ofInstance">
@@ -774,7 +880,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1985">
+              <div class="fsdocs-tip" id="2020">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>ofInstance&#32;<span>fs&#32;instance</span></span></code>
@@ -819,7 +925,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:PortView.ofInstance\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/PortView.fs#L298-298" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/PortView.fs#L383-383" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -865,7 +971,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1986', 1986)" onmouseover="showTip(event, '1986', 1986)">
+              <code onmouseout="hideTip(event, '2021', 2021)" onmouseover="showTip(event, '2021', 2021)">
                 <p>
                   <a id="ofInstanceCached">
                     <a href="#ofInstanceCached">
@@ -874,7 +980,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1986">
+              <div class="fsdocs-tip" id="2021">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>ofInstanceCached&#32;<span>fs&#32;instance</span></span></code>
@@ -942,7 +1048,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1987', 1987)" onmouseover="showTip(event, '1987', 1987)">
+              <code onmouseout="hideTip(event, '2022', 2022)" onmouseover="showTip(event, '2022', 2022)">
                 <p>
                   <a id="ofSlice">
                     <a href="#ofSlice">
@@ -951,7 +1057,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1987">
+              <div class="fsdocs-tip" id="2022">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>ofSlice&#32;<span>design&#32;instance&#32;slice</span></span></code>
@@ -1004,13 +1110,11 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:PortView.ofSlice\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/PortView.fs#L166-166" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/PortView.fs#L249-249" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     The rich per-instance view, derived from the DESIGN plus the port slice - no FastComponent
- anywhere. This is the memoised function the selector runs: its real inputs are the design and
- two ints a port, and it merely happens that a .NET simulator computed the ints.
+                     two ints a port, and it merely happens that a .NET simulator computed the ints.
                   </p>
                 </div>
               </summary>
@@ -1055,7 +1159,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1988', 1988)" onmouseover="showTip(event, '1988', 1988)">
+              <code onmouseout="hideTip(event, '2023', 2023)" onmouseover="showTip(event, '2023', 2023)">
                 <p>
                   <a id="sheetSliceOf">
                     <a href="#sheetSliceOf">
@@ -1064,7 +1168,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1988">
+              <div class="fsdocs-tip" id="2023">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sheetSliceOf&#32;<span>fs&#32;instance</span></span></code>
@@ -1162,7 +1266,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1989', 1989)" onmouseover="showTip(event, '1989', 1989)">
+              <code onmouseout="hideTip(event, '2024', 2024)" onmouseover="showTip(event, '2024', 2024)">
                 <p>
                   <a id="sliceSource">
                     <a href="#sliceSource">
@@ -1171,7 +1275,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1989">
+              <div class="fsdocs-tip" id="2024">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sliceSource&#32;<span></span></span></code>
@@ -1196,7 +1300,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:PortView.sliceSource\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/PortView.fs#L236-236" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/PortView.fs#L320-320" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1231,7 +1335,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1990', 1990)" onmouseover="showTip(event, '1990', 1990)">
+              <code onmouseout="hideTip(event, '2025', 2025)" onmouseover="showTip(event, '2025', 2025)">
                 <p>
                   <a id="tryOfInstanceCached">
                     <a href="#tryOfInstanceCached">
@@ -1240,7 +1344,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1990">
+              <div class="fsdocs-tip" id="2025">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>tryOfInstanceCached&#32;<span></span></span></code>
@@ -1265,7 +1369,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:PortView.tryOfInstanceCached\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/PortView.fs#L338-338" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/PortView.fs#L423-423" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1301,7 +1405,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1991', 1991)" onmouseover="showTip(event, '1991', 1991)">
+              <code onmouseout="hideTip(event, '2026', 2026)" onmouseover="showTip(event, '2026', 2026)">
                 <p>
                   <a id="waveIndexOf">
                     <a href="#waveIndexOf">
@@ -1310,7 +1414,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1991">
+              <div class="fsdocs-tip" id="2026">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>waveIndexOf&#32;<span>instance&#32;port</span></span></code>
@@ -1396,7 +1500,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1992', 1992)" onmouseover="showTip(event, '1992', 1992)">
+              <code onmouseout="hideTip(event, '2027', 2027)" onmouseover="showTip(event, '2027', 2027)">
                 <p>
                   <a id="waveIndicesOfDesign">
                     <a href="#waveIndicesOfDesign">
@@ -1405,7 +1509,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1992">
+              <div class="fsdocs-tip" id="2027">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>waveIndicesOfDesign&#32;<span>design&#32;instance</span></span></code>
@@ -1450,7 +1554,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:PortView.waveIndicesOfDesign\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/PortView.fs#L263-263" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/PortView.fs#L347-347" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

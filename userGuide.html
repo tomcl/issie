@@ -789,6 +789,55 @@ do if they violate it.
 <strong>instance</strong> should use. Two instances of the same sheet may legitimately have different port
 widths — a 4-bit one and a 32-bit one — and ISSIE tracks each against its own values.</p>
 <p>The <a href="parameterSystem.html">Parameter System</a> page has the full details.</p>
+<h2><a name="Array-Components" class="anchor" href="#Array-Components">Array Components</a></h2>
+<p>A parameter changes what a number on a sheet is. An <strong>array component</strong> changes how much hardware
+there is: draw one bit of an adder and get an adder of any width, or one stage of a pipeline and get
+the pipeline.</p>
+<p>An array component is made from the Catalogue, like a Verilog component. Choose <strong>Array components &gt;
+New array component</strong>, and ISSIE offers three ways to get one: a new empty sheet, an existing sheet
+made into one, or a copy of an existing sheet. The middle one is the usual way - you generally find
+out that you want an array after drawing one copy of it. The last will copy an array component as
+well, which is how you get a second array of the same shape: the copy keeps the original's copy
+count and loop variable, and the two can then be changed apart.</p>
+<p>Once made, an array component is placed like any other sheet, from <strong>This project</strong> in the
+Catalogue: it is a sheet, and its array settings are a property of that sheet.</p>
+<p>It then has a sheet of its own, in the Sheets menu, which is where you draw the one copy. Its
+Properties pane holds the number of <strong>Copies</strong>, and its loop variable - <code>i</code> by default - counts from
+0 to one less than that. Write <code>i</code> in any property box and one copy differs from the next: copy 3
+selects bit 3 of a bus where copy 0 selects bit 0. The sheet pill says how many copies it is.</p>
+<p>The copies have to join up, and while an array component is the sheet you are looking at, the
+<strong>Array components</strong> section of the Catalogue grows four more components for saying how:</p>
+<ul>
+<li>
+<strong>JoinOut</strong> and <strong>JoinIn</strong> pass a value from one copy to another. Each sits on a numbered channel,
+and the numbers are normally written in terms of the loop variable: a <code>JoinOut</code> numbered <code>i+1</code>
+meets the <code>JoinIn</code> numbered <code>i</code> in the <em>next</em> copy, which is a carry chain. Where the chain runs
+out - the first copy has nothing to take from, the last has nowhere to send - the loose ends
+become an input and an output of the array itself. Nothing says which copies those are; it falls
+out of the numbering, so <code>i+2</code> gives a chain that skips, and <code>JoinOut i</code> against <code>JoinIn i+1</code>
+gives one running backwards.
+</li>
+<li>
+<strong>BusOut</strong> takes one value from each copy and joins them into a single bus, copy 0 in the least
+significant bits. Eight copies of a one-bit sum is an eight-bit sum.
+</li>
+<li>
+<strong>MuxOut</strong> takes one value from each copy and reads one of them back. It adds a multiplexer: a
+select input named after it and an output, so the design around the array can ask for copy 5's
+value. A select naming no copy - possible when the number of copies is not a power of two - gives
+zero.
+</li>
+</ul>
+<p>Two components you already know change meaning on an array component: an ordinary <strong>Input</strong> goes to
+<em>every</em> copy, and an ordinary <strong>Output</strong> gives one port <em>per</em> copy.</p>
+<p>Place the array component on another sheet from the Catalogue, and it has all of those ports. In the
+waveform viewer it appears as its own ports plus one instance per copy, which you can open and probe
+like any other sub-sheet.</p>
+<p>Two rules worth knowing before you meet them as error messages. A channel number may mention the
+loop variable and nothing else - which joins are left loose decides the component's ports, so it
+must not depend on what an instance chose. And a channel number may never be negative, because the
+port an unmatched join becomes is named after it; write a backward chain by shifting the numbers up
+rather than down.</p>
 <h2><a name="Component-Libraries" class="anchor" href="#Component-Libraries">Component Libraries</a></h2>
 <p>The Catalogue's <strong>Library</strong> section holds ready-made parameterised components. Choosing one asks
 for its parameter values and then copies its sheet <strong>into your project</strong>: it becomes an ordinary
@@ -945,6 +994,11 @@ agrees with nothing. Put a library you mean to change in a folder of your own fi
   <li class="level-2">
     <a href="#Sheet-Parameters">
       Sheet Parameters
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Array-Components">
+      Array Components
     </a>
   </li>
   <li class="level-2">

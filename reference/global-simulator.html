@@ -526,7 +526,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Simulator.SimCache\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L324-324" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L477-477" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -557,7 +557,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2489', 2489)" onmouseover="showTip(event, '2489', 2489)">
+              <code onmouseout="hideTip(event, '2526', 2526)" onmouseover="showTip(event, '2526', 2526)">
                 <p>
                   <a id="cacheIsEqual">
                     <a href="#cacheIsEqual">
@@ -566,7 +566,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2489">
+              <div class="fsdocs-tip" id="2526">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>cacheIsEqual&#32;<span>cache&#32;ldcs</span></span></code>
@@ -634,7 +634,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2490', 2490)" onmouseover="showTip(event, '2490', 2490)">
+              <code onmouseout="hideTip(event, '2527', 2527)" onmouseover="showTip(event, '2527', 2527)">
                 <p>
                   <a id="cap">
                     <a href="#cap">
@@ -643,7 +643,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2490">
+              <div class="fsdocs-tip" id="2527">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>cap&#32;<span>sheet</span></span></code>
@@ -695,7 +695,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2491', 2491)" onmouseover="showTip(event, '2491', 2491)">
+              <code onmouseout="hideTip(event, '2528', 2528)" onmouseover="showTip(event, '2528', 2528)">
                 <p>
                   <a id="childrenOf">
                     <a href="#childrenOf">
@@ -704,7 +704,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2491">
+              <div class="fsdocs-tip" id="2528">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>childrenOf&#32;<span>ldcs&#32;sheet</span></span></code>
@@ -772,7 +772,99 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2492', 2492)" onmouseover="showTip(event, '2492', 2492)">
+              <code onmouseout="hideTip(event, '2529', 2529)" onmouseover="showTip(event, '2529', 2529)">
+                <p>
+                  <a id="designForSidecar">
+                    <a href="#designForSidecar">
+                      <code><span>designForSidecar&#32;<span>fs</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2529">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>designForSidecar&#32;<span>fs</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        fs
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/commontypes-simpledesign.html">SimpleDesign</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Simulator.designForSidecar`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Simulator.designForSidecar\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L224-224" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The design to send to the .NET sidecar: THE sheets this simulation was built from.
+
+ **Built from the simulation and not from the project, and that is the point.** The renderer has
+ already turned the project into the circuit it simulates - array components expanded into a
+ wrapper and a body - and this hands the sidecar that, so the two processes simulate the same
+ sheets rather than each deriving them from the same input and hoping to agree.
+
+ They had to agree exactly, because SimSetInputs names a component by ID across the wire and
+ expansion MINTS ids for everything it makes. Two expansions agreeing was luck: the same code
+ over the same list in the same order. Nothing enforced it and nothing tested it. Now only one
+ of the two ever expands, so there is nothing to agree about.
+
+ It is also why the wire format knows nothing about array components, and must not learn: a
+ SimpleSheet that crossed this boundary is an ordinary sheet by construction.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    fs
+                  </span>
+                  :
+                  <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/commontypes-simpledesign.html">SimpleDesign</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2530', 2530)" onmouseover="showTip(event, '2530', 2530)">
                 <p>
                   <a id="designOnlySimulation">
                     <a href="#designOnlySimulation">
@@ -781,7 +873,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2492">
+              <div class="fsdocs-tip" id="2530">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>designOnlySimulation&#32;<span>simulationArraySize&#32;diagramName&#32;<span>(<span>arg3,&#32;arg4</span>)</span>&#32;loadedDependencies</span></span></code>
@@ -850,7 +942,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Simulator.designOnlySimulation\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L416-416" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L589-589" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -927,7 +1019,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2493', 2493)" onmouseover="showTip(event, '2493', 2493)">
+              <code onmouseout="hideTip(event, '2531', 2531)" onmouseover="showTip(event, '2531', 2531)">
                 <p>
                   <a id="getCurrentSimulationState">
                     <a href="#getCurrentSimulationState">
@@ -936,7 +1028,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2493">
+              <div class="fsdocs-tip" id="2531">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getCurrentSimulationState&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span>&#32;project&#32;fs</span></span></code>
@@ -997,7 +1089,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Simulator.getCurrentSimulationState\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L84-84" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L90-90" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1054,7 +1146,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2494', 2494)" onmouseover="showTip(event, '2494', 2494)">
+              <code onmouseout="hideTip(event, '2532', 2532)" onmouseover="showTip(event, '2532', 2532)">
                 <p>
                   <a id="getDirectDependencies">
                     <a href="#getDirectDependencies">
@@ -1063,7 +1155,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2494">
+              <div class="fsdocs-tip" id="2532">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getDirectDependencies&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span></span></span></code>
@@ -1131,7 +1223,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2495', 2495)" onmouseover="showTip(event, '2495', 2495)">
+              <code onmouseout="hideTip(event, '2533', 2533)" onmouseover="showTip(event, '2533', 2533)">
                 <p>
                   <a id="getFastSim">
                     <a href="#getFastSim">
@@ -1140,7 +1232,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2495">
+              <div class="fsdocs-tip" id="2533">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getFastSim&#32;<span>()</span></span></code>
@@ -1177,7 +1269,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Simulator.getFastSim\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L372-372" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L525-525" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1212,7 +1304,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2496', 2496)" onmouseover="showTip(event, '2496', 2496)">
+              <code onmouseout="hideTip(event, '2534', 2534)" onmouseover="showTip(event, '2534', 2534)">
                 <p>
                   <a id="getLdcList">
                     <a href="#getLdcList">
@@ -1221,7 +1313,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2496">
+              <div class="fsdocs-tip" id="2534">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getLdcList&#32;<span>ldcs&#32;openSheet</span></span></code>
@@ -1307,7 +1399,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2497', 2497)" onmouseover="showTip(event, '2497', 2497)">
+              <code onmouseout="hideTip(event, '2535', 2535)" onmouseover="showTip(event, '2535', 2535)">
                 <p>
                   <a id="getSheet">
                     <a href="#getSheet">
@@ -1316,7 +1408,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2497">
+              <div class="fsdocs-tip" id="2535">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getSheet&#32;<span>ldcs&#32;openSheet</span></span></code>
@@ -1402,7 +1494,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2498', 2498)" onmouseover="showTip(event, '2498', 2498)">
+              <code onmouseout="hideTip(event, '2536', 2536)" onmouseover="showTip(event, '2536', 2536)">
                 <p>
                   <a id="getUpdatedLoadedComponentState">
                     <a href="#getUpdatedLoadedComponentState">
@@ -1411,7 +1503,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2498">
+              <div class="fsdocs-tip" id="2536">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getUpdatedLoadedComponentState&#32;<span>diagramName&#32;<span>(<span>arg2,&#32;arg3</span>)</span>&#32;projLdcs</span></span></code>
@@ -1532,7 +1624,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2499', 2499)" onmouseover="showTip(event, '2499', 2499)">
+              <code onmouseout="hideTip(event, '2537', 2537)" onmouseover="showTip(event, '2537', 2537)">
                 <p>
                   <a id="makeDummySimulationError">
                     <a href="#makeDummySimulationError">
@@ -1541,7 +1633,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2499">
+              <div class="fsdocs-tip" id="2537">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>makeDummySimulationError&#32;<span>msg</span></span></code>
@@ -1593,7 +1685,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2500', 2500)" onmouseover="showTip(event, '2500', 2500)">
+              <code onmouseout="hideTip(event, '2538', 2538)" onmouseover="showTip(event, '2538', 2538)">
                 <p>
                   <a id="portSheetPort">
                     <a href="#portSheetPort">
@@ -1602,7 +1694,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2500">
+              <div class="fsdocs-tip" id="2538">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>portSheetPort&#32;<span>compsWithIds&#32;name&#32;port</span></span></code>
@@ -1655,7 +1747,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Simulator.portSheetPort\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L113-113" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L121-121" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1706,7 +1798,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2501', 2501)" onmouseover="showTip(event, '2501', 2501)">
+              <code onmouseout="hideTip(event, '2539', 2539)" onmouseover="showTip(event, '2539', 2539)">
                 <p>
                   <a id="prepareSimulationMemoized">
                     <a href="#prepareSimulationMemoized">
@@ -1715,7 +1807,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2501">
+              <div class="fsdocs-tip" id="2539">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>prepareSimulationMemoized&#32;<span>localBuild&#32;isWaveSim&#32;simulationArraySize&#32;openFileName&#32;diagramName&#32;<span>(<span>arg6,&#32;arg7</span>)</span>&#32;loadedDependencies</span></span></code>
@@ -1808,7 +1900,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Simulator.prepareSimulationMemoized\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L447-447" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L625-625" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1902,19 +1994,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2502', 2502)" onmouseover="showTip(event, '2502', 2502)">
+              <code onmouseout="hideTip(event, '2540', 2540)" onmouseover="showTip(event, '2540', 2540)">
                 <p>
                   <a id="saveStateInSimulation">
                     <a href="#saveStateInSimulation">
-                      <code><span>saveStateInSimulation&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span>&#32;openFileName&#32;loadedComponents&#32;fs</span></span></code>
+                      <code><span>saveStateInSimulation&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span>&#32;openFileName&#32;loadedComponents&#32;<span>(<span>arg5,&#32;arg6</span>)</span>&#32;copyNames&#32;fs</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2502">
+              <div class="fsdocs-tip" id="2540">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>saveStateInSimulation&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span>&#32;openFileName&#32;loadedComponents&#32;fs</span></span></code>
+                  <code><span>saveStateInSimulation&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span>&#32;openFileName&#32;loadedComponents&#32;<span>(<span>arg5,&#32;arg6</span>)</span>&#32;copyNames&#32;fs</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -1953,6 +2045,30 @@
                     <br/>
                     <span>
                       <b>
+                        arg4
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-canvasstate.html">CanvasState</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arg5
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        copyNames
+                      </b>
+                      :
+                      <code><a href="/issie/reference/arrayelaborate-copyportnames.html">CopyPortNames</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
                         fs
                       </b>
                       :
@@ -1980,7 +2096,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Simulator.saveStateInSimulation\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L126-126" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L134-134" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2027,6 +2143,30 @@
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
+                    arg4
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-canvasstate.html">CanvasState</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arg5
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    copyNames
+                  </span>
+                  :
+                  <code><a href="/issie/reference/arrayelaborate-copyportnames.html">CopyPortNames</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
                     fs
                   </span>
                   :
@@ -2049,7 +2189,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2503', 2503)" onmouseover="showTip(event, '2503', 2503)">
+              <code onmouseout="hideTip(event, '2541', 2541)" onmouseover="showTip(event, '2541', 2541)">
                 <p>
                   <a id="sheetsNeeded">
                     <a href="#sheetsNeeded">
@@ -2058,7 +2198,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2503">
+              <div class="fsdocs-tip" id="2541">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sheetsNeeded&#32;<span>ldcs&#32;sheet</span></span></code>
@@ -2146,7 +2286,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2504', 2504)" onmouseover="showTip(event, '2504', 2504)">
+              <code onmouseout="hideTip(event, '2542', 2542)" onmouseover="showTip(event, '2542', 2542)">
                 <p>
                   <a id="simCache">
                     <a href="#simCache">
@@ -2155,7 +2295,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2504">
+              <div class="fsdocs-tip" id="2542">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>simCache&#32;<span></span></span></code>
@@ -2180,7 +2320,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:Simulator.simCache\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L367-367" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L520-520" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2214,7 +2354,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2505', 2505)" onmouseover="showTip(event, '2505', 2505)">
+              <code onmouseout="hideTip(event, '2543', 2543)" onmouseover="showTip(event, '2543', 2543)">
                 <p>
                   <a id="simCacheInit">
                     <a href="#simCacheInit">
@@ -2223,7 +2363,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2505">
+              <div class="fsdocs-tip" id="2543">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>simCacheInit&#32;<span>()</span></span></code>
@@ -2275,7 +2415,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2506', 2506)" onmouseover="showTip(event, '2506', 2506)">
+              <code onmouseout="hideTip(event, '2544', 2544)" onmouseover="showTip(event, '2544', 2544)">
                 <p>
                   <a id="startCircuitSimulation">
                     <a href="#startCircuitSimulation">
@@ -2284,7 +2424,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2506">
+              <div class="fsdocs-tip" id="2544">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>startCircuitSimulation&#32;<span>simulationArraySize&#32;diagramName&#32;<span>(<span>arg3,&#32;arg4</span>)</span>&#32;loadedDependencies</span></span></code>
@@ -2353,7 +2493,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Simulator.startCircuitSimulation\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L263-263" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L411-411" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2419,7 +2559,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2507', 2507)" onmouseover="showTip(event, '2507', 2507)">
+              <code onmouseout="hideTip(event, '2545', 2545)" onmouseover="showTip(event, '2545', 2545)">
                 <p>
                   <a id="startCircuitSimulationFData">
                     <a href="#startCircuitSimulationFData">
@@ -2428,7 +2568,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2507">
+              <div class="fsdocs-tip" id="2545">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>startCircuitSimulationFData&#32;<span>simulationArraySize&#32;diagramName&#32;<span>(<span>arg3,&#32;arg4</span>)</span>&#32;loadedDependencies</span></span></code>
@@ -2544,7 +2684,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2508', 2508)" onmouseover="showTip(event, '2508', 2508)">
+              <code onmouseout="hideTip(event, '2546', 2546)" onmouseover="showTip(event, '2546', 2546)">
                 <p>
                   <a id="startCircuitSimulationWith">
                     <a href="#startCircuitSimulationWith">
@@ -2553,7 +2693,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2508">
+              <div class="fsdocs-tip" id="2546">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>startCircuitSimulationWith&#32;<span>waveTables&#32;simulationArraySize&#32;diagramName&#32;<span>(<span>arg4,&#32;arg5</span>)</span>&#32;loadedDependencies</span></span></code>
@@ -2630,7 +2770,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Simulator.startCircuitSimulationWith\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L209-209" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L352-352" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2706,7 +2846,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2509', 2509)" onmouseover="showTip(event, '2509', 2509)">
+              <code onmouseout="hideTip(event, '2547', 2547)" onmouseover="showTip(event, '2547', 2547)">
                 <p>
                   <a id="storedstateisEqual">
                     <a href="#storedstateisEqual">
@@ -2715,7 +2855,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2509">
+              <div class="fsdocs-tip" id="2547">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>storedstateisEqual&#32;<span>cache&#32;ldcs</span></span></code>
@@ -2783,7 +2923,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2510', 2510)" onmouseover="showTip(event, '2510', 2510)">
+              <code onmouseout="hideTip(event, '2548', 2548)" onmouseover="showTip(event, '2548', 2548)">
                 <p>
                   <a id="validateCircuitSimulation">
                     <a href="#validateCircuitSimulation">
@@ -2792,7 +2932,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2510">
+              <div class="fsdocs-tip" id="2548">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>validateCircuitSimulation&#32;<span>diagramName&#32;<span>(<span>arg2,&#32;arg3</span>)</span>&#32;loadedDependencies</span></span></code>
@@ -2853,7 +2993,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Simulator.validateCircuitSimulation\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L183-183" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L317-317" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2889,6 +3029,115 @@
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
                     loadedDependencies
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a>,&#32;<a href="/issie/reference/simgraphtypes-simulationerror.html">SimulationError</a></span>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2549', 2549)" onmouseover="showTip(event, '2549', 2549)">
+                <p>
+                  <a id="validateSheetOfDesign">
+                    <a href="#validateSheetOfDesign">
+                      <code><span>validateSheetOfDesign&#32;<span>sheetName&#32;ldcs</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2549">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>validateSheetOfDesign&#32;<span>sheetName&#32;ldcs</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        sheetName
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        ldcs
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a>,&#32;<a href="/issie/reference/simgraphtypes-simulationerror.html">SimulationError</a></span>&gt;</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Simulator.validateSheetOfDesign`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Simulator.validateSheetOfDesign\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/Simulator.fs#L571-571" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Does one sheet of a design build into a simulation? The question behind the Simulation tab's
+ verdict button and the wave viewer's price, and the cheapest way to ask it: the graph is checked
+ and thrown away, with no step arrays allocated.
+
+ **THE one place that says how a design is checked**, and it is written down because it was
+ written twice and the two drifted. The whole design goes to validateCircuitSimulation - the
+ named sheet included - while getStateAndDependencies is asked only for that sheet's canvas: it
+ removes the sheet from the list it returns, and what a sheet IS rather than what is drawn on it
+ (its parameters, and whether it is an ARRAY COMPONENT whose hardware is several copies of what
+ is drawn on it) is on the sheet and not on the canvas. Passing the shortened list on left
+ nothing able to say the sheet being checked was an array component, so the checks ran on its
+ unexpanded canvas and refused its own IO as being on a sheet that is not an array component.
+
+ `ldcs` is the design as the model holds it now - ModelHelpers.designOf, which puts the canvas
+ being drawn in place of the open sheet's saved copy.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    sheetName
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ldcs
                   </span>
                   :
                   <code><span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></code>

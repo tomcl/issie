@@ -104,7 +104,7 @@
     "react-dom": "^18",
     "react-simple-code-editor": "0.14.1",
     "usb": "^3.0.1",
-    "uuid": "^14.0.1"
+    "uuid": "^14.0.2"
   },
   "overrides": {
     "sockjs": {

@@ -109,7 +109,8 @@
   "overrides": {
     "sockjs": {
       "uuid": "^11.1.1"
-    }
+    },
+    "qs": "^6.16.0"
   },
   "devDependencies": {
     "@electron/notarize": "^3",

@@ -1,4 +1,4 @@
-﻿/// The Simple wire types (CommonTypes.SimpleDesign) are the contract for sending a design to
+/// The Simple wire types (CommonTypes.SimpleDesign) are the contract for sending a design to
 /// the dotnet sidecar, and integer canvas ids are what make them a straight projection. Four
 /// things are pinned here:
 ///   - the exact JSON encoding the renderer sends (the vendored SimpleJson serializer, which
@@ -236,6 +236,22 @@ let tests =
                             Expect.equal (signatureIn shimmed) (signatureIn admitted)
                                 $"{project}/{ldc.Name}: instance of {custom.Name} resolves differently after the shim"
                         | _ -> ()
+        }
+
+        test "the top sheet does not depend on the order the sheets arrive in" {
+            // The CI flake this pins: adder4 has TWO sheets no other sheet instantiates - fa4 and
+            // simplified_fa4 - and neither declares IsTopSheet, so the converter had to choose. It
+            // chose whichever came first in the list, which is the order the file system listed the
+            // project directory. The same commit passed on one runner and failed on another.
+            //
+            // Reversing the list is the whole test: the order a design is read in must not change
+            // what it converts to.
+            for project in [ "1fulladder"; "adder4"; "3cpu" ] do
+                let admitted = loadProject project
+                let forwards = CanvasExtractor.simpleDesignOfLoadedComponents admitted
+                let backwards = CanvasExtractor.simpleDesignOfLoadedComponents (List.rev admitted)
+                Expect.equal backwards.TopSheet forwards.TopSheet
+                    $"{project}: the top sheet must not depend on the order the sheets are given in"
         }
 
         test "shimmed designs simulate identically to their originals" {

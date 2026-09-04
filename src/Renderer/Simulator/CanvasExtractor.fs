@@ -652,11 +652,27 @@ let simpleDesignOfLoadedComponents (ldcs: LoadedComponent list) : SimpleDesign =
                 | _ -> None))
         |> Set.ofList
 
+    /// The first of several equally good answers, by NAME rather than by position.
+    ///
+    /// Every rule below can match more than one sheet, and taking whichever came first in the list
+    /// read the answer off the order the project's files happened to arrive in - which is the order
+    /// the file system listed a directory, and is not the same on two machines. The adder4 fixture
+    /// has two sheets no other sheet instantiates, fa4 and simplified_fa4, and CI disagreed with
+    /// itself about which of them was the top: the same commit passed on one runner and failed on
+    /// another. Which root is chosen is arbitrary; that the same one is chosen every time is not.
+    let firstByName (candidates: LoadedComponent list) =
+        candidates |> List.sortBy (fun ldc -> ldc.Name) |> List.tryHead
+
+    /// The sheet the design is rooted at: the one that says it is the top, else one no other sheet
+    /// instantiates, else any of them. A design that cares which of several roots is the top says
+    /// so with IsTopSheet - that is what the flag is for, and nothing else here can know.
     let top =
         ldcs
-        |> List.tryFind (fun ldc -> ldc.IsTopSheet)
-        |> Option.orElseWith (fun () -> ldcs |> List.tryFind (fun ldc -> not (Set.contains ldc.Name instantiated)))
-        |> Option.orElseWith (fun () -> List.tryHead ldcs)
+        |> List.filter (fun ldc -> ldc.IsTopSheet)
+        |> firstByName
+        |> Option.orElseWith (fun () ->
+            ldcs |> List.filter (fun ldc -> not (Set.contains ldc.Name instantiated)) |> firstByName)
+        |> Option.orElseWith (fun () -> firstByName ldcs)
         |> Option.map (fun ldc -> ldc.Name)
         |> Option.defaultValue ""
 

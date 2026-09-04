@@ -42,7 +42,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
     let inline ins i =
 #if ASSERTS
         assertThat
-            (i < n)
+            (i < comp.InputLinks.Length)
             (sprintf
                 "What? Invalid input port (%d:step%d) used by %s:%s (%A) reducer with %d Ins"
                 i
@@ -50,7 +50,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 comp.FullName
                 comp.ShortId
                 componentType
-                n)
+                comp.InputLinks.Length)
 #endif
         let fd = comp.InputLinks[i].FDataStep[simStep]
         fd
@@ -69,14 +69,14 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
     let inline insOld i =
 #if ASSERTS
         assertThat
-            (i < n)
+            (i < comp.InputLinks.Length)
             (sprintf
                 "What? Invalid input port (%d:step%d) used by %s (%A) reducer with %d Ins"
                 i
                 simStep
                 comp.FullName
                 componentType
-                n)
+                comp.InputLinks.Length)
 #endif
 
         let fd = comp.GetInputFData (simStepOld) (InputPortNumber i)
@@ -349,8 +349,8 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             <| sprintf
                 "Mux2 %s received two inputs with different widths: (%A) <> (%A)"
                 comp.FullName
-                (expToString exp1)
-                (expToString exp2)
+                (expToKatex exp1)
+                (expToKatex exp2)
 #endif
             let out =
                 if (extractBitFData (Data bitSelect) 1) = 0u then
@@ -366,7 +366,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             <| sprintf
                 "Mux2 %s received two inputs with different widths: (%A) <> (%A)"
                 comp.FullName
-                (expToString exp)
+                (expToKatex exp)
                 bits
 #endif
             let out =
@@ -383,7 +383,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 "Mux2 %s received two inputs with different widths: (%A) <> (%A)"
                 comp.FullName
                 bits
-                (expToString exp)
+                (expToKatex exp)
 #endif
             let out =
                 if (extractBitFData (Data bitSelect) 1) = 0u then
@@ -419,14 +419,17 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
         | fd0, fd1, fd2, fd3, Data bitSelect ->
 #if ASSERTS
             assertThat (
-                bits0.Width = bits1.Width
-                && bits0.Width = bits2.Width
+                fd0.Width = fd1.Width
+                && fd0.Width = fd2.Width
+                && fd0.Width = fd3.Width
             )
             <| sprintf
-                "Mux4 %s received two inputs with different widths: (%A) <> (%A)"
+                "Mux4 %s received four inputs with different widths: (%A) <> (%A) <> (%A) <> (%A)"
                 comp.FullName
                 fd0.fdToString
                 fd1.fdToString
+                fd2.fdToString
+                fd3.fdToString
 #endif
 
             let out =

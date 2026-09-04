@@ -1,4 +1,4 @@
-﻿(*
+(*
     Simulator.fs
 
     This module collects all the APIs required for a simulation. 
@@ -135,10 +135,12 @@ let saveStateInSimulation
     (canvasState: CanvasState)
     (openFileName: string)
     (loadedComponents: LoadedComponent list)
-    /// The same design as the PROJECT holds it, before any array component was expanded - the only
-    /// form in which "has this been edited since?" can be asked. See SimulatedDesign.DesignAsDrawn.
+    // The same design as the PROJECT holds it, before any array component was expanded - the only
+    // form in which "has this been edited since?" can be asked. See SimulatedDesign.DesignAsDrawn.
+    // Plain comments, not `///`: an XML doc comment is not allowed on a parameter, and one written
+    // there is an FS3520 on every compile.
     ((drawnCanvasState, drawnComponents): CanvasState * LoadedComponent list)
-    /// The port labels each array copy is SHOWN with - see ArrayElaborate.CopyPortNames.
+    // The port labels each array copy is SHOWN with - see ArrayElaborate.CopyPortNames.
     (copyNames: ArrayElaborate.CopyPortNames)
     (fs: FastSimulation)
     =
@@ -236,6 +238,15 @@ let designForSidecar (fs: FastSimulation) : SimpleDesign =
 ///
 /// The top sheet is expanded too, when it is an array sheet: what is simulated then is the array
 /// itself, at whatever its own properties say, which is the honest meaning of simulating it.
+///
+/// **`loadedDependencies` is the WHOLE design, the sheet named `diagramName` included**, wherever
+/// there is a sheet behind that canvas. What a sheet IS - whether it is an array component - lives
+/// on the sheet and not on its canvas, so a caller that filters the top sheet out hides its array
+/// settings from this: the top is then left unexpanded and its own IO is refused by
+/// CanvasStateAnalyser as being on a sheet that is not an array component, which is what the
+/// Simulation tab's verdict used to say about an array component the user had open. The one caller
+/// with no sheet behind its canvas is the truth table's selection, which builds a canvas of its
+/// own; there `topSheet` is None and there are genuinely no settings to read.
 let private expandArrayDesign
         (diagramName: string)
         (canvasState: CanvasState)
@@ -245,6 +256,7 @@ let private expandArrayDesign
     // by far the common case: nothing to do, and nothing allocated to find that out
     | false -> Ok (canvasState, loadedDependencies, Map.empty)
     | true ->
+        let topSheet = loadedDependencies |> List.tryFind (fun ldc -> ldc.Name = diagramName)
         let expanded, problems, copyNames = ArrayElaborate.expandArraySheets loadedDependencies
 
         /// The sheets this design actually uses, by name.
@@ -270,19 +282,35 @@ let private expandArrayDesign
         let used = reach (Set.singleton diagramName) (fst canvasState)
 
         match problems |> List.filter (fun (sheet, _) -> Set.contains sheet used) with
-        | (_, msg) :: _ ->
+        // The FIRST problem only. One mistake on an array sheet can be several problems - a channel
+        // driven twice is also a port name derived twice - and a list of them reads as a list of
+        // faults to fix rather than the one there is. ArrayExpand puts the message that names the
+        // fault itself before any consequence of it.
+        | (_, problem) :: _ ->
             Error
-                { ErrType = GenericSimError msg
+                { ErrType = GenericSimError problem.Message
                   InDependency = None
-                  ComponentsAffected = []
+                  // what the simulator highlights in red on the sheet, so the message is read
+                  // beside the components it is about
+                  ComponentsAffected = problem.Components
                   ConnectionsAffected = [] }
         | [] ->
-            // where the top sheet was the array sheet, what is simulated is its wrapper
+            // Where the top sheet is an array component, what is simulated is its wrapper.
+            //
+            // Decided from the top SHEET's own array settings rather than by looking its name up
+            // in the expansion, so that "the top is not an array component" and "the top is not a
+            // sheet of this design at all" are told apart. Both used to arrive here as a missing
+            // entry and both fell through to the canvas passed in - which is right for the first
+            // and silently wrong for the second, and the second is the state a caller that filters
+            // the top sheet out leaves behind.
             let topCanvas =
-                expanded
-                |> List.tryFind (fun ldc -> ldc.Name = diagramName)
-                |> Option.map (fun ldc -> ldc.CanvasState)
-                |> Option.defaultValue canvasState
+                match topSheet |> Option.bind (fun ldc -> ldc.ArrayInfo) with
+                | None -> canvasState
+                | Some _ ->
+                    expanded
+                    |> List.tryFind (fun ldc -> ldc.Name = diagramName)
+                    |> Option.map (fun ldc -> ldc.CanvasState)
+                    |> Option.defaultValue canvasState
             Ok (topCanvas, expanded, copyNames)
 
 /// Extract circuit data from inputs and return a valid SimulationGraph or an error
@@ -524,6 +552,26 @@ let makeDummySimulationError msg = {
         ConnectionsAffected = []
         ComponentsAffected = []
     }
+
+/// Does one sheet of a design build into a simulation? The question behind the Simulation tab's
+/// verdict button and the wave viewer's price, and the cheapest way to ask it: the graph is checked
+/// and thrown away, with no step arrays allocated.
+///
+/// **THE one place that says how a design is checked**, and it is written down because it was
+/// written twice and the two drifted. The whole design goes to validateCircuitSimulation - the
+/// named sheet included - while getStateAndDependencies is asked only for that sheet's canvas: it
+/// removes the sheet from the list it returns, and what a sheet IS rather than what is drawn on it
+/// (its parameters, and whether it is an ARRAY COMPONENT whose hardware is several copies of what
+/// is drawn on it) is on the sheet and not on the canvas. Passing the shortened list on left
+/// nothing able to say the sheet being checked was an array component, so the checks ran on its
+/// unexpanded canvas and refused its own IO as being on a sheet that is not an array component.
+///
+/// `ldcs` is the design as the model holds it now - ModelHelpers.designOf, which puts the canvas
+/// being drawn in place of the open sheet's saved copy.
+let validateSheetOfDesign (sheetName: string) (ldcs: LoadedComponent list) : Result<SimulationGraph, SimulationError> =
+    CanvasExtractor.getStateAndDependencies sheetName ldcs
+    |> Result.mapError makeDummySimulationError
+    |> Result.bind (fun (_, state, _) -> validateCircuitSimulation sheetName state ldcs)
 
 /// A simulation carrier with no simulation in it: what the renderer holds when the .NET sidecar
 /// is the one simulating.

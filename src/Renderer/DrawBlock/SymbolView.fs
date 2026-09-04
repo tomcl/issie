@@ -1,4 +1,4 @@
-﻿module SymbolView
+module SymbolView
 
 open Fable.React
 open Fable.React.Props
@@ -487,7 +487,16 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             | _ -> Constants.componentLabelOffsetDistance
 
         let pos = box.TopLeft - symbol.Pos + {X=margin;Y=margin} + Constants.labelCorrection
-        let text = addStyledText pos {style with DominantBaseline="hanging"}  comp.Label
+        // On an ARRAY COMPONENT an Output is one port PER COPY - a sheet with an Output SUM gets
+        // ports SUM_0 .. SUM_n - so the one drawn is copy i's, and its label says so. Drawn only:
+        // the component's label is still SUM, which is what the ports are named from and what the
+        // properties pane edits. Every other component draws its label as it is, an Input included
+        // - one Input goes to every copy, so there is no copy for it to belong to.
+        let shownLabel =
+            match comp.Type, symbol.ArrayText with
+            | Output _, Some loop -> $"{comp.Label}.{loop}"
+            | _ -> comp.Label
+        let text = addStyledText pos {style with DominantBaseline="hanging"}  shownLabel
         match Constants.testShowLabelBoundingBoxes, colour with
         | false, "lightgreen" when comp.Label <> "" ->
             let x,y = pos.X - margin*0.8, pos.Y - margin*0.8
@@ -587,7 +596,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
     |> List.append (drawCorners showCorners symbol) // HLP23 AUTHOR: BRYAN TAN
     |> List.append (addLegendText 
                         (legendOffset w h symbol) 
-                        (getComponentLegend comp.Type transform.Rotation) 
+                        (getComponentLegend symbol.ArrayText comp.Type transform.Rotation) 
                         "middle" 
                         (legendFontWeight comp.Type) 
                         ($"{legendFontSize comp.Type}px"))

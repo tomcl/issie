@@ -209,7 +209,7 @@ This is an advanced feature: designs that do not need it are unaffected by it.
     /// wires as they are; an array component is a sheet whose hardware is n copies of itself, which
     /// is more to learn and is only worth it when the copies have to join up.
     let arrayComponentIsAdvanced = """
-This dialog makes an **array component**: a conponent made from an array of copies of all the logic you write on a sheet.
+This dialog makes an **array component**: a component made from an array of copies of all the logic you write on a sheet.
 
 It is an advanced feature. The simpler way to make an array is to copy a group of components and
 wires and paste an array of them onto a sheet - **Edit > Paste array...**

@@ -1272,23 +1272,19 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                 |IOLabel ->
                     let allSymbolsNotWireLabel = symbols |> List.filter(fun s -> s.Component.Type <> IOLabel)
                     checkIfLabelIsUnique chars allSymbolsNotWireLabel
-                // A join's label names a CHANNEL, so it is shared with the join at the other end -
-                // the same exemption a net label gets, and for the same reason. What it may NOT
-                // share is a channel AND a number with another join facing the same way: those two
-                // are one wire driven, or read, twice.
-                |JoinOut (_, num) | JoinIn (_, num) ->
-                    let facesSameWay (s: SymbolT.Symbol) =
-                        match currSymbol.Component.Type, s.Component.Type with
-                        | JoinOut _, JoinOut (_, n) | JoinIn _, JoinIn (_, n) -> n = num
-                        | _ -> false
-                    let side =
-                        match currSymbol.Component.Type with
-                        | JoinOut _ -> "Join out" | _ -> "Join in"
-                    match symbols |> List.filter facesSameWay |> checkIfLabelIsUnique chars with
-                    | Ok _ -> Ok chars
-                    | Error _ ->
-                        Error $"another {side} is already on channel {num} of '{chars}': each \
-                                channel joins exactly two copies, so the two must differ"
+                // A join's label names a CHANNEL, so nothing about it is unique: it is shared with
+                // the join at the other end, and with every other join on the same chain. The
+                // sheet-wide rule is waived here exactly as CanvasStateAnalyser waives it.
+                //
+                // The one thing that IS a clash - two joins facing the same way on one channel and
+                // one number - is deliberately left to the simulation, which already reports it
+                // (ArrayExpand.duplicateLabels). Refusing it here refused it half way through a
+                // legitimate edit: swapping two joins over has to pass through a state where both
+                // are on the same channel, and the box would not let go of the first rename until
+                // the second was done, which cannot be. The simulation is also the only one of the
+                // two that can see the channel EXPRESSIONS rather than the number the sheet happens
+                // to be drawn at, so it is the one with enough information to judge.
+                |JoinOut _ | JoinIn _ -> Ok chars
                 |_ ->
                     checkIfLabelIsUnique chars symbols
             )

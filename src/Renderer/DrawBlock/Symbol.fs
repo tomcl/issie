@@ -1,4 +1,4 @@
-﻿(*
+(*
 This module draws schematics component symbols. Each symbol is associated with a unique Issie component.
 *)
 
@@ -390,7 +390,11 @@ let getGateNComponentLegend numInputs gType =
 
 
 // Text to be put inside different Symbols depending on their ComponentType
-let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
+/// `arrayText` is what an ARRAY COMPONENT's symbol draws in place of a number - see
+/// SymbolT.Symbol.ArrayText. A join uses it for its channel, so a carry chain reads `Join[i+1]`
+/// against `Join[i]` rather than showing what those expressions come to in copy 0. None everywhere
+/// else, and on a join whose channel is a plain number, which draws that number as it always did.
+let getComponentLegend (arrayText: string option) (componentType:ComponentType) (rotation:Rotation) =
     match componentType with
     | GateN (gateType, numInputs) -> getGateComponentLegend gateType
     | Not -> "1"
@@ -433,7 +437,8 @@ let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     | MuxOut w -> arrayLegend "MuxOut" w
     // A join says its CHANNEL, which is what decides where it goes; the direction is already in
     // which side the port is on, so saying it as well made the legend longer for nothing.
-    | JoinOut (w, n) | JoinIn (w, n) -> arrayLegend $"Join[{n}]" w
+    | JoinOut (w, n) | JoinIn (w, n) ->
+        arrayLegend $"Join[{arrayText |> Option.defaultValue (string n)}]" w
     | _ -> ""
 
 
@@ -633,6 +638,34 @@ let autoScaleHAndW (sym:Symbol) : Symbol =
         |> calcLabelBoundingBox
 
 /// return (num inputs, num outputs, height, width)
+/// The port counts and size of one of an ARRAY COMPONENT's IO symbols, sized to the legend it will
+/// actually draw.
+///
+/// Its own function because the legend can hold a channel EXPRESSION - `Join[i+10]` where the
+/// component type alone says `Join[1]` - and only a symbol knows that text. getComponentProperties
+/// sizes from the type and so passes None; SymbolReplaceHelpers.resizedForLegend has the symbol and
+/// passes what it draws, which is what keeps the text inside the shape.
+let arrayIOProperties (arrayText: string option) (compType: ComponentType) =
+    let gS = Constants.gridSize |> float
+    // Sized to the text it will hold, measured in the style SymbolView actually draws it in
+    // (arrayLegendStyle) - measuring some other style is how the text came to run past the symbol.
+    // The legend is one line by construction, so the whole string is what must fit.
+    //
+    // The floor is the width of the widest legend a join is EXPECTED to have, so that the common
+    // widths all give one size and only an unusually long one moves the symbol. A symbol that
+    // changed size under every keystroke in the properties box would jump about while being read.
+    let textWidth (str: string) = DrawHelpers.getTextWidthInPixels arrayLegendStyle str
+    // the chevron is the last fifth of the width and carries no text
+    let widthFor (str: string) = (textWidth str + 14.) / 0.8
+    let w =
+        List.max
+            [ 3. * gS
+              widthFor widestExpectedJoinLegend
+              widthFor (getComponentLegend arrayText compType Degree0) ]
+    match compType with
+    | JoinIn _ -> ( 0 , 1, gS , w)
+    | _ -> ( 1 , 0, gS , w)
+
 let getComponentProperties (compType:ComponentType) (label: string)=
     // match statement for each component type. the output is a 4-tuple that is used as an input to makecomponent (see below)
     // 4-tuple of the form ( number of input ports, number of output ports, Height, Width)
@@ -664,22 +697,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     // channel number has to be readable to see which end joins which. The chevron on the pointed
     // end is a fifth of the width and carries no text, so the measured width is divided by 0.8 to
     // leave the text the part of the symbol it can actually use.
-    | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ ->
-        // Sized to the text it will hold, measured in the style SymbolView actually draws it in
-        // (arrayLegendStyle) - measuring some other style is how the text came to run past the
-        // symbol. The legend is one line by construction, so the whole string is what must fit.
-        //
-        // The floor is the width of the widest legend a join is EXPECTED to have, so that the
-        // common widths all give one size and only an unusually long one moves the symbol. A
-        // symbol that changed size under every keystroke in the properties box would jump about
-        // while being read.
-        let textWidth (str: string) = DrawHelpers.getTextWidthInPixels arrayLegendStyle str
-        // the chevron is the last fifth of the width and carries no text
-        let widthFor (str: string) = (textWidth str + 14.) / 0.8
-        let w = List.max [ 3. * gS; widthFor widestExpectedJoinLegend; widthFor (getComponentLegend compType Degree0) ]
-        match compType with
-        | JoinIn _ -> ( 0 , 1, gS , w)
-        | _ -> ( 1 , 0, gS , w)
+    | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ -> arrayIOProperties None compType
     // Never drawn: these are made by expanding an array design sheet and exist only inside a
     // simulation. Sized as a MergeN and a Mux would be, so that anything which does reach for a
     // size gets a sane one rather than a raise.
@@ -795,6 +813,9 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       Id = id
       Component = comp
       Moving = false
+      // filled in by SymbolUpdate.syncArrayText once the sheet's slots are known: a component is
+      // created before the parameter slot that gives its channel number exists
+      ArrayText = None
       PortMaps = initPortOrientation comp
       STransform = transform
       ReversedInputPorts = Some false

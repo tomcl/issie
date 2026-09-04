@@ -1,4 +1,4 @@
-﻿module SymbolUpdate
+module SymbolUpdate
 
 open Elmish
 open Fable.React.Props
@@ -474,6 +474,8 @@ let createSymbolRecord ldcs theme comp =
             Component = {comp with H=h ; W = w}
             Annotation = None
             Moving = false
+            // set by syncArrayText from the sheet being loaded - a Component carries no expression
+            ArrayText = None
             InWidth0 = None
             InWidth1 = None
             InWidths = None
@@ -898,3 +900,49 @@ let extractComponents (symModel: Model) : Component list =
     |> Map.toList
     |> List.filter (fun (sid,sym) -> Option.isNone sym.Annotation)
     |> List.map (fun (key, _) -> extractComponent symModel key)
+
+//-------------------------------------------------------------------------------------------//
+//------------------------------ARRAY COMPONENT DISPLAY TEXT---------------------------------//
+//-------------------------------------------------------------------------------------------//
+
+/// Give every symbol the text it draws in place of a number on an ARRAY COMPONENT's sheet - see
+/// SymbolT.Symbol.ArrayText for what that is and why the symbol has to carry it.
+///
+/// **THE one place ArrayText is written.** It is DERIVED, wholly, from the two things passed in:
+/// the sheet's array settings and its parameter slots, which are the authority and live on the
+/// LoadedComponent. Nothing accumulates here and nothing is remembered between calls, so running it
+/// when nothing has changed costs one pass and changes nothing - which is what lets callers run it
+/// whenever they might need to rather than working out whether they must.
+///
+/// Called wherever either of those can change: a slot expression edited or a component created
+/// (ParameterView.updateParamSlot), the sheet's array settings set or taken away
+/// (ArraySheetView.setArrayInfo), and a sheet loaded into the draw block (ModelHelpers).
+///
+/// Joins are resized as well as relabelled: their width is worked out from the legend they draw,
+/// and `Join[i+10]` does not fit a symbol sized for `Join[1]`.
+let syncArrayText
+        (arrayInfo: ArrayInfo option)
+        (slots: ParameterTypes.ComponentSlotExpr)
+        (symModel: Model)
+        : Model =
+    let textFor (sym: Symbol) =
+        match arrayInfo with
+        // not an array component: nothing on it draws an expression, and any text left over from
+        // when it was one has to go
+        | None -> None
+        | Some info ->
+            match sym.Component.Type with
+            // the channel this join is on, which is the EXPRESSION and not what that expression
+            // comes to in copy 0 - copy 0's number says nothing about which copy feeds which
+            | JoinOut _ | JoinIn _ ->
+                ParameterTypes.tryFindSlot {CompId = sym.Component.Id; CompSlot = ParameterTypes.JoinNum} slots
+                |> Option.map (fun spec -> ParameterTypes.renderParamExpression spec.Expression 0)
+            // an Output gives one port per copy, so the one drawn belongs to copy i
+            | Output _ ->
+                let (ParameterTypes.ParamName loop) = info.LoopParam
+                Some loop
+            | _ -> None
+    let update (sym: Symbol) =
+        let text = textFor sym
+        if text = sym.ArrayText then sym else resizedForLegend { sym with ArrayText = text }
+    { symModel with Symbols = symModel.Symbols |> Map.map (fun _ sym -> update sym) }

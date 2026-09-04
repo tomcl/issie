@@ -1,4 +1,4 @@
-﻿module ArrayElaborate
+module ArrayElaborate
 
 (*
     ArrayElaborate.fs
@@ -359,7 +359,9 @@ let private wrapperOf
             let intoCopies =
                 match p.Role with
                 | ToEveryCopy -> [0 .. copies - 1]
-                | ToCopy copy -> [copy]
+                // every copy loose on this channel, not just the first: one port of the array
+                // feeding each of them. See ArrayExpand.looseEndsOf.
+                | ToCopies loose -> loose
                 | _ -> []
             intoCopies |> List.fold (fun b copy -> wire b comp 0 copyComps[copy] (bodyIn p.Comp)) b)
 
@@ -380,7 +382,7 @@ let private wrapperOf
                 | PortRole.FromCopy copy -> OutputDriver.FromCopy (copy, bodyOut p.Comp)
                 | Concatenated -> FromMerge (bodyOut p.Comp)
                 | Multiplexed -> FromMux (bodyOut p.Comp, selectOf p.Comp)
-                | ToEveryCopy | ToCopy _ | SelectOf _ ->
+                | ToEveryCopy | ToCopies _ | SelectOf _ ->
                     failwithf "%A is an input role and cannot drive the output '%s'" p.Role p.Name
             (comp, driver) :: acc, b)
         |> fun (acc, b) -> List.rev acc, b
@@ -429,8 +431,9 @@ let private bodyNameProblems (sheetName: string) ((comps, _): CanvasState) =
     |> List.countBy bodyPortLabel
     |> List.filter (fun (_, n) -> n > 1)
     |> List.map (fun (label, _) ->
-        $"'{sheetName}' has two components that would both be a port called '{label}' of one copy: \
-          rename one of them")
+        { ArrayExpand.Message = $"Two components would both be port '{label}' of a copy"
+          ArrayExpand.Components =
+            comps |> List.filter (fun c -> bodyPortLabel c = label) |> List.map (fun c -> c.Id) })
 
 /// Every array design sheet replaced by the two ordinary sheets it expands to, and everything that
 /// is wrong with any of them - each problem paired with the sheet it is about, so that a caller can
@@ -440,16 +443,19 @@ let private bodyNameProblems (sheetName: string) ((comps, _): CanvasState) =
 /// gone from every canvas, and what is left is custom components, wires and the two array glue
 /// types. That is why the evaluators, the truth table and the dependency machinery need no part in
 /// this, and why the wave selector shows the copies without being told about arrays.
-let expandArraySheets (ldcs: LoadedComponent list) : LoadedComponent list * (string * string) list * CopyPortNames =
+let expandArraySheets (ldcs: LoadedComponent list)
+        : LoadedComponent list * (string * ArrayProblem) list * CopyPortNames =
     withIdSource ldcs (fun ids ->
 
     let expandOne (sheet: LoadedComponent) (info: ArrayInfo) =
         let copies = copiesOfArray info
         let sizeProblems =
+            // no component is at fault, so nothing is highlighted: the count is the sheet's own
+            let asProblem msg = [{ ArrayExpand.Message = msg; ArrayExpand.Components = [] }]
             if copies < 1 then
-                [$"'{sheet.Name}' asks for {copies} copies, and an array component is at least one"]
+                asProblem "Number of copies must be at least 1"
             elif copies > Constants.maxArrayCopies then
-                [$"'{sheet.Name}' asks for {copies} copies, and Issie expands at most {Constants.maxArrayCopies}"]
+                asProblem $"Number of copies must be at most {Constants.maxArrayCopies}"
             else []
         match sizeProblems with
         | _ :: _ ->
@@ -483,7 +489,8 @@ let expandArraySheets (ldcs: LoadedComponent list) : LoadedComponent list * (str
             let _, problems = ArrayExpand.arrayOutlineOf info sheet.LCParameterSlots sheet.CanvasState
             [wrapper; body],
             (problems @ bodyNameProblems sheet.Name sheet.CanvasState
-             |> List.map (fun msg -> sheet.Name, $"array design sheet '{sheet.Name}': {msg}")),
+             |> List.map (fun p ->
+                    sheet.Name, { p with Message = $"Array component '{sheet.Name}': {p.Message}" })),
             copyNames
 
     (([], [], Map.empty), ldcs)

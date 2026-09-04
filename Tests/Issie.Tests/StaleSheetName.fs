@@ -39,13 +39,11 @@ let private errorText (e: SimulationError) =
     | GenericSimError msg -> msg
     | other -> $"%A{other}"
 
-/// Does this sheet of this design build? Exactly the composition ModelHelpers.runCircuitCheck and
-/// Simulator.prepareSimulationMemoized both use - look the sheet up among the design's sheets, then
-/// check what that gives - which is the question the waveform viewer's buttons have an answer to.
+/// Does this sheet of this design build? The function ModelHelpers.runCircuitCheck and
+/// designStepCost both call, rather than a copy of what they do: this was written out here as
+/// "exactly the composition" they used, and then one of them changed and this did not.
 let private validateSheet (sheetName: string) (ldcs: LoadedComponent list) =
-    CanvasExtractor.getStateAndDependencies sheetName ldcs
-    |> Result.mapError Simulator.makeDummySimulationError
-    |> Result.bind (fun (_, state, deps) -> Simulator.validateCircuitSimulation sheetName state deps)
+    Simulator.validateSheetOfDesign sheetName ldcs
 
 let tests =
     testList "StaleSheetName" [

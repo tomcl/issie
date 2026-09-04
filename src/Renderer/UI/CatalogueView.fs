@@ -458,7 +458,8 @@ let private startPlacingLibraryComponent
     // project", which is how a multi-sheet component is built.
     | Some project when ComponentLibraries.isLibraryProject project ->
         dispatch <| SetFilesNotification (Notifications.errorFilesNotification
-            $"{listing.Header.Name} cannot be placed in a library. Sheets of this library are                offered under 'This project'.")
+            $"{listing.Header.Name} cannot be placed in a library. Sheets of this library are \
+              offered under 'This project'.")
     | Some project ->
         let placed =
             ComponentLibraries.readComponentAndDependencies library.Path listing.Header.Name
@@ -551,6 +552,14 @@ type private CreationParam = {
     /// What the box asks for. Empty where the caller lays out its own label.
     Prompt: string
     Default: ParamInt
+    /// The EXPRESSION the box starts at, where a number is not the useful default. `Default` is
+    /// then what that expression comes to, and is still what the placed component's field holds -
+    /// this is what gets written into the parameter slot beside it, so a box left untouched places
+    /// a component that follows the expression rather than one frozen at today's value.
+    ///
+    /// The one use is an array component's join, whose channel number is nearly always an
+    /// expression in the sheet's loop variable: see createJoinPopup.
+    DefaultExpr: ParamExpression option
     Constraints: ParamConstraint list
 }
 
@@ -568,7 +577,20 @@ let private slotParam (proto: ComponentType) (slot: CompSlotName) (prompt: strin
     { Slot = slot
       Prompt = prompt
       Default = bigint defaultValue
+      DefaultExpr = None
       Constraints = ComponentSlots.constraintsFor slot proto }
+
+/// The same box, starting at an EXPRESSION rather than at a number. `value` is what the expression
+/// comes to where the box is being shown, which is what the component is placed at; the expression
+/// is what its parameter slot is given, so the two must agree.
+let private slotParamExpr
+        (proto: ComponentType)
+        (slot: CompSlotName)
+        (prompt: string)
+        (expr: ParamExpression)
+        (value: int)
+        : CreationParam =
+    { slotParam proto slot prompt value with DefaultExpr = Some expr }
 
 /// Takes the dialog data rather than the model, so that it can be asked from inside a popup body's
 /// own callbacks - which are handed that and not the whole model.
@@ -587,7 +609,9 @@ let private paramBoxValues (dialog: PopupDialogData) (boxes: CreationParam list)
            | Some state -> state.Spec
            | None ->
                Ok { CompSlot = box.Slot
-                    Expression = PInt box.Default
+                    // the expression the box is SHOWING, which is a number unless the caller gave
+                    // it one - a box accepted as it stands must place what it says it will
+                    Expression = box.DefaultExpr |> Option.defaultValue (PInt box.Default)
                     Constraints = box.Constraints
                     Value = box.Default })
     |> Helpers.ResultList.sequence
@@ -602,8 +626,10 @@ let private paramBox (dispatch: Msg -> unit) (box: CreationParam) (model': Model
         match paramBoxValues model'.PopupDialogData [box] with
         | Ok [spec] -> Some spec.Value
         | _ -> None
+    // DefaultExpr as the box's current expression: paramInputField renders an expression where it
+    // is given one and the value otherwise, so a box that starts at `i+1` shows that rather than 1
     ParameterView.paramInputField
-        model' box.Prompt box.Default current None box.Constraints None None box.Slot dispatch
+        model' box.Prompt box.Default current box.DefaultExpr box.Constraints None None box.Slot dispatch
 
 /// What every box holds, or the first complaint any of them is showing. Error is what disables the
 /// button, so a popup never places a component from a box it is refusing.
@@ -679,14 +705,38 @@ let private createJoinPopup typeStr (compType: int * int -> ComponentType) (mode
     let title = sprintf "Add %s node" typeStr
     let beforeText = fun _ -> str <| sprintf "What channel name should this %s use?" typeStr
     let placeholder = "Channel name"
+    // One bit, and not the width last used in a dialog: a join is most often a carry, and the
+    // width someone last gave an Input or a bus says nothing about the width of a chain between
+    // copies. The other IO popups follow the last width because they usually are that bus.
     let width =
         slotParam (compType (1, 0)) (IO "")
             (sprintf "How many bits should the %s carry?" typeStr)
-            model.LastUsedDialogWidth
+            1
+    /// What the channel box starts at: the chain the two joins make between neighbouring copies,
+    /// written out. Copy i publishes on channel i+1 and copy i takes channel i, so they meet when
+    /// one is the next of the other - which is what a carry chain is, and the reason joins exist.
+    ///
+    /// An EXPRESSION and not the number it comes to, because the number alone is the mistake this
+    /// avoids: a join left at a plain 0 puts every copy on one channel, which is a legal sheet and
+    /// almost never the one wanted. Starting at the expression means the ordinary case needs
+    /// nothing typed, and someone wanting `i/2` or a constant is editing an example of the shape
+    /// rather than guessing at it.
+    ///
+    /// The loop variable is the OPEN SHEET's, whatever it was named - these components are offered
+    /// only on an array component, so there is one. Where somehow there is not, the box falls back
+    /// to the plain number and behaves as it did.
+    let channelDefault =
+        ModelHelpers.openSheetArrayInfo model
+        |> Option.map (fun info ->
+            match compType (1, 0) with
+            | JoinOut _ -> PAdd (PParameter info.LoopParam, PInt 1I), 1
+            | _ -> PParameter info.LoopParam, 0)
+    let channelPrompt =
+        "Which channel? Usually an expression in this sheet's loop variable, such as i or i+1."
     let channel =
-        slotParam (compType (1, 0)) JoinNum
-            "Which channel? Usually an expression in this sheet's loop variable, such as i or i+1."
-            0
+        match channelDefault with
+        | Some (expr, value) -> slotParamExpr (compType (1, 0)) JoinNum channelPrompt expr value
+        | None -> slotParam (compType (1, 0)) JoinNum channelPrompt 0
     let boxes = [width; channel]
     let textBody = dialogPopupBodyOnlyText beforeText placeholder dispatch
 
@@ -2105,9 +2155,16 @@ let viewCatalogue model dispatch =
                         "Array components"
                         (match openSheetArrayInfo model with
                          | None ->
-                            "A sheet whose hardware is several copies of what is drawn on it, one                              per value of a loop variable. Draw one bit of an adder and get an                              adder of any width. Made here, edited on its own sheet, and placed                              from This project like any other sheet."
+                            "A sheet whose hardware is several copies of what is drawn on it, one \
+                             per value of a loop variable. Draw one bit of an adder and get an \
+                             adder of any width. Made here, edited on its own sheet, and placed \
+                             from This project like any other sheet."
                          | Some _ ->
-                            "This sheet is an array component: its hardware is several copies of                              what is drawn on it, one per value of its loop variable. These                              components say how the copies join to each other and to the outside.                              An ordinary Input goes to every copy, and an ordinary Output gives one                              port per copy.")
+                            "This sheet is an array component: its hardware is several copies of \
+                             what is drawn on it, one per value of its loop variable. These \
+                             components say how the copies join to each other and to the outside. \
+                             An ordinary Input goes to every copy, and an ordinary Output gives one \
+                             port per copy.")
                         (List.concat [
                             // "New array component" makes one rather than placing one, so it is not
                             // something a search for a component should turn up.
@@ -2124,13 +2181,21 @@ let viewCatalogue model dispatch =
                              | Some _ ->
                                 List.concat [
                                     catTip1 "Bus out" (BusOut 1) (fun _ -> dispatchAsFunc (createIOPopup true "bus output" BusOut))
-                                        "Takes one value from each copy and joins them into a single bus,                                          copy 0 in the least significant bits. The sheet gets one output                                          of width (number of copies) x (this width)."
+                                        "Takes one value from each copy and joins them into a single bus, \
+                                         copy 0 in the least significant bits. The sheet gets one output \
+                                         of width (number of copies) x (this width)."
                                     catTip1 "Array out" (MuxOut 1) (fun _ -> dispatchAsFunc (createIOPopup true "array output" MuxOut))
-                                        "Takes one value from each copy, to be selected between by the                                          multiplexers declared in this sheet's array settings. It adds no                                          port of its own: each multiplexer adds a select input and an output."
+                                        "Takes one value from each copy, to be selected between by the \
+                                         multiplexers declared in this sheet's array settings. It adds no \
+                                         port of its own: each multiplexer adds a select input and an output."
                                     catTip1 "Join out" (JoinOut (1, 0)) (fun _ -> dispatchAsFunc (createJoinPopup "join out" JoinOut))
-                                        "Sends this copy's value to the copy whose Join in has the same                                          name and the same channel number. Where no copy takes it - at                                          the end of a chain - it becomes an output of this sheet."
+                                        "Sends this copy's value to the copy whose Join in has the same \
+                                         name and the same channel number. Where no copy takes it - at \
+                                         the end of a chain - it becomes an output of this sheet."
                                     catTip1 "Join in" (JoinIn (1, 0)) (fun _ -> dispatchAsFunc (createJoinPopup "join in" JoinIn))
-                                        "Takes this copy's value from the copy whose Join out has the                                          same name and the same channel number. Where no copy sends it -                                          at the start of a chain - it becomes an input of this sheet." ]) ])
+                                        "Takes this copy's value from the copy whose Join out has the \
+                                         same name and the same channel number. Where no copy sends it - \
+                                         at the start of a chain - it becomes an input of this sheet." ]) ])
 
                     groupWithTip
                         "Verilog"
@@ -2195,7 +2260,10 @@ let viewCatalogue model dispatch =
                             Button.button [
                                 Button.Size IsSmall
                                 Button.Props [
-                                    HTMLAttr.Title "Open this library as a project, so that its                                                     components can be changed where they are. Each                                                     component is a sheet, and saving one writes it                                                     back into the library." ]
+                                    HTMLAttr.Title "Open this library as a project, so that its \
+                                                    components can be changed where they are. Each \
+                                                    component is a sheet, and saving one writes it \
+                                                    back into the library." ]
                                 Button.OnClick (fun _ ->
                                     dispatch <| UpdateModel (Optics.Optic.set openLibrary_ None)
                                     dispatch <| FileCommand (FileOpenLibrary {Name = library.Name; Path = library.Path}, dispatch))

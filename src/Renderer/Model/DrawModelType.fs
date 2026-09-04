@@ -201,6 +201,23 @@ module SymbolT =
             /// dynamic info used in port move operation
             MovingPortTarget: (XYPos*XYPos) option
 
+            /// What this symbol draws in place of a number, on an ARRAY COMPONENT's sheet.
+            ///
+            ///   - a Join out or Join in: the channel-number EXPRESSION, so a carry chain reads
+            ///     `Join[i+1]` against `Join[i]` rather than `Join[1]` against `Join[0]`, which is
+            ///     copy 0's answer and says nothing about which copy feeds which.
+            ///   - an Output: the sheet's loop variable, so its label reads `SUM.i` - the sheet
+            ///     gets one SUM port per copy, and this is the one belonging to copy i.
+            ///
+            /// **Display only, and transient.** Nothing may read it for semantics: what a join is
+            /// really on is its parameter slot, which lives on the LoadedComponent. That is what
+            /// makes it safe for a missed update to be a stale legend rather than a wrong circuit.
+            /// Derived by SymbolUpdate.syncArrayText from the sheet's own slots and array settings,
+            /// which is the one place that writes it.
+            ///
+            /// Not saved: SymbolInfo is the part of a Symbol that persists, and this is not in it.
+            /// It is rebuilt whenever the sheet it belongs to is loaded.
+            ArrayText: string option
         }
 
     let appearance_ = Lens.create (fun a -> a.Appearance) (fun s a -> {a with Appearance = s})

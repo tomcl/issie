@@ -1,4 +1,4 @@
-﻿module MenuHelpers
+module MenuHelpers
 open EEExtensions
 open Fulma
 open Fable.React
@@ -941,6 +941,17 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
     
             //Load components
             Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.LoadComponents (ldcs,components ))))
+
+            // What an array component's symbols DRAW is not on the components just loaded: a join's
+            // channel is a parameter slot of the sheet and the loop variable is in its array
+            // settings. The sheet being opened is named rather than looked up as "the open one",
+            // which is changing around this. See SymbolUpdate.syncArrayText.
+            UpdateModel (fun m ->
+                ldcs
+                |> List.tryFind (fun lc -> lc.Name = name)
+                |> function
+                   | Some ldc -> ModelHelpers.syncArrayTextFor ldc m
+                   | None -> m)
     
             Sheet (SheetT.Wire (BusWireT.LoadConnections connections))
 
@@ -1677,8 +1688,17 @@ let openFileInProject' saveCurrent name project (model:Model) dispatch =
             //printSheetNames {newModel with CurrentProj = Some {Option.get newModel.CurrentProj with LoadedComponents = ldcs }}
             setupProjectFromComponents true name ldcs updatedModel dispatch
 
+/// Open a sheet of the project, SAVING the one being left if it has unsaved changes. That is what
+/// every ordinary way of changing sheet goes through - the Sheets menu, following a custom
+/// component into its sheet, and the waveform viewer's jump to a sheet.
+///
+/// Whether it has changes is worked out here rather than read off Model.SavedSheetIsOutOfDate: that
+/// flag is only recomputed on DRAW BLOCK messages, so a change made by anything else - the
+/// Properties pane setting a sheet's array settings, or its parameters - left it saying what was
+/// true before the change, and the switch then dropped the edit. See
+/// ModelHelpers.currentSheetIsOutOfDate.
 let openFileInProject name project (model:Model) dispatch =
-    openFileInProject' model.SavedSheetIsOutOfDate name project (model:Model) dispatch
+    openFileInProject' (ModelHelpers.currentSheetIsOutOfDate model) name project (model:Model) dispatch
 
 
 

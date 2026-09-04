@@ -1,4 +1,4 @@
-﻿module UpdateHelpers
+module UpdateHelpers
 
 open Elmish
 open Fulma
@@ -1015,21 +1015,10 @@ let updateTimeStamp model =
 //Finds if the current canvas is different from the saved canvas
 // waits 50ms from last check
 
-let currentSheetIsOutOfDate (model : Model) : bool = 
-    let last = model.LastChangeCheckTime // NB no check to reduce total findChange time implemented yet - TODO if needed
-
-    match model.CurrentProj with
-    | None -> false
-    | Some prj ->
-        //For better efficiency just check if the save button
-        let savedComponent = 
-            prj.LoadedComponents
-            |> List.find (fun lc -> lc.Name = prj.OpenFileName)
-        let canv = savedComponent.CanvasState
-        let canv' = model.Sheet.GetCanvasState ()
-        savedComponent.LoadedComponentIsOutOfDate ||
-        ((canv <> canv') && not (CanvasExtractor.compareCanvas 100. canv canv'))
-        //|> TimeHelpers.instrumentInterval "findChange" start
+/// Moved to ModelHelpers, which compiles before MenuHelpers: switching sheets has to ask the same
+/// question before saving the sheet being left, and a second copy of it here is how the flag and
+/// the save would come to disagree. Aliased so existing readers are unchanged.
+let currentSheetIsOutOfDate = ModelHelpers.currentSheetIsOutOfDate
 
 /// Clear the properties pane's half-typed state when a different component is selected, so that
 /// each component's boxes start from what that component is, not from what was being typed into

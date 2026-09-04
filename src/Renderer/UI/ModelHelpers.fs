@@ -1,4 +1,4 @@
-﻿module ModelHelpers
+module ModelHelpers
 open Fulma
 open Fable.React
 open Fable.React.Props
@@ -247,6 +247,54 @@ let isArrayOnlyComponent (compType: ComponentType) =
     match compType with
     | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ -> true
     | _ -> false
+
+/// Has the open sheet changed since it was last saved?
+///
+/// Asked freshly rather than read off Model.SavedSheetIsOutOfDate, which is only RECOMPUTED on draw
+/// block messages: a change made by anything else - the Properties pane setting a sheet's array
+/// settings or its parameters - leaves that flag saying what was true before it. Switching sheets
+/// saves the sheet being left, and reading a stale flag there drops the change.
+///
+/// Two things count as changed, and the first is why the canvas alone will not do: a sheet is more
+/// than what is drawn on it. LoadedComponentIsOutOfDate is what says the rest of it moved.
+let currentSheetIsOutOfDate (model : Model) : bool =
+    match model.CurrentProj with
+    | None -> false
+    | Some prj ->
+        prj.LoadedComponents
+        |> List.tryFind (fun lc -> lc.Name = prj.OpenFileName)
+        |> function
+           | None -> false
+           | Some savedComponent ->
+                let canv = savedComponent.CanvasState
+                let canv' = model.Sheet.GetCanvasState ()
+                savedComponent.LoadedComponentIsOutOfDate ||
+                ((canv <> canv') && not (CanvasExtractor.compareCanvas 100. canv canv'))
+
+/// The drawn symbols of `ldc` brought into line with what it says: on an ARRAY COMPONENT a join
+/// draws the channel EXPRESSION it is on and an Output draws the loop variable, and neither is
+/// anywhere on the canvas - a join's channel is a parameter slot of the sheet, and the loop
+/// variable is in its array settings. See SymbolUpdate.syncArrayText, which is where the rule is.
+///
+/// Takes the sheet rather than reading the open one, because the caller that matters most is
+/// opening a sheet: the project's idea of which sheet is open changes around that, and passing the
+/// one being loaded says which is meant without depending on when.
+let syncArrayTextFor (ldc: LoadedComponent) (model: Model) : Model =
+    let slots =
+        ldc.LCParameterSlots |> Option.map (fun defs -> defs.ParamSlots) |> Option.defaultValue Map.empty
+    model
+    |> Optic.map
+        (sheet_ >-> DrawModelType.SheetT.wire_ >-> DrawModelType.BusWireT.symbol_)
+        (SymbolUpdate.syncArrayText ldc.ArrayInfo slots)
+
+/// The open sheet's symbols brought into line with it. Nothing to do where no project is open, or
+/// where the open sheet is not among the loaded components yet.
+let syncArrayTextOfOpenSheet (model: Model) : Model =
+    model.CurrentProj
+    |> Option.bind (fun p -> p.LoadedComponents |> List.tryFind (fun lc -> lc.Name = p.OpenFileName))
+    |> function
+       | Some ldc -> syncArrayTextFor ldc model
+       | None -> model
 
 //-------------------------------------------------------------------------------------------//
 //------------------------READ-ONLY SHEETS (VIEWED LIBRARY COMPONENTS)-----------------------//
@@ -1042,10 +1090,7 @@ let runCircuitCheck (model: Model) : CircuitCheck =
         // freeze the button on whatever it last said.
         let verdict =
             try
-                CanvasExtractor.getStateAndDependencies project.OpenFileName ldcs
-                |> Result.mapError Simulator.makeDummySimulationError
-                |> Result.bind (fun (_, state, deps) ->
-                    Simulator.validateCircuitSimulation project.OpenFileName state deps)
+                Simulator.validateSheetOfDesign project.OpenFileName ldcs
                 |> Result.map SynchronousUtils.hasSynchronousComponents
             with e ->
                 Log.error $"exception while checking the circuit: {e.Message}"
@@ -1088,10 +1133,7 @@ let designStepCost (model: Model) (simSheet: string) : Result<SimTypes.StepCost,
         | _ ->
             let result =
                 try
-                    CanvasExtractor.getStateAndDependencies simSheet ldcs
-                    |> Result.mapError Simulator.makeDummySimulationError
-                    |> Result.bind (fun (_, state, deps) ->
-                        Simulator.validateCircuitSimulation simSheet state deps)
+                    Simulator.validateSheetOfDesign simSheet ldcs
                     |> Result.map FastCreate.stepCostOfGraph
                 with e ->
                     Error (Simulator.makeDummySimulationError $"exception while pricing the design: {e.Message}")

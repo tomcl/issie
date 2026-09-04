@@ -1,4 +1,4 @@
-﻿module ParameterView
+module ParameterView
 
 open ParameterTypes
 open EEExtensions
@@ -257,24 +257,31 @@ let instanceBindingProblem
            | Error (MinVal (_, err) :: _)
            | Error (MaxVal (_, err) :: _) -> Error err
 
-/// Push the values of the parameterised slots of ONE component onto the canvas.
-/// All of a component's slots are applied together because two of the messages replace a whole
-/// field of the component type - a SplitN's width and LSB lists, a custom component's parameter
-/// bindings - and are built here from `model`, which is a snapshot: issued one slot at a time
 /// Every join on the open sheet carrying the given channel name, whichever direction it faces.
 ///
 /// A channel is one signal, so its joins are one width: a JoinOut of 8 bits read by a JoinIn of 4
 /// is not a design that means anything. Rather than checking for that state and reporting it, the
 /// width is set on all of them together and the state never exists.
+///
+/// `channel` is taken as TYPED and put through the same normalisation a label gets on its way onto
+/// a component, so that every caller matches the same way. One asks with a stored label and the
+/// other with what someone is typing into a dialog box: labels are uppercased as they are made, so
+/// comparing raw text found nothing for 'carry' while 'CARRY' was on the sheet - and the dialog
+/// then offered a width for a channel that already had one.
 let joinsOnChannel (model: Model) (channel: string) : Component list =
+    let wanted = MenuHelpers.extractLabelBase channel
     model.Sheet.Wire.Symbol.Symbols
     |> Map.values
     |> Seq.map (fun sym -> sym.Component)
     |> Seq.filter (fun comp ->
-        comp.Label = channel
+        comp.Label = wanted
         && (match comp.Type with | JoinOut _ | JoinIn _ -> true | _ -> false))
     |> List.ofSeq
 
+/// Push the values of the parameterised slots of ONE component onto the canvas.
+/// All of a component's slots are applied together because two of the messages replace a whole
+/// field of the component type - a SplitN's width and LSB lists, a custom component's parameter
+/// bindings - and are built here from `model`, which is a snapshot: issued one slot at a time
 /// they would overwrite each other, leaving all but the last slot at its old value.
 /// (ChangeWidth and ChangeInputValue read the live symbol and so do not have this problem.)
 let updateComponentSlots dispatch (model: Model) (compId: ComponentId) (slotValues: (CompSlotName * ParamInt) list) =
@@ -350,25 +357,10 @@ let updateComponentSlots dispatch (model: Model) (compId: ComponentId) (slotValu
                 dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeConstant (compId, value, string value))))
             | BusCompare1 _, IO _ ->
                 dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeBusCompare (compId, value, string value))))
-            // A join's width belongs to the CHANNEL and not to the component: the value passed from
-            // one copy to another is one signal, so a JoinOut and every JoinIn reading it are the
-            // same number of bits by definition. Setting one therefore sets all of them, which is
-            // what keeps a state where they disagree from existing at all.
-            | (JoinOut _ | JoinIn _), IO _ ->
-                asInt slot value
-                |> Option.iter (fun width ->
-                    let onChannel = joinsOnChannel model comp.Label
-                    onChannel |> List.iter (fun other -> model.Sheet.ChangeWidth sheetDispatch other.Id width)
-                    // Said rather than asked. The box applies on every keystroke, so a modal here
-                    // would interrupt the user mid-number; and there is nothing to decide - a
-                    // channel is one signal, so its joins have one width whether or not anyone
-                    // agrees. What is worth saying is that other components on the sheet moved.
-                    match onChannel |> List.filter (fun other -> other.Id <> comp.Id) with
-                    | [] -> ()
-                    | others ->
-                        let names = others |> List.map (fun c -> c.Label) |> List.distinct |> String.concat ", "
-                        dispatch <| SetPropertiesNotification (Notifications.successPropertiesNotification
-                            $"Channel {comp.Label} carries one signal, so its other {List.length others}                               join(s) ({names}) are now {width} bits too."))
+            // A join's width is an ordinary IO width HERE. That it belongs to the whole channel is
+            // applySlotEdit's business: this function is handed one component and one value, and
+            // is also what parameter propagation calls once per slot - by which time every join on
+            // the channel has a slot of its own and each is set on its own turn.
             | _, Buswidth | _, IO _ ->
                 asInt slot value |> Option.iter (model.Sheet.ChangeWidth sheetDispatch compId)
             // a memory's two widths. The new type comes from ComponentSlots, which is the one place
@@ -455,8 +447,63 @@ let updateParamSlot
 
     match newParamSlots = paramSlots with
     | true -> model
-    | false -> model |> set paramSlotsOfModel_ newParamSlots |> markSheetParamsChanged
+    | false ->
+        model
+        |> set paramSlotsOfModel_ newParamSlots
+        |> markSheetParamsChanged
+        // a join draws the channel EXPRESSION it is on, which is the slot just written
+        |> ModelHelpers.syncArrayTextOfOpenSheet
 
+
+/// The components whose matching slot must be set whenever this one is.
+///
+/// A join's WIDTH belongs to the CHANNEL and not to the component: the value passed from one copy
+/// to another is one signal, so a JoinOut and every JoinIn reading it are the same number of bits
+/// by definition. Setting one therefore sets all of them, which is what keeps a state where they
+/// disagree from existing at all. Every other slot governs its own component and nothing else.
+///
+/// They share a LABEL - that is what being on one channel means - so they share the slot name too,
+/// and the caller can use the one it was given for all of them.
+let componentsSetTogether (model: Model) (comp: Component) (compSlot: CompSlotName) : Component list =
+    match comp.Type, compSlot with
+    | (JoinOut _ | JoinIn _), IO _ ->
+        // the edited component first and always, whether or not the sheet's symbols have caught up
+        comp :: joinsOnChannel model comp.Label
+        |> List.distinctBy (fun c -> c.Id)
+    | _ -> [comp]
+
+/// Apply one properties box's expression and its value to every slot that box governs, and say so
+/// where that reached further than the component being edited.
+///
+/// **The expression as well as the value, and that is the point.** Setting only the value gave the
+/// other joins on a channel the number once and no slot to follow: parameterise a join's width as
+/// `N`, change `N`, and the end that was edited resized while the others sat at the number they had
+/// been handed - the disagreement the channel rule exists to prevent, arrived at through the
+/// mechanism meant to prevent it. One function so that the two cannot be spread by halves again.
+let applySlotEdit
+        (dispatch: Msg -> unit)
+        (model: Model)
+        (comp: Component)
+        (compSlot: CompSlotName)
+        (exprSpec: ConstrainedExpr)
+        (value: ParamInt)
+        : unit =
+    let comps = componentsSetTogether model comp compSlot
+    let slots = comps |> List.map (fun c -> {CompId = c.Id; CompSlot = compSlot})
+    slots |> List.iter (fun slot -> updateComponent dispatch model slot value)
+    dispatch <| UpdateModel (fun m ->
+        (m, slots) ||> List.fold (fun m slot -> updateParamSlot slot exprSpec m))
+    // Said rather than asked. The box applies on every keystroke, so a modal here would interrupt
+    // the user mid-number; and there is nothing to decide - a channel is one signal, so its joins
+    // have one width whether or not anyone agrees. What is worth saying is that other components
+    // on the sheet moved.
+    match comps |> List.filter (fun c -> c.Id <> comp.Id) with
+    | [] -> ()
+    | others ->
+        let names = others |> List.map (fun c -> c.Label) |> List.distinct |> String.concat ", "
+        dispatch <| SetPropertiesNotification (Notifications.successPropertiesNotification
+            $"Channel {comp.Label} carries one signal, so its other {List.length others} \
+              join(s) ({names}) are now {value} bits too.")
 
 /// Add the parameter information from a newly created component to paramSlots
 let addParamComponent
@@ -571,11 +618,9 @@ let paramInputField
             dispatch <| AddPopupDialogParamSpec (boxKey, {Text = inputExpr; Spec = Ok newCompSpec})
             match comp with
             | Some c ->
-                // Update existing component
-                let exprSpec = {Expression = expr; Constraints = constraints}
-                let slot = {CompId = c.Id; CompSlot = compSlotName}
-                updateComponent dispatch model slot value
-                dispatch <| UpdateModel (updateParamSlot slot exprSpec)
+                // Update existing component - and every other component this slot governs, which
+                // for a join's width is the whole channel. See applySlotEdit.
+                applySlotEdit dispatch model c compSlotName {Expression = expr; Constraints = constraints} value
             | None -> ()
 
         /// The box's own constraints are checked above; this is the check that needed the value

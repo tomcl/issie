@@ -1,4 +1,4 @@
-﻿module ArrayExpand
+module ArrayExpand
 
 (*
     ArrayExpand.fs
@@ -45,6 +45,19 @@ let joinOutPortName (label: string) (num: int) = $"{label}_out_{num}"
 /// The name of the select input a MuxOut adds to the sheet, beside the output of its own name.
 let muxSelectPortName (label: string) = label + "_sel"
 
+/// Something wrong with an array component's sheet: what to say, and what to point at.
+///
+/// The message says WHAT IS NOT ALLOWED and stops. Why it is not allowed belongs in the
+/// documentation - a user reading an error is trying to fix a sheet, not to learn the design of the
+/// feature, and a sentence of reasoning after the fault buries it.
+///
+/// Components are what the simulator highlights in red, so a problem names the ones a user has to
+/// look at. Empty only where the fault is the sheet's own settings and no component is at fault.
+type ArrayProblem = {
+    Message: string
+    Components: ComponentId list
+}
+
 /// One end of a channel: a join component, in one copy, on the channel that copy puts it on.
 type JoinEnd = {
     /// The join component as drawn on the array sheet.
@@ -70,7 +83,7 @@ type JoinWiring = {
     Ends: JoinEnd list
     /// What is wrong with the joins, if anything. The wiring above is still the best reading of
     /// them, so a sheet being edited can still be drawn; analyseState is what refuses to simulate.
-    Problems: string list
+    Problems: ArrayProblem list
 }
 
 /// The joins drawn on a sheet, in the (Y, X) order everything about a sheet's ports follows.
@@ -105,13 +118,30 @@ let private channelOf (info: ArrayInfo) (slots: ComponentSlotExpr) (comp: Compon
             match tryIntOfParamInt value with
             | Some n -> Ok n
             | None -> Error $"is too large to be a channel number"
-        | Error msg -> Error msg
+        // A name the evaluator does not know is reported HERE rather than passed on, because its
+        // message names what is in scope as "properties of this sheet" - and the one name in scope
+        // for a channel number is the LOOP VARIABLE, which is deliberately not a property. Its
+        // wording would name the right word and call it the wrong thing. Anything else the
+        // evaluator objects to - a shift too far, a division by zero - it says better than this
+        // could, so that is passed through with the sentence made to read.
+        | Error msg ->
+            let (ParamName loop) = info.LoopParam
+            let outOfScope =
+                paramNamesOfExpr exprSpec.Expression
+                |> List.filter (fun name -> name <> info.LoopParam)
+                |> List.distinct
+                |> List.map (fun (ParamName n) -> $"'{n}'")
+            match outOfScope with
+            | [] -> Error $"cannot be worked out - {msg}"
+            | names ->
+                let named = String.concat ", " names
+                Error $"names {named}; only the loop variable '{loop}' may be used"
 
 /// Every end of every join, copy by copy, with whatever could not be worked out reported and the
 /// number the sheet is drawn at used in its place.
 let private endsOf (info: ArrayInfo) (slots: ComponentSlotExpr) (canvas: CanvasState) (isOut: bool) =
     let side = if isOut then "Join out" else "Join in"
-    ((([]: JoinEnd list), ([]: string list)), joinComps isOut canvas)
+    ((([]: JoinEnd list), ([]: ArrayProblem list)), joinComps isOut canvas)
     ||> List.fold (fun (ends, problems) comp ->
         (((ends, problems)), [0 .. copiesOfArray info - 1])
         ||> List.fold (fun (ends, problems) copy ->
@@ -121,7 +151,8 @@ let private endsOf (info: ArrayInfo) (slots: ComponentSlotExpr) (canvas: CanvasS
             | Error msg ->
                 let _, stored = joinWidthAndNum comp
                 {Comp = comp; Copy = copy; Num = stored} :: ends,
-                $"{side} '{comp.Label}': its channel number {msg}" :: problems))
+                {Message = $"{side} '{comp.Label}': channel number {msg}"
+                 Components = [comp.Id]} :: problems))
     |> fun (ends, problems) -> List.rev ends, List.rev problems
 
 /// Labels that must be distinct within one side of the joins.
@@ -135,8 +166,11 @@ let private duplicateLabels (side: string) (comps: Component list) =
     |> List.countBy (fun comp -> comp.Label, snd (joinWidthAndNum comp))
     |> List.filter (fun (_, n) -> n > 1)
     |> List.map (fun ((label, num), n) ->
-        $"{n} {side} components are on channel {num} of '{label}': each channel joins exactly two \
-          copies, so two facing the same way must differ in channel or in number")
+        { Message = $"{n} {side} components are on channel {num} of '{label}'"
+          Components =
+            comps
+            |> List.filter (fun c -> c.Label = label && snd (joinWidthAndNum c) = num)
+            |> List.map (fun c -> c.Id) })
 
 /// Which JoinOut in which copy drives which JoinIn in which copy, and which ends are left over.
 ///
@@ -157,8 +191,8 @@ let joinsOf (info: ArrayInfo) (paramDefs: ParameterDefs option) (canvas: CanvasS
         outEnds @ inEnds
         |> List.filter (fun e -> e.Num < 0)
         |> List.map (fun e ->
-            $"'{e.Comp.Label}' is on channel {e.Num} in copy {e.Copy}: a channel number must never \
-              be negative, because the sheet port an unmatched join becomes is named after it")
+            { Message = $"'{e.Comp.Label}' is on negative channel {e.Num} in copy {e.Copy}"
+              Components = [e.Comp.Id] })
 
     let nameProblems =
         duplicateLabels "Join out" (joinComps true canvas)
@@ -172,13 +206,18 @@ let joinsOf (info: ArrayInfo) (paramDefs: ParameterDefs option) (canvas: CanvasS
     /// in ends are kept as a list and every one of them is wired.
     let grouped = outEnds |> List.groupBy (fun e -> e.Comp.Label, e.Num)
 
+    /// One COMPONENT on one channel in several copies. Several components on one channel is the
+    /// other shape of the same fault, and duplicateLabels has already said so in words that fit it -
+    /// counted here as well, this printed the same copy twice ("in more than one copy (0, 0)") and
+    /// said it once per channel, so one mistake arrived as four messages none of which read right.
     let outClashes =
         grouped
-        |> List.filter (fun (_, es) -> List.length es > 1)
+        |> List.filter (fun (_, es) ->
+            List.length es > 1 && (es |> List.distinctBy (fun e -> e.Comp.Id) |> List.length) = 1)
         |> List.map (fun ((label, num), es) ->
             let copies = es |> List.map (fun e -> string e.Copy) |> String.concat ", "
-            $"Join out '{label}' is on channel {num} in more than one copy ({copies}): a channel \
-              carries one signal, so only one copy may drive it")
+            { Message = $"Join out '{label}' drives channel {num} in copies {copies}"
+              Components = es |> List.map (fun e -> e.Comp.Id) |> List.distinct })
 
     let outByChannel =
         grouped
@@ -203,18 +242,21 @@ let joinsOf (info: ArrayInfo) (paramDefs: ParameterDefs option) (canvas: CanvasS
       UnmatchedIn = inEnds |> List.filter (fun e -> not (Map.containsKey (e.Comp.Label, e.Num) outByChannel))
       Problems = nameProblems @ outProblems @ inProblems @ negatives @ outClashes }
 
-/// The unmatched ends of one join component, in channel order so that a sheet with several loose
-/// ends lists them predictably.
+/// The unmatched ends of one join component, grouped by the channel they are on and in channel
+/// order, so that a sheet with several loose ends lists them predictably.
 ///
-/// One PORT per channel, not per end. A join whose number does not vary with the loop variable puts
-/// every copy on one channel, so every copy's end is loose on it - and a port is named after the
-/// channel, so those would be one name repeated. That sheet is already reported as wrong (each
-/// channel joins exactly two copies), and this is the best reading of it meanwhile.
-let looseEndsOf (ends: JoinEnd list) (comp: Component) =
+/// One PORT per channel, and EVERY end on that channel with it. A port is named after the channel,
+/// so a channel several copies are loose on can only be one port - but it is a port of all of them,
+/// and each has to be wired to it. A number that does not vary with the loop variable is the
+/// extreme case (every copy on one channel); `i/2` is the ordinary one, giving the array one input
+/// per pair of copies. Keeping one end per channel and dropping the rest wired the first copy and
+/// left the others' body ports dangling, which came out as an unconnected port on a sheet the user
+/// cannot open.
+let looseEndsOf (ends: JoinEnd list) (comp: Component) : (int * JoinEnd list) list =
     ends
     |> List.filter (fun e -> e.Comp.Id = comp.Id)
-    |> List.distinctBy (fun e -> e.Num)
-    |> List.sortBy (fun e -> e.Num)
+    |> List.groupBy (fun e -> e.Num)
+    |> List.sortBy fst
 
 /// What the array does with one of its own ports - which is also how the wrapper must wire it.
 ///
@@ -225,8 +267,10 @@ let looseEndsOf (ends: JoinEnd list) (comp: Component) =
 type PortRole =
     /// an ordinary Input: one port, driven to every copy
     | ToEveryCopy
-    /// an unmatched JoinIn: into the one copy whose end is loose
-    | ToCopy of int
+    /// an unmatched JoinIn: into every copy whose end is loose on this channel. Usually one, and a
+    /// list because it need not be - a channel number that does not vary over some copies leaves
+    /// them all reading one channel, which is one port of the array feeding each of them
+    | ToCopies of int list
     /// a MuxOut's select input, which drives no copy - the multiplexer reads it
     | SelectOf of Component
     /// an ordinary Output, or an unmatched JoinOut: out of the one copy named
@@ -281,7 +325,8 @@ let outlinePortsOf
             | Input1 (w, _) -> [port comp.Label w comp ToEveryCopy]
             | JoinIn (w, _) ->
                 looseEndsOf wiring.UnmatchedIn comp
-                |> List.map (fun e -> port (joinInPortName comp.Label e.Num) w comp (ToCopy e.Copy))
+                |> List.map (fun (num, es) ->
+                    port (joinInPortName comp.Label num) w comp (ToCopies (es |> List.map (fun e -> e.Copy))))
             // A plain number of bits and never an expression: it follows the copy count, which is a
             // plain number on the sheet.
             | MuxOut _ -> [port (muxSelectPortName comp.Label) (arraySelectWidth copies) comp (SelectOf comp)]
@@ -294,8 +339,13 @@ let outlinePortsOf
             | Output w -> [for i in 0 .. copies - 1 -> port $"{comp.Label}_{i}" w comp (FromCopy i)]
             | BusOut w -> [port comp.Label (w * copies) comp Concatenated]
             | JoinOut (w, _) ->
+                // The head, where several copies are loose on one channel. Unlike the in side that
+                // is not a shape to support: a channel carries one signal, so copies both driving
+                // one is outClashes above and the sheet is already refused. Taking the first is the
+                // best reading of it while it is being fixed.
                 looseEndsOf wiring.UnmatchedOut comp
-                |> List.map (fun e -> port (joinOutPortName comp.Label e.Num) w comp (FromCopy e.Copy))
+                |> List.map (fun (num, es) ->
+                    port (joinOutPortName comp.Label num) w comp (FromCopy (List.head es).Copy))
             | MuxOut w -> [port comp.Label w comp Multiplexed]
             | _ -> [])
 
@@ -307,7 +357,7 @@ let arrayOutlineOf
         (info: ArrayInfo)
         (paramDefs: ParameterDefs option)
         (canvas: CanvasState)
-        : ((string * int) list * (string * int) list) * string list =
+        : ((string * int) list * (string * int) list) * ArrayProblem list =
     let (inPorts, outPorts), wiring = outlinePortsOf info paramDefs canvas
     let named (ports: OutlinePort list) = ports |> List.map (fun p -> p.Name, p.Width)
     let inputs, outputs = named inPorts, named outPorts
@@ -319,13 +369,22 @@ let arrayOutlineOf
     /// Guaranteeing distinctness by construction would need a separator no label may contain, which
     /// puts an ugly character in a port name read on the parent sheet - so it is checked instead,
     /// exactly, against the names actually derived rather than by a pattern over them.
-    let collisions (side: string) (ports: (string * int) list) =
+    let collisions (side: string) (ports: OutlinePort list) =
         ports
-        |> List.countBy fst
+        |> List.countBy (fun p -> p.Name)
         |> List.filter (fun (_, n) -> n > 1)
         |> List.map (fun (name, _) ->
-            $"this sheet derives two {side}s called '{name}': rename one of the components they \
-              come from, since a sheet cannot have two ports of one name")
+            { Message = $"This sheet derives two {side}s called '{name}'"
+              Components =
+                ports
+                |> List.filter (fun p -> p.Name = name)
+                |> List.map (fun p -> p.Comp.Id)
+                |> List.distinct })
 
-    (inputs, outputs),
-    wiring.Problems @ collisions "input" inputs @ collisions "output" outputs
+    // Only where the joins work out. A sheet whose joins are wrong has an outline that is only the
+    // best reading of a broken sheet, and the names it derives twice are a consequence of that
+    // rather than a second thing to fix: two Join outs sharing a channel reported one clash and
+    // then one derived-name collision per copy, which is one mistake said four times.
+    match wiring.Problems with
+    | [] -> (inputs, outputs), collisions "input" inPorts @ collisions "output" outPorts
+    | joinProblems -> (inputs, outputs), joinProblems

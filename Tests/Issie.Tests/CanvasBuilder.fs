@@ -1,4 +1,4 @@
-﻿/// Programmatic construction of canvases and loaded components for tests.
+/// Programmatic construction of canvases and loaded components for tests.
 /// Geometry fields are arbitrary: tests never render.
 module CanvasBuilder
 
@@ -105,4 +105,16 @@ let makeSymbol (comp: Component) : DrawModelType.SymbolT.Symbol =
       HScale = None
       VScale = None
       MovingPort = None
-      MovingPortTarget = None }
+      MovingPortTarget = None
+      ArrayText = None }
+
+/// A minimal draw-block symbol model holding one symbol per component given. As makeSymbol, only
+/// the fields a test reads are meaningful.
+let makeSymbolModel (comps: Component list) : DrawModelType.SymbolT.Model =
+    { Symbols = comps |> List.map (fun c -> c.Id, makeSymbol c) |> Map.ofList
+      CopiedSymbols = Map.empty
+      Ports = Map.empty
+      InputPortsConnected = Set.empty
+      OutputPortsConnected = Map.empty
+      Theme = DrawModelType.SymbolT.ThemeType.Colourful
+      HintPane = None }

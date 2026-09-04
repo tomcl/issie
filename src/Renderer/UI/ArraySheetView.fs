@@ -1,4 +1,4 @@
-﻿module ArraySheetView
+module ArraySheetView
 
 (*
     ArraySheetView.fs
@@ -73,7 +73,23 @@ let private setArrayInfo (model: Model) (info: ArrayInfo option) (dispatch: Msg 
                     Some { project with LoadedComponents = List.map update project.LoadedComponents } }
             // the canvas is untouched by a change to what the sheet IS, so say the sheet needs
             // saving rather than leaving it to be inferred from a canvas that is identical
-            |> ParameterView.markSheetParamsChanged)
+            |> ParameterView.markSheetParamsChanged
+            // an Output draws the loop variable, and a join its channel, only while the sheet IS an
+            // array component - so both appear and disappear with these settings
+            |> ModelHelpers.syncArrayTextOfOpenSheet)
+
+        // Saved at once, and that is not tidiness. Changing what this sheet IS changes how many
+        // ports it has, so every instance of it elsewhere is now out of date - and the dialog that
+        // offers to bring them into line is raised by FinishUICmd, which only
+        // saveOpenFileActionWithModelUpdate dispatches. Without this the sheet sat merely marked as
+        // changed: the instances stayed wrong, and stayed wrong across a switch to another sheet,
+        // until something else happened to save it.
+        //
+        // ExecFuncInMessage so that what gets saved is the model with the new settings in it - the
+        // UpdateModel above has not been applied at the point this line runs.
+        dispatch
+        <| ExecFuncInMessage ((fun model' dispatch' ->
+                MenuHelpers.saveOpenFileActionWithModelUpdate model' dispatch' |> ignore), dispatch)
 
 //-------------------------------------------------------------------------------------------//
 //--------------------------------THE PROPERTIES PANE BLOCK----------------------------------//
@@ -102,6 +118,25 @@ let viewArraySettings (model: Model) (dispatch: Msg -> unit) : ReactElement =
         let setTyped (text: string option) =
             dispatch <| UpdateModel (fun m ->
                 { m with ArrayCopiesTyped = text |> Option.map (fun t -> openName, t) })
+
+        /// What a copy count has to be. The bound is Issie's own - the most copies it will expand -
+        /// and the message quotes it rather than saying "too many", because a number is what the
+        /// box holds and a number is what the user needs to be told.
+        let copiesProblem (text: string) =
+            match System.Int32.TryParse (text.Trim()) with
+            | true, n when n >= 1 && n <= ArrayElaborate.Constants.maxArrayCopies -> None
+            | _ ->
+                let most = ArrayElaborate.Constants.maxArrayCopies
+                Some $"Number of copies must be a number >= 1 and <= {most}"
+
+        /// What is wrong with what has been typed, if anything: shown AS IT IS TYPED, not on
+        /// leaving the box.
+        ///
+        /// The value applies on leaving, but the complaint cannot wait for that - a box that
+        /// quietly dropped what it could not use left the user with a sheet still at the old count
+        /// and nothing said about why. Every other properties box in Issie objects as you type, and
+        /// this is that rule.
+        let typedProblem = typedHere |> Option.bind copiesProblem
 
         /// Apply what has been typed, and go back to showing the sheet's own count.
         ///
@@ -136,10 +171,15 @@ let viewArraySettings (model: Model) (dispatch: Msg -> unit) : ReactElement =
                                 ev.stopPropagation()
                                 commit ())
                     ]
+                    // red while what is typed cannot be used, as every parameter box in the pane is
+                    if typedProblem.IsSome then Input.Option.CustomClass "is-danger"
                     Input.Disabled simIsOpen
                     Input.Value (typedHere |> Option.defaultValue (string info.Copies))
                     Input.OnChange (fun ev -> setTyped (Some (JSHelpers.getTextEventValue ev)))
                 ]
+                // the class ParameterView.paramInputField puts its complaint in, so that a bad copy
+                // count reads exactly as a bad width does two boxes further down
+                div [ Class "propertyMessage" ] [ str (Option.defaultValue "" typedProblem) ]
             ]
 
         // Shown, and not editable. Every property expression on the sheet refers to it BY NAME - a
@@ -204,26 +244,93 @@ let private defaultCopies = 4
 /// Empty means the default rather than an error: the name matters only to whoever writes it in a
 /// property box, `i` is what an index is called, and asking someone to type it before they know
 /// what it is for would be a question with one sensible answer.
-let private loopNameOf (typed: string) =
-    if typed.Trim() = "" then defaultLoopName else typed.Trim()
+let private loopNameOf (defaultName: string) (typed: string) =
+    if typed.Trim() = "" then defaultName else typed.Trim()
 
-/// Whether a loop variable name can be used on a sheet: one an expression could refer to, and not
-/// a property that sheet already declares - the two would be the same word meaning two things.
-let private loopNameProblem (sheet: LoadedComponent option) (typed: string) =
-    let name = loopNameOf typed
-    let declared =
-        sheet
-        |> Option.map (ParameterView.getDefaultParamDefs >> Map.toList >> List.map (fst >> fun (ParamName n) -> n))
-        |> Option.defaultValue []
+/// The properties a sheet already declares, by name. A loop variable may not be one of them.
+let private declaredNames (sheet: LoadedComponent option) =
+    sheet
+    |> Option.map (ParameterView.getDefaultParamDefs >> Map.toList >> List.map (fst >> fun (ParamName n) -> n))
+    |> Option.defaultValue []
+
+/// The name a loop variable is offered under: `i`, unless the sheet has a property of that name
+/// already.
+///
+/// `i` is what an index is called and is what nearly every array component will use. It can only be
+/// taken in one case - a sheet that already declares properties being made into an array component
+/// - so the alternatives are tried only there, and they are the next letters an index is called
+/// before falling back to numbering. Offering a free name rather than a taken one means the dialog
+/// opens on something that works, instead of on an error the user has to read and fix.
+let private freeLoopName (sheet: LoadedComponent option) =
+    let taken = declaredNames sheet
+    Seq.append [defaultLoopName; "j"; "k"] (Seq.initInfinite (fun n -> $"{defaultLoopName}{n + 1}"))
+    |> Seq.filter (fun name -> isValidParamName name && not (List.contains name taken))
+    |> Seq.head
+
+/// The labels of the components on a sheet whose slot expressions name the given variable.
+///
+/// A slot that names a variable the sheet does not have is a sheet that cannot be read, and Issie
+/// does not let one be made: ParameterView.deleteParameterBox refuses to delete a property that is
+/// still used and lists the slots using it. This is that same rule at the one other place a name
+/// can change out from under its uses - copying an array component under a different loop variable
+/// - and it reports the same thing, the components the name is used in.
+let private componentsUsingName (sheet: LoadedComponent) (name: ParamName) =
+    let labelOf =
+        fst sheet.CanvasState |> List.map (fun c -> c.Id, c.Label) |> Map.ofList
+    ParameterView.getParamSlots sheet
+    |> ParameterTypes.slotsUsingParam name
+    |> List.choose (fun (slot, _) -> Map.tryFind slot.CompId labelOf)
+    |> List.distinct
+    |> List.sort
+
+/// Whether a loop variable name can be used on a sheet: one an expression could refer to, not a
+/// property that sheet already declares - the two would be the same word meaning two things - and
+/// not a rename away from a variable the sheet's own expressions still use.
+let private loopNameProblem (sheet: LoadedComponent option) (defaultName: string) (typed: string) =
+    let name = loopNameOf defaultName typed
+    let sheetName = sheet |> Option.map (fun s -> $"'{s.Name}'") |> Option.defaultValue "this sheet"
+    /// Renaming the loop variable does not rewrite the expressions that use it, so a copy made
+    /// under a new name would carry expressions naming a variable it does not have. Only reachable
+    /// when copying an array component: everywhere else the loop variable is fixed once and shown
+    /// read-only.
+    let renamedAwayFrom =
+        match sheet |> Option.bind (fun s -> s.ArrayInfo |> Option.map (fun info -> s, info)) with
+        | Some (s, info) when info.LoopParam <> ParamName name ->
+            let (ParamName old) = info.LoopParam
+            match componentsUsingName s info.LoopParam with
+            | [] -> None
+            | used -> Some (old, used)
+        | _ -> None
     if not (isValidParamName name) then
         Some $"'{name}' cannot be a loop variable: a name is a letter followed by letters and digits, and not min, max or clog2"
-    elif List.contains name declared then
-        Some $"this sheet already has a property called '{name}'"
-    else None
+    elif List.contains name (declaredNames sheet) then
+        Some $"{sheetName} already has a property called '{name}', and one word cannot mean both - \
+               the loop variable counts the copies, while a property is set once per instance. \
+               Choose another name."
+    else
+        renamedAwayFrom
+        |> Option.map (fun (old, used) ->
+            let names = String.concat ", " used
+            $"{sheetName} uses '{old}' in the properties of {names}, and renaming the loop variable \
+               here does not rewrite them. Copy it as '{old}', or change those components on \
+               {sheetName} first.")
 
 /// Ask for a sheet name and a loop variable, then run `make` with both. Refuses a name the project
 /// already has, or one the file system will not take, using the check the New Sheet dialog uses.
-let private askForName title prompt (defaultLoop: string) (project: Project) (make: string -> string -> Model -> unit) model dispatch =
+///
+/// `sheet` is the one the new component's contents will come from, where there is one: a copy
+/// carries that sheet's properties with it, so a loop variable clashing with one of them is a clash
+/// on the sheet being made even though it does not exist yet. None for a component made empty,
+/// which declares nothing for a name to collide with.
+let private askForName
+        title
+        prompt
+        (sheet: LoadedComponent option)
+        (defaultLoop: string)
+        (project: Project)
+        (make: string -> string -> Model -> unit)
+        model
+        dispatch =
     let before1 =
         fun (dialogData: PopupDialogData) ->
             div [] [
@@ -235,9 +342,10 @@ let private askForName title prompt (defaultLoop: string) (project: Project) (ma
         fun (dialogData: PopupDialogData) ->
             div [] [
                 br []
-                str "What should its loop variable be called? Write this in any property box on the                      sheet to make one copy differ from the next."
+                str "What should its loop variable be called? Write this in any property box on the \
+                     sheet to make one copy differ from the next."
                 br []
-                match loopNameProblem None (getText2 dialogData) with
+                match loopNameProblem sheet defaultLoop (getText2 dialogData) with
                 | Some msg -> span [ Style [ Color "red" ] ] [ str msg ]
                 | None -> null
             ]
@@ -250,9 +358,7 @@ let private askForName title prompt (defaultLoop: string) (project: Project) (ma
         fun (model': Model) ->
             make
                 ((getText model'.PopupDialogData).ToLower())
-                (match (getText2 model'.PopupDialogData).Trim() with
-                 | "" -> defaultLoop
-                 | typed -> typed)
+                (loopNameOf defaultLoop (getText2 model'.PopupDialogData))
                 model'
             dispatch ClosePopup
             dispatch FinishUICmd
@@ -260,28 +366,32 @@ let private askForName title prompt (defaultLoop: string) (project: Project) (ma
         fun (model': Model) ->
             let text = getText model'.PopupDialogData
             text = "" || isFileInProject text project || (MiscMenuView.maybeWarning text project).IsSome
-            || (loopNameProblem None (getText2 model'.PopupDialogData)).IsSome
+            || (loopNameProblem sheet defaultLoop (getText2 model'.PopupDialogData)).IsSome
     dialogPopup title body "Create" buttonAction isDisabled [] dispatch
 
 /// Ask only for a loop variable, for a sheet that already exists and keeps its name.
 let private askForLoopVariable title (sheet: LoadedComponent) (make: string -> Model -> unit) dispatch =
+    // the name the box opens on, and what an empty box means: free of this sheet's own properties
+    let defaultLoop = freeLoopName (Some sheet)
     let before =
         fun (dialogData: PopupDialogData) ->
             div [] [
-                str $"'{sheet.Name}' will become an array component. What should its loop variable                       be called? Write this in any property box on the sheet to make one copy differ                       from the next."
+                str $"'{sheet.Name}' will become an array component. What should its loop variable \
+                      be called? Write this in any property box on the sheet to make one copy differ \
+                      from the next."
                 br []
-                match loopNameProblem (Some sheet) (getText dialogData) with
+                match loopNameProblem (Some sheet) defaultLoop (getText dialogData) with
                 | Some msg -> span [ Style [ Color "red" ] ] [ str msg ]
                 | None -> null
             ]
-    let body = dialogPopupBodyOnlyText before $"default: {defaultLoopName}" dispatch
+    let body = dialogPopupBodyOnlyText before $"default: {defaultLoop}" dispatch
     let buttonAction =
         fun (model': Model) ->
-            make (loopNameOf (getText model'.PopupDialogData)) model'
+            make (loopNameOf defaultLoop (getText model'.PopupDialogData)) model'
             dispatch ClosePopup
             dispatch FinishUICmd
     let isDisabled =
-        fun (model': Model) -> (loopNameProblem (Some sheet) (getText model'.PopupDialogData)).IsSome
+        fun (model': Model) -> (loopNameProblem (Some sheet) defaultLoop (getText model'.PopupDialogData)).IsSome
     dialogPopup title body "Make it an array component" buttonAction isDisabled [] dispatch
 
 /// Add a sheet to the project, with array settings, and open it for editing.
@@ -357,8 +467,10 @@ let newArrayComponentPopup (model: Model) (dispatch: Msg -> unit) =
                 choice "New array component"
                     "An empty sheet to draw one copy on."
                     (fun () ->
+                        // No sheet behind it: an empty component declares no properties, so `i`
+                        // is always free and nothing can clash with it.
                         askForName "New array component" "A new sheet will be created for it:"
-                            defaultLoopName project
+                            None (freeLoopName None) project
                             (fun name loop model' -> addArraySheet project name loop None model' dispatch)
                             model dispatch)
                 // Whichever of the two applies to the sheet the user is looking at, and not both:
@@ -395,11 +507,15 @@ let newArrayComponentPopup (model: Model) (dispatch: Msg -> unit) =
                                 match MenuHelpers.saveOpenFileToModel model with
                                 | Some { CurrentProj = Some p } -> dispatch <| SetProject p
                                 | _ -> ()
-                            // The copy keeps this sheet's copy count and loop variable, so the name
-                            // is the one thing that has to differ and the only thing asked for.
                             let prompt =
-                                $"A separate array component will be made from '{lc.Name}', which                                   has {copiesOfArray info} copies. The copy starts the same and can                                   then be changed on its own. It will be called:"
-                            askForName "Copy as an array component" prompt loop project
+                                $"A separate array component will be made from '{lc.Name}', which \
+                                  has {copiesOfArray info} copies. The copy starts the same and can \
+                                  then be changed on its own. It will be called:"
+                            // The SOURCE sheet, so that a loop variable clashing with one of the
+                            // properties the copy inherits is caught here rather than after it is
+                            // made. Its own loop variable is offered, since the copy starts as it
+                            // did and that name is free on it by construction.
+                            askForName "Copy as an array component" prompt (Some lc) loop project
                                 (fun name loop model' -> addArraySheet project name loop (Some lc) model' dispatch)
                                 model dispatch)
                  | None -> null)

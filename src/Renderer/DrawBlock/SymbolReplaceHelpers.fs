@@ -1,4 +1,4 @@
-﻿module SymbolReplaceHelpers
+module SymbolReplaceHelpers
 
 
 open CommonTypes
@@ -26,7 +26,9 @@ open Operators
 let resizedForLegend (symbol: Symbol) =
     match symbol.Component.Type with
     | BusOut _ | MuxOut _ | JoinOut _ | JoinIn _ ->
-        let _, _, h, w = Symbol.getComponentProperties symbol.Component.Type symbol.Component.Label
+        // the text it actually draws, which for a join is its channel EXPRESSION where it has one:
+        // a symbol sized for `Join[1]` is one that `Join[i+10]` runs straight out of
+        let _, _, h, w = Symbol.arrayIOProperties symbol.ArrayText symbol.Component.Type
         { symbol with Component = { symbol.Component with H = h; W = w } }
     | _ -> symbol
 

@@ -1,4 +1,4 @@
-﻿/// Array design sheets: how the copies of such a sheet join to each other, and what ports the
+/// Array design sheets: how the copies of such a sheet join to each other, and what ports the
 /// sheet therefore has. See CommonTypes.ArrayInfo and ArrayExpand.
 ///
 /// These are pure tests over a canvas plus its array settings - no simulation, no draw block - so
@@ -42,7 +42,13 @@ let private stacked (comps: Component list) =
 let private names (ports: (string * int) list) = ports |> List.map fst
 
 let private outline info defs canvas = ArrayExpand.arrayOutlineOf info defs canvas |> fst
-let private problems info defs canvas = ArrayExpand.arrayOutlineOf info defs canvas |> snd
+/// The messages a sheet's problems carry. What each problem POINTS AT is checked separately -
+/// see the highlighting test - so that the tests reading text do not all have to know about it.
+let private problems info defs canvas =
+    ArrayExpand.arrayOutlineOf info defs canvas |> snd |> List.map (fun p -> p.Message)
+
+/// The problems whole, for the tests that care which components a message highlights.
+let private problemsFull info defs canvas = ArrayExpand.arrayOutlineOf info defs canvas |> snd
 
 //-------------------------------------------------------------------------------------------//
 //------------------------------------JOIN MATCHING------------------------------------------//
@@ -125,6 +131,52 @@ let private joinTests =
                 Expect.equal o.Comp.Label i.Comp.Label "a channel never joins one label to another"
         }
 
+        test "one mistake is one message, and it points at the components" {
+            // Two Join outs on one channel used to arrive as SEVEN problems: the clash, then one
+            // "driven in more than one copy" per copy (each printing the same copy twice), then one
+            // derived-name collision per copy. One fault, said four ways, none of them the whole
+            // truth. The clash itself is what is reported, and the consequences are not.
+            let a = makeComp 1 1 0 (JoinOut(1, 0)) "C"
+            let b = makeComp 2 1 0 (JoinOut(1, 0)) "C"
+            let canvas: CanvasState = stacked [ a; b ], []
+            let probs = problemsFull (arrayInfo 3) (Some (joinNums [ 1, "i"; 2, "i" ])) canvas
+            Expect.hasLength probs 1 "one mistake, one message"
+            Expect.equal (List.head probs).Message "2 Join out components are on channel 0 of 'C'"
+                "which says what is wrong and stops"
+            Expect.equal (List.sort (List.head probs).Components) (List.sort [ a.Id; b.Id ])
+                "and points at both of the components it is about"
+        }
+
+        test "a channel that one component drives in several copies says which copies" {
+            // the other shape of the same fault, and the one outClashes is now alone in reporting
+            let solo = makeComp 1 1 0 (JoinOut(1, 5)) "D"
+            let canvas: CanvasState = stacked [ solo ], []
+            let probs = problemsFull (arrayInfo 3) None canvas
+            Expect.hasLength probs 1 "one component on one channel in three copies is one message"
+            Expect.equal (List.head probs).Message "Join out 'D' drives channel 5 in copies 0, 1, 2"
+                "naming the copies, which is the whole of what is wrong"
+            Expect.equal (List.head probs).Components [ solo.Id ] "and pointing at the component"
+        }
+
+        test "a channel number naming anything but the loop variable says so, and names it" {
+            // The evaluator's own message reports what is in scope as "properties of this sheet",
+            // and the one name in scope for a channel number is the LOOP VARIABLE - which is
+            // deliberately not a property. Reported here instead, so the message names the right
+            // word and calls it the right thing.
+            let jOut = makeComp 1 1 0 (JoinOut(1, 1)) "C"
+            let canvas: CanvasState = stacked [ jOut ], []
+            let info = arrayInfo 3
+            let defs = Some (joinNums [ 1, "W+1" ])
+            match problems info defs canvas with
+            | [] -> failtest "a channel number that names a property must be refused"
+            | msgs ->
+                let msg = List.head msgs
+                Expect.stringContains msg "'W'" "the message names what was written"
+                Expect.stringContains msg "loop variable 'i'" "and what may be written instead"
+                Expect.isFalse (msg.Contains "properties of this sheet")
+                    "and does not call the loop variable a property of the sheet, which it is not"
+        }
+
         test "a constant channel number makes every copy drive one wire, and is refused" {
             // no expression, so the stored number is the channel in EVERY copy: n drivers of one
             // wire, which is the mistake this check exists for
@@ -132,7 +184,7 @@ let private joinTests =
             let canvas: CanvasState = stacked [ jOut ], []
             let w = ArrayExpand.joinsOf (arrayInfo 3) None canvas
             Expect.isNonEmpty w.Problems "three copies on one channel must be reported"
-            Expect.stringContains (List.head w.Problems) "more than one copy"
+            Expect.stringContains (List.head w.Problems).Message "drives channel 5 in copies"
                 "and the message must say what is wrong"
         }
 
@@ -143,7 +195,7 @@ let private joinTests =
             let canvas: CanvasState = stacked [ jOut ], []
             let w = ArrayExpand.joinsOf (arrayInfo 4) (Some (joinNums [ 1, "i-1" ])) canvas
             Expect.isNonEmpty w.Problems "a channel number that goes negative must be reported"
-            Expect.stringContains (List.head w.Problems) "negative" "and say so"
+            Expect.stringContains (List.head w.Problems).Message "negative" "and say so"
         }
 
         test "a channel number naming anything but the loop variable is refused" {
@@ -164,7 +216,7 @@ let private joinTests =
             let canvas: CanvasState = stacked [ a; b ], []
             let w = ArrayExpand.joinsOf (arrayInfo 2) None canvas
             Expect.isNonEmpty w.Problems "two Join outs on channel 0 of C must be reported"
-            Expect.stringContains (List.head w.Problems) "channel 0" "and the message must say which"
+            Expect.stringContains (List.head w.Problems).Message "channel 0" "and the message must say which"
         }
 
         test "two joins on one side sharing only a channel are allowed" {
@@ -391,6 +443,50 @@ let private expansionTests =
                 |> List.choose (fun c -> match c.Type with | Custom cc -> Some (c.Label, cc.Name) | _ -> None)
             Expect.equal instances [for i in 0 .. 4 -> $"ripple{i}", "ripple/instance"]
                 "five numbered instances of the body, which is what the wave selector will show"
+        }
+
+        test "one loose channel read by several copies is one port, wired to all of them" {
+            // A channel number need not vary copy by copy. `i/2` gives the array one input per PAIR
+            // of copies, and a number that does not name the loop variable at all is the extreme of
+            // the same thing: every copy loose on one channel. Both are allowed, so the port that
+            // channel becomes has to drive EVERY copy on it - keeping one end per channel wired the
+            // first copy and left the others' body ports dangling, which surfaced as an unconnected
+            // port on the generated sheet, naming components the user cannot open.
+            let jIn = makeComp 1 0 1 (JoinIn(1, 0)) "C"
+            let outp = makeComp 2 1 0 (Output 1) "R"
+            let canvas: CanvasState = stacked [ jIn; outp ], [ conn jIn 0 outp 0 ]
+            let info = arrayInfo 4
+            let sheet =
+                { makeLdc "pairs" (Some (joinNums [ 1, "i/2" ])) canvas with ArrayInfo = Some info }
+
+            let ins, _ = outline info sheet.LCParameterSlots canvas
+            Expect.equal (names ins) [ "C_in_0"; "C_in_1" ]
+                "four copies reading i/2 are loose on two channels, so the array has two inputs"
+            Expect.isEmpty (problems info sheet.LCParameterSlots canvas)
+                "and nothing about that is an error: a channel may be read by several copies"
+
+            let expanded, expandProblems, _ = ArrayElaborate.expandArraySheets [ sheet ]
+            Expect.isEmpty expandProblems "so the expansion has nothing to complain about either"
+            let wrapper = expanded |> List.find (fun l -> l.Name = "pairs")
+            let wComps, wConns = wrapper.CanvasState
+            let unconnected =
+                wComps
+                |> List.collect (fun c -> c.InputPorts |> List.map (fun p -> c.Label, p.Id))
+                |> List.filter (fun (_, pid) -> wConns |> List.forall (fun cn -> cn.Target.Id <> pid))
+            Expect.isEmpty unconnected "every copy on a loose channel is wired to the port it became"
+
+            // and it is the RIGHT copies: C_in_0 feeds copies 0 and 1, C_in_1 copies 2 and 3
+            let fedBy (portLabel: string) =
+                let src = wComps |> List.find (fun c -> c.Label = portLabel)
+                let srcPort = (List.head src.OutputPorts).Id
+                wConns
+                |> List.filter (fun cn -> cn.Source.Id = srcPort)
+                |> List.map (fun cn ->
+                    wComps |> List.find (fun c -> c.InputPorts |> List.exists (fun p -> p.Id = cn.Target.Id))
+                    |> fun c -> c.Label)
+                |> List.sort
+            Expect.equal (fedBy "C_in_0") [ "pairs0"; "pairs1" ] "channel 0 is what copies 0 and 1 read"
+            Expect.equal (fedBy "C_in_1") [ "pairs2"; "pairs3" ] "and channel 1 what copies 2 and 3 read"
         }
 
         test "generated ids are above every id the design already uses" {
@@ -674,7 +770,7 @@ let private simError (top: LoadedComponent) (deps: LoadedComponent list) =
 
 let private refusalTests =
     testList "refusals" [
-        test "array IO on a sheet that is not an array sheet is refused, and says what to do" {
+        test "array IO on a sheet that is not an array sheet is refused, and is named" {
             // the state a paste onto an ordinary sheet leaves, and the state a sheet is in when its
             // array settings are taken away while its array components are still on it
             let inp = makeComp 1 0 1 (Input1(1, None)) "A"
@@ -684,24 +780,26 @@ let private refusalTests =
             | None -> failtest "array IO on an ordinary sheet must be refused"
             | Some msg ->
                 Expect.stringContains msg "'B'" "the message names the component"
-                Expect.stringContains msg "ARRAY COMPONENT" "and says what kind of sheet it needs"
-                Expect.stringContains msg "Catalogue" "and where to make one"
-                Expect.stringContains msg "this component says" "one component, so the singular"
+                Expect.stringContains msg "array component" "and what it needs to be on"
         }
 
-        test "the refusal says 'these components' when there is more than one" {
-            // it opens with the list of what is wrong, so a plural list followed by "this
-            // component" reads as nonsense - and several at once is the ordinary case, since a
-            // paste or a sheet losing its array settings brings all of them at once
+        test "the refusal names every component that is wrong, and points at them" {
+            // several at once is the ordinary case: a paste, or a sheet losing its array settings,
+            // brings all of them together. The message says WHICH, and the ids are what the
+            // simulator highlights in red - a message about 'B' and 'C' is no use if the sheet does
+            // not show which two those are.
             let inp = makeComp 1 0 1 (Input1(1, None)) "A"
             let one = makeComp 2 1 0 (BusOut 1) "B"
             let two = makeComp 3 1 0 (JoinOut (1, 0)) "C"
             let top = makeLdc "plain" None (stacked [ inp; one; two ], [ conn inp 0 one 0; conn inp 0 two 0 ])
-            match simError top [] with
-            | None -> failtest "array IO on an ordinary sheet must be refused"
-            | Some msg ->
-                Expect.stringContains msg "these components say" "two components, so the plural"
-                Expect.stringContains msg "delete the components" "and the plural to the end of it"
+            match Simulator.startCircuitSimulation maxArraySize top.Name top.CanvasState [ top ] with
+            | Ok _ -> failtest "array IO on an ordinary sheet must be refused"
+            | Error e ->
+                let msg = SimGraphTypes.errMsg e.ErrType
+                Expect.stringContains msg "'B'" "both components are named"
+                Expect.stringContains msg "'C'" "both components are named"
+                Expect.equal (List.sort e.ComponentsAffected) (List.sort [ one.Id; two.Id ])
+                    "and both are highlighted, so the message can be read beside them"
         }
 
         test "the same components are fine on an array sheet, which is the point" {
@@ -710,17 +808,21 @@ let private refusalTests =
         }
 
         test "an array component can be checked while it is the sheet being looked at" {
-            // The bug this pins was not in the array code at all: expansion was called by the three
-            // entry points that BUILD a simulation, and the Simulation tab's verdict reaches
-            // validateCircuitSimulation directly. So opening an array component and asking whether
-            // it builds ran the checks on its unexpanded canvas, which refused its own IO as being
-            // on a sheet that is not an array component - advising the user to make it the thing it
-            // already was. Expansion belongs where every one of those paths goes through.
+            // Through validateSheetOfDesign, which is what the Simulation tab's verdict actually
+            // calls, and THAT is what this pins. getStateAndDependencies takes the sheet being
+            // checked out of the list it hands back, so the check used to pass that shortened list
+            // on - leaving nothing able to say the open sheet was an array component. The checks
+            // then ran on its unexpanded canvas and refused its own IO as being on a sheet that is
+            // not an array component, advising the user to make it the thing it already was.
+            //
+            // Asked the way the caller asks it, because the earlier version of this test passed the
+            // sheet INSIDE the dependency list and so passed while the app was still doing that.
             let _, sheet = rippleParent 2
             let err =
-                match Simulator.validateCircuitSimulation sheet.Name sheet.CanvasState [ sheet ] with
-                | Ok _ -> None
-                | Error e -> Some (SimGraphTypes.errMsg e.ErrType)
+                Simulator.validateSheetOfDesign sheet.Name [ sheet ]
+                |> function
+                   | Ok _ -> None
+                   | Error e -> Some (SimGraphTypes.errMsg e.ErrType)
             Expect.isNone err "checking an array component must expand it, as simulating it does"
         }
 
@@ -729,7 +831,7 @@ let private refusalTests =
             let broken = { sheet with ArrayInfo = Some (arrayInfo 0) }
             match simError parent [ broken ] with
             | None -> failtest "a copy count that makes no sense must be refused"
-            | Some msg -> Expect.stringContains msg "at least one" "and the message must say why"
+            | Some msg -> Expect.stringContains msg "at least 1" "and the message must say the bound"
         }
 
         test "a broken array sheet elsewhere in the project does not stop an unrelated design" {
@@ -836,15 +938,51 @@ let private symbolTests =
             // both were drawn before: the legend and the separate bus-width text sat on top of one
             // another. The width is in the legend now, and the direction is not - the port side
             // already says which way it goes.
-            Expect.equal (Symbol.getComponentLegend (JoinIn (1, 3)) Degree0) "Join[3]"
+            Expect.equal (Symbol.getComponentLegend None (JoinIn (1, 3)) Degree0) "Join[3]"
                 "a one-bit join needs no bit range, as no other one-bit port does"
-            Expect.equal (Symbol.getComponentLegend (JoinOut (8, 12)) Degree0) "Join[12] (7:0)"
+            Expect.equal (Symbol.getComponentLegend None (JoinOut (8, 12)) Degree0) "Join[12] (7:0)"
                 "and a wider one says its range"
-            Expect.equal (Symbol.getComponentLegend (JoinIn (8, 12)) Degree0)
-                (Symbol.getComponentLegend (JoinOut (8, 12)) Degree0)
+            Expect.equal (Symbol.getComponentLegend None (JoinIn (8, 12)) Degree0)
+                (Symbol.getComponentLegend None (JoinOut (8, 12)) Degree0)
                 "the two directions read the same: which side the port is on says which it is"
-            Expect.equal (Symbol.getComponentLegend (BusOut 4) Degree0) "BusOut (3:0)"
+            Expect.equal (Symbol.getComponentLegend None (BusOut 4) Degree0) "BusOut (3:0)"
                 "a bus output says its per-copy width"
+        }
+
+        test "a join draws the channel EXPRESSION it is on, and an Output its loop variable" {
+            // What a copy is joined by is the expression, not what that expression comes to in copy
+            // 0: `Join[1]` is copy 0's answer and says nothing about which copy feeds which, while
+            // `Join[i+1]` against `Join[i]` is the chain itself. The text is on the SYMBOL because a
+            // Component carries no expression - a join's channel is a parameter slot of the sheet.
+            let jOut = makeComp 1 1 0 (JoinOut(1, 1)) "C"
+            let jIn = makeComp 2 0 1 (JoinIn(1, 0)) "C"
+            let plain = makeComp 3 0 1 (JoinIn(1, 7)) "D"
+            let outp = makeComp 4 1 0 (Output 8) "SUM"
+            let info = arrayInfo 4
+            let slots = (joinNums [ 1, "i+1"; 2, "i" ]).ParamSlots
+            let synced =
+                makeSymbolModel [ jOut; jIn; plain; outp ]
+                |> SymbolUpdate.syncArrayText (Some info) slots
+            let textOf (comp: Component) = synced.Symbols[comp.Id].ArrayText
+
+            Expect.equal (textOf jOut) (Some "i+1") "a Join out draws the expression its slot holds"
+            Expect.equal (textOf jIn) (Some "i") "and so does the Join in it meets"
+            Expect.equal (textOf plain) None
+                "a join with no slot has only the number it is drawn at, and draws that"
+            Expect.equal (textOf outp) (Some "i")
+                "an Output is one port per copy, so it draws the loop variable it belongs to"
+
+            // what those come out as on the symbol
+            Expect.equal (Symbol.getComponentLegend (textOf jOut) jOut.Type Degree0) "Join[i+1]"
+                "the chain reads as the chain, not as what it comes to in copy 0"
+            Expect.equal (Symbol.getComponentLegend (textOf plain) plain.Type Degree0) "Join[7]"
+                "and a channel that is a plain number still draws that number"
+
+            // taking the array settings away takes the annotations with them
+            let plainSheet = synced |> SymbolUpdate.syncArrayText None slots
+            Expect.all (plainSheet.Symbols |> Map.toList |> List.map (fun (_, sym) -> sym.ArrayText))
+                Option.isNone
+                "on a sheet that is not an array component nothing draws a loop variable"
         }
 
         test "an array IO symbol is wide enough for its legend" {
@@ -854,7 +992,7 @@ let private symbolTests =
                 // ONE line, and measured in the style SymbolView draws it in
                 let text =
                     DrawHelpers.getTextWidthInPixels Symbol.arrayLegendStyle
-                        (Symbol.getComponentLegend compType Degree0)
+                        (Symbol.getComponentLegend None compType Degree0)
                 // the chevron is the last fifth and carries no text
                 Expect.isGreaterThan (w * 0.8) text $"%A{compType}: the legend must fit on one line"
         }

@@ -1,4 +1,4 @@
-﻿/// The draw block, exercised with nothing running.
+/// The draw block, exercised with nothing running.
 ///
 /// Symbol sizing measures text, and text used to be measured by creating a canvas as
 /// DrawHelpers loaded - which made every symbol, and so the whole draw block, unreachable
@@ -313,7 +313,7 @@ let tests =
             |> List.iter (fun (nBits, lsb) ->
                 let ct = BusSelection (nBits, lsb)
                 let comp = Symbol.makeComponent { X = 0.; Y = 0. } ct (ComponentId 1) "SEL"
-                Expect.equal (Symbol.getComponentLegend ct Degree0) ""
+                Expect.equal (Symbol.getComponentLegend None ct Degree0) ""
                     "nothing is drawn inside the body, so no rotation of it can clip anything"
                 Expect.equal comp.H (float Symbol.Constants.gridSize / 2.)
                     "it stays as thin as the line it replaced, so no sheet holding one reflows"
@@ -333,7 +333,7 @@ let tests =
             Expect.equal outNames [ "OUT" ] "and so is the output"
             Expect.hasLength comp.InputPorts 1 "one input port"
             Expect.hasLength comp.OutputPorts 1 "one output port"
-            Expect.stringContains (Symbol.getComponentLegend (NbitSpreader 8) Degree0) "8"
+            Expect.stringContains (Symbol.getComponentLegend None (NbitSpreader 8) Degree0) "8"
                 "the legend names the width it spreads to"
         }
 

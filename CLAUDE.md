@@ -194,6 +194,26 @@ them: there is no linter, and the compiler accepts either style.
   [docs/mutableState.md](docs/mutableState.md) for the policy, the audit of existing ones, and the
   cleanup list.
 - **No nulls** — `Option` and `Result` throughout.
+- **A mouse handler records what the pointer is on, and nothing else.** What the schematic then
+  shows for it is a pure function of the model, worked out in the view:
+  `SheetDisplay.view` takes `overlay` and `highlighted` arguments for exactly this, and
+  `WaveSimWaveforms.hoveredHighlight` is the worked example — the waveform hover highlight is
+  derived from one field, `HoveredLabel`, on every render. **A pair of do/undo messages for a
+  visual effect is the smell**: a paint that must be unpainted has a transition that can be missed,
+  arrive out of order, or leave ids of a stale simulation in the sheet's selection where Delete
+  will act on them. All three of those were real. `Wire.Color` and `Symbol.Appearance.Colour` are
+  stored in the model, and that is legacy — it is what makes the wrong pattern look native. Do not
+  add to it.
+- **Derive in the view, but hand the renderer back the same object when nothing changed.**
+  `renderSymbol` and `renderWire` are memoised with `equalsButFunctions`, which compares props
+  field by field and short-circuits on `===`, so an unchanged symbol costs one pointer test. Write
+  `if Set.contains sym.Id highlighted then Optic.set … sym else sym`, never an unconditional
+  `Optic.set` of a value that is usually the one already there: that is structurally equal but
+  reference-different, so every symbol pays a deep record compare every frame, and a real miss
+  runs `drawComponent`, which measures text against a browser canvas. Hit rate is the whole game.
+  **Allocation is not**: 3000 cons cells measure 15 µs against a ~7 ms render, and Fable fuses
+  nothing — `List.map |> List.filter |> List.map` is three passes and three intermediate lists —
+  so there is no point trading lists for arrays in a view to save them.
 
 ## Common gotchas
 

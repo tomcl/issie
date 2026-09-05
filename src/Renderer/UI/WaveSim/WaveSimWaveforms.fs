@@ -72,48 +72,63 @@ let radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement 
 
 /// The component a wave should take the user to - see PortView.drawnComponentOf, which is where
 /// the question is answered from the design.
-let private drawnComponentOf (wave: Wave) : ComponentId =
-    PortView.drawnComponentOf (Simulator.getFastSim()).Design wave.WaveId
+let private drawnComponentOf (wi: WaveIndexT) : ComponentId =
+    PortView.drawnComponentOf (Simulator.getFastSim()).Design wi
 
-let highlightCircuit (model: Model) comps wave (dispatch: Msg -> Unit) =
-    dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols comps)))
-    // Only wires the open sheet still has. The connections come from the simulation, which holds
-    // the design as it was when it was built, so an edit since then leaves ids naming nothing -
-    // and they would otherwise be added to the sheet's selection, where a later Delete would act
-    // on them. The wire colouring ignores them, which is why this went unnoticed.
-    let conns =
-        connsOfWave (Simulator.getFastSim()) wave
-        |> List.filter (fun cid -> Map.containsKey cid model.Sheet.Wire.Wires)
-    // ColourSelection, which records the wires as selected and paints them, in one message.
-    //
-    // Not SheetT.SelectWires: that is the message a CLICK on a wire sends, and it toggles against
-    // PrevWireSelection - the selection left by the last click on the canvas - so hovering a
-    // waveform whose wire the user had clicked deselected it instead of highlighting it. It reached
-    // this colour by dispatching ColourSelection itself, as a command, which is why it arrived
-    // AFTER the purple that BusWireT.SelectWires paints and won. Asking for the colour directly
-    // does not depend on which of two queued messages lands last.
-    //
-    // Sky blue rather than the purple of a selected wire: this is a wire the pointer is passing
-    // over, not one the user has chosen. The mouse-out handler's UpdateSelectedWires takes these
-    // back out of the selection, which repaints every wire and so clears it.
-    dispatch <| Sheet (SheetT.Msg.ColourSelection ([], conns, HighLightColor.SkyBlue))
-
-/// Highlight on the schematic the component a wave comes from, and the wires carrying that wave.
-/// An IOLabel is highlighted wherever it appears on the sheet, since every copy of it is the one
-/// signal. Does nothing when the component is not on the sheet now open.
-let highlightWaveComps (model: Model) (wave: Wave) (dispatch: Msg -> Unit) =
+/// The components on the open sheet a wave picks out: the one it comes from, or - where that is an
+/// IOLabel - every copy of that label, since each of them is the one signal. Empty when the wave's
+/// component is not on the sheet now open, which is when there is nothing to pick out at all.
+let private drawnCompsOf (model: Model) (wi: WaveIndexT) : ComponentId list =
     let symbols = model.Sheet.Wire.Symbol.Symbols
-    match Map.tryFind (drawnComponentOf wave) symbols with
+    match Map.tryFind (drawnComponentOf wi) symbols with
     | Some {Component={Type=IOLabel;Label=lab}} ->
         symbols
         |> Map.toList
         |> List.map (fun (_,sym) -> sym.Component)
         |> List.filter (function | {Type=IOLabel;Label = lab'} when lab' = lab -> true |_ -> false)
         |> List.map (fun comp -> comp.Id)
-        |> fun labelComps -> highlightCircuit model labelComps wave dispatch
-    | Some _ ->
-        highlightCircuit model [drawnComponentOf wave] wave dispatch
-    | None -> ()
+    | Some _ -> [drawnComponentOf wi]
+    | None -> []
+
+/// The net a wave runs on, as connections OF THE OPEN SHEET.
+///
+/// Normally the simulation is asked, since it is the simulation that knows which ports a signal
+/// reaches. An ARRAY COPY's port is the exception, and it is why this is not simply connsOfWave: a
+/// copy is a component of the generated WRAPPER sheet, which is drawn nowhere, so every connection
+/// the simulation offers for it names a wire the canvas has never had. What IS drawn is the array
+/// IO component the copy's port was made from - the component drawnComponentOf redirects to, and
+/// so the very symbol that is picked out - and the net wanted is the one attached to that.
+///
+/// A redirection is therefore the signal to ask the sheet instead of the simulation. It happens
+/// only for a copy's port, where the component redirected to has one port and its net is exactly
+/// the answer wanted.
+let private netOfWave (model: Model) (wi: WaveIndexT) : ConnectionId list =
+    if drawnComponentOf wi <> fst wi.Id then
+        BusWireUpdateHelpers.getConnectedWireIds model.Sheet.Wire (drawnCompsOf model wi)
+    else
+        // Only wires the open sheet still has. The connections come from the simulation, which
+        // holds the design as it was when it was built, so an edit since then leaves ids naming
+        // nothing.
+        connsOfWave (Simulator.getFastSim()) wi
+        |> List.filter (fun cid -> Map.containsKey cid model.Sheet.Wire.Wires)
+
+/// What the schematic shows picked out because of the waveform viewer: the component a hovered
+/// wave comes from, and the net that wave runs on.
+///
+/// **This is the whole of the hover highlight, and it is a function of the model.** SheetDisplay's
+/// view is given the answer on every render, so there is no message that paints it and none that
+/// has to remember to unpaint it: the highlight is on exactly while HoveredLabel names a wave and
+/// off the instant it does not. That is also why it survives a change of sheet - the button that
+/// takes the user to a wave's component leaves HoveredLabel alone, and the new sheet draws
+/// whatever it has of the same net without being told.
+let hoveredHighlight (model: Model) : Highlighted =
+    let ws = getWSModel model
+    match ws.HoveredLabel with
+    | Some wi when ws.State = WaveSimState.Success && ws.DraggedIndex = None ->
+        match drawnCompsOf model wi with
+        | [] -> Highlighted.none
+        | comps -> { HComps = Set.ofList comps; HConns = Set.ofList (netOfWave model wi) }
+    | _ -> Highlighted.none
 
 /// The visible part of the schematic, in sheet coordinates, or None when it is not being shown.
 /// Sheet coordinates are canvas pixels divided by the zoom, as getVisibleScreenCentre has it.
@@ -130,7 +145,7 @@ let private visibleSheetArea (model: Model) : BoundingBox option =
 
 /// Where on the open sheet the component a wave comes from is, if it is on that sheet at all.
 let private symbolBoxOnOpenSheet (model: Model) (wave: Wave) : BoundingBox option =
-    Map.tryFind (drawnComponentOf wave) model.Sheet.BoundingBoxes
+    Map.tryFind (drawnComponentOf wave.WaveId) model.Sheet.BoundingBoxes
 
 let private centreOf (box: BoundingBox) =
     {X = box.TopLeft.X + box.W / 2.; Y = box.TopLeft.Y + box.H / 2.}
@@ -159,7 +174,7 @@ let private scrollToSymbol (wave: Wave) (model: Model) (dispatch: Msg -> unit) =
 
 /// The sheet holding a component, found by the id it has on that sheet's canvas.
 let private sheetOfComponent (model: Model) (wave: Wave) : string option =
-    let compId = drawnComponentOf wave
+    let compId = drawnComponentOf wave.WaveId
     model.CurrentProj
     |> Option.bind (fun project ->
         project.LoadedComponents
@@ -167,7 +182,7 @@ let private sheetOfComponent (model: Model) (wave: Wave) : string option =
             fst ldc.CanvasState |> List.exists (fun comp -> comp.Id = compId))
         |> Option.map (fun ldc -> ldc.Name))
 
-/// Put the component in the middle of the canvas and highlight it, once the sheet holding it has
+/// Put the component in the middle of the canvas, once the sheet holding it has
 /// loaded. Opening a sheet is asynchronous - doBatchOfMsgsAsynch delivers its load messages in one
 /// batch 300ms later, and that batch ends with the Ctrl-W that fits the sheet to the window - so
 /// this waits for the component to appear rather than running after the next render, which would
@@ -176,24 +191,21 @@ let private sheetOfComponent (model: Model) (wave: Wave) : string option =
 let rec private showWhenSheetLoaded (triesLeft: int) (wave: Wave) (dispatch: Msg -> unit) =
     let attempt model dispatch =
         match symbolBoxOnOpenSheet model wave with
-        | Some _ ->
-            scrollToSymbol wave model dispatch
-            highlightWaveComps model wave dispatch
+        | Some _ -> scrollToSymbol wave model dispatch
         | None when triesLeft > 0 ->
             showWhenSheetLoaded (triesLeft - 1) wave dispatch
         | None -> ()
     dispatch <| DispatchDelayed(Constants.sheetLoadPollMs, ExecFuncInMessage(attempt, dispatch))
 
 /// Show on the schematic the component a wave comes from: change to its sheet if it is on another
-/// one, then scroll it into the middle of the canvas and highlight it.
-/// The highlight is applied here as well as on hover because it does not survive the journey: a
-/// sheet change loads a new set of symbols, taking any selection with it, and the highlight the
-/// hover had applied was to a component the user could not see anyway.
+/// one, then scroll it into the middle of the canvas.
+/// Nothing here highlights it. The pointer is still on the wave's name while this runs, so
+/// hoveredHighlight picks the component out wherever it ends up - including on a sheet that was
+/// not open when the button was pressed, which is exactly what a highlight applied by a message
+/// could not survive.
 let private showSymbolOfWave (wave: Wave) (model: Model) (dispatch: Msg -> unit) =
     match symbolBoxOnOpenSheet model wave with
-    | Some _ ->
-        scrollToSymbol wave model dispatch
-        highlightWaveComps model wave dispatch
+    | Some _ -> scrollToSymbol wave model dispatch
     | None ->
         match sheetOfComponent model wave, model.CurrentProj with
         | Some sheet, Some project ->
@@ -256,16 +268,17 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                 // undone by the mouse leaving the row it started on. Same reason as
                 // WaveSimSelect.toggleRamSelection.
                 let execWithModel (f: Model -> Unit) = ExecFuncInMessage((fun model _ -> f model), dispatch)
+                // Which wave the pointer is on is all these two record. What the schematic then
+                // shows picked out is worked out from it on every render - see hoveredHighlight -
+                // rather than painted here and unpainted below, so there is no pair of transitions
+                // to get out of step.
                 OnMouseOver (fun _ -> dispatch <| execWithModel (fun model ->
                     if (getWSModel model).DraggedIndex = None then
-                        dispatch <| UpdateWSModel (fun ws -> {ws with HoveredLabel = Some wave.WaveId})
-                        highlightWaveComps model wave dispatch)
+                        dispatch <| UpdateWSModel (fun ws -> {ws with HoveredLabel = Some wave.WaveId}))
                 )
                 OnMouseOut (fun _ ->
                     dispatch <| UpdateWSModel (fun ws ->
                         {ws with HoveredLabel = None; DraggedIndex = None; PrevSelectedWaves = None })
-                    dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [])))
-                    dispatch <| Sheet (SheetT.Msg.UpdateSelectedWires (connsOfWave (Simulator.getFastSim()) wave, false))
                 )
 
                 Draggable true

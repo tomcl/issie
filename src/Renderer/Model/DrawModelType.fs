@@ -51,6 +51,33 @@ type SnapXY = {SnapX: SnapInfo; SnapY: SnapInfo}
 let snapX_ = Lens.create (fun xy -> xy.SnapX) (fun s xy -> {xy with SnapX = s})
 let snapY_ = Lens.create (fun xy -> xy.SnapY) (fun s xy -> {xy with SnapY = s})
 
+/// What the schematic is to draw picked out, for a reason the draw block cannot know itself: at
+/// present the waveform whose name the pointer is resting on, which only the UI layer knows about
+/// because only it knows a simulation is running. Reaches the draw block the same way `overlay`
+/// does - as an argument to SheetDisplay.view - and never as a message.
+///
+/// **Derived on every render from the state that says why, and never stored.** The highlight used
+/// to be painted by the mouse handlers, which wrote the colours into the symbols and wires and put
+/// them in the sheet's selection, and then unwrote them on the way out. Every one of those corner
+/// cases is a transition that can be missed or arrive in the wrong order: a hover whose mouse-out
+/// never came left the colour on the canvas, a repaint after it left the wire the wrong colour,
+/// and ids of a simulation older than the sheet ended up in the selection where Delete could act
+/// on them. As a function of the model there is nothing to put back.
+type Highlighted = {
+    /// shown as picked out, whatever colour the symbol itself carries
+    HComps: Set<ComponentId>
+    /// shown in sky blue, whatever colour the wire itself carries
+    HConns: Set<ConnectionId>
+}
+
+module Highlighted =
+    /// nothing picked out, which is what the schematic shows almost all of the time
+    let none = { HComps = Set.empty; HConns = Set.empty }
+
+    /// The colour a picked-out symbol takes. The wires' is HighLightColor.SkyBlue, which is a
+    /// colour the draw block already has a name for; a symbol's is a plain string.
+    let compColour = "lightgreen"
+
 
 /// ---------- SYMBOL TYPES ----------
 module SymbolT =

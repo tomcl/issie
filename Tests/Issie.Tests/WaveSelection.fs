@@ -573,11 +573,11 @@ let tests =
               match fst (WaveSimSelect.wavesOfComponent fs ModelHelpers.initWSModel (ComponentId 12)) with
               | wave :: _ ->
                   Expect.equal
-                      (WaveSimHelpers.sheetOfWave fs wave)
+                      (WaveSimHelpers.sheetOfWave fs wave.WaveId)
                       (Some "solo")
                       "the sheet is the instance's type, whose label is SOLO1"
                   Expect.isNonEmpty
-                      (WaveSimHelpers.connsOfWave fs wave)
+                      (WaveSimHelpers.connsOfWave fs wave.WaveId)
                       "so the wave's connections are found and its wires can be highlighted"
               | [] -> failtest "expected waves for the gate inside the subsheet"
 
@@ -586,8 +586,8 @@ let tests =
               let fs, allWaves = simulation.Force()
               match fst (WaveSimSelect.wavesOfComponent fs ModelHelpers.initWSModel (ComponentId 2)) with
               | wave :: _ ->
-                  Expect.equal (WaveSimHelpers.sheetOfWave fs wave) (Some "top") "the simulated top sheet"
-                  Expect.isNonEmpty (WaveSimHelpers.connsOfWave fs wave) "and its connections are found"
+                  Expect.equal (WaveSimHelpers.sheetOfWave fs wave.WaveId) (Some "top") "the simulated top sheet"
+                  Expect.isNonEmpty (WaveSimHelpers.connsOfWave fs wave.WaveId) "and its connections are found"
               | [] -> failtest "expected waves for the gate on the top sheet"
 
           //-----------------------------------------------------------------------------------//

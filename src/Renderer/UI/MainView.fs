@@ -709,7 +709,7 @@ let displayView model dispatch =
                     OnMouseDown (fun _ -> claimKeyFocus LeftPane)
                 ] [
                     SheetDisplay.view model.Sheet headerHeight (canvasVisibleStyleList model)
-                        (Probe.view model) sheetDispatch
+                        (Probe.view model) (WaveSimWaveforms.hoveredHighlight model) sheetDispatch
                 ]
 
             Notifications.viewNotifications model dispatch

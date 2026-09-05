@@ -14,6 +14,7 @@ open Elmish
 open DrawHelpers
 open BlockHelpers
 
+open DrawModelType
 open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 
@@ -630,7 +631,11 @@ let renderRadialWire props =
     g [] ([ renderWireWidthText props] @ [renderedSVGPath])
 
 /// Function that will render all of the wires within the model, with the display type being set in Model.Type
-let view (model : Model) (dispatch : Dispatch<Msg>) =
+///
+/// `highlighted` says what to show picked out for a reason the draw block cannot know - see
+/// DrawModelType.Highlighted. It is applied to the render props rather than to the model, so a
+/// wire whose highlight changes redraws and the rest are left to React's memoisation.
+let view (model : Model) (highlighted: Highlighted) (dispatch : Dispatch<Msg>) =
     // "WirePropsSort" was instrumented on the line after its start time was taken, so it measured
     // nothing - once per render
     let rStart = TimeHelpers.getTimeMs()
@@ -648,7 +653,7 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
         {
             key = match wire.WId with | ConnectionId s -> string s
             Wire = wire
-            ColorP = wire.Color
+            ColorP = if Set.contains wire.WId highlighted.HConns then HighLightColor.SkyBlue else wire.Color
             StrokeWidthP = strokeWidthP 
             OutputPortEdge = outputPortEdge
             OutputPortLocation = outputPortLocation
@@ -688,7 +693,7 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
             , equalsButFunctions
         )
     
-    let symbols = SymbolView.view model.Symbol (Symbol >> dispatch)
+    let symbols = SymbolView.view model.Symbol highlighted.HComps (Symbol >> dispatch)
     let wires =
         model.Wires
         |> Map.toList 

@@ -7,10 +7,13 @@ open Elmish
 
 open CommonTypes
 open DrawHelpers
+open DrawModelType
 open DrawModelType.SymbolT
 open SymbolHelpers
 open Symbol
 open Browser.Types
+open Optics
+open Optics.Operators
 
 // // HLP23 AUTHOR: BRYAN TAN
 // open SmartHelpers
@@ -634,7 +637,11 @@ let private renderSymbol =
         )
 
 
-let view (model : Model) (dispatch : Msg -> unit) =    
+/// `highlighted` are the symbols to show picked out for a reason outside the draw block - see
+/// DrawModelType.Highlighted. The colour is applied to the symbol VALUE the renderer is given, not
+/// to the model: the props are what React memoises on, so a symbol whose highlight changes redraws
+/// and one whose does not is left alone, exactly as for any other change to it.
+let view (model : Model) (highlighted: Set<ComponentId>) (dispatch : Msg -> unit) =
     /// View function for symbol layer of SVG
     let toListOfNotMovingAndMoving map =
         let listNotMoving = 
@@ -652,7 +659,10 @@ let view (model : Model) (dispatch : Msg -> unit) =
     |> List.map (fun ({Id = ComponentId id} as symbol) ->
         renderSymbol
             {
-                Symbol = symbol
+                Symbol =
+                    if Set.contains symbol.Id highlighted then
+                        Optic.set (appearance_ >-> colour_) Highlighted.compColour symbol
+                    else symbol
                 Dispatch = dispatch
                 key = string id
                 Theme = model.Theme

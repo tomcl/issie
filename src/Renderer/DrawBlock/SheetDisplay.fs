@@ -200,15 +200,21 @@ let displaySvgWithZoom
 /// the schematic. It exists for things the draw block cannot work out for itself - at present the
 /// value on the wire under the cursor, which only the UI layer knows, because only it knows a
 /// simulation is running. Empty the rest of the time.
+///
+/// `highlighted` arrives the same way and for the same reason: symbols and wires to show picked
+/// out because of something outside the draw block - at present the waveform whose name the
+/// pointer is on. Derived by the caller on every render, never stored here; see
+/// DrawModelType.Highlighted.
 let view
         (model:Model)
         (headerHeight: float)
         (style: CSSProp list)
         (overlay: ReactElement list)
+        (highlighted: Highlighted)
         (dispatch : Msg -> unit)
             : ReactElement =
     let wDispatch wMsg = dispatch (Wire wMsg)
-    let wireSvg = BusWire.view model.Wire wDispatch
+    let wireSvg = BusWire.view model.Wire highlighted wDispatch
 
     let wholeCanvas = $"{max 100.0 (100.0 / model.Zoom)}" + "%"
     let snapIndicatorLineX = snapIndicatorLineX model wholeCanvas

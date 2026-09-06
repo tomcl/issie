@@ -154,16 +154,29 @@ let makeInitialWireVerticesList (wireStartPos : XYPos) (wireEndPos : XYPos) (por
                                 (startInset : float) (endInset : float) = 
     let xStart, yStart, xEnd, yEnd = wireStartPos.X, wireStartPos.Y, wireEndPos.X, wireEndPos.Y
 
-    let nubLength =
+    /// How much of the ordinary nub the space between the ports leaves room for. Close ports get
+    /// a shorter nub so that the templates below have somewhere to put their vertices.
+    let roomForNub =
         let xDelta = xEnd - xStart
-        let yDelta = abs (yEnd - yStart)
         match portOrientation with
         | CommonTypes.Edge.Left when xDelta > 0 -> min nubLength (xDelta / 2.)
         | CommonTypes.Edge.Top
         | CommonTypes.Edge.Bottom when xDelta > 0 -> min nubLength xDelta
         | _ -> nubLength
-    /// the nub at the driving end, and the one at the port this wire ends on
-    let startNub, endNub = nubLength + startInset, nubLength + endInset
+    /// The nub at the driving end, and the one at the port this wire ends on.
+    ///
+    /// The inset is a MINIMUM and not an addition, and that distinction is the whole of it. The
+    /// templates below place their detour vertices a nub`s length from the port, so a nub LONGER
+    /// than the ordinary one puts two vertices in the wrong order and the wire doubles back - a
+    /// spike, which autorouting should never draw. A minimum cannot do that: an inset is smaller
+    /// than the nub (nine against ten for a Mux2 SEL), so all this does is stop the shortening
+    /// above taking the nub below the length that gets it clear of its own symbol.
+    ///
+    /// Capped at the ordinary nub for the same reason, in case a symbol ever has a port inset
+    /// further than that: the templates are built around a nub of this length and no more.
+    let startNub, endNub =
+        let atLeast (inset: float) = max roomForNub (min nubLength inset)
+        atLeast startInset, atLeast endInset
     /// This is a fixed-length horizontal stick with a zero-length vertical after it.
     /// It starts nearly all the wires
     let rightNub = [

@@ -49,7 +49,12 @@ Implemented the following Smart Routing Algorithm:
 open BusWireRoutingHelpers.Constants
 
 /// add a nub and zero length segment to the start of the wire if needed
-let ensureStartingNub (wire: Wire) =
+///
+/// `minNub` is the shortest this end's nub may be: the length that gets it clear of its own
+/// symbol's bounding box, which is not zero for a mux SEL port - see BusWireUpdateHelpers.portInset.
+/// This function shortens a nub to fit what the wire has, and without the floor it would undo the
+/// minimum the route was built with.
+let ensureStartingNub (minNub: float) (wire: Wire) =
 
     let updateIndices: Segment list -> Segment list =
         List.mapi (fun i seg -> { seg with Index = i })
@@ -60,7 +65,7 @@ let ensureStartingNub (wire: Wire) =
     elif segs[1].Length = 0. && (sign segs.[0].Length * sign segs[2].Length = -1) then
         let totalLength = segs[0].Length + segs[2].Length
         let dir = float <| sign segs[0].Length
-        let thisNubLength = min nubLength (abs totalLength)
+        let thisNubLength = max (min nubLength minNub) (min nubLength (abs totalLength))
         let nub = { segs[0] with Length = dir * thisNubLength; Draggable = false; IntersectOrJumpList = [] }
         let newSeg2 = { segs[0] with Length = totalLength - dir * thisNubLength; Draggable = true; IntersectOrJumpList = [] }
         let newSegs = nub :: segs[1] :: newSeg2 :: segs[3..]
@@ -69,7 +74,7 @@ let ensureStartingNub (wire: Wire) =
         let seg0 = segs[0]
         let seg1 = segs[1]
         let dir = sign segs[0].Length |> float
-        let thisNubLength = min nubLength (abs seg0.Length)
+        let thisNubLength = max (min nubLength minNub) (min nubLength (abs seg0.Length))
         let nub = {seg0 with Length = dir * thisNubLength; Draggable = false ; IntersectOrJumpList = []}
         let zero = { seg1 with Length = 0. ; IntersectOrJumpList = []; Draggable = true}
         let newSeg2 = {seg0 with Length = seg0.Length - dir*thisNubLength; IntersectOrJumpList = []; Draggable = true}
@@ -77,7 +82,9 @@ let ensureStartingNub (wire: Wire) =
     else
         wire
         
-let ensureBothNubs = ensureStartingNub >> reverseWire >> ensureStartingNub >> reverseWire
+/// `startMin` and `endMin` are the two ends' minimum nub lengths, in the wire's own direction.
+let ensureBothNubs (startMin: float) (endMin: float) =
+    ensureStartingNub startMin >> reverseWire >> ensureStartingNub endMin >> reverseWire
 
 
 /// Checks if a wire intersects any symbol within +/- minWireSeparation.
@@ -793,7 +800,11 @@ let smartAutoroute (model: Model) (wire: Wire) : Wire =
     match intersectedBoxes.Length with
     | 0 -> snappedToNetWire
     | _ ->
-        let nubbedWire = ensureBothNubs snappedToNetWire
+        let nubbedWire =
+            ensureBothNubs
+                (portInset model.Symbol (portIdOfOutput wire.OutputPort))
+                (portInset model.Symbol (portIdOfInput wire.InputPort))
+                snappedToNetWire
         nubbedWire
         |> tryShiftVerticalSeg model intersectedBoxes
         |> Option.orElseWith ( fun () ->

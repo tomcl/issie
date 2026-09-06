@@ -136,7 +136,8 @@ as much as possible to make your Bug Report (sometimes it is not all possible, s
 5. What result did you get?
 6. What project files caused this, the top-level sheet? Enclose project as zipped file deleting the
    maybe large backup directory when you zip.
-7. If you can reproduce the bug yourself, try opening dev tools (Ctrl-Shift-I). You can do this
+7. If you can reproduce the bug yourself, try running the binary as `issie.exe --debug`
+   and opening dev tools (Ctrl-Shift-I). You can do this
    after the bug happens. 2/3 of problems result in error messages displayed there. Screenshot the
    error and its backtrace and send it.
 8. What precise actions (if you know them) led to the bug after loading this project

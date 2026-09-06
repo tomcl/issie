@@ -86,7 +86,7 @@ let private sheetPosOfCursor (cursor: XYPos) (sheet: SheetT.Model) : XYPos optio
         | true ->
             Some {
                 X = (cursor.X + canvas.scrollLeft) / sheet.Zoom
-                Y = (cursor.Y - getHeaderHeight + canvas.scrollTop) / sheet.Zoom
+                Y = (cursor.Y - getHeaderHeight () + canvas.scrollTop) / sheet.Zoom
             }
 
 /// The symbol a ghost draws, which is the symbol the drop will create.

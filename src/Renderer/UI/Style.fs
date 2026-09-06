@@ -8,6 +8,37 @@ open Browser.Dom
 module Constants =
     let dividerBarWidth = 10
 
+/// Round a CSS length so that it lands on a whole DEVICE pixel.
+///
+/// **An edge that falls between two device pixels is painted blended.** The browser covers the
+/// boundary pixel only partly, so it comes out a mixture of what lies on each side of it, and a
+/// seam between two flat colours becomes a hairline of a third. On the canvas that reads as a fine
+/// line of the sheet's background along an edge - loudest in the Light theme, whose background is
+/// a pale yellow against a white pane and a grey rule.
+///
+/// It is not a rounding error in this code. The fixed widths here are whole CSS pixels and Windows
+/// display scaling is what turns them into fractions of a device pixel - but those are the same
+/// every run, and land on the grid at the scalings in use. The one that does not is the width of
+/// the right-hand pane in the waveform simulator, which is whatever the user dragged the divider
+/// to: at 125% scaling a 573-pixel pane is 716.25 device pixels, so the seam between the pane and
+/// the canvas falls a quarter of a pixel inside one, and that pixel is painted part pane and part
+/// canvas.
+///
+/// Only lengths that decide such a SEAM should come through here. Snapping one that does not is
+/// worse than leaving it: the header's height is 58 CSS pixels and the rule below it 2 more, and
+/// it is where the rule ENDS - at 60 - that the canvas background begins. Rounding the 58 on its
+/// own moves that boundary off the grid and paints exactly the hairline this exists to remove,
+/// which is what happened when it was first tried here.
+///
+/// The ratio is read at each call rather than once, because it changes when the window is dragged
+/// to a monitor with different scaling.
+let toWholeDevicePixels (cssPx: float) : float =
+    let dpr = window.devicePixelRatio
+    if dpr > 0. then System.Math.Round(cssPx * dpr) / dpr else cssPx
+
+/// A CSS length, snapped, as a string React can use.
+let px (cssPx: float) = sprintf "%.4fpx" (toWholeDevicePixels cssPx)
+
 /// Where the canvas starts, which must equal where the top menu bar ends.
 ///
 /// The bar's height is driven by its content: a 40px button inside a navbar-item with 8px of
@@ -15,29 +46,35 @@ module Constants =
 /// Keep this in step with that. It was 72px from when each button sat inside two nested
 /// navbar-items rather than one, and the 14px left over showed as an empty white strip between
 /// the line under the menu bar and the line above the canvas.
-let headerHeight = "58px"
+let private headerHeightCss = 58.
+
 /// Small right section.
-let private rightSectionWidthS = "400px"
+let private rightSectionWidthS = 400.
 /// Large right section.
-let private rightSectionWidthL = "650px"
+let private rightSectionWidthL = 650.
 let minViewerWidth = 400
 let minEditorWidth() = int ((document.getElementById "WholeApp").offsetWidth * 0.25)
 
 let rightSectionWidthViewerDefault = 650
 
-let getHeaderHeight =
-    headerHeight
-    |> String.filter (fun c -> (int(c) <= 57 && int(c) >= 48))
-    |> float
-    
-let rightSectionWidth (model:Model) =
+/// The header's height. NOT snapped to device pixels, and that matters: the seam the eye picks up
+/// is where the canvas BACKGROUND begins, which is the inner edge of the rule below the header -
+/// (58 + 2) CSS pixels, a whole number of device pixels at every scaling in use. Snapping the 58
+/// on its own moves that inner edge off the grid and paints the hairline this was meant to remove.
+let getHeaderHeight () = headerHeightCss
+
+let headerHeight () = sprintf "%.4fpx" headerHeightCss
+
+let rightSectionWidthCss (model:Model) : float =
     match model.RightPaneTabVisible with
     | RightTab.Properties | RightTab.Catalogue | RightTab.Transition -> rightSectionWidthS
     | RightTab.Build -> rightSectionWidthL
-    | RightTab.Simulation -> 
+    | RightTab.Simulation ->
         match model.SimSubTabVisible with
         | SimSubTab.StepSim -> rightSectionWidthL
-        | SimSubTab.WaveSim | SimSubTab.TruthTable -> sprintf "%dpx" model.WaveSimViewerWidth
+        | SimSubTab.WaveSim | SimSubTab.TruthTable -> float model.WaveSimViewerWidth
+
+let rightSectionWidth (model:Model) = px (rightSectionWidthCss model)
 
 let leftSectionWidth model = Style [
     Width (sprintf "calc(100%s - %s - 10px)" "%" (rightSectionWidth model))
@@ -45,7 +82,7 @@ let leftSectionWidth model = Style [
 
 let navbarStyle model = Style [
     Width "100%"
-    Height headerHeight
+    Height (headerHeight ())
 ]
 
 /// For making Sheet contained inside left section (don't want sheet behind right section tabs) NOT USED
@@ -102,7 +139,7 @@ let canvasVisibleStyle model =
         Position PositionOptions.Absolute // Required to work.
         OverflowX OverflowOptions.Scroll
         OverflowY OverflowOptions.Scroll
-        Top headerHeight // Placed just under the header.
+        Top (headerHeight ()) // Placed just under the header.
         Left "0px"
         Bottom "0px"
         Right widthRightSec
@@ -123,7 +160,7 @@ let canvasVisibleStyleList model =
         Position PositionOptions.Absolute // Required to work.
         OverflowX OverflowOptions.Scroll
         OverflowY OverflowOptions.Scroll
-        Top headerHeight // Placed under header with offset for the border. // headerHeight // Placed just under the header.
+        Top (headerHeight ()) // Placed under header with offset for the border. // headerHeight // Placed just under the header.
         Left "0px"
         Bottom "0px"
         Right widthRightSec
@@ -139,7 +176,7 @@ let canvasVisibleStyleList model =
 /// would be worse than no banner.
 let canvasReadOnlyBannerStyle model = Style [
     Position PositionOptions.Absolute
-    Top headerHeight
+    Top (headerHeight ())
     Left "0px"
     Right (rightSectionWidth model)
     CSSProp.PointerEvents "none"

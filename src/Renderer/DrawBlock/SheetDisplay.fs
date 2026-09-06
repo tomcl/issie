@@ -186,6 +186,11 @@ let displaySvgWithZoom
                     [
                         Height sizeInPixels
                         Width sizeInPixels
+                        // An svg is inline by default, which puts it on a text baseline and leaves
+                        // the line box's descender space below it - five pixels of scrollable
+                        // nothing under the sheet, showing bare background at the bottom of a
+                        // fully scrolled canvas. Block takes the element out of the line box.
+                        Display DisplayOptions.Block
                     ]
                   Id "DrawBlockSVGTop"
                 ])

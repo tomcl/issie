@@ -624,7 +624,7 @@ let displayView model dispatch =
             dispatch <| SetViewerWidth w 
         | _ -> ()
 
-    let headerHeight = getHeaderHeight
+    let headerHeight = getHeaderHeight ()
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
 
     // the whole app window

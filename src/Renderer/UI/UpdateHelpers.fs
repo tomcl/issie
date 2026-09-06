@@ -390,7 +390,7 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
     // calculate equivalent sheet XY coordinates - valid if mouse is over schematic.
     let symbols = model.Sheet.Wire.Symbol.Symbols
     let bwModel = model.Sheet.Wire
-    let sheetXYPos = SheetDisplay.getDrawBlockPos e DiagramStyle.getHeaderHeight model.Sheet
+    let sheetXYPos = SheetDisplay.getDrawBlockPos e (DiagramStyle.getHeaderHeight ()) model.Sheet
     let element:Types.Element = unbox e.target
     let htmlId = try element.id with | e -> "invalid"
     let elType = try element.nodeName with | e -> "invalid"

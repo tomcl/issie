@@ -1245,8 +1245,10 @@ let separateModelSegmentsOneOrientation (wiresToRoute: ConnectionId list) (ori: 
 /// The candidate moved is a wire's interior perpendicular segment (the "riser"): its base slides
 /// along the trunk to the other riser's position, its two neighbours stretching and shrinking to
 /// pay for it, exactly as a segment drag would. Guards, in order:
-///  - neither wire is routed by hand, and the riser's neighbours are interior and keep their
-///    directions (a neighbour driven past zero would fold the wire back over itself);
+///  - the riser is not a segment the user dragged, and its neighbours are interior and keep their
+///    directions (a neighbour driven past zero would fold the wire back over itself). A wire with
+///    hand-routed segments is an ordinary member of its net here: what it may not do is move the
+///    segments that were pinned;
 ///  - the riser at its new position stays at least minWireSeparation clear of every
 ///    same-orientation segment of any OTHER net it would run beside - the one thing separation
 ///    cannot repair afterwards, since no later pass runs;
@@ -1295,12 +1297,17 @@ let alignSameNetDepartures (wiresToRoute: ConnectionId list) (model: Model) : Mo
     /// A wire's departure points: interior segment index i with abs geometry of it and its
     /// trunk-side neighbour. The neighbours must be interior non-zero segments - they are what
     /// stretches to pay for the move, and a nub or a port's zero-stack must not.
+    ///
+    /// A segment the user has DRAGGED is never a candidate: moving it is the one thing that would
+    /// undo their work. Its neighbours may still stretch to pay for a move elsewhere on the wire,
+    /// which changes their length but not the line the pinned segment sits on - so a hand-routed
+    /// wire can join its net at every point the user did not pin.
     let departures (wire: Wire) =
         let aSegs = getAbsSegments wire
         let n = wire.Segments.Length
         [ for i in 2 .. n - 3 do
             let visible (j: int) = abs wire.Segments[j].Length > minVisibleSegmentLength
-            if visible i && visible (i - 1) && visible (i + 1) then
+            if wire.Segments[i].Mode <> Manual && visible i && visible (i - 1) && visible (i + 1) then
                 yield i, aSegs[i], aSegs[i - 1] ]
 
     /// wire with segment i slid by delta along the trunk, neighbours adjusted
@@ -1506,7 +1513,6 @@ let alignSameNetDepartures (wiresToRoute: ConnectionId list) (model: Model) : Mo
         let routable = Set.ofList wiresToRoute
         model.Wires
         |> Map.valuesL
-        |> List.filter (fun w -> not (isManuallyRouted w))
         |> List.groupBy (fun w -> w.OutputPort)
         |> List.filter (fun (_, ws) -> ws.Length > 1 && ws |> List.exists (fun w -> routable.Contains w.WId))
         |> List.map fst
@@ -1521,7 +1527,7 @@ let alignSameNetDepartures (wiresToRoute: ConnectionId list) (model: Model) : Mo
                 |> List.tryPick (fun port ->
                     model.Wires
                     |> Map.valuesL
-                    |> List.filter (fun w -> w.OutputPort = port && not (isManuallyRouted w))
+                    |> List.filter (fun w -> w.OutputPort = port)
                     |> improveNet model)
             match improved with
             | Some m -> settleJunctions m (count + 1)
@@ -1663,6 +1669,44 @@ let redrawWires (toRedraw: Wire -> bool) (model: Model) : Model =
 /// Redraw every wire the user has not routed by hand, leaving those alone.
 let redrawFloatingWires (model: Model) =
     redrawWires (BusWireUpdateHelpers.isManuallyRouted >> not) model
+
+/// Separate the sheet with the hand-routed segments freed, then pin them again where they end up.
+///
+/// **Nothing here is re-routed.** Separation moves a segment along its own axis and no further, so
+/// a wire that was dragged into a particular shape keeps that shape; what changes is which of the
+/// parallel tracks each of its segments sits on. That is the thing hand routing cannot do for
+/// itself - the user can put a wire where they want it, but not line it up with the ten other
+/// wires that run beside it, because those move afterwards and it does not.
+///
+/// It is a menu item rather than part of the ordinary pass because it is a judgement the user has
+/// to make. A pinned segment is pinned precisely because separation would otherwise have put it
+/// somewhere else, so doing this on every edit would quietly undo hand routing a little at a time.
+/// Asked for once, it does what the user means: "these are in the right place, now tidy them in
+/// with the rest".
+///
+/// The pins are restored by segment index, and only where the wire still has the same number of
+/// segments - corner and spike removal inside the separation pass can shorten a wire's list, and a
+/// pin put back at an index that now means a different segment would be worse than no pin at all.
+let separateManualRouting (model: Model) : Model =
+    /// which segments of which wires the user had pinned, and how long each wire's list was
+    let pinned =
+        model.Wires
+        |> Map.map (fun _ wire ->
+            wire.Segments.Length,
+            wire.Segments |> List.filter (fun seg -> seg.Mode = Manual) |> List.map (fun seg -> seg.Index))
+    let setModes (f: ConnectionId -> Wire -> Segment -> RoutingMode) (m: Model) =
+        m.Wires
+        |> Map.map (fun wid wire ->
+            wire |> Optic.map segments_ (List.map (fun seg -> { seg with Mode = f wid wire seg })))
+        |> fun wires -> { m with Wires = wires }
+
+    model
+    |> setModes (fun _ _ _ -> Auto)
+    |> updateWireSegmentJumpsAndSeparations (Map.keysL model.Wires)
+    |> setModes (fun wid wire seg ->
+        match Map.tryFind wid pinned with
+        | Some(len, idxs) when len = wire.Segments.Length && List.contains seg.Index idxs -> Manual
+        | _ -> Auto)
 
 /// Redraw every wire, hand routing included.
 let redrawAllWires (model: Model) = redrawWires (fun _ -> true) model

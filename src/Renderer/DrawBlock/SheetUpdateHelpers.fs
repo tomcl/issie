@@ -260,6 +260,30 @@ let appendUndoList (undoList: Model List) (model_in: Model): Model List =
         model_in :: (removeLast undoList)
 
 
+/// Route every floating wire again from nothing and separate the whole sheet.
+///
+/// **What a UI operation ends with**, once it has finished changing the sheet - not while it is
+/// changing it. A delete removes several things, a rotate turns a whole selection, a drag moves a
+/// symbol through a hundred positions: each is one change as far as the drawing is concerned, and
+/// re-routing part of the way through would lay wires out for a sheet that is about to be
+/// different. So this goes at the END, once, and a drag calls it on mouse-UP.
+///
+/// Hand-routed wires are not re-routed - see redrawFloatingWires - but the whole sheet, including
+/// them, is separated.
+let rerouteAndSeparate (model: Model) : Model =
+    model |> Optic.map wire_ BusWireSeparate.redrawFloatingWires
+
+/// The same, with an undo checkpoint taken first.
+///
+/// Which of the two to use is decided by whether the operation has already pushed one: an edit
+/// that took a checkpoint before changing anything wants that ONE entry to cover the whole thing,
+/// re-routing included, so that Ctrl-Z puts back what the user was looking at rather than an
+/// intermediate state they never saw. Use this one where the operation takes no checkpoint of its
+/// own - the menu redraws, and anything that only re-routes.
+let checkpointRerouteAndSeparate (model: Model) : Model =
+    { model with UndoList = appendUndoList model.UndoList model }
+    |> rerouteAndSeparate
+
 /// True when this port belongs to the symbol whose ports the user has asked to move.
 /// Ports of every other symbol keep their normal behaviour of starting a wire.
 let portIsEditable (model: Model) (portIdStr: PortId) =
@@ -692,8 +716,11 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
         let connIdL = segIdL |> List.map snd
         let coalesceCmds = connIdL |> List.map (fun conn -> wireCmd (BusWireT.CoalesceWire conn))
         { model with Action = Idle; UndoList = appendUndoList model.UndoList newModel}, 
+        // Only now the drag has ENDED. A segment being dragged changes shape on every mouse move,
+        // and the sheet it would be laid out against is the one it will be when the user lets go.
         Cmd.batch ([ wireCmd (BusWireT.DragSegment (segIdL, mMsg))                    
-                     wireCmd (BusWireT.MakeJumps (true,connIdL )) ] @ coalesceCmds)
+                     wireCmd (BusWireT.MakeJumps (true,connIdL )) ] @ coalesceCmds
+                    @ [ wireCmd BusWireT.RerouteAllFloatingWires ])
     | Selecting ->
         //let box = model.DragToSelectBox
         let newComponents = findIntersectingComponents model model.DragToSelectBox
@@ -788,7 +815,10 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
     | ConnectingInput inputPortId ->
         let cmd, undoList ,redoList =
             if model.TargetPortId <> PortId 0 // If a target has been found, connect a wire\
-            then wireCmd (BusWireT.AddWire (inputPortId, (OutputPortId model.TargetPortId))),
+            then Cmd.batch [ wireCmd (BusWireT.AddWire (inputPortId, (OutputPortId model.TargetPortId)))
+                             // a new wire is a new obstacle, and the space it takes is space
+                             // other wires were using: the sheet is laid out again around it
+                             wireCmd BusWireT.RerouteAllFloatingWires ],
                             appendUndoList model.UndoList newModel, newModel.RedoList
             else Cmd.none , newModel.UndoList, newModel.RedoList
         {model with Action = Idle; TargetPortId = PortId 0; UndoList = undoList ; RedoList = redoList ; AutomaticScrolling = false }, cmd
@@ -796,7 +826,8 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
     | ConnectingOutput outputPortId ->
         let cmd , undoList , redoList =
             if model.TargetPortId <> PortId 0 // If a target has been found, connect a wire
-            then  wireCmd (BusWireT.AddWire (InputPortId model.TargetPortId, outputPortId)),
+            then  Cmd.batch [ wireCmd (BusWireT.AddWire (InputPortId model.TargetPortId, outputPortId))
+                              wireCmd BusWireT.RerouteAllFloatingWires ],
                             appendUndoList model.UndoList newModel, newModel.RedoList
             else Cmd.none , newModel.UndoList, newModel.RedoList
         { model with Action = Idle; TargetPortId = PortId 0; UndoList = undoList ; RedoList = redoList ; AutomaticScrolling = false  }, cmd

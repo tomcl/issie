@@ -93,9 +93,13 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
 
         // let inputPorts, outputPorts = BusWire.getPortIdsOfWires model.Wire wireUnion
         { model with SelectedComponents = []; SelectedWires = []; UndoList = appendUndoList model.UndoList model; RedoList = [] },
+        // The re-route goes last: the deletions above are commands, so nothing has gone yet, and
+        // routing a sheet that still holds what is about to be deleted routes around ghosts. One
+        // delete of many things is one change, so this happens once, at the end of it.
         Cmd.batch [ wireCmd (BusWireT.DeleteWires wireUnion) // Delete Wires before components so nothing bad happens
                     symbolCmd (SymbolT.DeleteSymbols model.SelectedComponents)
                     sheetCmd UpdateBoundingBoxes
+                    wireCmd BusWireT.RerouteAllFloatingWires
                   ]
     | KeyPress CtrlC ->
         // something has been copied and not yet pasted, which is when the canvas offers to paste
@@ -464,15 +468,23 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     | RotateLabels ->
         rotateSelectedLabelsClockwise model
 
+    | SeparateManualRouting ->
+        // Takes its own checkpoint: nothing else in this operation does, and it can move every
+        // hand-routed segment on the sheet - which is exactly the work a user would most want back.
+        { model with UndoList = appendUndoList model.UndoList model }
+        |> Optic.map wire_ BusWireSeparate.separateManualRouting
+        |> (fun m -> m, Cmd.none)
+
     | RedrawWires manualToo ->
-        // The checkpoint is the model as it is HERE, before the redraw, which is what every other
-        // edit records and what Ctrl-Z restores. A redraw can move every wire on the sheet, so it
-        // is the last edit that should have been missing one.
-        let redraw =
-            if manualToo then BusWireSeparate.redrawAllWires else BusWireSeparate.redrawFloatingWires
-        { model with
-            Wire = redraw model.Wire
-            UndoList = appendUndoList model.UndoList model }, Cmd.none
+        // checkpointRerouteAndSeparate is the floating case exactly; the all-wires case is the same
+        // thing with hand routing thrown away too, which is why it is the item with the warning
+        // in its name.
+        if manualToo then
+            { model with UndoList = appendUndoList model.UndoList model }
+            |> Optic.map wire_ BusWireSeparate.redrawAllWires
+            |> (fun m -> m, Cmd.none)
+        else
+            checkpointRerouteAndSeparate model, Cmd.none
 
     | Rotate rotation ->
         //Replaced normal rotation, so individual and block rotation is correct
@@ -494,13 +506,15 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                         Cmd.batch [
                             symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
                             wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
-                            sheetCmd SheetT.UpdateBoundingBoxes]
+                            sheetCmd SheetT.UpdateBoundingBoxes
+                            wireCmd BusWireT.RerouteAllFloatingWires]
             | _ ->
                 {newModel with ErrorComponents = errorComponents; Action = DragAndDrop},
                     Cmd.batch [
                         symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
                         wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
-                        sheetCmd SheetT.UpdateBoundingBoxes]
+                        sheetCmd SheetT.UpdateBoundingBoxes
+                        wireCmd BusWireT.RerouteAllFloatingWires]
 
     
 
@@ -529,6 +543,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
             wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
             sheetCmd SheetT.UpdateBoundingBoxes
+            wireCmd BusWireT.RerouteAllFloatingWires
         ]
 
     | SaveSymbols ->

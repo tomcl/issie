@@ -684,6 +684,8 @@ let private editMenuItems (model: Model) dispatch =
           sheetDispatch (SheetT.RedrawWires false))
       editItem "Redraw all wires" KeyTypes.ScRedrawAllWires (fun () ->
           sheetDispatch (SheetT.RedrawWires true))
+      editItem "Separate manual routing" KeyTypes.ScSeparateManualRouting (fun () ->
+          sheetDispatch SheetT.SeparateManualRouting)
       Navbar.divider [] []
       itemWithKey "How to move component ports" KeyTypes.ScMovePortsHelp (fun () ->
           dispatch

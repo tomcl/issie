@@ -254,6 +254,7 @@ let actionOf (id: ShortcutId) (dispatch: Msg -> unit) : unit =
     | ScRedo -> ifEditable (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlY)
     | ScRedrawFloatingWires -> ifEditable (fun () -> sheetDispatch (SheetT.RedrawWires false))
     | ScRedrawAllWires -> ifEditable (fun () -> sheetDispatch (SheetT.RedrawWires true))
+    | ScSeparateManualRouting -> ifEditable (fun () -> sheetDispatch SheetT.SeparateManualRouting)
     | ScMovePortsHelp ->
         dispatch
         <| ShowStaticInfoPopup(

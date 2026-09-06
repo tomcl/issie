@@ -650,6 +650,10 @@ module SheetT =
         /// before the change. A redraw can move every wire on the sheet, and was the one edit with
         /// no way back.
         | RedrawWires of manualToo: bool
+        /// Separate the sheet with the hand-routed segments freed and pinned again where they
+        /// end up - the Edit menu item. Nothing is re-routed; see
+        /// BusWireSeparate.separateManualRouting for why this is asked for rather than automatic.
+        | SeparateManualRouting
         | WireType of WireTypeMsg
         | IssieInterface of IssieInterfaceMsg
         | MovePort of MouseT //different from mousemsg because ctrl pressed too

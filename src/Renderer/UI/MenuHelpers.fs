@@ -966,6 +966,13 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
 
             Sheet (SheetT.Wire (BusWireT.MakeJumps (true, connections |> List.map (fun conn -> conn.Id ))))
 
+            // A loaded sheet keeps the routes the file stored, which were produced by whatever
+            // version of the router last saved it and by whatever the sheet looked like before the
+            // last few edits. Opening is the one operation that changed the sheet without laying
+            // it out again; now it does. No checkpoint: the undo stack is flushed just above, and
+            // there is nothing to go back to.
+            Sheet (SheetT.Wire BusWireT.RerouteAllFloatingWires)
+
             // set waveSim data
             AddWSModel (name, waveSim)
 

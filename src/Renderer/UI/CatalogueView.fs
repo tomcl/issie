@@ -2155,14 +2155,11 @@ let viewCatalogue model dispatch =
                         "Array components"
                         (match openSheetArrayInfo model with
                          | None ->
-                            "A sheet whose hardware is several copies of what is drawn on it, one \
-                             per value of a loop variable. Draw one bit of an adder and get an \
-                             adder of any width. Made here, edited on its own sheet, and placed \
-                             from This project like any other sheet."
+                            "Make sheets whose hardware is an array of copies of what is drawn."
                          | Some _ ->
-                            "This sheet is an array component: its hardware is several copies of \
-                             what is drawn on it, one per value of its loop variable. These \
-                             components say how the copies join to each other and to the outside. \
+                            "This sheet defines an array component: it defines multiple copies of \
+                             what is drawn on it, one per value of its loop variable. \
+                             Components here define how the copies join to each other and to the outside. \
                              An ordinary Input goes to every copy, and an ordinary Output gives one \
                              port per copy.")
                         (List.concat [

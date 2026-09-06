@@ -877,9 +877,19 @@ let checkExtensionNoOverlap
     check iMin
 
 
-/// Return true if there is no crossing symbol boundary between line 
-/// and lines array (with exception of excludedLine).
-/// Lines and excludedLine or opposite orientation from line
+/// Return true if the extension crosses nothing it should not: no symbol boundary, and no segment
+/// of another net.
+///
+/// The other-net half is what stops corner removal undoing separation. A corner is removed by
+/// extending a segment to where the removed pair used to reach, which can be a long way - on
+/// 3cpu/datapath it was 47 units - and the segment lands wherever the corner happened to be
+/// rather than where separation put it. Separation has already ordered that cluster to minimise
+/// crossings; a removal which crosses another net is undoing that work for the sake of two fewer
+/// bends, and the bends are the cheaper thing.
+///
+/// Same-net crossings are not refused: one signal crossing itself misleads nobody, and a net
+/// which fans out will do it. `lines` are of the opposite orientation to the extension, so a
+/// crossing is one of them spanning the extension's P while the extension spans its own.
 let checkExtensionNoCrossings 
         (overlap: float) 
         (ext: Extension)
@@ -892,6 +902,7 @@ let checkExtensionNoCrossings
         | Vertical -> info.HLines
     let b = ext.ExtB
     let p = ext.ExtP
+    let ownNet = info.WireMap |> Map.tryFind excludedWire |> Option.map (fun w -> w.OutputPort)
     let iMin = findInterval lines (b.MinB - overlap)
     /// lines are sorted by P, which for the crossing lines is the coordinate the extension runs
     /// along. So the scan stops once it is past the far end of the extension: comparing a line's
@@ -905,7 +916,11 @@ let checkExtensionNoCrossings
                 true
             else
                 let otherB = otherLine.B
-                if otherLine.Wid = excludedWire || otherB.MinB > p || otherB.MaxB < p || not (otherLine.LType = BARRIERPOS || otherLine.LType = BARRIERNEG) then
+                let crossed =
+                    match otherLine.LType with
+                    | BARRIERPOS | BARRIERNEG -> true
+                    | _ -> Some otherLine.PortId <> ownNet
+                if otherLine.Wid = excludedWire || otherB.MinB > p || otherB.MaxB < p || not crossed then
                     check (i+1)
                 else
                     false

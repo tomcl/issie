@@ -139,7 +139,19 @@ let inline getWireOutgoingEdge (wire:Wire) =
 /// to the endpoints of a wire, as well as the final port orientation 
 /// this function returns a list of wire vertices.
 /// The starting segment will always be from a Right Edge (and so in increasing X direction)
-let makeInitialWireVerticesList (wireStartPos : XYPos) (wireEndPos : XYPos) (portOrientation : Edge) = 
+/// `startInset` and `endInset` are how far each port lies INSIDE its own symbol's bounding box,
+/// which is what routing and separation both use as the obstacle. A port normally sits on that
+/// box and the inset is zero, leaving the nubs the length they have always been.
+///
+/// A Mux2's Sel is the case that needs it. The symbol is drawn as a trapezium, so the port is
+/// nine units inside the rectangle - the wire's first turn then lands INSIDE the symbol as far
+/// as the obstacle model is concerned, and separation, which cannot tell that the constraint is
+/// one no wire could satisfy, moves the segment clear by taking it out through the far side.
+/// Running straight until the box is behind us makes the situation not arise; the outline model
+/// itself is left alone, which is the point - a shape that says WHERE it is thin would have to
+/// be understood by routing, separation and every test that measures them.
+let makeInitialWireVerticesList (wireStartPos : XYPos) (wireEndPos : XYPos) (portOrientation : Edge)
+                                (startInset : float) (endInset : float) = 
     let xStart, yStart, xEnd, yEnd = wireStartPos.X, wireStartPos.Y, wireEndPos.X, wireEndPos.Y
 
     let nubLength =
@@ -150,12 +162,14 @@ let makeInitialWireVerticesList (wireStartPos : XYPos) (wireEndPos : XYPos) (por
         | CommonTypes.Edge.Top
         | CommonTypes.Edge.Bottom when xDelta > 0 -> min nubLength xDelta
         | _ -> nubLength
+    /// the nub at the driving end, and the one at the port this wire ends on
+    let startNub, endNub = nubLength + startInset, nubLength + endInset
     /// This is a fixed-length horizontal stick with a zero-length vertical after it.
     /// It starts nearly all the wires
     let rightNub = [
             {X = xStart; Y = yStart};
-            {X = xStart+nubLength; Y = yStart}; //Stick horizontal
-            {X = xStart+nubLength; Y = yStart}; //Length 0 vertical
+            {X = xStart+startNub; Y = yStart}; //Stick horizontal
+            {X = xStart+startNub; Y = yStart}; //Length 0 vertical
         ]
     let rightwards = xStart - xEnd  < 0
     let downwards = yStart - yEnd  < 0
@@ -164,113 +178,113 @@ let makeInitialWireVerticesList (wireStartPos : XYPos) (wireEndPos : XYPos) (por
             match portOrientation with
             | CommonTypes.Top  ->  rightNub @ [
                     {X = xEnd; Y = yStart};
-                    {X = xEnd; Y = yEnd-nubLength}; 
-                    {X = xEnd; Y = yEnd-nubLength};// Length 0 horizontal
+                    {X = xEnd; Y = yEnd-endNub}; 
+                    {X = xEnd; Y = yEnd-endNub};// Length 0 horizontal
                     {X = xEnd; Y = yEnd}] // Stick vertical
             | CommonTypes.Right ->  rightNub @ [
                     {X = xEnd+10.; Y = yStart};
                     {X = xEnd+10.; Y = yEnd};
-                    {X = xEnd+nubLength; Y = yEnd}; 
-                    {X = xEnd+nubLength; Y = yEnd}; //Length 0 vertical
+                    {X = xEnd+endNub; Y = yEnd}; 
+                    {X = xEnd+endNub; Y = yEnd}; //Length 0 vertical
                     {X = xEnd; Y = yEnd}] //Stick horizontal
             | CommonTypes.Bottom->  rightNub @ [
                     {X = (xEnd+xStart)/2.; Y = yStart};
                     {X = (xEnd+xStart)/2.; Y = yEnd+10.};
                     {X = xEnd; Y = yEnd+10.};
-                    {X = xEnd; Y = yEnd+nubLength}; 
-                    {X = xEnd; Y = yEnd+nubLength}; //Length 0 horizontal
+                    {X = xEnd; Y = yEnd+endNub}; 
+                    {X = xEnd; Y = yEnd+endNub}; //Length 0 horizontal
                     {X = xEnd; Y = yEnd}] //Stick vertical
             | CommonTypes.Left ->  rightNub @ [
                     {X = (xEnd+xStart)/2.; Y = yStart};
                     {X = (xEnd+xStart)/2.; Y = yEnd};
-                    {X = xEnd-nubLength; Y = yEnd}; 
-                    {X = xEnd-nubLength; Y = yEnd}; //Length 0 horizontal
+                    {X = xEnd-endNub; Y = yEnd}; 
+                    {X = xEnd-endNub; Y = yEnd}; //Length 0 horizontal
                     {X = xEnd; Y = yEnd}] //Stick vertical
     | true, false -> 
             match portOrientation with
             | CommonTypes.Bottom ->  rightNub @ [
                     {X = xEnd; Y = yStart};
-                    {X = xEnd; Y = yEnd+nubLength}; 
-                    {X = xEnd; Y = yEnd+nubLength}; //Length 0 hortizontal
+                    {X = xEnd; Y = yEnd+endNub}; 
+                    {X = xEnd; Y = yEnd+endNub}; //Length 0 hortizontal
                     {X = xEnd; Y = yEnd}] //Stick vertical
             | CommonTypes.Right ->  rightNub @ [
                     {X = xEnd+10.; Y = yStart};
                     {X = xEnd+10.; Y = yEnd};
-                    {X = xEnd+nubLength; Y = yEnd}; 
-                    {X = xEnd+nubLength; Y = yEnd}; //Length 0 vertical
+                    {X = xEnd+endNub; Y = yEnd}; 
+                    {X = xEnd+endNub; Y = yEnd}; //Length 0 vertical
                     {X = xEnd; Y = yEnd}] //Stick horizontal
             | CommonTypes.Top ->  rightNub @ [
                     {X = (xEnd+xStart)/2.; Y = yStart};
                     {X = (xEnd+xStart)/2.; Y = yEnd-10.};
                     {X = xEnd; Y = yEnd-10.};
-                    {X = xEnd; Y = yEnd-nubLength}; 
-                    {X = xEnd; Y = yEnd-nubLength}; //Length 0 horizontal
+                    {X = xEnd; Y = yEnd-endNub}; 
+                    {X = xEnd; Y = yEnd-endNub}; //Length 0 horizontal
                     {X = xEnd; Y = yEnd}] //Stick vertical
             | CommonTypes.Left ->  rightNub @ [
                     {X = (xEnd+xStart)/2.; Y = yStart};
                     {X = (xEnd+xStart)/2.; Y = yEnd};
-                    {X = xEnd-nubLength; Y = yEnd}; 
-                    {X = xEnd-nubLength; Y = yEnd}; //Length 0 vertical
+                    {X = xEnd-endNub; Y = yEnd}; 
+                    {X = xEnd-endNub; Y = yEnd}; //Length 0 vertical
                     {X = xEnd; Y = yEnd}] //Stick horizontal
     | false, true -> 
             match portOrientation with
             | CommonTypes.Bottom ->  rightNub @ [
-                    {X = xStart+nubLength+10.; Y = yStart}; //Small horizontal for dragging  
-                    {X = xStart+nubLength+10.; Y = yEnd+10.};
+                    {X = xStart+startNub+10.; Y = yStart}; //Small horizontal for dragging  
+                    {X = xStart+startNub+10.; Y = yEnd+10.};
                     {X = xEnd; Y = yEnd+10.};
-                    {X = xEnd; Y = yEnd+nubLength}; 
-                    {X = xEnd; Y = yEnd+nubLength}; //Length 0 horizontal
+                    {X = xEnd; Y = yEnd+endNub}; 
+                    {X = xEnd; Y = yEnd+endNub}; //Length 0 horizontal
                     {X = xEnd; Y = yEnd}] //Stick vertical
             | CommonTypes.Right ->  rightNub @ [
-                    {X = xStart+nubLength+10.; Y = yStart}; //Small horizontal for dragging
-                    {X = xStart+nubLength+10.; Y = yEnd};
-                    {X = xEnd+nubLength; Y = yEnd}; 
-                    {X = xEnd+nubLength; Y = yEnd}; //Length 0 vertical
+                    {X = xStart+startNub+10.; Y = yStart}; //Small horizontal for dragging
+                    {X = xStart+startNub+10.; Y = yEnd};
+                    {X = xEnd+endNub; Y = yEnd}; 
+                    {X = xEnd+endNub; Y = yEnd}; //Length 0 vertical
                     {X = xEnd; Y = yEnd}] //Stick horizontal
             | CommonTypes.Top ->  [{X = xStart; Y = yStart};
-                    {X = xStart+nubLength; Y = yStart}; //Stick horizontal
-                    {X = xStart+nubLength; Y = (yStart+yEnd)/2.}; //Length 0 vertical
+                    {X = xStart+startNub; Y = yStart}; //Stick horizontal
+                    {X = xStart+startNub; Y = (yStart+yEnd)/2.}; //Length 0 vertical
                     {X = xEnd; Y = (yStart+yEnd)/2.};
-                    {X = xEnd; Y = yEnd-nubLength}; 
-                    {X = xEnd; Y = yEnd-nubLength}; //Length 0 horizontal
+                    {X = xEnd; Y = yEnd-endNub}; 
+                    {X = xEnd; Y = yEnd-endNub}; //Length 0 horizontal
                     {X = xEnd; Y = yEnd}] //Stick vertical
             | CommonTypes.Left ->  rightNub @ [
-                    {X = xStart+nubLength+10.; Y = yStart}; //Small horizontal for dragging
-                    {X = xStart+nubLength+10.; Y = (yStart+yEnd)/2.}; 
+                    {X = xStart+startNub+10.; Y = yStart}; //Small horizontal for dragging
+                    {X = xStart+startNub+10.; Y = (yStart+yEnd)/2.}; 
                     {X = xEnd-10.; Y = (yStart+yEnd)/2.}; 
                     {X = xEnd-10.; Y = yEnd};
-                    {X = xEnd-nubLength; Y = yEnd}; 
-                    {X = xEnd-nubLength; Y = yEnd}; //Length 0 vertical
+                    {X = xEnd-endNub; Y = yEnd}; 
+                    {X = xEnd-endNub; Y = yEnd}; //Length 0 vertical
                     {X = xEnd; Y = yEnd}] //Stick horizontal
         | false, false -> 
             match portOrientation with
             | CommonTypes.Top ->  [{X = xStart; Y = yStart};
-                    {X = xStart+nubLength; Y = yStart}; //Stick horizontal
-                    {X = xStart+nubLength; Y = yEnd-10.}; //Length 0 vertical
+                    {X = xStart+startNub; Y = yStart}; //Stick horizontal
+                    {X = xStart+startNub; Y = yEnd-10.}; //Length 0 vertical
                     {X = xEnd; Y = yEnd-10.};
-                    {X = xEnd; Y = yEnd-nubLength}; 
-                    {X = xEnd; Y = yEnd-nubLength}; //Length 0 horizontal
+                    {X = xEnd; Y = yEnd-endNub}; 
+                    {X = xEnd; Y = yEnd-endNub}; //Length 0 horizontal
                     {X = xEnd; Y = yEnd}] //Stick vertical
             | CommonTypes.Right ->  rightNub @ [
-                    {X = xStart+nubLength+10.; Y = yStart}; //Small horizontal for dragging
-                    {X = xStart+nubLength+10.; Y = yEnd};
-                    {X = xEnd+nubLength; Y = yEnd}; 
-                    {X = xEnd+nubLength; Y = yEnd}; //Lenght 0 vertical
+                    {X = xStart+startNub+10.; Y = yStart}; //Small horizontal for dragging
+                    {X = xStart+startNub+10.; Y = yEnd};
+                    {X = xEnd+endNub; Y = yEnd}; 
+                    {X = xEnd+endNub; Y = yEnd}; //Lenght 0 vertical
                     {X = xEnd; Y = yEnd}] //Stick horizontal
             | CommonTypes.Bottom ->  [{X = xStart; Y = yStart};
-                    {X = xStart+nubLength; Y = yStart}; //Stick horizontal
-                    {X = xStart+nubLength; Y = (yStart+yEnd)/2.}; //Length 0 vertical
+                    {X = xStart+startNub; Y = yStart}; //Stick horizontal
+                    {X = xStart+startNub; Y = (yStart+yEnd)/2.}; //Length 0 vertical
                     {X = xEnd; Y = (yStart+yEnd)/2.};
-                    {X = xEnd; Y = yEnd+nubLength}; 
-                    {X = xEnd; Y = yEnd+nubLength}; //Length 0 horizontal
+                    {X = xEnd; Y = yEnd+endNub}; 
+                    {X = xEnd; Y = yEnd+endNub}; //Length 0 horizontal
                     {X = xEnd; Y = yEnd}] //Stick vertical
             | CommonTypes.Left ->  rightNub @ [
-                    {X = xStart+nubLength+10.; Y = yStart}; //Small horizontal for dragging
-                    {X = xStart+nubLength+10.; Y = (yStart+yEnd)/2.}; 
+                    {X = xStart+startNub+10.; Y = yStart}; //Small horizontal for dragging
+                    {X = xStart+startNub+10.; Y = (yStart+yEnd)/2.}; 
                     {X = xEnd-10.; Y = (yStart+yEnd)/2.}; 
                     {X = xEnd-10.; Y = yEnd};
-                    {X = xEnd-nubLength; Y = yEnd}; 
-                    {X = xEnd-nubLength; Y = yEnd}; //Length 0 vertical
+                    {X = xEnd-endNub; Y = yEnd}; 
+                    {X = xEnd-endNub; Y = yEnd}; //Length 0 vertical
                     {X = xEnd; Y = yEnd}] //Stick horizontal
 
 /// Converts a list of vertices into a list of segments
@@ -297,8 +311,10 @@ let makeInitialSegmentsList
         (startPos : XYPos) 
         (endPos : XYPos) 
         (portOrientation : Edge) 
+        (startInset : float) 
+        (endInset : float) 
             : list<Segment> =
-    makeInitialWireVerticesList startPos endPos portOrientation
+    makeInitialWireVerticesList startPos endPos portOrientation startInset endInset
     |> xyVerticesToSegments hostId 
 
 

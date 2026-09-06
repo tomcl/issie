@@ -676,11 +676,14 @@ let private edgeOfTravel (seg: ASegment) =
 /// The ordinary routing of a pair of points, given the edge each leaves by. This is the body of
 /// autoroute with the port lookups taken out, so that it can also route from a point part way
 /// along an existing wire.
-let private routeBetween wid (startPos: XYPos) (startEdge: Edge) (destPos: XYPos) (destEdge: Edge) =
+/// `destInset` is the destination port's inset - see BusWireUpdateHelpers.portInset. The start is a
+/// point part way along another wire, not a port, so it has none.
+let private routeBetween wid (startPos: XYPos) (startEdge: Edge) (destPos: XYPos) (destEdge: Edge)
+                          (destInset: float) =
     let normStart, normEnd =
         rotateStartDest CommonTypes.Right (genPortInfo startEdge startPos, genPortInfo destEdge destPos)
     {| edge = CommonTypes.Right
-       segments = makeInitialSegmentsList wid normStart.Position normEnd.Position normEnd.Edge |}
+       segments = makeInitialSegmentsList wid normStart.Position normEnd.Position normEnd.Edge 0. destInset |}
     |> rotateSegments startEdge
     |> (fun w -> w.segments)
 
@@ -694,8 +697,8 @@ let private routeBetween wid (startPos: XYPos) (startEdge: Edge) (destPos: XYPos
 /// branching only at the ends of segments loses nothing - a branch that ought to leave from the
 /// middle of a segment leaves at the end of the one before and runs back along it.
 let private branchFrom (wire: Wire) (refWire: Wire) (branchAt: int) (branchPos: XYPos) (edge: Edge)
-                       (destPos: XYPos) (destEdge: Edge) : Wire =
-    let onwards = routeBetween wire.WId branchPos edge destPos destEdge
+                       (destPos: XYPos) (destEdge: Edge) (destInset: float) : Wire =
+    let onwards = routeBetween wire.WId branchPos edge destPos destEdge destInset
     let shared = refWire.Segments[0 .. branchAt]
     // The first segment routed onwards runs ALONG refWire's last shared segment, so the two are one
     // segment and not two. And a route begins nub, zero-length, rest - the zero is what makes the
@@ -742,6 +745,7 @@ let private branchFrom (wire: Wire) (refWire: Wire) (branchAt: int) (branchPos: 
 let sameNetRoutes (model: Model) (wire: Wire) : (float * Wire) list =
     let destPos = Symbol.getInputPortLocation None model.Symbol wire.InputPort
     let destEdge = getInputPortOrientation model.Symbol wire.InputPort
+    let destInset = portInset model.Symbol (portIdOfInput wire.InputPort)
     model.Wires
     |> Map.valuesL
     |> List.filter (fun w ->
@@ -755,7 +759,7 @@ let sameNetRoutes (model: Model) (wire: Wire) : (float * Wire) list =
         |> List.map (fun (i, seg) -> refWire, i, seg.End, edgeOfTravel seg))
     |> List.map (fun (refWire, i, branchPos, edge) ->
         euclideanDistance branchPos destPos,
-        branchFrom wire refWire i branchPos edge destPos destEdge)
+        branchFrom wire refWire i branchPos edge destPos destEdge destInset)
 
 /// top-level function which replaces autoupdate and implements a smarter version of same
 /// it is called every time a new wire is created, so is easily tested.

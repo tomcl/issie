@@ -403,6 +403,32 @@ let rec rotateSegments (target: Edge) (wire: {| edge: Edge; segments: Segment li
         {| edge = rotate90Edge wire.edge; segments = rotatedSegs |}
         |> rotateSegments target 
 
+/// How far a port lies INSIDE its own symbol's bounding box, measured along the direction a wire
+/// leaves it by. Zero for a port that sits ON the box, which is nearly all of them.
+///
+/// A Mux2's Sel is what this is for. The symbol is drawn as a trapezium and the port is on the
+/// sloping side, so the bounding box - which is what BOTH routing and separation use as the
+/// obstacle - reaches nine units further out than the port does. A wire reaching that port is
+/// inside the obstacle before it has gone anywhere, and separation, which cannot tell that the
+/// constraint is one no wire could meet, moves it clear by taking it out through the far side of
+/// the symbol. The nub spends this so that the first turn is outside the box; see
+/// BusWire.makeInitialWireVerticesList.
+let portInset (symModel: DrawModelType.SymbolT.Model) (portId: PortId) : float =
+    match Map.tryFind portId symModel.Ports with
+    | None -> 0.
+    | Some port ->
+        match Map.tryFind port.HostId symModel.Symbols with
+        | None -> 0.
+        | Some sym ->
+            let box = Symbol.getSymbolBoundingBox sym
+            let pos = Symbol.getPortLocation None symModel portId
+            match getPortOrientationOf symModel portId with
+            | CommonTypes.Edge.Left -> pos.X - box.TopLeft.X
+            | CommonTypes.Edge.Right -> box.TopLeft.X + box.W - pos.X
+            | CommonTypes.Edge.Top -> pos.Y - box.TopLeft.Y
+            | CommonTypes.Edge.Bottom -> box.TopLeft.Y + box.H - pos.Y
+            |> max 0.
+
 /// Returns a newly autorouted version of a wire for the given model
 let autoroute (model: Model) (wire: Wire) : Wire =
     let destPos, startPos =
@@ -423,6 +449,8 @@ let autoroute (model: Model) (wire: Wire) : Wire =
 
     let initialSegments =
         makeInitialSegmentsList wire.WId normStart.Position normEnd.Position normEnd.Edge
+            (portInset model.Symbol (portIdOfOutput wire.OutputPort))
+            (portInset model.Symbol (portIdOfInput wire.InputPort))
 
     let segments =
         {| edge = CommonTypes.Right

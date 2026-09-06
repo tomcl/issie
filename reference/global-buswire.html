@@ -553,7 +553,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:BusWire.WireRenderProps\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L400-400" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L429-429" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -640,7 +640,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWire.extractConnection\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L372-372" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L401-401" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -730,7 +730,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWire.extractConnections\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L386-386" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L415-415" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1375,7 +1375,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWire.issieVerticesToSegments\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L308-308" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L337-337" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1499,7 +1499,7 @@
                 <p>
                   <a id="makeInitialSegmentsList">
                     <a href="#makeInitialSegmentsList">
-                      <code><span>makeInitialSegmentsList&#32;<span>hostId&#32;startPos&#32;endPos&#32;portOrientation</span></span></code>
+                      <code><span>makeInitialSegmentsList&#32;<span>hostId&#32;startPos&#32;endPos&#32;portOrientation&#32;startInset&#32;endInset</span></span></code>
                     </a>
                   </a>
                 </p>
@@ -1507,7 +1507,7 @@
               <div class="fsdocs-tip" id="381">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>makeInitialSegmentsList&#32;<span>hostId&#32;startPos&#32;endPos&#32;portOrientation</span></span></code>
+                  <code><span>makeInitialSegmentsList&#32;<span>hostId&#32;startPos&#32;endPos&#32;portOrientation&#32;startInset&#32;endInset</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -1544,6 +1544,22 @@
                       <code><a href="/issie/reference/commontypes-edge.html">Edge</a></code>
                     </span>
                     <br/>
+                    <span>
+                      <b>
+                        startInset
+                      </b>
+                      :
+                      <code>float</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        endInset
+                      </b>
+                      :
+                      <code>float</code>
+                    </span>
+                    <br/>
                   </ul>
                   <br/>
                   <span>
@@ -1565,7 +1581,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWire.makeInitialSegmentsList\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L295-295" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L322-322" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1609,6 +1625,22 @@
                   <code><a href="/issie/reference/commontypes-edge.html">Edge</a></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    startInset
+                  </span>
+                  :
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    endInset
+                  </span>
+                  :
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
               </dl>
               <dl class="fsdocs-returns">
                 <dt>
@@ -1629,7 +1661,7 @@
                 <p>
                   <a id="makeInitialWireVerticesList">
                     <a href="#makeInitialWireVerticesList">
-                      <code><span>makeInitialWireVerticesList&#32;<span>wireStartPos&#32;wireEndPos&#32;portOrientation</span></span></code>
+                      <code><span>makeInitialWireVerticesList&#32;<span>wireStartPos&#32;wireEndPos&#32;portOrientation&#32;startInset&#32;endInset</span></span></code>
                     </a>
                   </a>
                 </p>
@@ -1637,7 +1669,7 @@
               <div class="fsdocs-tip" id="382">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>makeInitialWireVerticesList&#32;<span>wireStartPos&#32;wireEndPos&#32;portOrientation</span></span></code>
+                  <code><span>makeInitialWireVerticesList&#32;<span>wireStartPos&#32;wireEndPos&#32;portOrientation&#32;startInset&#32;endInset</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -1666,6 +1698,22 @@
                       <code><a href="/issie/reference/commontypes-edge.html">Edge</a></code>
                     </span>
                     <br/>
+                    <span>
+                      <b>
+                        startInset
+                      </b>
+                      :
+                      <code>float</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        endInset
+                      </b>
+                      :
+                      <code>float</code>
+                    </span>
+                    <br/>
                   </ul>
                   <br/>
                   <span>
@@ -1687,7 +1735,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWire.makeInitialWireVerticesList\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L142-142" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L153-153" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1695,6 +1743,17 @@
  to the endpoints of a wire, as well as the final port orientation 
  this function returns a list of wire vertices.
  The starting segment will always be from a Right Edge (and so in increasing X direction)
+ `startInset` and `endInset` are how far each port lies INSIDE its own symbol's bounding box,
+ which is what routing and separation both use as the obstacle. A port normally sits on that
+ box and the inset is zero, leaving the nubs the length they have always been.
+
+ A Mux2's Sel is the case that needs it. The symbol is drawn as a trapezium, so the port is
+ nine units inside the rectangle - the wire's first turn then lands INSIDE the symbol as far
+ as the obstacle model is concerned, and separation, which cannot tell that the constraint is
+ one no wire could satisfy, moves the segment clear by taking it out through the far side.
+ Running straight until the box is behind us makes the situation not arise; the outline model
+ itself is left alone, which is the point - a shape that says WHERE it is thin would have to
+ be understood by routing, separation and every test that measures them.
                   </p>
                 </div>
               </summary>
@@ -1721,6 +1780,22 @@
                   </span>
                   :
                   <code><a href="/issie/reference/commontypes-edge.html">Edge</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    startInset
+                  </span>
+                  :
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    endInset
+                  </span>
+                  :
+                  <code>float</code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
               </dl>
@@ -1846,7 +1921,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWire.renderJumpWire\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L588-588" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L617-617" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1986,7 +2061,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWire.renderRadialWire\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L608-608" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L637-637" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2081,7 +2156,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWire.renderRadialWireSVG\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L431-431" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L460-460" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2254,7 +2329,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWire.view\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L638-638" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L667-667" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2361,7 +2436,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWire.xyVerticesToSegments\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L277-277" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L304-304" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

@@ -142,13 +142,23 @@ let displaySvgWithZoom
     let attrs : IHTMLProp list =
         [
               HTMLAttr.Id "Canvas"
-              // Focusable, so that "which keys go where" is visible rather than implied: clicking
-              // the canvas takes focus off any input box, Tab reaches it as an ordinary stop, and
-              // the focus ring says where the keyboard is pointing.
+              // Focusable: clicking the canvas takes focus off any input box, Tab reaches it as an
+              // ordinary stop, and the keys then go where the user is looking.
               HTMLAttr.TabIndex 0
               Ref canvasRef.Value
               //Key cursorText // force cursor change to be rendered
-              Style ( CSSProp.Cursor cursorText :: style)
+              // No focus ring. The browser draws one on a focusable element as soon as a KEY is
+              // pressed - :focus-visible, so a click alone does not raise it, but the first arrow
+              // key does - in the system accent colour, and it is drawn around the whole scrolling
+              // pane. Three of its four sides are off the window, so what appears is two coloured
+              // lines along the top and right edges of the schematic, which read as a drawing fault
+              // rather than as "the keyboard is here".
+              //
+              // A ring is worth having around a control the user tabs TO and then operates. The
+              // canvas is the work surface itself: it fills the window, and that keys act on it is
+              // exactly what the user just saw happen. Removing it costs nothing that was being
+              // read and keeps every part of being focusable that is used.
+              Style ( CSSProp.Cursor cursorText :: CSSProp.Outline "none" :: style)
               OnMouseDown (fun ev -> (mouseOp Down ev dispatch headerHeight))
               OnMouseUp (fun ev -> (mouseOp Up ev dispatch headerHeight))
               OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev dispatch headerHeight)

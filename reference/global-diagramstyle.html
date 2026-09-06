@@ -611,7 +611,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:DiagramStyle.belowHeaderStyle``1\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/Style.fs#L92-92" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/Style.fs#L129-129" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -702,7 +702,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:DiagramStyle.canvasReadOnlyBannerStyle\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/Style.fs#L140-140" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/Style.fs#L177-177" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1138,7 +1138,7 @@
                 <p>
                   <a id="getHeaderHeight">
                     <a href="#getHeaderHeight">
-                      <code><span>getHeaderHeight&#32;<span></span></span></code>
+                      <code><span>getHeaderHeight&#32;<span>()</span></span></code>
                     </a>
                   </a>
                 </p>
@@ -1146,8 +1146,20 @@
               <div class="fsdocs-tip" id="788">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>getHeaderHeight&#32;<span></span></span></code>
+                  <code><span>getHeaderHeight&#32;<span>()</span></span></code>
                   <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ()
+                      </b>
+                      :
+                      <code>unit</code>
+                    </span>
+                    <br/>
+                  </ul>
                   <br/>
                   <span>
                     Returns: 
@@ -1159,15 +1171,46 @@
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>float</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:DiagramStyle.getHeaderHeight`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:DiagramStyle.getHeaderHeight\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/Style.fs#L64-64" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The header's height. NOT snapped to device pixels, and that matters: the seam the eye picks up
+ is where the canvas BACKGROUND begins, which is the inner edge of the rule below the header -
+ (58 + 2) CSS pixels, a whole number of device pixels at every scaling in use. Snapping the 58
+ on its own moves that inner edge off the grid and paints the hairline this was meant to remove.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ()
+                  </span>
+                  :
+                  <code>unit</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
           </td>
         </tr>
         <tr>
@@ -1177,7 +1220,7 @@
                 <p>
                   <a id="headerHeight">
                     <a href="#headerHeight">
-                      <code><span>headerHeight&#32;<span></span></span></code>
+                      <code><span>headerHeight&#32;<span>()</span></span></code>
                     </a>
                   </a>
                 </p>
@@ -1185,8 +1228,20 @@
               <div class="fsdocs-tip" id="789">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>headerHeight&#32;<span></span></span></code>
+                  <code><span>headerHeight&#32;<span>()</span></span></code>
                   <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ()
+                      </b>
+                      :
+                      <code>unit</code>
+                    </span>
+                    <br/>
+                  </ul>
                   <br/>
                   <span>
                     Returns: 
@@ -1198,39 +1253,25 @@
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:P:DiagramStyle.headerHeight`')">
-                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
-                  </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:DiagramStyle.headerHeight\'/>')">
-                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
-                  </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/Style.fs#L18-18" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     Where the canvas starts, which must equal where the top menu bar ends.
-
- The bar's height is driven by its content: a 40px button inside a navbar-item with 8px of
- padding above and below is 56px, and the bar starts 2px down from the window's top border.
- Keep this in step with that. It was 72px from when each button sat inside two nested
- navbar-items rather than one, and the 14px left over showed as an empty white strip between
- the line under the menu bar and the line above the canvas.
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Returns: 
-                  </span>
-                  <code>string</code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  ()
+                </span>
+                :
+                <code>unit</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>string</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
           </td>
         </tr>
         <tr>
@@ -1282,7 +1323,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:DiagramStyle.leftSectionStyle\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/Style.fs#L52-52" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/Style.fs#L89-89" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1661,7 +1702,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:DiagramStyle.pinSvg\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/Style.fs#L297-297" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/Style.fs#L334-334" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1698,6 +1739,85 @@
             <div>
               <code onmouseout="hideTip(event, '798', 798)" onmouseover="showTip(event, '798', 798)">
                 <p>
+                  <a id="px">
+                    <a href="#px">
+                      <code><span>px&#32;<span>cssPx</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="798">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>px&#32;<span>cssPx</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        cssPx
+                      </b>
+                      :
+                      <code>float</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>string</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:DiagramStyle.px`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:DiagramStyle.px\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/Style.fs#L40-40" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     A CSS length, snapped, as a string React can use.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    cssPx
+                  </span>
+                  :
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '799', 799)" onmouseover="showTip(event, '799', 799)">
+                <p>
                   <a id="refreshSvg">
                     <a href="#refreshSvg">
                       <code><span>refreshSvg&#32;<span>color&#32;height</span></span></code>
@@ -1705,7 +1825,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="798">
+              <div class="fsdocs-tip" id="799">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>refreshSvg&#32;<span>color&#32;height</span></span></code>
@@ -1750,7 +1870,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:DiagramStyle.refreshSvg\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/Style.fs#L274-274" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/Style.fs#L311-311" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1791,7 +1911,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '799', 799)" onmouseover="showTip(event, '799', 799)">
+              <code onmouseout="hideTip(event, '800', 800)" onmouseover="showTip(event, '800', 800)">
                 <p>
                   <a id="rightSectionStyle">
                     <a href="#rightSectionStyle">
@@ -1800,7 +1920,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="799">
+              <div class="fsdocs-tip" id="800">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>rightSectionStyle&#32;<span>model</span></span></code>
@@ -1852,7 +1972,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '800', 800)" onmouseover="showTip(event, '800', 800)">
+              <code onmouseout="hideTip(event, '801', 801)" onmouseover="showTip(event, '801', 801)">
                 <p>
                   <a id="rightSectionWidth">
                     <a href="#rightSectionWidth">
@@ -1861,7 +1981,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="800">
+              <div class="fsdocs-tip" id="801">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>rightSectionWidth&#32;<span>model</span></span></code>
@@ -1913,7 +2033,68 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '801', 801)" onmouseover="showTip(event, '801', 801)">
+              <code onmouseout="hideTip(event, '802', 802)" onmouseover="showTip(event, '802', 802)">
+                <p>
+                  <a id="rightSectionWidthCss">
+                    <a href="#rightSectionWidthCss">
+                      <code><span>rightSectionWidthCss&#32;<span>model</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="802">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>rightSectionWidthCss&#32;<span>model</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        model
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>float</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  model
+                </span>
+                :
+                <code><a href="/issie/reference/modeltype-model.html">Model</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>float</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '803', 803)" onmouseover="showTip(event, '803', 803)">
                 <p>
                   <a id="rightSectionWidthViewerDefault">
                     <a href="#rightSectionWidthViewerDefault">
@@ -1922,7 +2103,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="801">
+              <div class="fsdocs-tip" id="803">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>rightSectionWidthViewerDefault&#32;<span></span></span></code>
@@ -1952,7 +2133,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '802', 802)" onmouseover="showTip(event, '802', 802)">
+              <code onmouseout="hideTip(event, '804', 804)" onmouseover="showTip(event, '804', 804)">
                 <p>
                   <a id="simulationBitStyle">
                     <a href="#simulationBitStyle">
@@ -1961,7 +2142,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="802">
+              <div class="fsdocs-tip" id="804">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>simulationBitStyle&#32;<span></span></span></code>
@@ -1991,7 +2172,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '803', 803)" onmouseover="showTip(event, '803', 803)">
+              <code onmouseout="hideTip(event, '805', 805)" onmouseover="showTip(event, '805', 805)">
                 <p>
                   <a id="simulationNumberStyle">
                     <a href="#simulationNumberStyle">
@@ -2000,7 +2181,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="803">
+              <div class="fsdocs-tip" id="805">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>simulationNumberStyle&#32;<span></span></span></code>
@@ -2030,7 +2211,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '804', 804)" onmouseover="showTip(event, '804', 804)">
+              <code onmouseout="hideTip(event, '806', 806)" onmouseover="showTip(event, '806', 806)">
                 <p>
                   <a id="sortArrowStyle">
                     <a href="#sortArrowStyle">
@@ -2039,7 +2220,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="804">
+              <div class="fsdocs-tip" id="806">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sortArrowStyle&#32;<span></span></span></code>
@@ -2069,7 +2250,109 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '805', 805)" onmouseover="showTip(event, '805', 805)">
+              <code onmouseout="hideTip(event, '807', 807)" onmouseover="showTip(event, '807', 807)">
+                <p>
+                  <a id="toWholeDevicePixels">
+                    <a href="#toWholeDevicePixels">
+                      <code><span>toWholeDevicePixels&#32;<span>cssPx</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="807">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>toWholeDevicePixels&#32;<span>cssPx</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        cssPx
+                      </b>
+                      :
+                      <code>float</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>float</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:DiagramStyle.toWholeDevicePixels`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:DiagramStyle.toWholeDevicePixels\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/Style.fs#L35-35" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Round a CSS length so that it lands on a whole DEVICE pixel.
+
+ **An edge that falls between two device pixels is painted blended.** The browser covers the
+ boundary pixel only partly, so it comes out a mixture of what lies on each side of it, and a
+ seam between two flat colours becomes a hairline of a third. On the canvas that reads as a fine
+ line of the sheet's background along an edge - loudest in the Light theme, whose background is
+ a pale yellow against a white pane and a grey rule.
+
+ It is not a rounding error in this code. The fixed widths here are whole CSS pixels and Windows
+ display scaling is what turns them into fractions of a device pixel - but those are the same
+ every run, and land on the grid at the scalings in use. The one that does not is the width of
+ the right-hand pane in the waveform simulator, which is whatever the user dragged the divider
+ to: at 125% scaling a 573-pixel pane is 716.25 device pixels, so the seam between the pane and
+ the canvas falls a quarter of a pixel inside one, and that pixel is painted part pane and part
+ canvas.
+
+ Only lengths that decide such a SEAM should come through here. Snapping one that does not is
+ worse than leaving it: the header's height is 58 CSS pixels and the rule below it 2 more, and
+ it is where the rule ENDS - at 60 - that the canvas background begins. Rounding the 58 on its
+ own moves that boundary off the grid and paints exactly the hairline this exists to remove,
+ which is what happened when it was first tried here.
+
+ The ratio is read at each call rather than once, because it changes when the window is dragged
+ to a monitor with different scaling.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    cssPx
+                  </span>
+                  :
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '808', 808)" onmouseover="showTip(event, '808', 808)">
                 <p>
                   <a id="ttGridColumnProps">
                     <a href="#ttGridColumnProps">
@@ -2078,7 +2361,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="805">
+              <div class="fsdocs-tip" id="808">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>ttGridColumnProps&#32;<span>index</span></span></code>
@@ -2130,7 +2413,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '806', 806)" onmouseover="showTip(event, '806', 806)">
+              <code onmouseout="hideTip(event, '809', 809)" onmouseover="showTip(event, '809', 809)">
                 <p>
                   <a id="ttGridContainerStyle">
                     <a href="#ttGridContainerStyle">
@@ -2139,7 +2422,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="806">
+              <div class="fsdocs-tip" id="809">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>ttGridContainerStyle&#32;<span>model</span></span></code>
@@ -2191,7 +2474,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '807', 807)" onmouseover="showTip(event, '807', 807)">
+              <code onmouseout="hideTip(event, '810', 810)" onmouseover="showTip(event, '810', 810)">
                 <p>
                   <a id="ttGridHiddenColumnProps">
                     <a href="#ttGridHiddenColumnProps">
@@ -2200,7 +2483,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="807">
+              <div class="fsdocs-tip" id="810">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>ttGridHiddenColumnProps&#32;<span>gridWidth</span></span></code>
@@ -2252,7 +2535,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '808', 808)" onmouseover="showTip(event, '808', 808)">
+              <code onmouseout="hideTip(event, '811', 811)" onmouseover="showTip(event, '811', 811)">
                 <p>
                   <a id="zoomInSVG">
                     <a href="#zoomInSVG">
@@ -2261,7 +2544,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="808">
+              <div class="fsdocs-tip" id="811">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>zoomInSVG&#32;<span></span></span></code>
@@ -2291,7 +2574,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '809', 809)" onmouseover="showTip(event, '809', 809)">
+              <code onmouseout="hideTip(event, '812', 812)" onmouseover="showTip(event, '812', 812)">
                 <p>
                   <a id="zoomOutSVG">
                     <a href="#zoomOutSVG">
@@ -2300,7 +2583,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="809">
+              <div class="fsdocs-tip" id="812">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>zoomOutSVG&#32;<span></span></span></code>

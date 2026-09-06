@@ -463,7 +463,17 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
 
     | RotateLabels ->
         rotateSelectedLabelsClockwise model
-    
+
+    | RedrawWires manualToo ->
+        // The checkpoint is the model as it is HERE, before the redraw, which is what every other
+        // edit records and what Ctrl-Z restores. A redraw can move every wire on the sheet, so it
+        // is the last edit that should have been missing one.
+        let redraw =
+            if manualToo then BusWireSeparate.redrawAllWires else BusWireSeparate.redrawFloatingWires
+        { model with
+            Wire = redraw model.Wire
+            UndoList = appendUndoList model.UndoList model }, Cmd.none
+
     | Rotate rotation ->
         //Replaced normal rotation, so individual and block rotation is correct
         //HLP23: Author Ismagilov

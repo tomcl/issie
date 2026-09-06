@@ -641,6 +641,15 @@ module SheetT =
         /// ordinary paste: it arrives following the mouse.
         | PasteArray of direction: ArrayDirection * copies: int * firstSuffix: int
         | RotateLabels
+        /// Take the routing off the sheet's wires and lay them out again - the Edit menu's two
+        /// redraw items. `manualToo` says whether the wires the user has routed by hand go with
+        /// them; without it they are left exactly as they are.
+        ///
+        /// A message rather than the model update these used to make directly, so that the undo
+        /// checkpoint is taken where every other one is - in SheetUpdate, from the model as it was
+        /// before the change. A redraw can move every wire on the sheet, and was the one edit with
+        /// no way back.
+        | RedrawWires of manualToo: bool
         | WireType of WireTypeMsg
         | IssieInterface of IssieInterfaceMsg
         | MovePort of MouseT //different from mousemsg because ctrl pressed too

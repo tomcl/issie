@@ -646,8 +646,6 @@ let private topMenuEntry (name: string) (thisMenu: TopMenu) (openState: TopMenu)
 let private editMenuItems (model: Model) dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let keyDispatch = SheetT.KeyPress >> sheetDispatch
-    let wholeSheet (f: BusWireT.Model -> BusWireT.Model) =
-        dispatch <| UpdateModel(fun m -> m |> Optic.map (sheet_ >-> SheetT.wire_) f)
 
     /// Everything on this menu changes the sheet, so on a library component being looked at only
     /// selection and the help item are left. Copy goes too: the clipboard is held along with the
@@ -683,9 +681,9 @@ let private editMenuItems (model: Model) dispatch =
       editItem "Rotate label" KeyTypes.ScRotateLabel (fun () -> sheetDispatch SheetT.RotateLabels)
       Navbar.divider [] []
       editItem "Redraw floating wires" KeyTypes.ScRedrawFloatingWires (fun () ->
-          wholeSheet BusWireSeparate.redrawFloatingWires)
+          sheetDispatch (SheetT.RedrawWires false))
       editItem "Redraw all wires" KeyTypes.ScRedrawAllWires (fun () ->
-          wholeSheet BusWireSeparate.redrawAllWires)
+          sheetDispatch (SheetT.RedrawWires true))
       Navbar.divider [] []
       itemWithKey "How to move component ports" KeyTypes.ScMovePortsHelp (fun () ->
           dispatch

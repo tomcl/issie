@@ -178,13 +178,12 @@ let tests =
                 "a wire routed with a different number of segments is a change"
             Expect.isTrue (CanvasExtractor.compareCanvas 100. threeSegments threeSegments)
                 "and an unchanged sheet is not"
-            // a connection carrying no vertices at all has no position to measure the whole-sheet
-            // offset from, which is not a reason to fail
+            // What a connection with no vertices at all means is a separate rule, and it is asserted
+            // below - here it only has to not raise, having no position to measure the whole-sheet
+            // offset from.
             let noVertices = routedAs []
-            Expect.isFalse (CanvasExtractor.compareCanvas 100. noVertices threeSegments)
-                "a wire with no vertices differs from a routed one"
             Expect.isTrue (CanvasExtractor.compareCanvas 100. noVertices noVertices)
-                "and two of them are the same"
+                "two connections that both assert no route are the same"
         }
 
         // What the New Project form asks of every keystroke, so that a name is refused while the
@@ -711,5 +710,52 @@ let tests =
                 Expect.all after
                     (fun ldc -> not ldc.LoadedComponentIsOutOfDate)
                     "and the sheets are not left claiming to be unsaved")
+        }
+
+        // compareConns decides whether the open sheet differs from the one on disk, which is what
+        // currentSheetIsOutOfDate asks. A connection can reach it with no vertices - the sheet DSL
+        // writes them that way so Issie routes them on load, and extractReducedState strips them -
+        // and treating that as a difference made such a sheet report unsaved changes from the
+        // moment it opened.
+        test "a connection with no vertices is not a difference" {
+            let a = makeComp 1 0 1 (Input1(1, None)) "A"
+            let b = makeComp 2 1 0 (Output 1) "B"
+            let routed = { conn a 0 b 0 with Vertices = [ 0., 0., false; 50., 0., false; 100., 0., false ] }
+            let bare = conn a 0 b 0
+            Expect.isTrue (CanvasExtractor.compareConns 100. [ routed ] [ bare ])
+                "a stored route against none asserted is not a change"
+            Expect.isTrue (CanvasExtractor.compareConns 100. [ bare ] [ routed ])
+                "nor the other way round"
+            Expect.isTrue (CanvasExtractor.compareConns 100. [ bare ] [ bare ])
+                "and neither side asserting one is certainly not"
+        }
+
+        // The other half of the same rule: where both sides do say where the wire runs, a move is
+        // still a change. Without this the fix above would make every wire edit invisible to the
+        // save prompt.
+        test "two routes that differ are still a difference" {
+            let a = makeComp 1 0 1 (Input1(1, None)) "A"
+            let b = makeComp 2 1 0 (Output 1) "B"
+            let straight = { conn a 0 b 0 with Vertices = [ 0., 0., false; 50., 0., false; 100., 0., false ] }
+            let detour = { conn a 0 b 0 with Vertices = [ 0., 0., false; 50., 80., false; 100., 0., false ] }
+            Expect.isFalse (CanvasExtractor.compareConns 100. [ straight ] [ detour ])
+                "a wire that has moved is a change"
+            Expect.isTrue (CanvasExtractor.compareConns 100. [ straight ] [ straight ])
+                "and one that has not is not"
+        }
+
+        // The offset is what lets a translated circuit compare equal. It used to be read off the
+        // FIRST pair, so one connection with no vertices at the head of the list meant no offset
+        // for the whole sheet - and a moved circuit then compared as changed.
+        test "a translated circuit compares equal even when the first connection has no vertices" {
+            let a = makeComp 1 0 1 (Input1(1, None)) "A"
+            let b = makeComp 2 1 0 (Output 1) "B"
+            let c = makeComp 3 1 0 (Output 1) "C"
+            let shift dx (x, y, m) = (x + dx, y, m)
+            let bare = conn a 0 b 0
+            let routed = { conn a 0 c 0 with Vertices = [ 0., 200., false; 50., 200., false; 100., 200., false ] }
+            let moved = { routed with Vertices = routed.Vertices |> List.map (shift 40.) }
+            Expect.isTrue (CanvasExtractor.compareConns 100. [ bare; routed ] [ bare; moved ])
+                "the offset is taken from the first pair that both give one"
         }
     ]

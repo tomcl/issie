@@ -129,30 +129,48 @@ let verticesAreSame (fixedOffset:XYPos) tolerance (conns1: (float * float * bool
 let mutable debugChangedConnections: ConnectionId list = []
 
 /// Are two lists of connections identical
+///
+/// **A connection with no vertices on one side is not a difference.** Vertices are a record of a
+/// route, and a connection can arrive without one: `extractReducedState` strips them, the sheet
+/// DSL writes connections with none so that Issie routes them on load, and a `.dgm` need not have
+/// come from this version. In each of those the geometry is not being asserted rather than being
+/// asserted to differ, and the wire it names is the same wire between the same two ports. Counting
+/// it as changed made a sheet whose route is derived rather than stored report unsaved changes from
+/// the moment it opened - which is `currentSheetIsOutOfDate`, so it also prompted on close and drove
+/// the auto-backup.
+///
+/// Two connections that BOTH carry vertices are compared as before, so an edit that moves a wire is
+/// still seen.
 let compareConns tolerance conns1 conns2 =
     let connIdA (conns: Connection List) = conns |> sortQBy (fun conn -> conn.Id)
     let connsA1 = connIdA conns1
     let connsA2 = connIdA conns2
+    /// Compares only what both sides claim to know. See the note above.
+    let sameRoute connFixedOffset (c1: Connection) (c2: Connection) =
+        List.isEmpty c1.Vertices
+        || List.isEmpty c2.Vertices
+        || verticesAreSame connFixedOffset tolerance c1.Vertices c2.Vertices
     /// if whole ckt has been translated this will be the offset.
     /// This offset for all vertices => connections still the same.
     ///
-    /// A connection with no vertices has no position to measure that offset from, and there is no
-    /// guarantee of one: extractReducedState strips vertices, and a .dgm need not have come from
-    /// this version of Issie. No offset is the right answer there, as it is for a canvas with no
-    /// connections at all - and it is a better one than indexing off the end of an empty list.
+    /// Taken from the first PAIR that both have vertices, rather than from the first pair: a
+    /// connection with no vertices has no position to measure an offset from, and one of those at
+    /// the head of the list used to mean no offset for the whole sheet - so a translated circuit
+    /// compared as changed. No offset is still the answer when no pair can give one, as it is for
+    /// a canvas with no connections at all.
     let connFixedOffset =
         let xy (x,y,_) = {X=x;Y=y}
-        match connsA1,connsA2 with
-        | c1::_, c2::_ when not (List.isEmpty c1.Vertices || List.isEmpty c2.Vertices) ->
-            xy c1.Vertices[0] - xy c2.Vertices[0]
-        | _ ->
-            {X=0.; Y=0.}
+        List.zip (List.truncate connsA2.Length connsA1) (List.truncate connsA1.Length connsA2)
+        |> List.tryPick (fun (c1: Connection, c2: Connection) ->
+            if List.isEmpty c1.Vertices || List.isEmpty c2.Vertices then None
+            else Some(xy c1.Vertices[0] - xy c2.Vertices[0]))
+        |> Option.defaultValue {X=0.; Y=0.}
     match connsA1, connsA2 with
     | a,b when a.Length <> b.Length ->
         false
-    | a,b when not <| List.forall2 (fun c1 c2 -> verticesAreSame connFixedOffset tolerance c1.Vertices c2.Vertices) a b ->
+    | a,b when not <| List.forall2 (sameRoute connFixedOffset) a b ->
         List.zip a b
-        |> List.filter (fun (c1,c2) -> not <| verticesAreSame connFixedOffset tolerance c1.Vertices c2.Vertices)
+        |> List.filter (fun (c1,c2) -> not <| sameRoute connFixedOffset c1 c2)
         |> List.map fst
         |> List.map (fun (badConn: Connection) -> badConn.Id)
         |> (fun lst ->

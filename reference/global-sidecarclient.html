@@ -509,13 +509,13 @@
   </div>
   <div>
     <h3>
-      Nested modules
+      Types and nested modules
     </h3>
     <table class="table outer-list fsdocs-entity-list">
       <thead>
         <tr>
           <td>
-            Modules
+            Type/Module
           </td>
           <td>
             Description
@@ -550,6 +550,72 @@
             </div>
           </td>
         </tr>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="SidecarFailure">
+                <a href="/issie/reference/sidecarclient-sidecarfailure.html">
+                  SidecarFailure
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:SidecarClient.SidecarFailure`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SidecarClient.SidecarFailure\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L503-503" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                
+              </p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="SidecarFailureKind">
+                <a href="/issie/reference/sidecarclient-sidecarfailurekind.html">
+                  SidecarFailureKind
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:SidecarClient.SidecarFailureKind`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SidecarClient.SidecarFailureKind\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L499-499" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 Why a sidecar command did not answer with what was asked for.
+
+ **Two kinds, because only two things can be done about one.** A `Fault` is the sidecar
+ breaking - an exception escaped a handler, so an invariant the simulator maintains no longer
+ holds. That is a bug in Issie: it is logged as an error, which in a debug build puts it and its
+ stack on the screen. A `Refusal` is the sidecar declining something it anticipated and wrote a
+ message for - a stale epoch, a cycle it has not run to, a sheet that did not decode - which the
+ caller is expected to handle, and which is a warning unless the caller cannot.
+
+ **Anything unclassified is a Fault.** A failure nobody has said is expected is a bug until
+ somebody says otherwise; the alternative default quietly downgrades whatever is forgotten.
+ The strings are Protocol.FaultKind and Protocol.RefusalKind, mirrored here because the renderer
+ cannot see that file - the sidecar references the renderer, not the other way round.
+              </p>
+            </div>
+          </td>
+        </tr>
       </tbody>
     </table>
   </div>
@@ -572,7 +638,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2372', 2372)" onmouseover="showTip(event, '2372', 2372)">
+              <code onmouseout="hideTip(event, '2387', 2387)" onmouseover="showTip(event, '2387', 2387)">
                 <p>
                   <a id="byteLength">
                     <a href="#byteLength">
@@ -581,7 +647,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2372">
+              <div class="fsdocs-tip" id="2387">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>byteLength&#32;<span>bytes</span></span></code>
@@ -633,7 +699,88 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2373', 2373)" onmouseover="showTip(event, '2373', 2373)">
+              <code onmouseout="hideTip(event, '2388', 2388)" onmouseover="showTip(event, '2388', 2388)">
+                <p>
+                  <a id="combineFailures">
+                    <a href="#combineFailures">
+                      <code><span>combineFailures&#32;<span>failures</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2388">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>combineFailures&#32;<span>failures</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        failures
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:SidecarClient.combineFailures`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.combineFailures\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L543-543" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Several failures as one, for an operation that made several requests and lost more than one of
+ them. **A fault among them makes the whole a fault**: the worst news decides what anyone has to
+ do about it, and a real bug must not be hidden by the refusals it arrived with.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    failures
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2389', 2389)" onmouseover="showTip(event, '2389', 2389)">
                 <p>
                   <a id="connect">
                     <a href="#connect">
@@ -642,7 +789,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2373">
+              <div class="fsdocs-tip" id="2389">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>connect&#32;<span>()</span></span></code>
@@ -719,7 +866,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2374', 2374)" onmouseover="showTip(event, '2374', 2374)">
+              <code onmouseout="hideTip(event, '2390', 2390)" onmouseover="showTip(event, '2390', 2390)">
                 <p>
                   <a id="connectionState">
                     <a href="#connectionState">
@@ -728,7 +875,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2374">
+              <div class="fsdocs-tip" id="2390">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>connectionState&#32;<span>()</span></span></code>
@@ -802,7 +949,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2375', 2375)" onmouseover="showTip(event, '2375', 2375)">
+              <code onmouseout="hideTip(event, '2391', 2391)" onmouseover="showTip(event, '2391', 2391)">
                 <p>
                   <a id="epochOf">
                     <a href="#epochOf">
@@ -811,7 +958,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2375">
+              <div class="fsdocs-tip" id="2391">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>epochOf&#32;<span>buildReply</span></span></code>
@@ -848,7 +995,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.epochOf\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L558-558" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L656-656" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -885,7 +1032,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2376', 2376)" onmouseover="showTip(event, '2376', 2376)">
+              <code onmouseout="hideTip(event, '2392', 2392)" onmouseover="showTip(event, '2392', 2392)">
                 <p>
                   <a id="errorOfFrame">
                     <a href="#errorOfFrame">
@@ -894,7 +1041,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2376">
+              <div class="fsdocs-tip" id="2392">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>errorOfFrame&#32;<span>frame</span></span></code>
@@ -914,7 +1061,68 @@
                   <br/>
                   <span>
                     Returns: 
-                    <code><span>string&#32;option</span></code>
+                    <code><span><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a>&#32;option</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  frame
+                </span>
+                :
+                <code>obj</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><span><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a>&#32;option</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2393', 2393)" onmouseover="showTip(event, '2393', 2393)">
+                <p>
+                  <a id="failureOfPayload">
+                    <a href="#failureOfPayload">
+                      <code><span>failureOfPayload&#32;<span>payload</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2393">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>failureOfPayload&#32;<span>payload</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        payload
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></code>
                   </span>
                   <br/>
                 </div>
@@ -925,31 +1133,35 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:SidecarClient.errorOfFrame`')">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:SidecarClient.failureOfPayload`')">
                     <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
                   </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.errorOfFrame\'/>')">
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.failureOfPayload\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L477-477" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L519-519" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     The error message a response carries, or None when it carries the answer that was asked for.
+                     The message inside an error payload, which is a JSON object whose only key is "error".
 
- THE test every reader of a binary reply makes, and the only one: the sender said which it was
- sending. Reading the payload to find out cannot work, because a payload of numbers is allowed
- to start with any byte at all - see isErrorFrame.
+ **Unwrapped here, so that no reader ever sees the envelope.** Readers used to take the payload
+ as it arrived, so a sidecar failure was logged as the literal `{"error":"..."}`. That was
+ merely untidy while the payload was one line; now that a stack trace travels in it, the
+ difference is between a readable trace and a run of escaped `\n`s.
+
+ A payload that is not the expected shape is returned as it came: this is the error path, and
+ something unreadable is better than nothing.
                   </p>
                 </div>
               </summary>
               <dl class="fsdocs-params">
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
-                    frame
+                    payload
                   </span>
                   :
-                  <code>obj</code>
+                  <code>string</code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
               </dl>
@@ -958,7 +1170,7 @@
                   <span class="fsdocs-return-name">
                     Returns: 
                   </span>
-                  <code><span>string&#32;option</span></code>
+                  <code><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></code>
                 </dt>
                 <dd class="fsdocs-return-docs"></dd>
               </dl>
@@ -968,7 +1180,175 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2377', 2377)" onmouseover="showTip(event, '2377', 2377)">
+              <code onmouseout="hideTip(event, '2394', 2394)" onmouseover="showTip(event, '2394', 2394)">
+                <p>
+                  <a id="fault">
+                    <a href="#fault">
+                      <code><span>fault&#32;<span>message</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2394">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>fault&#32;<span>message</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        message
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:SidecarClient.fault`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.fault\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L570-570" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     A failure nothing declined: the socket went, a request was never answered, or a reply broke the
+ contract it was supposed to keep. Not something any handler foresaw, so it is a fault - which
+ is also the default for anything unclassified, for the same reason.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    message
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2395', 2395)" onmouseover="showTip(event, '2395', 2395)">
+                <p>
+                  <a id="logFailure">
+                    <a href="#logFailure">
+                      <code><span>logFailure&#32;<span>context&#32;failure</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2395">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>logFailure&#32;<span>context&#32;failure</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        context
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        failure
+                      </b>
+                      :
+                      <code><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:SidecarClient.logFailure`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.logFailure\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L560-560" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Report a failure at the severity its kind calls for, which is the whole reason the kind
+ exists. A fault is Issie broken and is an error - so in a debug build it is on the screen with
+ its stack a moment later. A refusal is the sidecar declining something a caller was supposed to
+ be ready for, so it is a warning: it belongs in the bug report and interrupts nobody.
+
+ The one call every reader of a sidecar failure should make, rather than choosing `Log.error`
+ for itself: choosing by hand is how the two came to mean the same thing.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    context
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    failure
+                  </span>
+                  :
+                  <code><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2396', 2396)" onmouseover="showTip(event, '2396', 2396)">
                 <p>
                   <a id="makeBytes">
                     <a href="#makeBytes">
@@ -977,7 +1357,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2377">
+              <div class="fsdocs-tip" id="2396">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>makeBytes&#32;<span>size</span></span></code>
@@ -1029,7 +1409,104 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2378', 2378)" onmouseover="showTip(event, '2378', 2378)">
+              <code onmouseout="hideTip(event, '2397', 2397)" onmouseover="showTip(event, '2397', 2397)">
+                <p>
+                  <a id="prefixFailure">
+                    <a href="#prefixFailure">
+                      <code><span>prefixFailure&#32;<span>context&#32;failure</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2397">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>prefixFailure&#32;<span>context&#32;failure</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        context
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        failure
+                      </b>
+                      :
+                      <code><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:SidecarClient.prefixFailure`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.prefixFailure\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L550-550" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The same failure, said with the context the caller can add. **Keeps the kind**: putting
+ "reading the step panel: " in front of a fault does not make it a refusal, and the commonest
+ way to lose a classification is to rebuild the value as a string on the way past.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    context
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    failure
+                  </span>
+                  :
+                  <code><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2398', 2398)" onmouseover="showTip(event, '2398', 2398)">
                 <p>
                   <a id="readUint32At">
                     <a href="#readUint32At">
@@ -1038,7 +1515,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2378">
+              <div class="fsdocs-tip" id="2398">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>readUint32At&#32;<span>bytes&#32;offset</span></span></code>
@@ -1083,7 +1560,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.readUint32At\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L582-582" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L680-680" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1124,7 +1601,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2379', 2379)" onmouseover="showTip(event, '2379', 2379)">
+              <code onmouseout="hideTip(event, '2399', 2399)" onmouseover="showTip(event, '2399', 2399)">
                 <p>
                   <a id="request">
                     <a href="#request">
@@ -1133,7 +1610,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2379">
+              <div class="fsdocs-tip" id="2399">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>request&#32;<span>cmd&#32;payload</span></span></code>
@@ -1231,7 +1708,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2380', 2380)" onmouseover="showTip(event, '2380', 2380)">
+              <code onmouseout="hideTip(event, '2400', 2400)" onmouseover="showTip(event, '2400', 2400)">
                 <p>
                   <a id="sendDesign">
                     <a href="#sendDesign">
@@ -1240,7 +1717,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2380">
+              <div class="fsdocs-tip" id="2400">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sendDesign&#32;<span>topSheet&#32;sheetJsons</span></span></code>
@@ -1285,7 +1762,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.sendDesign\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L518-518" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L616-616" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1344,7 +1821,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2381', 2381)" onmouseover="showTip(event, '2381', 2381)">
+              <code onmouseout="hideTip(event, '2401', 2401)" onmouseover="showTip(event, '2401', 2401)">
                 <p>
                   <a id="simBuild">
                     <a href="#simBuild">
@@ -1353,7 +1830,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2381">
+              <div class="fsdocs-tip" id="2401">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>simBuild&#32;<span>maxArraySize</span></span></code>
@@ -1390,7 +1867,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.simBuild\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L550-550" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L648-648" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1423,7 +1900,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2382', 2382)" onmouseover="showTip(event, '2382', 2382)">
+              <code onmouseout="hideTip(event, '2402', 2402)" onmouseover="showTip(event, '2402', 2402)">
                 <p>
                   <a id="simDigest">
                     <a href="#simDigest">
@@ -1432,7 +1909,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2382">
+              <div class="fsdocs-tip" id="2402">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>simDigest&#32;<span>ticks</span></span></code>
@@ -1469,7 +1946,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.simDigest\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L571-571" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L669-669" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1503,7 +1980,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2383', 2383)" onmouseover="showTip(event, '2383', 2383)">
+              <code onmouseout="hideTip(event, '2403', 2403)" onmouseover="showTip(event, '2403', 2403)">
                 <p>
                   <a id="simEnd">
                     <a href="#simEnd">
@@ -1512,7 +1989,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2383">
+              <div class="fsdocs-tip" id="2403">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>simEnd&#32;<span>epoch</span></span></code>
@@ -1564,7 +2041,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2384', 2384)" onmouseover="showTip(event, '2384', 2384)">
+              <code onmouseout="hideTip(event, '2404', 2404)" onmouseover="showTip(event, '2404', 2404)">
                 <p>
                   <a id="simLog">
                     <a href="#simLog">
@@ -1573,7 +2050,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2384">
+              <div class="fsdocs-tip" id="2404">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>simLog&#32;<span>()</span></span></code>
@@ -1610,7 +2087,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.simLog\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L576-576" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L674-674" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1643,7 +2120,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2385', 2385)" onmouseover="showTip(event, '2385', 2385)">
+              <code onmouseout="hideTip(event, '2405', 2405)" onmouseover="showTip(event, '2405', 2405)">
                 <p>
                   <a id="simPorts">
                     <a href="#simPorts">
@@ -1652,7 +2129,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2385">
+              <div class="fsdocs-tip" id="2405">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>simPorts&#32;<span>epoch&#32;path</span></span></code>
@@ -1680,7 +2157,7 @@
                   <br/>
                   <span>
                     Returns: 
-                    <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.core.js.promise-1">Promise</a>&lt;<span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span><span><a href="/issie/reference/portview-componentslots.html">ComponentSlots</a>&#32;list</span>,&#32;string</span>&gt;</span>&gt;</span></code>
+                    <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.core.js.promise-1">Promise</a>&lt;<span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span><span><a href="/issie/reference/portview-componentslots.html">ComponentSlots</a>&#32;list</span>,&#32;<a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></span>&gt;</span>&gt;</span></code>
                   </span>
                   <br/>
                 </div>
@@ -1697,7 +2174,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.simPorts\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L716-716" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L814-814" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1731,7 +2208,7 @@
                   <span class="fsdocs-return-name">
                     Returns: 
                   </span>
-                  <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.core.js.promise-1">Promise</a>&lt;<span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span><span><a href="/issie/reference/portview-componentslots.html">ComponentSlots</a>&#32;list</span>,&#32;string</span>&gt;</span>&gt;</span></code>
+                  <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.core.js.promise-1">Promise</a>&lt;<span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span><span><a href="/issie/reference/portview-componentslots.html">ComponentSlots</a>&#32;list</span>,&#32;<a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></span>&gt;</span>&gt;</span></code>
                 </dt>
                 <dd class="fsdocs-return-docs"></dd>
               </dl>
@@ -1741,7 +2218,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2386', 2386)" onmouseover="showTip(event, '2386', 2386)">
+              <code onmouseout="hideTip(event, '2406', 2406)" onmouseover="showTip(event, '2406', 2406)">
                 <p>
                   <a id="simRead">
                     <a href="#simRead">
@@ -1750,7 +2227,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2386">
+              <div class="fsdocs-tip" id="2406">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>simRead&#32;<span>epoch&#32;startCycle&#32;rep&#32;samples&#32;signals</span></span></code>
@@ -1819,7 +2296,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.simRead\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L624-624" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L722-722" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1894,7 +2371,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2387', 2387)" onmouseover="showTip(event, '2387', 2387)">
+              <code onmouseout="hideTip(event, '2407', 2407)" onmouseover="showTip(event, '2407', 2407)">
                 <p>
                   <a id="simReadDrivers">
                     <a href="#simReadDrivers">
@@ -1903,7 +2380,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2387">
+              <div class="fsdocs-tip" id="2407">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>simReadDrivers&#32;<span>epoch&#32;startCycle&#32;rep&#32;samples&#32;drivers</span></span></code>
@@ -1972,7 +2449,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.simReadDrivers\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L643-643" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L741-741" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2039,7 +2516,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2388', 2388)" onmouseover="showTip(event, '2388', 2388)">
+              <code onmouseout="hideTip(event, '2408', 2408)" onmouseover="showTip(event, '2408', 2408)">
                 <p>
                   <a id="simReadRam">
                     <a href="#simReadRam">
@@ -2048,7 +2525,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2388">
+              <div class="fsdocs-tip" id="2408">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>simReadRam&#32;<span>epoch&#32;cycle&#32;compId&#32;path&#32;sparseUpTo&#32;start&#32;rows</span></span></code>
@@ -2116,7 +2593,7 @@
                   <br/>
                   <span>
                     Returns: 
-                    <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.core.js.promise-1">Promise</a>&lt;<span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span><a href="/issie/reference/ramview-ramview.html">RamView</a>,&#32;string</span>&gt;</span>&gt;</span></code>
+                    <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.core.js.promise-1">Promise</a>&lt;<span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span><a href="/issie/reference/ramview-ramview.html">RamView</a>,&#32;<a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></span>&gt;</span>&gt;</span></code>
                   </span>
                   <br/>
                 </div>
@@ -2133,7 +2610,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.simReadRam\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L662-662" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L760-760" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2209,7 +2686,7 @@
                   <span class="fsdocs-return-name">
                     Returns: 
                   </span>
-                  <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.core.js.promise-1">Promise</a>&lt;<span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span><a href="/issie/reference/ramview-ramview.html">RamView</a>,&#32;string</span>&gt;</span>&gt;</span></code>
+                  <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.core.js.promise-1">Promise</a>&lt;<span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span><a href="/issie/reference/ramview-ramview.html">RamView</a>,&#32;<a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></span>&gt;</span>&gt;</span></code>
                 </dt>
                 <dd class="fsdocs-return-docs"></dd>
               </dl>
@@ -2219,7 +2696,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2389', 2389)" onmouseover="showTip(event, '2389', 2389)">
+              <code onmouseout="hideTip(event, '2409', 2409)" onmouseover="showTip(event, '2409', 2409)">
                 <p>
                   <a id="simReadWordsPerSample">
                     <a href="#simReadWordsPerSample">
@@ -2228,7 +2705,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2389">
+              <div class="fsdocs-tip" id="2409">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>simReadWordsPerSample&#32;<span>frame</span></span></code>
@@ -2265,7 +2742,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.simReadWordsPerSample\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L588-588" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L686-686" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2300,7 +2777,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2390', 2390)" onmouseover="showTip(event, '2390', 2390)">
+              <code onmouseout="hideTip(event, '2410', 2410)" onmouseover="showTip(event, '2410', 2410)">
                 <p>
                   <a id="simRun">
                     <a href="#simRun">
@@ -2309,7 +2786,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2390">
+              <div class="fsdocs-tip" id="2410">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>simRun&#32;<span>epoch&#32;targetCycle&#32;timeoutMs</span></span></code>
@@ -2362,7 +2839,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.simRun\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L566-566" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L664-664" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2416,7 +2893,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2391', 2391)" onmouseover="showTip(event, '2391', 2391)">
+              <code onmouseout="hideTip(event, '2411', 2411)" onmouseover="showTip(event, '2411', 2411)">
                 <p>
                   <a id="simSetInputs">
                     <a href="#simSetInputs">
@@ -2425,7 +2902,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2391">
+              <div class="fsdocs-tip" id="2411">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>simSetInputs&#32;<span>epoch&#32;cycle&#32;values</span></span></code>
@@ -2478,7 +2955,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.simSetInputs\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L602-602" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L700-700" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2528,7 +3005,86 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2392', 2392)" onmouseover="showTip(event, '2392', 2392)">
+              <code onmouseout="hideTip(event, '2412', 2412)" onmouseover="showTip(event, '2412', 2412)">
+                <p>
+                  <a id="transportFailure">
+                    <a href="#transportFailure">
+                      <code><span>transportFailure&#32;<span>message</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2412">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>transportFailure&#32;<span>message</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        message
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:SidecarClient.transportFailure`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.transportFailure\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L573-573" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     A transport failure: the socket went, or the request was never answered.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    message
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2413', 2413)" onmouseover="showTip(event, '2413', 2413)">
                 <p>
                   <a id="uint32At">
                     <a href="#uint32At">
@@ -2537,7 +3093,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2392">
+              <div class="fsdocs-tip" id="2413">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>uint32At&#32;<span>view&#32;index</span></span></code>
@@ -2582,7 +3138,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.uint32At\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L598-598" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L696-696" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2623,7 +3179,86 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2393', 2393)" onmouseover="showTip(event, '2393', 2393)">
+              <code onmouseout="hideTip(event, '2414', 2414)" onmouseover="showTip(event, '2414', 2414)">
+                <p>
+                  <a id="unwrapError">
+                    <a href="#unwrapError">
+                      <code><span>unwrapError&#32;<span>payload</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2414">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>unwrapError&#32;<span>payload</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        payload
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>string</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:SidecarClient.unwrapError`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.unwrapError\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L538-538" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Just the message, for a caller that has already decided what the failure means.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    payload
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2415', 2415)" onmouseover="showTip(event, '2415', 2415)">
                 <p>
                   <a id="viewSimReadData">
                     <a href="#viewSimReadData">
@@ -2632,7 +3267,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2393">
+              <div class="fsdocs-tip" id="2415">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>viewSimReadData&#32;<span>frame&#32;count</span></span></code>
@@ -2677,7 +3312,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarClient.viewSimReadData\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L594-594" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarClient.fs#L692-692" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2720,7 +3355,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2394', 2394)" onmouseover="showTip(event, '2394', 2394)">
+              <code onmouseout="hideTip(event, '2416', 2416)" onmouseover="showTip(event, '2416', 2416)">
                 <p>
                   <a id="writeUint32At">
                     <a href="#writeUint32At">
@@ -2729,7 +3364,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2394">
+              <div class="fsdocs-tip" id="2416">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>writeUint32At&#32;<span>bytes&#32;offset&#32;value</span></span></code>

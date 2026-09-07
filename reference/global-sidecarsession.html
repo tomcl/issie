@@ -571,7 +571,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2410', 2410)" onmouseover="showTip(event, '2410', 2410)">
+              <code onmouseout="hideTip(event, '2432', 2432)" onmouseover="showTip(event, '2432', 2432)">
                 <p>
                   <a id="build">
                     <a href="#build">
@@ -580,7 +580,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2410">
+              <div class="fsdocs-tip" id="2432">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>build&#32;<span>design&#32;arraySize</span></span></code>
@@ -608,7 +608,7 @@
                   <br/>
                   <span>
                     Returns: 
-                    <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.core.js.promise-1">Promise</a>&lt;<span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span>int,&#32;string</span>&gt;</span>&gt;</span></code>
+                    <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.core.js.promise-1">Promise</a>&lt;<span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span>int,&#32;<a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></span>&gt;</span>&gt;</span></code>
                   </span>
                   <br/>
                 </div>
@@ -625,7 +625,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarSession.build\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarSession.fs#L76-76" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarSession.fs#L74-74" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -672,7 +672,7 @@
                   <span class="fsdocs-return-name">
                     Returns: 
                   </span>
-                  <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.core.js.promise-1">Promise</a>&lt;<span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span>int,&#32;string</span>&gt;</span>&gt;</span></code>
+                  <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.core.js.promise-1">Promise</a>&lt;<span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span>int,&#32;<a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></span>&gt;</span>&gt;</span></code>
                 </dt>
                 <dd class="fsdocs-return-docs"></dd>
               </dl>
@@ -682,7 +682,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2411', 2411)" onmouseover="showTip(event, '2411', 2411)">
+              <code onmouseout="hideTip(event, '2433', 2433)" onmouseover="showTip(event, '2433', 2433)">
                 <p>
                   <a id="errorIn">
                     <a href="#errorIn">
@@ -691,7 +691,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2411">
+              <div class="fsdocs-tip" id="2433">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>errorIn&#32;<span>reply</span></span></code>
@@ -711,7 +711,7 @@
                   <br/>
                   <span>
                     Returns: 
-                    <code><span>string&#32;option</span></code>
+                    <code><span><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a>&#32;option</span></code>
                   </span>
                   <br/>
                 </div>
@@ -728,14 +728,18 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarSession.errorIn\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarSession.fs#L43-43" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarSession.fs#L44-44" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     The error text of a sidecar reply, or None when it is not an error. Every reply that can fail
- answers with a JSON object whose only key is "error" - and what is UNDER that key is the
- message written for the user (a refused build says exactly what to set the cycle count to),
- so this unwraps it rather than passing the wire envelope on to a screen.
+                     The failure a sidecar reply carries, or None when it is not one. Every reply that can fail
+ answers with a JSON object whose "error" is the message written for the user (a refused build
+ says exactly what to set the cycle count to) and whose "kind" says whether the sidecar broke
+ or declined - so the envelope never reaches a screen, and the kind decides the severity.
+
+ The decoding itself is `SidecarClient.failureOfPayload`, which every other reader of an error
+ reply also goes through: one decoder, so a change to the envelope cannot leave half the
+ readers behind.
                   </p>
                 </div>
               </summary>
@@ -754,7 +758,7 @@
                   <span class="fsdocs-return-name">
                     Returns: 
                   </span>
-                  <code><span>string&#32;option</span></code>
+                  <code><span><a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a>&#32;option</span></code>
                 </dt>
                 <dd class="fsdocs-return-docs"></dd>
               </dl>
@@ -764,7 +768,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2412', 2412)" onmouseover="showTip(event, '2412', 2412)">
+              <code onmouseout="hideTip(event, '2434', 2434)" onmouseover="showTip(event, '2434', 2434)">
                 <p>
                   <a id="parseJson">
                     <a href="#parseJson">
@@ -773,7 +777,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2412">
+              <div class="fsdocs-tip" id="2434">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>parseJson&#32;<span>text</span></span></code>
@@ -825,7 +829,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2413', 2413)" onmouseover="showTip(event, '2413', 2413)">
+              <code onmouseout="hideTip(event, '2435', 2435)" onmouseover="showTip(event, '2435', 2435)">
                 <p>
                   <a id="runChunk">
                     <a href="#runChunk">
@@ -834,7 +838,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2413">
+              <div class="fsdocs-tip" id="2435">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>runChunk&#32;<span>epoch&#32;cycle</span></span></code>
@@ -862,7 +866,7 @@
                   <br/>
                   <span>
                     Returns: 
-                    <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.core.js.promise-1">Promise</a>&lt;<span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span><span>(<span>int&#32;*&#32;bool</span>)</span>,&#32;string</span>&gt;</span>&gt;</span></code>
+                    <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.core.js.promise-1">Promise</a>&lt;<span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span><span>(<span>int&#32;*&#32;bool</span>)</span>,&#32;<a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></span>&gt;</span>&gt;</span></code>
                   </span>
                   <br/>
                 </div>
@@ -879,7 +883,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SidecarSession.runChunk\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarSession.fs#L118-118" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/SidecarSession.fs#L116-116" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -928,7 +932,7 @@
                   <span class="fsdocs-return-name">
                     Returns: 
                   </span>
-                  <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.core.js.promise-1">Promise</a>&lt;<span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span><span>(<span>int&#32;*&#32;bool</span>)</span>,&#32;string</span>&gt;</span>&gt;</span></code>
+                  <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.core.js.promise-1">Promise</a>&lt;<span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span><span>(<span>int&#32;*&#32;bool</span>)</span>,&#32;<a href="/issie/reference/sidecarclient-sidecarfailure.html">SidecarFailure</a></span>&gt;</span>&gt;</span></code>
                 </dt>
                 <dd class="fsdocs-return-docs"></dd>
               </dl>

@@ -1759,6 +1759,44 @@
       <tr>
         <td class="fsdocs-entity-name">
           <p>
+            <a name="ExceptionReport">
+              <a href="/issie/reference/global-exceptionreport.html">
+                ExceptionReport
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:ExceptionReport`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ExceptionReport\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/ExceptionReport.fs#L13-13" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               What the user sees of everything that has gone wrong this session.
+
+ Two things use this. The Bug Reports tab shows the panel below, so that somebody who has been
+ asked for details can get them without opening dev tools - which the checklist beside it asks
+ them to do, and which most people reporting a bug will not manage. And the renderer's
+ exception boundary shows `crashPage` when the view itself throws, which is the one case where
+ the Info window cannot be opened to read the panel.
+
+ **The text is the deliverable.** Everything here exists to get `Log.problemReport ()` into a
+ forum post or an email, so the panel is a block of text and a button that copies it, and not a
+ table of exceptions with columns. The same text is on `window.issieLog.report()`, so a
+ developer sitting at the machine reads exactly what a user would have sent.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
             <a name="FastBuild">
               <a href="/issie/reference/global-fastbuild.html">
                 FastBuild

@@ -10,11 +10,10 @@ index: 2
 **ISSIE is a free, cross-platform EDA tool for digital logic: draw a schematic, simulate it, and
 see the waveforms — without reading a manual first.**
 
-Industry CAD systems are powerful and unteachable. Educational tools are teachable and can't scale.
+Industry CAD systems are powerful and complex to learn. Educational tools are teachable and can't scale.
 ISSIE is built on the belief that this is a false choice: a tool can be learnable in the first ten
-minutes *and* still hold a working CPU with a 200,000-cycle program running on it. Every feature
-below exists because a beginner got stuck on something, and the answer was to fix the tool rather
-than write another paragraph of documentation.
+minutes *and* still be used to design and simulate large designs. The features
+below make Issie intuitive to use for a novice, and efficient to use on large designs.
 
 ![](img/homePage/keyFeatures1.gif)
 
@@ -24,11 +23,11 @@ than write another paragraph of documentation.
 
 |  |  |
 | :--- | :--- |
-| **Everything is tooltipped** | Every component in the Catalogue explains what it does when you hover it — including the non-obvious ones. *"Every net label with the same name is one net, connected within a sheet without wires: use them for long connections and high fan-out."* Every field in the Properties pane explains itself the same way. |
-| **Search for what you mean** | The Catalogue's search box matches the explanations as well as the names, so "subtract" finds the N bits XOR and "invert" finds Not — you do not have to already know Issie's word for the thing. |
+| **Everything is tooltipped** | Every component in the Catalogue explains what it does when you hover it. Every field in the Properties pane explains itself the same way. |
+| **Search for what you mean** | The Catalogue's search box matches the explanations as well as the names, so "subtract" finds the N bits XOR and "invert" finds Not — you do not have to already know Issies's terminology. |
 | **Right-click anywhere** | Components, custom components, wires, the canvas, sheet names in the tree, even the project path — each offers exactly the actions that make sense there, with their keyboard shortcuts written on the item. |
 | **The help is generated from the code** | The Keyboard Shortcuts table in **Info** is built from the same table the key dispatcher reads, for *your* platform. It cannot list a key that does not work, or miss one that does. |
-| **Help where you are** | The waveform simulator has its own **Getting Started** and **Instructions** panels, and the wave selector, RAM selector and parameter dialogs each explain themselves on their own face. |
+| **Help where you are** | The waveform simulator has its own **Getting Started** and **Instructions** panels, and the wave selector, RAM selector and parameter dialogs all have in-app help. |
 | **Drag or click** | Drag a component from the Catalogue and drop it where you want it, or just click it and click the canvas. A drop onto an occupied space is refused rather than silently overlapping two symbols. |
 | **Demos to take apart** | Five worked projects ship with ISSIE, from a full adder to an EEP1 CPU running a sieve of Eratosthenes. They reset each time you open them, so you can break them freely. |
 
@@ -36,9 +35,9 @@ than write another paragraph of documentation.
 
 ## Errors tell you how to fix them
 
-This is the design principle ISSIE is most stubborn about. An error message that only says
-*something is wrong* has failed. Every error names the thing, points at it, and where possible
-offers to correct it.
+This is Issie's core design principle. Issie helps you by correcting your mistakes. Invalid inputs tell you what is wrong, as soon as possible. 
+A design will either simulate correctly, or tell you specifically what you need to change to make this happen.
+
 
 **The error is shown on the schematic.** Every simulation error carries the components and
 connections responsible, and they are highlighted on the canvas the moment the error appears — you
@@ -78,6 +77,7 @@ code is good.
 
 ![](img/homePage/wireRouting.gif)
 
+- **Connect component ports** immediately by dragging a wire. Invalid wires are immediately rejected.
 - **Auto-routing you almost never override.** Wires route themselves around symbols, and then a
   whole-sheet separation pass spreads every wire on the sheet evenly. Any segment can still be
   dragged and fixed by hand, and everything else reroutes around it.
@@ -85,16 +85,20 @@ code is good.
   wires straight. Selections can be aligned or distributed with one key.
 - **Rotate, flip, scale — individually or as a block.** Select a group and rotate or scale the
   whole thing with on-canvas handles.
-- **Custom components resize themselves** around their port labels, and you can `Ctrl`-drag any
-  port to any edge to make a readable symbol, or drag the corners to size it yourself.
+- **Custom components resize themselves** around their port labels. You can use the right-click menu
+  items on a custom component to drag any port to any edge to make a more readable symbol, 
+  or drag the corners to size it.
 - **`Ctrl-0` fits the sheet to the window** — the most-pressed key in ISSIE. `Ctrl` with `+` `-` `0`
   zooms whatever you are looking at, the schematic or the waveforms; add `Alt` for the whole
   application. `Space`-drag or `Shift`-drag pans.
 - **Three wire styles, three themes, optional grid and direction arrows** — all switchable at any
   time without touching the design.
-- **Undo and redo that work.**
+- **Long undo and redo stacks that work.**
+- **Zoom the canvas or the whole of Issie**. Issie works best with a laptop FHD or better screen, but it is responsive
+  and it can be used in a much smaller window. Zoom the drawing canvas and the Issie UI separately. Use trackpad gestures
+  to pan and zoom the canvas if you dont like mice!
 
-Around 40 component types, all width-agnostic where it makes sense: N-input gates (up to 19),
+Around 40 component types, all width-agnostic where it makes sense: N-input gates (N up to 19),
 N-bit adders, shifters, registers and counters with optional enable/load ports, 2/4/8-way
 multiplexers, bus merge/split of up to 19 branches, bus select and compare, net labels, and
 synchronous and asynchronous ROM and RAM.
@@ -113,7 +117,7 @@ Set inputs, read outputs, step the clock. Viewer components expose internal sign
 subsheet without rewiring, values display in the radix you choose, and *set default inputs*
 remembers a set of input values for both simulators.
 
-### Truth tables — for the combinational part
+### Truth tables — for the combinational logic
 
 ![](img/homePage/truthTable.png)
 
@@ -121,11 +125,12 @@ Generate a truth table for the whole sheet **or for just the components you sele
 it: hide columns, constrain inputs to the cases you care about, remove redundant rows, or switch
 inputs to **algebraic** variables and get a symbolic expression for each output instead of 2ⁿ rows.
 
-### The waveform simulator — sophisticated, and still easy
+### The waveform simulator — sophisticated, and easy to use
 
 ![](img/homePage/waveSim.gif)
 
-This is the part of ISSIE most often described as better than the professional equivalent.
+This is a part of ISSIE often described as better than the professional equivalent for sophisticated designs.
+It is also simple and intuitive for and novices.
 
 | | |
 | :--- | :--- |
@@ -135,38 +140,40 @@ This is the part of ISSIE most often described as better than the professional e
 | **Add waves from the schematic** | Right-click a component on the canvas → *Add waveforms to viewer*. |
 | **Hover a name, see the component** | Hovering a waveform name highlights that component and its connections on the schematic; a button beside the name jumps to the sheet it lives on and shows it. |
 | **Probe the schematic** | The other direction: rest the mouse on any wire of the schematic and its value at the cursor cycle appears beside the pointer. No hunting for the signal by name. It works in step simulation too, at the current clock tick. |
-| **Reorder by dragging, delete with one click** | And your selection survives into the next simulation. |
+| **Reorder waves by dragging, delete with one click** | And your selection survives into the next simulation. |
 | **A cursor that reads values** | Click a waveform to move the cursor; the column on the right shows every selected signal's value at that cycle. Left/Right arrows step it. |
-| **Scroll to simulate further** | Drag the scrollbar past the end and the simulation extends itself. Waveforms are generated on demand, so only what you look at is drawn. |
+| **Scroll to simulate further** | All results are remembered. Scroll the whole simulation instantly. Drag the scrollbar past the end and the simulation extends itself. Waveforms are generated on demand, so only what you look at is drawn. |
 | **RAM contents live** | *Select RAM* shows a memory's contents at the cursor cycle, with the locations being read and written marked — and any comments from the `.ram` file that initialised it shown against their addresses. |
 | **Zoom, and sample-zoom** | Ordinary zoom for detail; a sampling multiplier for viewing hundreds of thousands of cycles at once. |
 | **Bin / Hex / uDec / sDec** | Switch radix at any time; values too wide to fit are shown in the cursor column instead. |
-| **Edit while simulating** | Change the design — even move to another sheet and edit it — and a green **Refresh** button lights up. Press it when you are ready. |
-| **Configurable** | Font size and weight for readability; maximum simulated cycle up to 4,000,000, with a live estimate of the memory that will cost. |
+| **Edit while simulating** | Change the design — even move to another sheet and edit it — and a green **Refresh** button lights up. Press it when you are ready and you see immediately the chnage in the waveforms and clock cycles you are looking at. |
+| **Configurable** | Font size and weight for readability; maximum number of simulated cycles with a live estimate of the memory that will cost. |
 
-ISSIE has its own simulator, built for this: write-once semantics on JavaScript typed arrays give
-functional-programming robustness at a speed that runs a CPU design for 200,000 clock cycles and
-keeps every waveform in memory.
+
+### Performance
+
+ISSIE has its own simulator, every few years we rework this for higher performance. 
+
+- The first version of Issie would simulate a RISC CPU at 10 cycles per second. Issie will now simulate 100,000 cycles of the same CPU in one second. We hope for another 10X speedup over the next few years but we are now getting close to the fundamental limits.
+- Issie will make good use of all the memory on your laptop to simulate very large designs. We have recently refactored the simulation for better memory
+  performance.  Currently we can simulate designs 100X larger than a typical simple RISC CPU. We expect a further 10X improvement (space efficiency has not been a priority) over the next year.
 
 ---
 
 ## Designs that scale
 
 **Hierarchy.** Any design sheet can be used as a custom component in another, any number of times.
-The **Sheet** menu draws the whole project as a tree with connector lines, showing which sheet
-contains which, and the same tree appears in the waveform simulator.
+The **Sheet** menu draws the whole project hierarchy as a tree with connector lines, showing which sheet
+contains which, and the same tree appears in the waveform simulator to guide selection of waveforms.
 
 **Sheet parameters.** Declare named integer parameters on a sheet — `WIDTH`, `DEPTH` — and use
 arithmetic expressions in them for bus widths, constants, memory sizes and split points. Each place
 the sheet is used gives its own values, so **two instances of one sheet can legitimately differ**,
-and ISSIE tracks each instance against *its own* bindings. Parameters carry a compulsory
-description and optional min/max constraints with author-written error messages, and you are asked
-for values when you place the component.
+and ISSIE tracks each instance against *its own* bindings. 
 
-**Component libraries.** Ready-made parameterised components, offered in the Catalogue in their own
-section. Choosing one copies its sheet into your project and asks what its parameters should be, so
-it becomes an ordinary editable sheet rather than a black box. Any sheet you write can become a
-library component from its right-click menu.
+**Extend with user-writable component libraries.** Ready-made parameterised components can be written as Issie designs with parameters
+and then used exactly as built-in components. Issie can be extended keeping the same simple interface
+for users. Library components can contain multiple sheets - for example CPUs.
 
 **Memory files.** RAM and ROM contents can be edited in a table or initialised from a `.ram` text
 file, which may carry `//` comments — ISSIE shows them against the locations they describe, so a
@@ -205,7 +212,7 @@ maintained.
   run. About 200 MB.
 - **Your files are yours.** One human-readable JSON file per sheet, in a folder you choose. No
   cloud, no account, no telemetry.
-- **Developed and used in teaching at Imperial College London**, by staff and undergraduates,
+- **Actively developed and used in teaching at Imperial College London**, by staff and undergraduates,
   since 2020.
 
 <br>

@@ -51,6 +51,7 @@ repository — one more place to forget to update.
 More info* then:
         * Click **More Info**
         * Then click **Run Anyway**
+    * Windows antivirus checks may make the **first time startup** slow. Be patient.
 * Macos: Double click the dmg file  and run the application inside the folder, or drag and drop this to install.
     * If Macos asks you to do this, you will need to change your security settings to allow apps not downloaded from app store
     * *Apple* -> *System settings* -> *Privacy & Security* -> (find at bottom of options by scrolling) *Allow Applications From* ->  *App Store and Known Developers*

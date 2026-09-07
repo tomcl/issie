@@ -305,6 +305,7 @@ let init() = {
     WaveScrollSettling = false
     WaveScrollSerial = 0
     ShowLibrarySheets = false
+    SuppressErrorPopups = false
     OpenedLibrarySheets = Set.empty
     ReadOnlyBaseline = None
     PopupViewFunc = None

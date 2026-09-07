@@ -585,10 +585,14 @@ let updateUnpinned (msg : Msg) oldModel =
              Simulator.simCache <- Simulator.simCacheInit ()
              PortData.forget ())
 
+        // Ending one that has already ended is not a fault and is not warned about: the callers
+        // that mean "stop whatever is running" - switching simulator backend is one - send this
+        // unconditionally and are right to, so a warning here fired in ordinary use and pushed
+        // real ones out of the problem ring. Both arms do the same thing anyway.
         match model.WaveSimSheet with
         | None
         | Some "" ->
-            Log.warn "cannot end the waveform simulation: it has already ended"
+            Log.dbg Log.Wave "EndWaveSim: there was no waveform simulation to end"
             endWaveSimulation model, Cmd.none
         | Some _ -> endWaveSimulation model, Cmd.none
 
@@ -652,7 +656,7 @@ let updateUnpinned (msg : Msg) oldModel =
             |> withNoMsg
 
         | Some(OpRunForWaves _), AnsRan(Error e) ->
-            Log.error $"the .NET simulator could not run the design: {e}"
+            SidecarClient.logFailure "the .NET simulator could not run the design" e
 
             // NOT stamped as a run ending: that stamp is the stale banner's grace for
             // legitimate completions, and an error stamped there would reset the banner's clock
@@ -668,20 +672,20 @@ let updateUnpinned (msg : Msg) oldModel =
             |> withNoMsg
 
         | Some(OpBuild _), AnsBuilt(Error e) ->
-            Log.error $"the .NET simulator could not build the design: {e}"
+            SidecarClient.logFailure "the .NET simulator could not build the design" e
 
             // The refusal is written for the user - a design too large to simulate says what to
             // set the cycle count to - so it goes where a simulation error is shown, not only to
             // the log. Silently blank waveforms over a refusal the user never sees are what this
             // used to be.
             let shown: SimulationError =
-                { ErrType = SimGraphTypes.GenericSimError e
+                { ErrType = SimGraphTypes.GenericSimError e.Message
                   InDependency = None
                   ComponentsAffected = []
                   ConnectionsAffected = [] }
 
             model
-            |> set sidecarSession_ (SessionFailed e)
+            |> set sidecarSession_ (SessionFailed e.Message)
             |> set sidecarBuildEndedMs_ (TimeHelpers.getTimeMs ())
             |> updateWSModel (fun ws -> { ws with State = SimError shown })
             |> withNoMsg
@@ -738,7 +742,7 @@ let updateUnpinned (msg : Msg) oldModel =
                 // design that would not build, or a sidecar that has died. Say so and stop - a fault
                 // asked again is a fault again, and the viewer's banner is what tells the user that
                 // what is on screen is not what the numbers above it say.
-                Log.error $"the .NET simulator could not answer for this view: {e}"
+                SidecarClient.logFailure "the .NET simulator could not answer for this view" e
                 // the failed snapshot is remembered so an UNCHANGED viewport does not retry at
                 // wire speed; any change to it is a different snapshot and tries again
                 WaveSimTop.cancelSpinner (set failedFetch_ (Some snapshot) model), continueRun
@@ -783,7 +787,7 @@ let updateUnpinned (msg : Msg) oldModel =
                 // places the run continues from
                 |> SimulationView.continueStepRun
             | Error e, _ ->
-                Log.error $"the .NET simulator could not run the step simulation: {e}"
+                SidecarClient.logFailure "the .NET simulator could not run the step simulation" e
                 model |> set stepRunTarget_ None |> withNoMsg
             | _ -> model |> withNoMsg
 
@@ -873,6 +877,27 @@ let updateUnpinned (msg : Msg) oldModel =
     | PropagateParameters ->
         // the push works by dispatching symbol-change messages, so it needs a dispatch of its own
         model, Cmd.ofEffect (fun dispatch -> ParameterView.propagateParameters model dispatch)
+
+    | ProblemLogged ->
+        // Three reasons to do nothing, and the third is what stops this being a loop: if the popup
+        // is already up, an error logged while it is being drawn cannot put it up again. Anything
+        // logged while another popup is open is dropped too, which is deliberate - a dialog the
+        // user is half way through filling in is not somewhere to throw a diagnostic over the top
+        // of, and nothing is lost, since all of it is in the buffer and on Info > Bug Reports.
+        //
+        // The hook that sends this is installed only in a debug build, so there is no test for
+        // that here: a release build never sends it.
+        if model.SuppressErrorPopups || model.PopupViewFunc.IsSome then
+            model |> withNoMsg
+        else
+            model
+            |> set popupViewFunc_ (Some ExceptionReport.popup)
+            |> withNoMsg
+
+    | SetSuppressErrorPopups suppress ->
+        model
+        |> set suppressErrorPopups_ suppress
+        |> withNoMsg
 
     | ShowPopup popup ->
         model

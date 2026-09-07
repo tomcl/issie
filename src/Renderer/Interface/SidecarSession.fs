@@ -33,25 +33,23 @@ module Constants =
 [<Emit("JSON.parse($0)")>]
 let parseJson (text: string) : obj = jsNative
 
-[<Emit("(function(o){ return typeof o.error === 'string' ? o.error : null })($0)")>]
-let private errorField (parsed: obj) : string = jsNative
-
-/// The error text of a sidecar reply, or None when it is not an error. Every reply that can fail
-/// answers with a JSON object whose only key is "error" - and what is UNDER that key is the
-/// message written for the user (a refused build says exactly what to set the cycle count to),
-/// so this unwraps it rather than passing the wire envelope on to a screen.
-let errorIn (reply: string) =
+/// The failure a sidecar reply carries, or None when it is not one. Every reply that can fail
+/// answers with a JSON object whose "error" is the message written for the user (a refused build
+/// says exactly what to set the cycle count to) and whose "kind" says whether the sidecar broke
+/// or declined - so the envelope never reaches a screen, and the kind decides the severity.
+///
+/// The decoding itself is `SidecarClient.failureOfPayload`, which every other reader of an error
+/// reply also goes through: one decoder, so a change to the envelope cannot leave half the
+/// readers behind.
+let errorIn (reply: string) : SidecarClient.SidecarFailure option =
     if reply.StartsWith "{\"error\"" then
-        let inner =
-            try
-                match errorField (parseJson reply) with
-                | null -> reply
-                | text -> text
-            with _ ->
-                reply
+        let failure = SidecarClient.failureOfPayload reply
 
         // the simulator's own prefix restates what the context already says
-        Some(inner.Replace("simulation build failed: GenericSimError   '", "").TrimEnd('''))
+        let trimmed =
+            failure.Message.Replace("simulation build failed: GenericSimError   '", "").TrimEnd(''')
+
+        Some { failure with Message = trimmed }
     else
         None
 
@@ -73,7 +71,7 @@ let errorIn (reply: string) =
 /// an upload, discarding any abandoned one, so two builds interleaving leave the sidecar holding
 /// half of each. That is reported rather than silent - the build fails with "no sheet called X in
 /// the design" - but it is a simulation the user asked for and did not get.
-let build (design: SimpleDesign) (arraySize: int) : JS.Promise<Result<int, string>> =
+let build (design: SimpleDesign) (arraySize: int) : JS.Promise<Result<int, SidecarClient.SidecarFailure>> =
     promise {
         do! SidecarClient.connect ()
         let sheetJsons = design.Sheets |> List.map Json.serialize<SimpleSheet>
@@ -91,7 +89,7 @@ let build (design: SimpleDesign) (arraySize: int) : JS.Promise<Result<int, strin
 
                 if epoch = 0 then
                     // a build that issued no epoch built nothing, whatever else the reply said
-                    return Error $"the sidecar's build reply named no session: {reply}"
+                    return Error(SidecarClient.fault $"the sidecar's build reply named no session: {reply}")
                 else
                     return Ok epoch
     }
@@ -115,7 +113,7 @@ let build (design: SimpleDesign) (arraySize: int) : JS.Promise<Result<int, strin
 /// The loop that used to be here reported progress through a callback and checked no cancellation.
 /// Every caller passed `ignore`, so ten round trips a second bought neither of the two things
 /// chunking is for.
-let runChunk (epoch: int) (cycle: int) : JS.Promise<Result<int * bool, string>> =
+let runChunk (epoch: int) (cycle: int) : JS.Promise<Result<int * bool, SidecarClient.SidecarFailure>> =
     promise {
         let! reply = SidecarClient.simRun epoch cycle Constants.runChunkMs
 

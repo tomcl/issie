@@ -64,7 +64,9 @@ let doActionWithSaveFileDialog (name: string) (nextAction: Msg)  model dispatch 
 let private createProjectAt (path: string) model dispatch =
     match tryCreateFolder path with
     | Error err ->
-        Log.error err
+        // warn, not error: the notification is the report, and this line is only the copy of it
+        // that survives into a bug report
+        Log.warn err
         displayFileErrorNotification err dispatch
     | Ok _ ->
         dispatch EndSimulation // End any running simulation.

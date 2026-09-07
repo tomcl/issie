@@ -159,6 +159,8 @@
     <Compile Include="UI\Style.fs" />
     <Compile Include="UI\Notifications.fs" />
     <Compile Include="UI\ErrorDisplay.fs" />
+    <!-- before UIPopups, which shows its panel on the Bug Reports tab -->
+    <Compile Include="UI\ExceptionReport.fs" />
     <Compile Include="UI\UIPopups.fs" />
     <Compile Include="UI\MemoryEditorView.fs" />
     <Compile Include="UI\MenuHelpers.fs" />

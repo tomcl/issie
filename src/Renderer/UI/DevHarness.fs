@@ -26,6 +26,7 @@ open ModelType
 open ModelHelpers
 open Sheet.SheetInterface
 open DrawModelType
+open Optics
 open Fable.SimpleJson // Json.serialize, the renderer's wire encoder (an extension member, so the open is required)
 
 /// The most recent model and dispatch, kept so that the harness can answer questions and send
@@ -36,6 +37,44 @@ let mutable private latestDispatch: (Msg -> unit) option = None
 
 /// Callbacks waiting for the next completed render.
 let mutable private waitingForRender: (unit -> unit) list = []
+
+/// Make the view throw, so that the renderer's exception boundary can be fired on purpose - read
+/// by `Renderer.view'` and set by the Development menu and the `forceException` command below.
+///
+/// Never cleared. A view is a pure function of the model, so a view that throws once throws on
+/// every render after it; a flag that cleared itself would be testing something that cannot
+/// happen, and would not leave the crash page up long enough to read. Restarting is the way out,
+/// as it is for the real thing. Not model state: it exists to break the model's rendering
+/// (docs/mutableState.md).
+let mutable forceViewException = false
+
+/// Fire the renderer's exception boundary on purpose, so that what it records - and what Info ->
+/// Bug Reports then shows - can be checked rather than assumed. One kind per way an exception can
+/// get out of Issie's own code; see the boundary in Renderer.fs. Reached from the Development
+/// menu and from `drive.js send forceException <kind>`.
+///
+/// "view" does not come back: from the render this causes onwards the application is the crash
+/// page, which is what a view that throws really does.
+let forceException (kind: string) (dispatch: Msg -> unit) =
+    match kind with
+    | "update" ->
+        dispatch <| ExecFuncInMessage((fun _ _ -> failwith "forced exception from update"), dispatch)
+        "threw inside update"
+    | "view" ->
+        forceViewException <- true
+        // A message that copies the record without changing anything, because a new model REFERENCE
+        // is what makes React render again - `Program.withReactBatched` memoises on reference
+        // equality, so `UpdateModel id` hands back the model it was given and nothing redraws.
+        dispatch <| UpdateModel(fun m -> Optic.set showLibrarySheets_ m.ShowLibrarySheets m)
+        "threw inside the view - the app is now the crash page"
+    | "promise" ->
+        Promise.reject (exn "forced rejection with nothing awaiting it") |> ignore
+        "rejected a promise nothing is awaiting"
+    | _ ->
+        // straight out of a callback the browser made, which is the window handler's case
+        Browser.Dom.window.setTimeout((fun () -> failwith "forced exception from a callback"), 0)
+        |> ignore
+        "threw inside a browser callback"
 
 /// Choose which simulator runs, throwing away anything currently simulating.
 ///
@@ -453,7 +492,9 @@ let runOnSidecarWithProgress (cycles: int) (arraySize: int) (topSheet: string op
 /// These are the messages the corresponding UI element sends, reached the same way, so that driving
 /// the app from here and driving it by hand cannot diverge.
 let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) list =
-    [ "endSimulation",
+    [ "forceException", fun arg _ dispatch -> forceException arg dispatch
+
+      "endSimulation",
       fun _ _ dispatch ->
           dispatch EndSimulation
           // and whatever benchmark was holding, so that there is a way to get the heap back down

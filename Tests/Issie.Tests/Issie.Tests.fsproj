@@ -48,6 +48,7 @@
     <Compile Include="KeyBindingTests.fs" />
     <Compile Include="VerilogOutput.fs" />
     <Compile Include="VerilogCompiler.fs" />
+    <Compile Include="ExceptionBuffer.fs" />
     <Compile Include="SourceHygiene.fs" />
     <Compile Include="CarrierTests.fs" />
     <Compile Include="SheetIdentity.fs" />

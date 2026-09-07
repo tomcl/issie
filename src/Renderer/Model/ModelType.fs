@@ -320,11 +320,11 @@ type SidecarOp =
 /// What an operation answered. One case per operation, so that an answer cannot be handled as
 /// though it were the answer to something else.
 type SidecarAnswer =
-    | AnsBuilt of Result<int, string>
+    | AnsBuilt of Result<int, SidecarClient.SidecarFailure>
     /// the clock the chunk reached, and whether it reached the cycle asked for
-    | AnsRan of Result<int * bool, string>
+    | AnsRan of Result<int * bool, SidecarClient.SidecarFailure>
     | AnsFetched of
-        Result<unit, string> *
+        Result<unit, SidecarClient.SidecarFailure> *
         (FComponentId * (RamView.RamKey * RamView.RamView)) list *
         (WaveIndexT * int * bigint) option
     | AnsStepped
@@ -332,7 +332,7 @@ type SidecarAnswer =
     /// asked for, when it was asked (ms on the performance clock, for the speed display), and
     /// where the SIMULATOR says it now is - the fact the model's clock is set to, never
     /// incremented towards.
-    | AnsSteppedTo of before: int * startedMs: float * result: Result<int * bool, string>
+    | AnsSteppedTo of before: int * startedMs: float * result: Result<int * bool, SidecarClient.SidecarFailure>
 
 /// The session the sidecar holds, which is what an operation commands.
 ///
@@ -773,6 +773,12 @@ type Msg =
     | RunCircuitCheck
     | UpdateImportDecisions of Map<string, ImportDecision option>
     | UpdateProjectWithoutSyncing of (Project->Project)
+    /// Something went wrong that nothing else is going to tell the developer about: an uncaught
+    /// exception, or an error logged with `Log.error`. Sent by the hook the exception boundary
+    /// installs on the log, and acted on only in a debug build - see `UpdateHelpers`.
+    | ProblemLogged
+    /// The tickbox on that popup: stop interrupting for the rest of this session.
+    | SetSuppressErrorPopups of bool
     | ShowPopup of ((Msg -> Unit) -> Model -> ReactElement)
     | ShowStaticInfoPopup of (string * ReactElement * (Msg -> Unit))
     | ClosePopup
@@ -1272,6 +1278,11 @@ type Model = {
     WaveScrollSettling : bool
     WaveScrollSerial : int
     ShowLibrarySheets : bool
+    /// Set by the tickbox on the error popup, and never saved: an error the user has decided not
+    /// to be interrupted by again is a decision about the session they are in the middle of, not
+    /// about Issie. It stops the popup only - everything still reaches the buffer, and
+    /// Info > Bug Reports still shows it.
+    SuppressErrorPopups : bool
     /// The library sheets the user has asked to look inside, by name. A library component is an
     /// abstraction and its sheet is not normally reachable at all, but understanding how one
     /// works is a fair thing to want, so an instance's right-click menu can open its sheet
@@ -1369,6 +1380,7 @@ let viewportChangedAtMs_ = Lens.create (fun a -> a.ViewportChangedAtMs) (fun s a
 let waveScrollSettling_ = Lens.create (fun a -> a.WaveScrollSettling) (fun s a -> {a with WaveScrollSettling = s})
 let waveScrollSerial_ = Lens.create (fun a -> a.WaveScrollSerial) (fun s a -> {a with WaveScrollSerial = s})
 let showLibrarySheets_ = Lens.create (fun a -> a.ShowLibrarySheets) (fun s a -> {a with ShowLibrarySheets = s})
+let suppressErrorPopups_ = Lens.create (fun a -> a.SuppressErrorPopups) (fun s a -> {a with SuppressErrorPopups = s})
 let openedLibrarySheets_ = Lens.create (fun a -> a.OpenedLibrarySheets) (fun s a -> {a with OpenedLibrarySheets = s})
 let readOnlyBaseline_ = Lens.create (fun a -> a.ReadOnlyBaseline) (fun s a -> {a with ReadOnlyBaseline = s})
 

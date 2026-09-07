@@ -432,7 +432,8 @@ let writeAllSheetFiles (project: Project) =
 let copySheetWithNewIds (sourcePath: string) (newPath: string) =
     match tryLoadSheetFile sourcePath with
     | Error msg ->
-        Log.error msg
+        // the fallback below is what this is for, so it is not a failure
+        Log.warn msg
         copyFile sourcePath newPath
     | Ok ldc ->
         let ldc' = Helpers.RegenerateIds.regenerateSheetIds ldc

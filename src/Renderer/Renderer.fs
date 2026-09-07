@@ -31,8 +31,143 @@ importSideEffects "./scss/extra.css"
 
 let isMac = Bridge.isMac
 
+//-----------------------------------------------------------------------------------------------//
+//------------------------------------- EXCEPTION BOUNDARY --------------------------------------//
+//-----------------------------------------------------------------------------------------------//
 
+// **No exception should ever reach any of this.** Issie raises exceptions in quantity - the
+// simulator alone has hundreds of `failwithf`s about states it says cannot arise - but every one
+// of them is raised somewhere that catches it and turns it into something the user can read:
+// `Simulator.startCircuitSimulation` makes an `InternalError`, `FilesIO` makes an `Error`, the
+// Verilog compiler makes a parse failure. An exception arriving here got past all of that, which
+// means a bug, and by the time anybody hears about it the only evidence left is what was
+// recorded when it happened. So it is recorded, and Info -> Bug Reports is where the user finds
+// it.
+//
+// There are four ways out of Issie's own code and all four are covered:
+//
+//   update    the Elmish update function, caught here rather than by Elmish (see `update`)
+//   view      building the React element tree
+//   window    anything called by the browser - DOM handlers, timers, animation frames, and the
+//             React render that `withReactBatched` does inside one of those
+//   promise   a rejected promise nothing awaited: file I/O, the sidecar, the web workers
+//
+// Recording is all that happens. Nothing here tries to recover, and nothing dispatches: a
+// boundary that repaired the model would be guessing at what the failed operation was half way
+// through doing.
 
+/// What a thrown value says about itself. Three shapes arrive here and they are not alike:
+///
+///   a JavaScript Error   what a real bug in the renderer throws. Name, message and stack.
+///   an F# exception      NOT an Error. Fable's `Exception` is a plain class with a message and
+///                        an inner exception, so `failwith` gives its own type name and what it
+///                        said, and nothing else.
+///   anything at all      a rejected promise carries whatever it was rejected with, which can be
+///                        a string, a number, or nothing.
+[<Emit("$0 instanceof Error ? String($0) \
+        : ($0 != null && typeof $0.message === 'string' \
+           ? ((($0.constructor && $0.constructor.name) || 'exception') + ': ' + $0.message) \
+           : String($0))")>]
+let private thrownMessage (thrown: obj) : string = jsNative
+
+/// **An F# exception has no stack under Fable, and this returns "" for one.** Only a real
+/// JavaScript Error carries one, which is the majority of what gets this far - a `failwith` that
+/// escapes is a bug in Issie's own error handling, and a TypeError is a bug in Issie. Where the
+/// stack is missing, what stands in for it is the source: `update` says which message was being
+/// handled.
+[<Emit("$0 && $0.stack ? String($0.stack) : ''")>]
+let private thrownStack (thrown: obj) : string = jsNative
+
+/// The last message `update` finished handling.
+///
+/// **This is what localises an F# exception, because nothing else does.** An exception raised in a
+/// render or a callback says only what it was - `KeyNotFoundException: The given key was not
+/// present in the dictionary` - and the message that produced the model being rendered is the
+/// most useful thing anybody can be told about where to look.
+///
+/// The MESSAGE and not its name: naming one is not free. `shortDisplayMsg` reaches
+/// `$"Sheet %10A{sMsg}"` for a draw block message and calls `Simulator.getFastSim()` for
+/// `SetWSModel`, neither of which belongs on the path every message takes. This is one reference
+/// assignment, and the name is built only if an exception is actually recorded.
+///
+/// It therefore holds one message's payload until the next message replaces it, which in a UI
+/// that dispatches on every mouse move is not long - and what it holds is almost always what has
+/// just gone into the model anyway. Not model state: it is a note about what the application was
+/// doing, kept for the case where the model can no longer be trusted (docs/mutableState.md).
+let mutable private lastHandledMsg: Msg option = None
+
+/// The case name of an F# union, straight off the value. Fable emits a `cases()` on every union
+/// class, so this is exact and costs nothing but the lookup - unlike `%A`, which would print the
+/// message's whole payload and is the reason `shortDisplayMsg` exists at all.
+[<Emit("($0 && typeof $0.cases === 'function' && typeof $0.tag === 'number') ? String($0.cases()[$0.tag]) : ''")>]
+let private unionCaseName (value: obj) : string = jsNative
+
+/// Naming a message must never be the thing that loses an exception: `shortDisplayMsg` is an
+/// incomplete match by construction, so a case added without a line there raises.
+let private nameOfMsg (msg: Msg) =
+    try
+        match UpdateHelpers.shortDisplayMsg msg with
+        | Some name -> name
+        | None ->
+            // None means "not worth showing while tracing", and its caller then falls back to %A
+            // over the message - which is the one thing that must not happen here. The union
+            // knows its own case names, so ask it instead.
+            match unionCaseName (box msg) with
+            | "" -> "an unnamed message"
+            | name -> name
+    with _ ->
+        "a message shortDisplayMsg does not name"
+
+/// Everything that can be said about where an exception came from, best first.
+///
+/// A real JavaScript Error carries a stack. An F# exception does not - Fable's `Exception` is a
+/// plain class - but V8 still knows where the throw was, and hands it to `window.onerror` as a
+/// file and a line even when the thrown value carries nothing. So an uncaught F# exception is not
+/// unlocatable; the location just arrives beside it rather than on it. Where Issie CAUGHT the
+/// exception itself there is no site either, because catching is what stops V8 reporting one, and
+/// the last message handled is all that is left.
+let private whereFrom (stack: string) (site: string) =
+    [ if stack <> "" then stack
+      elif site <> "" then $"  thrown at {site}"
+      else "  no stack: an F# exception carries none, and this one was caught before V8 reported it"
+      match lastHandledMsg with
+      | Some msg -> $"  last message handled: {nameOfMsg msg}"
+      | None -> () ]
+    |> String.concat "\n"
+
+/// The one way into the buffer. A `box`ed `exn` and a value caught from `window.onerror` are not
+/// the same shape - see above - so both go through the two readers rather than being read here.
+/// `site` is the throw location when the browser gave us one, and "" when it did not.
+let private recordThrownAt (source: string) (site: string) (thrown: obj) =
+    Log.recordException source (thrownMessage thrown) (whereFrom (thrownStack thrown) site)
+
+let private recordThrown (source: string) (thrown: obj) = recordThrownAt source "" thrown
+
+/// Catch what the browser calls, which Elmish never sees.
+let private installExceptionBoundary () =
+    Browser.Dom.window.addEventListener("error", fun ev ->
+        let ev: obj = box ev
+        // V8 knows where the throw was even when the thrown value does not - see whereFrom
+        let file: string = ev?filename
+        let line: int = ev?lineno
+        let col: int = ev?colno
+        let site = if isNull (box file) then "" else $"{file}:{line}:{col}"
+        let thrown: obj = ev?error
+
+        if isNull thrown then
+            // a script or resource that failed to load: a message, and nothing thrown
+            let message: string = ev?message
+            Log.recordException "window" message (whereFrom "" site)
+        else
+            recordThrownAt "window" site thrown)
+
+    Browser.Dom.window.addEventListener("unhandledrejection", fun ev ->
+        let ev: obj = box ev
+        recordThrown "promise" ev?reason)
+
+// Before anything else in the renderer runs, so that a failure while the application is starting
+// up - which is the one a user can do least about - is recorded like any other.
+installExceptionBoundary ()
 
 
 // -- Init Model
@@ -263,8 +398,16 @@ let devMenu (dispatch) =
             makeWinDebugItem  "Test All Hierarchies Breadcrumbs" None 
                 (fun _ ->
                     dispatch <| Msg.ExecFuncInMessage(Playground.Breadcrumbs.testAllHierarchiesBreadcrumbs,dispatch))
-            makeDebugItem "Force Exception" None
+            // One per way out of Issie's own code, because an exception boundary nobody can fire
+            // is one nobody notices has stopped working. What each should do is recorded in the
+            // buffer and shown on Info -> Bug Reports; the last one also replaces the screen with
+            // the crash page, which is the only part that cannot be checked any other way.
+            makeDebugItem "Force Exception In A Menu Action" None
                 (fun ev -> failwithf "User exception from menus")
+            makeDebugItem "Force Exception In Update" None
+                (fun _ -> DevHarness.forceException "update" dispatch |> Log.out)
+            makeDebugItem "Force Exception In View (until restart)" None
+                (fun _ -> DevHarness.forceException "view" dispatch |> Log.out)
             makeDebugItem "Test Web Sorker Performance" None
                 (fun _ -> Playground.WebWorker.testWorkers Playground.WebWorker.Constants.workerTestConfig)
             makeDebugItem "Test Sidecar Latency" None
@@ -319,6 +462,31 @@ let attachMenusAndKeyShortcuts (dispatch: Msg -> unit) : System.IDisposable =
                 items |> List.map box |> Array.ofList |> Bridge.setApplicationMenu),
         dispatch)
 
+    // **Debug builds only, and here rather than beside the window handlers because it needs
+    // dispatch and a debug level, neither of which exists when the module loads.** Recording is
+    // for everybody; interrupting is for the person who can fix it. A user is told about the
+    // things that concern them by a notification or an error pane, and a popup full of stack
+    // traces on top of that would be noise they cannot act on.
+    //
+    // Dispatching from inside a render is safe here only because `withReactBatched` renders on an
+    // animation frame: the message is queued, the update runs after the render that logged, and
+    // React is never asked to update while it is rendering.
+    //
+    // **Once per distinct error, not once per occurrence.** An error on a path that runs every
+    // frame - a waveform viewer with nothing to draw from, a handler that throws on every mouse
+    // move - would otherwise make the debug build unusable, and the tempting fix is to log it as
+    // something milder than it is. That would be a lie about what happened, and the buffer and
+    // the bug report would carry the lie. Dedupe the interruption instead and let the severity
+    // stay honest. The same shape, and the same reason, as `Log.warnedKeys`.
+    if debugLevel > 0 then
+        let mutable reported: Set<string> = Set.empty
+
+        Log.onErrorLogged <-
+            Some(fun text ->
+                if not (reported.Contains text) then
+                    reported <- reported.Add text
+                    dispatch ProblemLogged)
+
     attachExitHandler dispatch
     KeyBindings.publishKeyLog()
     Log.publish()
@@ -354,13 +522,35 @@ let view model dispatch = DiagramMainView.displayView model dispatch
 // -- Update Model
 
 let update msg model =
-    let model', cmd = Update.update msg model
-    // The keyboard context, derived here because a DOM handler cannot see the model and
-    // preventDefault has to be decided synchronously inside the handler. This replaces
-    // evilUIState, which held a three-case approximation of the same thing for the sole purpose
-    // of deciding whether to swallow the space bar.
-    KeyBindings.setContextFromModel model'
-    model',cmd
+    try
+        let model', cmd = Update.update msg model
+        // The keyboard context, derived here because a DOM handler cannot see the model and
+        // preventDefault has to be decided synchronously inside the handler. This replaces
+        // evilUIState, which held a three-case approximation of the same thing for the sole purpose
+        // of deciding whether to swallow the space bar.
+        KeyBindings.setContextFromModel model'
+        // on the way out, so this names the message that produced the model the view is about to
+        // draw - which is what an exception during that render needs to be told about
+        lastHandledMsg <- Some msg
+        model',cmd
+    with e ->
+        // **Caught here rather than left to Elmish, which would also catch it.** Elmish's handler
+        // is reached through `sprintf "Unable to process the message: %A" msg`, and an Issie
+        // message is not a small value - SetProject carries every loaded component of the project.
+        // Formatting one with %A walks the lot, so the price of an exception in update used to be
+        // an unbounded pause with nothing on screen to explain it. Catching first means that
+        // string is never built.
+        //
+        // The model is returned unchanged. Whatever the update was doing did not finish, so the
+        // model it would have produced does not exist; the one Issie already had is at least a
+        // model the view has drawn before. Returning the same REFERENCE also means React does not
+        // re-render, which is right: nothing changed.
+        //
+        // What is recorded is named with the message being handled, which is the nearest thing to
+        // a stack that an F# exception has - and taken from `shortDisplayMsg`, which names every
+        // case by hand precisely so that nothing has to print a message carrying a whole model.
+        recordThrown $"update ({nameOfMsg msg})" (box e)
+        model, Cmd.none
 
 let view' model dispatch =
     // Counted unconditionally - one increment - because a re-render storm is Issie's classic
@@ -369,16 +559,31 @@ let view' model dispatch =
     // the model the render is about to draw, for anything driving Issie from outside it
     DevHarness.recordModel model
     let start = TimeHelpers.getTimeMs()
-    view model dispatch
-    |> (fun view ->
-        if Log.isOn Log.View then
-            TimeHelpers.instrumentInterval ">>>View" start view
-        else
-            view)
-    |> (fun view ->
-        // after the elements exist, so a caller waiting on a render is told once there is one
-        DevHarness.renderDone ()
-        view)
+
+    let drawn =
+        try
+            if DevHarness.forceViewException then failwith "forced exception from the view"
+            view model dispatch
+            |> (fun view ->
+                if Log.isOn Log.View then
+                    TimeHelpers.instrumentInterval ">>>View" start view
+                else
+                    view)
+        with e ->
+            // The view is a pure function of the model, so a view that throws throws again on
+            // every later render: there is no carrying on from here and no point pretending
+            // otherwise. What there is a point in is the user being able to send us the reason,
+            // which the Info window can no longer be opened to show - so the page IS the report.
+            //
+            // This catches what `view` itself raises. An exception raised inside a child
+            // component's own render happens later, during React's reconciliation, and comes back
+            // through the window handler instead.
+            recordThrown "view" (box e)
+            ExceptionReport.crashPage (thrownMessage (box e))
+
+    // after the elements exist, so a caller waiting on a render is told once there is one
+    DevHarness.renderDone ()
+    drawn
 
 /// A DOM event listener as an Elmish 4 subscription: attach on subscribe, detach on dispose.
 let private domListenerSub (eventName: string) (makeHandler: (Msg -> unit) -> (Browser.Types.Event -> unit)) =
@@ -454,6 +659,14 @@ let appSubscriptions (_model: ModelType.Model) : Sub<Msg> =
     ]
 
 Program.mkProgram init update view'
+// What is left for this to catch, now that `update` catches its own, is a command that failed
+// and a subscription that failed - the async and IPC edges of the application.
+|> Program.withErrorHandler (fun (context, e) ->
+    // The context says which message was in flight, which is worth having - but Elmish builds it
+    // with %A over that message, so it can be enormous. Truncated, and folded into the source
+    // rather than logged as a second error: one thing went wrong, so one line and one report.
+    let context = if context.Length > 120 then context[..119] + "..." else context
+    recordThrown $"elmish ({context})" (box e))
 |> Program.withReactBatched "app"
 |> Program.withSubscription appSubscriptions
 |> Program.run

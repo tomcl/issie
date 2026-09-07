@@ -1390,7 +1390,9 @@ let openDemoProjectFromPath (path:string) model dispatch =
         Log.dbg Log.Files $"loading demo project {path}"
         match loadAllComponentFiles path with
         | Error err ->
-            Log.error err
+            // warn: a project that will not load is the user's file, not Issie misbehaving, and
+            // the notification beside this is what tells them so
+            Log.warn err
             displayFileErrorNotification err dispatch
 
         | Ok (componentsToResolve: LoadStatus list) ->
@@ -1424,7 +1426,9 @@ let openProjectFromPath (path:string) model dispatch =
         Log.dbg Log.Files $"loading project {path}"
         match loadProjectDirectory path with
         | Error err ->
-            Log.error err
+            // warn: a project that will not load is the user's file, not Issie misbehaving, and
+            // the notification beside this is what tells them so
+            Log.warn err
             displayFileErrorNotification err dispatch
             model.UserData.RecentProjects |> withoutRecent path
         | Ok (componentsToResolve: LoadStatus list) ->

@@ -34,8 +34,11 @@ let mutable private session: (SimTypes.FastSimulation * (ComponentId * Component
 /// one by accident.
 let mutable private epoch = 0
 
+/// Everything this module declines is a refusal: it is a condition the handler foresaw and wrote
+/// a message for, which is exactly what the caller is expected to handle. A fault is what escapes
+/// a handler instead, and only Program.serve can see one of those.
 let private errorReply (message: string) =
-    sprintf """{"error":"%s"}""" (Protocol.jsonSafe message)
+    sprintf """{"error":"%s","kind":"%s"}""" (Protocol.jsonSafe message) Protocol.RefusalKind
 
 /// The epoch a session-dependent command must carry, or 0 when there is no session.
 let currentEpoch () = if session.IsSome then epoch else 0

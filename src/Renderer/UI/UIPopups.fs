@@ -153,7 +153,18 @@ let viewInfoPopupAtTab (startTab: int) dispatch =
 
     let tips = helpText AppMessages.Info.tips
 
-    let bugReport = helpText AppMessages.Info.bugReport
+    // The questions Issie cannot answer for itself, and under them everything it can: what it has
+    // complained about this session, and the version, machine and open project that a checklist
+    // used to ask the user to type from memory. The Copy button puts the questions and the
+    // evidence on the clipboard together, so the report is answered where it is written.
+    //
+    // A function of the model, not a value: it is built only when its tab is the one showing, and
+    // rebuilt on every render of it, so a message logged while the Info window is open appears.
+    let bugReport (model: Model) =
+        div [] [
+            helpText AppMessages.Info.bugReport
+            ExceptionReport.panel model dispatch
+        ]
 
     let keys =
         let keyTable: ReactElement =
@@ -300,7 +311,7 @@ let viewInfoPopupAtTab (startTab: int) dispatch =
             | Some 1 -> tips
             | Some 2 -> keys
             | Some 3 -> about
-            | Some 4 -> bugReport
+            | Some 4 -> bugReport model
             | _ -> dispatch <| SetPopupDialogInt (Some 0)
         ]
 

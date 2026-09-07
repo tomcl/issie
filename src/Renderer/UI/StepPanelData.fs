@@ -58,7 +58,7 @@ let valueAt (cycle: int) (signal: PanelSignal) : bigint option =
 /// One request and not one per row: the panel is redrawn on every render and has a row per
 /// top-level input, output, viewer and register, which on a large design is hundreds. `simRead`
 /// takes a list, so this is a single round trip of a few hundred bytes.
-let fill (epoch: int) (cycle: int) (signals: PanelSignal list) : JS.Promise<Result<unit, string>> =
+let fill (epoch: int) (cycle: int) (signals: PanelSignal list) : JS.Promise<Result<unit, SidecarClient.SidecarFailure>> =
     if List.isEmpty signals then
         snapshot <- Some(epoch, cycle, Map.empty)
         Promise.lift (Ok())

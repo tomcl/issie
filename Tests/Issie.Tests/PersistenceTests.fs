@@ -95,6 +95,18 @@ let private saveAll (folder: string) (ldcs: LoadedComponent list) =
             | Ok() -> ()
             | Error e -> failtest e)
 
+/// Copy a project into a scratch folder.
+///
+/// **The .ram files as well as the .dgm files.** A memory component records the file it was
+/// initialised from and reloads it whenever the sheet is loaded, so copying only the sheets
+/// builds a project whose ROM points at nothing - which Issie reports as an error, correctly,
+/// and which is not what either of these tests is about.
+let private copyProject (source: string) (folder: string) =
+    [| "*.dgm"; "*.ram" |]
+    |> Array.collect (fun pattern -> System.IO.Directory.GetFiles(source, pattern))
+    |> Array.iter (fun p ->
+        System.IO.File.Copy(p, System.IO.Path.Combine(folder, System.IO.Path.GetFileName p)))
+
 let tests =
     testList "Persistence" [
 
@@ -104,9 +116,7 @@ let tests =
             System.IO.Directory.CreateDirectory folder |> ignore
 
             try
-                System.IO.Directory.GetFiles(demo "3cpu", "*.dgm")
-                |> Array.iter (fun p ->
-                    System.IO.File.Copy(p, System.IO.Path.Combine(folder, System.IO.Path.GetFileName p)))
+                copyProject (demo "3cpu") folder
 
                 let first, changedOnFirst = loadFrom folder
                 printfn "  first load renumbered: %A" changedOnFirst
@@ -140,9 +150,7 @@ let tests =
                     System.IO.Path.GetFullPath(
                         System.IO.Path.Combine(__SOURCE_DIRECTORY__, "..", "fixtures", "3cpu"))
 
-                System.IO.Directory.GetFiles(legacy, "*.dgm")
-                |> Array.iter (fun p ->
-                    System.IO.File.Copy(p, System.IO.Path.Combine(folder, System.IO.Path.GetFileName p)))
+                copyProject legacy folder
 
                 let first, _ = loadFrom folder
                 Expect.all first (fun ldc -> ldc.LoadedComponentIsOutOfDate)

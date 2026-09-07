@@ -44,14 +44,14 @@ let missingOf (wanted: InstancePath list) : InstancePath list =
 /// hundred bytes and a round trip a fifth of a millisecond, so even a whole design is tens of
 /// milliseconds, and the selector's ask is a handful. Answers landing for a superseded build are
 /// dropped by the epoch check at store time.
-let fetch (epoch: int) (instances: InstancePath list) : JS.Promise<Result<int, string>> =
+let fetch (epoch: int) (instances: InstancePath list) : JS.Promise<Result<int, SidecarClient.SidecarFailure>> =
     let rec go remaining fetched =
         match remaining with
         | [] -> Promise.lift (Ok fetched)
         | (InstancePath ap as instance) :: rest ->
             SidecarClient.simPorts epoch (ap |> List.map (fun (ComponentId c) -> c))
             |> Promise.bind (function
-                | Error e -> Promise.lift (Error $"describing {instance}: {e}")
+                | Error e -> Promise.lift (Error(SidecarClient.prefixFailure $"describing {instance}" e))
                 | Ok slice ->
                     (match held with
                      | Some(_, heldEpoch, slices) when heldEpoch = epoch -> slices[instance] <- slice

@@ -194,9 +194,46 @@ let MaxMessage = 67108864
 /// produced `{"error":"...C:\Users\..."}`, which is not JSON, so the renderer's `JSON.parse` threw
 /// and it showed the wire envelope instead of the message written for the user.
 ///
-/// Replaced rather than escaped, because this is for someone to read in an error: a backslash
-/// becoming a forward slash and a newline becoming a space cost nothing and cannot themselves go
-/// wrong. Both sides of every error reply go through here, which is why it is in the protocol
-/// rather than beside one of them - it was written twice and only one copy did all four.
+/// **Not on any hot path.** It runs on error messages, and on one success path - the sheet name in
+/// a SimBuild reply. Every reply whose size matters (SimRead, SimReadRam, SimPorts,
+/// SimReadDrivers) is raw binary read by a custom reader and never passes through here, which is
+/// what makes a per-character escaper affordable.
+///
+/// **Escaped properly rather than replaced, because a stack trace goes through here.** It used to
+/// turn backslashes into slashes, quotes into apostrophes and newlines into spaces - which cost
+/// nothing while the payload was a one-line message, and would flatten a .NET stack trace into an
+/// unreadable run of frames with every path mangled. A stack trace is the one real diagnostic
+/// Issie has (an F# exception in the renderer carries none under Fable), so it travels intact.
+///
+/// Both sides of every error reply go through here, which is why it is in the protocol rather
+/// than beside one of them - it was written twice and only one copy did all four.
+/// The two kinds of failure an error reply can report, as they travel on the wire.
+///
+/// **Two, because only two things can be done about one.** A fault is the sidecar breaking - an
+/// exception escaped a handler, so an invariant the simulator maintains does not hold - and is a
+/// bug in Issie. A refusal is the sidecar declining something it anticipated and wrote a message
+/// for: a stale epoch, a cycle it has not run to yet, a design frame that did not decode. The
+/// caller is expected to handle a refusal and cannot do anything about a fault except report it.
+///
+/// Strings rather than a shared type because the renderer cannot see this file - it is the
+/// SIDECAR that references the renderer, not the other way round - so the protocol is mirrored in
+/// `SidecarClient` exactly as the command bytes already are.
+[<Literal>]
+let FaultKind = "fault"
+
+[<Literal>]
+let RefusalKind = "refusal"
+
 let jsonSafe (text: string) =
-    text.Replace("\\", "/").Replace("\"", "'").Replace("\n", " ").Replace("\r", " ")
+    text
+    |> Seq.map (fun c ->
+        match c with
+        | '\\' -> "\\\\"
+        | '"' -> "\\\""
+        | '\n' -> "\\n"
+        | '\r' -> "\\r"
+        | '\t' -> "\\t"
+        // everything below space has to be escaped for the result to be JSON at all
+        | c when c < ' ' -> $"\\u%04x{int c}"
+        | c -> string c)
+    |> String.concat ""

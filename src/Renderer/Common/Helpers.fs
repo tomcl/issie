@@ -172,7 +172,7 @@ open System.Text.RegularExpressions
                         match Json.tryParseNativeAs<SavedCanvasUnknownWaveInfo<obj>> jsonString with
                         | Ok saved -> Ok(withWaveInfoDropped saved)
                         | Error str -> 
-                            Log.error $"could not parse saved JSON ({jsonString.Length} chars): {str}"
+                            Log.warn $"could not parse saved JSON ({jsonString.Length} chars): {str}"
                             Error str)
             #else
             match decodeSaved<LegacyCanvasState> jsonString with
@@ -184,7 +184,7 @@ open System.Text.RegularExpressions
                     match decodeSaved<SavedCanvasUnknownWaveInfo<obj>> jsonString with
                     | Ok saved -> Ok(withWaveInfoDropped saved)
                     | Error str ->
-                        Log.error $"could not parse saved JSON ({jsonString.Length} chars): {str}"
+                        Log.warn $"could not parse saved JSON ({jsonString.Length} chars): {str}"
                         Error str
             #endif
 

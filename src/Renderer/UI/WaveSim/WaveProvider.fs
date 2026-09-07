@@ -60,7 +60,7 @@ let private fetchWaves
     (fs: FastSimulation)
     (waves: WaveIndexT list)
     (window: Window)
-    : JS.Promise<Result<unit, string>> =
+    : JS.Promise<Result<unit, SidecarClient.SidecarFailure>> =
     // Every wave asked for, whatever its width - simRead carries a sample in as many words as it
     // needs. This used to drop anything over 32 bits while still recording it as asked for, so
     // coverage said yes, the wave came back with no row, and it kept whatever it had been showing
@@ -183,7 +183,7 @@ let private fetchForView
     (fs: FastSimulation)
     (waves: WaveIndexT list)
     (window: Window)
-    : JS.Promise<Result<unit, string>> =
+    : JS.Promise<Result<unit, SidecarClient.SidecarFailure>> =
     fetchWaves epoch fs waves window
 
 /// Choose the simulator for this refresh, and say what the renderer's own one reads through.
@@ -250,6 +250,6 @@ let fetchWavesFor
     (fs: FastSimulation)
     (waves: WaveIndexT list)
     (window: Window)
-    : JS.Promise<Result<unit, string>> =
+    : JS.Promise<Result<unit, SidecarClient.SidecarFailure>> =
     fetchForView epoch fs waves window
-    |> Promise.catch (fun e -> Error e.Message)
+    |> Promise.catch (fun e -> Error(SidecarClient.transportFailure e.Message))

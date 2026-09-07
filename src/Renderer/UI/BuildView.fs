@@ -77,10 +77,28 @@ let verilogOutput (vType: Verilog.VMode) (profile: Verilog.CompilationProfile) (
                             Error e.Message
                         |> (function
                             | Ok () -> Sheet (SheetT.Msg.StartCompiling (proj.ProjectPath, proj.OpenFileName, profile)) |> dispatch
-                            | Error e -> ()//oh no
+                            // As SimulationView.verilogOutputForSheet, which pipes the same result
+                            // straight to displayAlertOnError. Doing nothing here left the Build
+                            // button looking as though it had worked when the emitter threw or the
+                            // file could not be written.
+                            | Error e -> Error e |> Notifications.displayAlertOnError dispatch
                             )
                 | Error simError ->
-                   Log.error $"simulation error prevents Verilog output: {(SimGraphTypes.errMsg simError.ErrType)}"
+                   // The same response SimulationView.verilogOutputForSheet gives to the same
+                   // condition: show the error where simulation errors are read, and mark what it
+                   // is about. A design that does not build cannot be written as Verilog, which is
+                   // the user's design rather than a fault - so a warn, now that they are told.
+                   Log.warn $"simulation error prevents Verilog output: {(SimGraphTypes.errMsg simError.ErrType)}"
+                   dispatch <| ChangeRightTab Simulation
+                   // Highlight only when the error is on the sheet being displayed: it may be in a
+                   // subsheet, whose components are not the ones on screen. This always writes the
+                   // open sheet, so that is the only test needed.
+                   if simError.InDependency.IsNone then
+                       (simError.ComponentsAffected, simError.ConnectionsAffected)
+                       |> SetHighlighted |> dispatch
+                   Error simError
+                   |> StartSimulation
+                   |> dispatch
         | _ -> ()
 
 let viewBuild model dispatch =

@@ -25,6 +25,13 @@ let private boot: obj = bridge?bootstrap
 /// "win32" | "darwin" | "linux", as node reports it.
 let platform: string = unbox boot?platform
 
+// What a bug report has to say about the machine and the build. "win32" alone does not separate
+// Windows 10 from 11, nor an arm64 Mac from an x64 one, and both differences have explained bugs.
+let osRelease: string = unbox boot?osRelease
+let arch: string = unbox boot?arch
+let electronVersion: string = unbox boot?electronVersion
+let chromeVersion: string = unbox boot?chromeVersion
+
 /// Absolute path to the static asset directory, resolved by main. Was three different expressions
 /// in the renderer, one of which (__static) is a webpack substitution over `path` and `process`.
 let staticDir: string = unbox boot?staticDir
@@ -280,6 +287,10 @@ let platform =
     elif System.OperatingSystem.IsMacOS() then "darwin"
     else "linux"
 
+let osRelease = System.Environment.OSVersion.Version.ToString()
+let arch = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString()
+let electronVersion = "n/a"
+let chromeVersion = "n/a"
 let staticDir = ""
 let userData = System.IO.Path.GetTempPath()
 let documents = System.Environment.GetFolderPath System.Environment.SpecialFolder.MyDocuments

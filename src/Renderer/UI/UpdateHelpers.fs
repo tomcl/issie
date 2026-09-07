@@ -245,6 +245,8 @@ let shortDisplayMsg (msg:Msg) =
     | CodeEditorMsg _ -> Some "CodeEditorMsg"
     | CheckTopSheetChoice -> Some "CheckTopSheetChoice"
     | PropagateParameters -> Some "PropagateParameters"
+    | ProblemLogged -> Some "ProblemLogged"
+    | SetSuppressErrorPopups _ -> Some "SetSuppressErrorPopups"
 
 
 

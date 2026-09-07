@@ -79,7 +79,7 @@ let verilogOutputForSheet (sheetName: string) (vType: Verilog.VMode) (model: Mod
                         let note = successSimulationNotification $"verilog output written to file {path}"
                         dispatch  <| SetSimulationNotification note
                     | Error simError ->
-                       Log.error $"simulation error prevents Verilog output: {(errMsg simError.ErrType)}"
+                       Log.warn $"simulation error prevents Verilog output: {(errMsg simError.ErrType)}"
                        dispatch <| ChangeRightTab Simulation
                        // Highlight the affected components and connections only when they are on
                        // the sheet being displayed: the error may be in a sheet the user cannot
@@ -434,10 +434,10 @@ let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (dispatch: M
         | Some project ->
             let top = simData.FastSim.SimulatedTopSheet
 
-            let failed (what: string) (e: string) =
+            let failed (what: string) (e: SidecarClient.SidecarFailure) =
                 // The panel keeps whatever it last held, which is of an earlier cycle, so say so
                 // rather than let the clock move under values that did not.
-                Log.error $"the .NET simulator could not {what}: {e}"
+                SidecarClient.logFailure $"the .NET simulator could not {what}" e
                 StepPanelData.forget ()
 
             // The SIDECAR's array size, which is the history the step simulator wants - not this
@@ -477,7 +477,7 @@ let advanceTo (model: Model) (simData: SimulationData) (cycle: int) (dispatch: M
                 // a rejection, not an error reply: the socket closed under it, which fails every
                 // request in flight (invariant A4)
                 |> Promise.catch (fun e ->
-                    failed $"run to cycle {cycle}" e.Message
+                    failed $"run to cycle {cycle}" (SidecarClient.transportFailure e.Message)
                     finish simData.ClockTickNumber)
 
             match model.SidecarSession with
@@ -523,6 +523,8 @@ let setInput (model: Model) (simData: SimulationData) (compId: ComponentId) (val
 
         match model.SidecarSession.Epoch with
         | _ when asBigInt > 9007199254740992I ->
+            // refused cleanly, but the user is told nothing at all - the value simply does not
+            // take. An error until that is fixed: the outcome is not the one that was asked for.
             Log.error
                 $"the .NET simulator cannot yet be given a {value.Width}-bit input value this large - Development > Simulate In Renderer can set it"
             whenReady ()
@@ -658,7 +660,8 @@ let openRemoteRamDiff (ram: Component) (cycle: int) (model: Model) (dispatch: Ms
                     0
 
             match reply with
-            | Error e -> Log.error $"the .NET simulator could not read memory '{ram.Label}': {e}"
+            | Error e ->
+                SidecarClient.logFailure $"the .NET simulator could not read memory '{ram.Label}'" e
             | Ok(RamView.RamWindow _) ->
                 errorNotification
                     $"'{ram.Label}' has been written in too many places to compare with its initial                       contents. The waveform simulator's RAM table shows a window of it."
@@ -1423,7 +1426,7 @@ let issueStepBuild (model: Model) (simData: SimulationData) : Model * Elmish.Cmd
                 (fun () -> SidecarSession.build design arraySize)
                 ()
                 (fun result -> SidecarReply(seq, AnsBuilt result))
-                (fun exn -> SidecarReply(seq, AnsBuilt(Error exn.Message)))
+                (fun exn -> SidecarReply(seq, AnsBuilt(Error(SidecarClient.transportFailure exn.Message))))
 
         model |> Optic.map sidecarInFlight_ (Map.add seq (OpBuild(top, arraySize))), build
 
@@ -1461,7 +1464,11 @@ let continueStepRun (model: Model) : Model * Elmish.Cmd<Msg> =
                         (fun () -> SidecarSession.runChunk epoch prog.FinalClock)
                         ()
                         (fun result -> SidecarReply(seq, AnsSteppedTo(before, t1, result)))
-                        (fun exn -> SidecarReply(seq, AnsSteppedTo(before, t1, Error exn.Message)))
+                        (fun exn ->
+                            SidecarReply(
+                                seq,
+                                AnsSteppedTo(before, t1, Error(SidecarClient.transportFailure exn.Message))
+                            ))
 
                 model |> Optic.map sidecarInFlight_ (Map.add seq (OpStep prog.FinalClock)), chunk
             | None, Some _ ->

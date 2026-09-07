@@ -120,11 +120,53 @@ let private ringSize = 400
 let private ring = Array.create ringSize ""
 let mutable private ringNext = 0
 
-let private emit (tag: string) (write: string -> unit) (text: string) =
+/// The same lines again, but only the ones that said something was wrong.
+///
+/// **Errors have to survive being debugged.** The ring above is everything, and everything is
+/// mostly debug output: turn a category on and one drag writes several hundred lines, so 400
+/// slots is a few seconds and the error that started the investigation is gone before anybody
+/// reads it. That is exactly the run somebody is asked to send in a bug report. Only `error` and
+/// `warn` write here, so nothing anyone switches on can push a problem out - and 100 slots is
+/// hundreds of sessions' worth of a build that is behaving.
+[<Literal>]
+let private problemRingSize = 100
+let private problemRing = Array.create problemRingSize ""
+let mutable private problemNext = 0
+
+/// Called after an error is logged, by whoever wants to know, with the text of it. Nothing here
+/// decides what that means: `Log` is compiled by both processes and knows nothing about a model,
+/// a popup or a debug level, so it offers the fact and the renderer decides what to do with it -
+/// see the exception boundary in `Renderer.fs`, which uses it to put the buffer on screen in a
+/// debug build.
+///
+/// **The text, not the formatted line.** The line carries a timestamp, so every one is unique and
+/// nothing downstream could tell two occurrences of one error from two different errors. Telling
+/// them apart is what lets the renderer interrupt once per distinct error rather than once per
+/// occurrence - which is the whole reason a per-frame error does not have to be logged as
+/// something milder than it is.
+///
+/// Errors only, not warnings. A warning is something that went wrong and was recovered from, and
+/// there is nothing for anybody to do about one.
+///
+/// Not a list of subscribers: there is one, it is installed once at startup, and a second would
+/// mean two things had opinions about what an error means.
+let mutable onErrorLogged: (string -> unit) option = None
+
+/// `isProblem` says whether the line also goes to the problem ring - true for error and warn,
+/// false for everything else. Severity is the only thing that decides it: a category is a
+/// subsystem, and a bug report wants the errors from every subsystem.
+let private emitAs (isProblem: bool) (tag: string) (write: string -> unit) (text: string) =
     let line = $"[%7.3f{uptime ()}] {tag} {text}"
     ring[ringNext % ringSize] <- line
     ringNext <- ringNext + 1
+
+    if isProblem then
+        problemRing[problemNext % problemRingSize] <- line
+        problemNext <- problemNext + 1
+
     write line
+
+let private emit (tag: string) (write: string -> unit) (text: string) = emitAs false tag write text
 
 //---------------------------------------------------------------------------------------------//
 //-------------------------------------------- API --------------------------------------------//
@@ -135,11 +177,42 @@ let private emit (tag: string) (write: string -> unit) (text: string) =
 /// mean asking for the output twice.
 let out (text: string) = emit "OUT" toLog text
 
-/// Issie could not do what the user asked, or swallowed an exception. Always emitted.
-let error (text: string) = emit "ERR" toError text
+/// **Something was asked for and did not happen.** Always emitted, kept in the problem ring for
+/// the bug report, and in a debug build it puts the buffer on screen.
+///
+/// The line between this and `warn` is whether the outcome is still the right one, and NOT whose
+/// fault it was. An OS command that failed and succeeded on retry is a `warn`: the file got
+/// written, and there is nothing for anybody to do. The same command failing with no retry left
+/// is an error even though the fault is the operating system's, because Issie did not do what it
+/// was asked and a developer needs to know that - it is what decides whether Issie should retry,
+/// fall back, or tell the user.
+///
+/// So a failure is a `warn` only when it was recovered from, or when Issie has given the user a
+/// real answer instead: "this project will not load, here is why" is a defined outcome and a
+/// perfectly good one. A failure that leaves a button doing nothing, a typed value not taking, or
+/// a stale screen the user believes is live is an error whoever is to blame.
+///
+/// **Do not reach for `warn` to stop something repeating.** The renderer interrupts once per
+/// distinct error, not once per occurrence - see `onErrorLogged`. Severity says what happened;
+/// it is not a rate limit.
+///
 
-/// Issie found an inconsistency and carried on. Always emitted.
-let warn (text: string) = emit "WRN" toWarn text
+/// The line is written BEFORE `onError` runs, so that whatever the hook does - which in the
+/// renderer is to open a popup showing the buffer - is looking at a buffer this error is already
+/// in. A hook that throws is on its own: this is the error path, and an error while reporting an
+/// error has nowhere left to go.
+let error (text: string) =
+    emitAs true "ERR" toError text
+    match onErrorLogged with
+    | Some f -> f text
+    | None -> ()
+
+/// Something went wrong and the outcome is still right: a retry succeeded, a documented fallback
+/// took over, or Issie gave the user a real answer about why it could not do what they asked.
+/// Always emitted, and kept in the problem ring for the bug report, since a warning is often the
+/// first sign of whatever is being reported. Unlike `error` it interrupts nobody, because there
+/// is nothing for anybody to act on. See `error` for exactly where the line falls.
+let warn (text: string) = emitAs true "WRN" toWarn text
 
 let mutable private warnedKeys: Set<string> = Set.empty
 
@@ -157,6 +230,98 @@ let warnOnce (key: string) (text: string) =
 let recentLines () =
     Array.init ringSize (fun i -> ring[(ringNext + i) % ringSize])
     |> Array.filter (fun line -> line <> "")
+
+/// Just the errors and warnings, oldest first. What the Bug Reports tab shows.
+let recentProblems () =
+    Array.init problemRingSize (fun i -> problemRing[(problemNext + i) % problemRingSize])
+    |> Array.filter (fun line -> line <> "")
+
+//---------------------------------------------------------------------------------------------//
+//------------------------------------ UNCAUGHT EXCEPTIONS ------------------------------------//
+//---------------------------------------------------------------------------------------------//
+
+/// One exception that got out of Issie's own code.
+///
+/// **There should never be any.** An exception Issie means to raise is raised at a place that
+/// catches it, and the simulator is the worked example: it is full of `failwithf`s about states
+/// that cannot arise, every one of them reachable from a design the user drew, and every one
+/// caught by `Simulator.startCircuitSimulation` and turned into an `InternalError` the user is
+/// asked to send us. Anything recorded here escaped instead, which means a bug, and the only
+/// thing anybody can do about it afterwards is read it - so it is kept.
+type UncaughtException =
+    { /// Seconds since startup - the same clock the log lines carry, so the two can be read
+      /// against each other. The time of the LAST occurrence when Repeats > 1.
+      At: float
+      /// Where it escaped from: which of the boundary's handlers caught it.
+      Source: string
+      Message: string
+      /// The JavaScript stack, or "" for a thrown value that carries none.
+      Stack: string
+      /// How many times in a row this same exception has been seen.
+      ///
+      /// A render that throws throws again on the next frame, and a mouse handler that throws
+      /// throws on every mouse move: without this, ten slots hold ten copies of one bad frame
+      /// and the exception that caused it is gone. Counted rather than stored.
+      Repeats: int }
+
+/// How many distinct exceptions are kept. Small on purpose: what is worth having is the first
+/// one, which is usually the cause, and the last few, which are usually consequences of it.
+[<Literal>]
+let private maxExceptions = 10
+
+/// Newest first, at most maxExceptions long. A list rather than a ring because it is ten items
+/// long, is rebuilt only when something has gone wrong, and is read in the order it is stored.
+let mutable private uncaught: UncaughtException list = []
+
+/// Record an exception that escaped. Called by the renderer's exception boundary and by nothing
+/// else - the arguments are strings so that this stays free of any knowledge of what a thrown
+/// JavaScript value looks like, which is the boundary's business.
+///
+/// A repeat of the exception already at the head bumps its count and is not logged again: the
+/// case this exists for is one that fires every frame, where logging each one would itself be
+/// the thing that made the app unusable.
+let recordException (source: string) (message: string) (stack: string) =
+    match uncaught with
+    | last :: rest when last.Source = source && last.Message = message ->
+        uncaught <- { last with At = uptime (); Repeats = last.Repeats + 1 } :: rest
+    | _ ->
+        uncaught <-
+            { At = uptime (); Source = source; Message = message; Stack = stack; Repeats = 1 }
+            :: List.truncate (maxExceptions - 1) uncaught
+        // one line, without the stack: the stack is in the record above, and this line is here so
+        // that the problem ring says when the exception happened relative to everything else
+        error $"uncaught exception in {source}: {message}"
+
+/// The exceptions that have escaped this session, newest first.
+let recentExceptions () = uncaught
+
+/// Everything that has gone wrong this session, as the text of a bug report.
+///
+/// One blob rather than two, because it is written to be pasted somewhere by somebody who is
+/// already annoyed: the exceptions first, since they are the part that should not exist at all,
+/// and the errors and warnings after them as the run-up to whatever happened.
+let problemReport () =
+    let exceptionText =
+        match recentExceptions () with
+        | [] -> [ "(no uncaught exceptions - good)" ]
+        | list ->
+            list
+            |> List.map (fun e ->
+                let repeats = if e.Repeats > 1 then $" (x{e.Repeats})" else ""
+                let stack = if e.Stack = "" then "  (no stack)" else e.Stack
+                $"[%7.3f{e.At}] {e.Source}{repeats}: {e.Message}\n{stack}")
+
+    let problemText =
+        match recentProblems () with
+        | [||] -> [ "(nothing)" ]
+        | lines -> List.ofArray lines
+
+    [ "=== uncaught exceptions, newest first ==="
+      yield! exceptionText
+      ""
+      "=== errors and warnings, oldest first ==="
+      yield! problemText ]
+    |> String.concat "\n"
 
 /// A categorised debug line, discarded unless that category is on.
 ///
@@ -184,6 +349,13 @@ let maskOfNames (spec: string) =
             let known = String.concat ", " categoryNames
             warn $"unknown log category '{name}' - known categories are {known}"
             mask) 0
+
+/// The names of the categories currently on, or "off". The inverse of maskOfNames, for a bug
+/// report: what was being logged decides what the lines in it can be expected to say.
+let namesOfMask (mask: int) =
+    match names |> List.filter (fun (n, bit) -> n <> "all" && mask &&& bit <> 0) with
+    | [] -> "off"
+    | on -> on |> List.map fst |> String.concat ","
 
 /// Turn these categories on and all others off.
 let setCategories (mask: int) =
@@ -241,6 +413,8 @@ let countMessage (ms: float) (name: unit -> string) =
 /// The log, and its switches, beside window.issie and window.issieKeys:
 ///
 ///     window.issieLog.lines()          the last few hundred lines, oldest first
+///     window.issieLog.problems()       just the errors and warnings, oldest first
+///     window.issieLog.report()         those and the uncaught exceptions, as bug report text
 ///     window.issieLog.on("wire,sim")   turn categories on, live
 ///     window.issieLog.off()
 ///
@@ -251,6 +425,8 @@ let publish () =
 #if FABLE_COMPILER
     Browser.Dom.window?issieLog <-
         {| lines = recentLines
+           problems = recentProblems
+           report = problemReport
            on = fun (spec: string) -> setCategories (maskOfNames spec); $"logging: {spec}"
            off = fun () -> setCategories 0; "logging off" |}
 #endif

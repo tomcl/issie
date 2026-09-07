@@ -279,6 +279,9 @@ let rec refreshWaveSim (newSimulation: bool) (model: Model): Model * Elmish.Cmd<
         // for what it will read - a few hundred cycles when the sidecar is simulating - so what
         // remains is a design too big to hold at the cycle count it is configured for, in the mode
         // that holds it here.
+        // The user is looking at stale waveforms believing they are live, which is the wrong
+        // outcome and not a recovered one. Reached again on every cursor move while it lasts -
+        // that is the popup's problem to dedupe, not a reason to call it something milder.
         Log.error
             "the waveform viewer has no simulation to draw from - what is on screen is whatever was drawn last, and will not update"
 
@@ -835,7 +838,9 @@ let private readBundle
             match snapshot.SnapData |> Option.bind (fun vp -> vp.VpPanelCycle) with
             | Some cycle when not (List.isEmpty panelSignals) ->
                 StepPanelData.fill epoch cycle panelSignals
-                |> Promise.map (Result.mapError (fun e -> $"reading the step panel at cycle {cycle}: {e}"))
+                |> Promise.map (
+                    Result.mapError (SidecarClient.prefixFailure $"reading the step panel at cycle {cycle}")
+                )
             | _ -> Promise.lift (Ok())
 
         let! probed =
@@ -856,7 +861,7 @@ let private readBundle
                 PortData.fetch epoch (PortData.missingOf sv.SvInstances)
                 |> Promise.map (function
                     | Ok _ -> Ok()
-                    | Error e -> Error $"describing instances for the selector: {e}")
+                    | Error e -> Error(SidecarClient.prefixFailure "describing instances for the selector" e))
             | None -> Promise.lift (Ok())
 
         let rows =
@@ -868,7 +873,13 @@ let private readBundle
             (ramReads |> List.choose (function Error e -> Some e | Ok _ -> None))
             @ ([ waves; panel; ports ] |> List.choose (function Error e -> Some e | Ok() -> None))
 
-        return (if List.isEmpty failures then Ok() else Error(String.concat "; " failures)), rows, probed
+        return
+            (if List.isEmpty failures then
+                 Ok()
+             else
+                 Error(SidecarClient.combineFailures failures)),
+            rows,
+            probed
     }
 
 /// Suppress the run banner while the waveform viewer is being scrolled horizontally, and arm the
@@ -960,7 +971,7 @@ let sidecarChecks (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd<Msg>
                           (fun () -> SidecarSession.runChunk epoch runTarget)
                           ()
                           (fun result -> SidecarReply(seq, AnsRan result))
-                          (fun exn -> SidecarReply(seq, AnsRan(Error exn.Message))) ]
+                          (fun exn -> SidecarReply(seq, AnsRan(Error(SidecarClient.transportFailure exn.Message)))) ]
             else
                 let structVp = structureViewportOf model epoch
                 let dataDiff = Some dataVp <> model.FetchedData
@@ -998,7 +1009,11 @@ let sidecarChecks (model: Model, cmd: Elmish.Cmd<Msg>) : Model * Elmish.Cmd<Msg>
                               (readBundle epoch snapshot panelSignals ramsToRead)
                               ()
                               (fun (waves, rows, probed) -> SidecarReply(seq, AnsFetched(waves, rows, probed)))
-                              (fun exn -> SidecarReply(seq, AnsFetched(Error exn.Message, [], None))) ]
+                              (fun exn ->
+                                  SidecarReply(
+                                      seq,
+                                      AnsFetched(Error(SidecarClient.transportFailure exn.Message), [], None)
+                                  )) ]
                 else
                     // Nothing to do - and during migration, the OLD derivation must agree.
                     // Logged in the dangerous direction only: equality saying "held" while the
@@ -1161,7 +1176,7 @@ let startWaveSimulation (model: Model) : Model * Elmish.Cmd<Msg> =
                         (fun () -> SidecarSession.build design arraySize)
                         ()
                         (fun result -> SidecarReply(seq, AnsBuilt result))
-                        (fun exn -> SidecarReply(seq, AnsBuilt(Error exn.Message)))
+                        (fun exn -> SidecarReply(seq, AnsBuilt(Error(SidecarClient.transportFailure exn.Message))))
                 | _ -> model, Elmish.Cmd.none
 
             setWSModel { wsModel with State = Loading } model,

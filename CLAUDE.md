@@ -237,7 +237,7 @@ them: there is no linter, and the compiler accepts either style.
   a canvas of your own. Prefer asserting draw block *structure* — ports, edges, overlap,
   orthogonality — since a pixel width is only ever as good as that table.
 - **Memory components** need special handling for RAM/ROM initialisation from `.ram` files.
-- **Nothing prints unconditionally.** `src/Renderer/Common/Log.fs` is the only way to the console:
+- **Nothing prints unconditionally.** `src/Shared/Log.fs` is the only way to the console:
   `Log.warn` and `Log.error` always show, `Log.dbg Log.Wire $"..."` (and the other categories)
   shows only when that category is on, and `Log.out` is for a Development-menu item whose output
   *is* the point. Categories are switched live, with no rebuild — from the Development > Log menu,
@@ -245,6 +245,17 @@ them: there is no linter, and the compiler accepts either style.
   hundred lines are kept in a ring buffer readable from outside the app:
   `node scripts/inspect-canvas.js log`. A new `printf` outside a short allowlist fails
   `Tests/Issie.Tests/SourceHygiene.fs`, which is what keeps this true.
+- **An exception that reaches the renderer's boundary is a bug, and is kept.** Issie raises
+  exceptions everywhere and catches every one of them somewhere specific — the simulator's
+  hundreds of `failwithf`s all become an `InternalError` the user can copy. What escapes anyway is
+  recorded by the boundary at the top of `Renderer.fs`, which covers the four ways out (`update`,
+  `view`, `window`, `promise`), records without recovering, and shows the last ten on
+  Info > Bug Reports beside the errors and warnings. Those live in a ring of their own in
+  `Log.fs`, separate from the 400-line one, so that turning a debug category on cannot push a
+  problem out. **An F# exception carries no stack under Fable** — `Exception` is not a JS `Error` —
+  so the `update` entry names the message being handled instead. Fire any of them on purpose with
+  `node scripts/drive.js send forceException update|view|promise|callback`, or from
+  Development > Play.
 - **Timing instrumentation is off by default.** `TimeHelpers.instrumentation` is `Off`; the
   Development > Play menu turns on either per-interval times or the 10-second aggregate table.
   Message and render counts are always kept (five numbers in `Log.fs`) and summarised by the

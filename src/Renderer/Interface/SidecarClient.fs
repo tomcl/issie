@@ -474,8 +474,106 @@ let private decodeTextPayload (frame: obj) : string = jsNative
 /// THE test every reader of a binary reply makes, and the only one: the sender said which it was
 /// sending. Reading the payload to find out cannot work, because a payload of numbers is allowed
 /// to start with any byte at all - see isErrorFrame.
-let errorOfFrame (frame: obj) : string option =
-    if isErrorFrame frame then Some(decodeTextPayload frame) else None
+[<Emit("JSON.parse($0)")>]
+let private parseJson (text: string) : obj = jsNative
+
+[<Emit("(function(o){ return o && typeof o.error === 'string' ? o.error : null })($0)")>]
+let private errorField (parsed: obj) : string = jsNative
+
+[<Emit("(function(o){ return o && typeof o.kind === 'string' ? o.kind : null })($0)")>]
+let private kindField (parsed: obj) : string = jsNative
+
+/// Why a sidecar command did not answer with what was asked for.
+///
+/// **Two kinds, because only two things can be done about one.** A `Fault` is the sidecar
+/// breaking - an exception escaped a handler, so an invariant the simulator maintains no longer
+/// holds. That is a bug in Issie: it is logged as an error, which in a debug build puts it and its
+/// stack on the screen. A `Refusal` is the sidecar declining something it anticipated and wrote a
+/// message for - a stale epoch, a cycle it has not run to, a sheet that did not decode - which the
+/// caller is expected to handle, and which is a warning unless the caller cannot.
+///
+/// **Anything unclassified is a Fault.** A failure nobody has said is expected is a bug until
+/// somebody says otherwise; the alternative default quietly downgrades whatever is forgotten.
+/// The strings are Protocol.FaultKind and Protocol.RefusalKind, mirrored here because the renderer
+/// cannot see that file - the sidecar references the renderer, not the other way round.
+type SidecarFailureKind =
+    | Fault
+    | Refusal
+
+type SidecarFailure =
+    { Kind: SidecarFailureKind
+      Message: string }
+
+    /// so that an existing `$"...{failure}"` says exactly what it always said
+    override this.ToString() = this.Message
+
+/// The message inside an error payload, which is a JSON object whose only key is "error".
+///
+/// **Unwrapped here, so that no reader ever sees the envelope.** Readers used to take the payload
+/// as it arrived, so a sidecar failure was logged as the literal `{"error":"..."}`. That was
+/// merely untidy while the payload was one line; now that a stack trace travels in it, the
+/// difference is between a readable trace and a run of escaped `\n`s.
+///
+/// A payload that is not the expected shape is returned as it came: this is the error path, and
+/// something unreadable is better than nothing.
+let failureOfPayload (payload: string) : SidecarFailure =
+    if payload.StartsWith "{\"error\"" then
+        try
+            let parsed = parseJson payload
+
+            let kind =
+                match kindField parsed with
+                | "refusal" -> Refusal
+                | _ -> Fault
+
+            match errorField parsed with
+            | null -> { Kind = Fault; Message = payload }
+            | text -> { Kind = kind; Message = text }
+        with _ ->
+            { Kind = Fault; Message = payload }
+    else
+        { Kind = Fault; Message = payload }
+
+/// Just the message, for a caller that has already decided what the failure means.
+let unwrapError (payload: string) = (failureOfPayload payload).Message
+
+/// Several failures as one, for an operation that made several requests and lost more than one of
+/// them. **A fault among them makes the whole a fault**: the worst news decides what anyone has to
+/// do about it, and a real bug must not be hidden by the refusals it arrived with.
+let combineFailures (failures: SidecarFailure list) : SidecarFailure =
+    { Kind = (if failures |> List.exists (fun f -> f.Kind = Fault) then Fault else Refusal)
+      Message = failures |> List.map (fun f -> f.Message) |> String.concat "; " }
+
+/// The same failure, said with the context the caller can add. **Keeps the kind**: putting
+/// "reading the step panel: " in front of a fault does not make it a refusal, and the commonest
+/// way to lose a classification is to rebuild the value as a string on the way past.
+let prefixFailure (context: string) (failure: SidecarFailure) : SidecarFailure =
+    { failure with Message = $"{context}: {failure.Message}" }
+
+/// Report a failure at the severity its kind calls for, which is the whole reason the kind
+/// exists. A fault is Issie broken and is an error - so in a debug build it is on the screen with
+/// its stack a moment later. A refusal is the sidecar declining something a caller was supposed to
+/// be ready for, so it is a warning: it belongs in the bug report and interrupts nobody.
+///
+/// The one call every reader of a sidecar failure should make, rather than choosing `Log.error`
+/// for itself: choosing by hand is how the two came to mean the same thing.
+let logFailure (context: string) (failure: SidecarFailure) =
+    let text = $"{context}: {failure.Message}"
+
+    match failure.Kind with
+    | Fault -> Log.error text
+    | Refusal -> Log.warn text
+
+/// A failure nothing declined: the socket went, a request was never answered, or a reply broke the
+/// contract it was supposed to keep. Not something any handler foresaw, so it is a fault - which
+/// is also the default for anything unclassified, for the same reason.
+let fault (message: string) : SidecarFailure = { Kind = Fault; Message = message }
+
+/// A transport failure: the socket went, or the request was never answered.
+let transportFailure (message: string) : SidecarFailure = fault message
+
+let errorOfFrame (frame: obj) : SidecarFailure option =
+    if isErrorFrame frame then Some(failureOfPayload (decodeTextPayload frame)) else None
 
 [<Emit("$0.set($1, $2)")>]
 let private blitAt (target: obj) (source: obj) (offset: int) : unit = jsNative
@@ -667,7 +765,7 @@ let simReadRam
     (sparseUpTo: int)
     (start: bigint)
     (rows: int)
-    : JS.Promise<Result<RamView.RamView, string>> =
+    : JS.Promise<Result<RamView.RamView, SidecarFailure>> =
     let lowWord (v: bigint) = int (v &&& 4294967295I)
     let highWord (v: bigint) = int ((v >>> 32) &&& 4294967295I)
 
@@ -713,7 +811,7 @@ let simReadRam
 /// selector's read, made when its combo boxes pick an instance. Decoded into the SAME type the
 /// renderer's own simulator answers with (PortView.sheetSliceOf), so everything downstream is
 /// one code path and only the source of the bytes differs.
-let simPorts (epoch: int) (path: int list) : JS.Promise<Result<PortView.ComponentSlots list, string>> =
+let simPorts (epoch: int) (path: int list) : JS.Promise<Result<PortView.ComponentSlots list, SidecarFailure>> =
     let args = [ epoch; List.length path ] @ path
     let payload = makeBytes (4 * List.length args)
     args |> List.iteri (fun i value -> writeUint32At payload (4 * i) (float value))

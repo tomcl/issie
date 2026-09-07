@@ -27,6 +27,21 @@ let private platform () : string = jsNative
 [<Emit("process.resourcesPath")>]
 let private resourcesPath () : string = jsNative
 
+// What a bug report needs to say about the machine and the build, none of which the renderer can
+// see for itself. "win32" alone does not distinguish Windows 10 from 11, and an arm64 Mac from an
+// x64 one - and both differences have explained bugs before.
+[<Emit("require('os').release()")>]
+let private osRelease () : string = jsNative
+
+[<Emit("process.arch")>]
+let private arch () : string = jsNative
+
+[<Emit("process.versions.electron || '?'")>]
+let private electronVersion () : string = jsNative
+
+[<Emit("process.versions.chrome || '?'")>]
+let private chromeVersion () : string = jsNative
+
 /// True for a development run, by the same test the rest of Main.fs uses.
 let private isDev () : bool = ``process``?defaultApp = true
 
@@ -91,6 +106,10 @@ let private tryGetPath (which: AppGetPath) =
 /// five operations from the bridge that would otherwise have to exist.
 let private bootstrap () =
     {| platform = platform ()
+       osRelease = osRelease ()
+       arch = arch ()
+       electronVersion = electronVersion ()
+       chromeVersion = chromeVersion ()
        staticDir = staticDirectory ()
        userData = tryGetPath AppGetPath.UserData
        documents = tryGetPath AppGetPath.Documents

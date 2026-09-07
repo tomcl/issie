@@ -140,10 +140,19 @@ let private textResponse (header: byte array) (text: string) =
 /// payload. A binary payload begins with a count, and a count whose low byte is 0x7B - 123
 /// signals, 379 of them, a sheet of 123 components - decodes as text beginning with '{', which is
 /// how a JSON error used to be told apart from an answer. See Protocol.ErrorFlag.
-let private errorResponse (header: byte array) (message: string) =
-    let frame = textResponse header (sprintf """{"error":"%s"}""" (Protocol.jsonSafe message))
+let private errorResponse (header: byte array) (kind: string) (message: string) =
+    let frame =
+        // "error" FIRST and the kind after it: four places identify an error reply by the prefix
+        // `{"error"` rather than by parsing, so a key in front of it would make every failure look
+        // like an ordinary reply. Additive is the only safe way to extend this object.
+        textResponse header (sprintf """{"error":"%s","kind":"%s"}""" (Protocol.jsonSafe message) kind)
+
     frame[0] <- frame[0] ||| Protocol.ErrorFlag
     frame
+
+/// A handler that returned Error declined something it anticipated: see Protocol.RefusalKind.
+let private refusedResponse (header: byte array) (message: string) =
+    errorResponse header Protocol.RefusalKind message
 
 /// The uint32 at a byte offset of a command payload, 0 when the payload is too short.
 let private argAt (body: byte array) (offset: int) =
@@ -263,7 +272,10 @@ let private serve (ws: WebSocket) (ct: CancellationToken) =
                                     stopwatch.Elapsed.TotalMilliseconds
                             | Error e ->
                                 staged <- None
-                                sprintf """{"error":"%s"}""" (Protocol.jsonSafe e)
+                                sprintf
+                                    """{"error":"%s","kind":"%s"}"""
+                                    (Protocol.jsonSafe e)
+                                    Protocol.RefusalKind
 
                         do! send ws (textResponse header reply) ct
                     | Protocol.SimBuild ->
@@ -293,45 +305,59 @@ let private serve (ws: WebSocket) (ct: CancellationToken) =
                         let frame =
                             match SimSession.read (argAt body 0) (body[4..]) with
                             | Ok payload -> bytesResponse header payload
-                            | Error e -> errorResponse header e
+                            | Error e -> refusedResponse header e
 
                         do! send ws frame ct
                     | Protocol.SimReadDrivers ->
                         let frame =
                             match SimSession.readDrivers (argAt body 0) (body[4..]) with
                             | Ok payload -> bytesResponse header payload
-                            | Error e -> errorResponse header e
+                            | Error e -> refusedResponse header e
 
                         do! send ws frame ct
                     | Protocol.SimPorts ->
                         let frame =
                             match SimSession.ports (argAt body 0) (body[4..]) with
                             | Ok payload -> bytesResponse header payload
-                            | Error e -> errorResponse header e
+                            | Error e -> refusedResponse header e
 
                         do! send ws frame ct
                     | Protocol.SimReadRam ->
                         let frame =
                             match SimSession.readRam (argAt body 0) (body[4..]) with
                             | Ok payload -> bytesResponse header payload
-                            | Error e -> errorResponse header e
+                            | Error e -> refusedResponse header e
 
                         do! send ws frame ct
                     | other ->
                         do! ws.CloseAsync(WebSocketCloseStatus.ProtocolError, $"unknown command {other}", ct)
                         running <- false
                 with e ->
-                    // the whole exception to stderr, which main logs, because this is a fault in
-                    // the simulator and the stack is the only thing that says where
+                    // The whole exception to stderr, which main logs, because this is a fault in
+                    // the simulator and the stack is the only thing that says where.
                     Console.Error.WriteLine $"sidecar: command 0x%02x{header[0]} threw: {e}"
-                    fault <- Some e.Message
+
+                    // **And the stack goes to the renderer too.** This process is the only place in
+                    // Issie where a real stack trace exists - Fable's `Exception` is not a JS Error
+                    // and carries none, so a renderer fault records what it said and nothing about
+                    // where. Sending only `e.Message` left the best diagnostic Issie has in a log
+                    // belonging to a different process, where no bug report can reach it. It ends
+                    // up in the renderer's exception buffer and on Info > Bug Reports.
+                    let stack = if isNull e.StackTrace then "(no stack)" else e.StackTrace
+                    fault <- Some $"{e.GetType().Name}: {e.Message}\n{stack}"
 
                 match fault with
                 | None -> ()
                 | Some message ->
                     // A send that fails here means the socket really has gone, and letting that one
                     // out is right: there is nothing left to answer on.
-                    do! send ws (errorResponse header $"the sidecar could not answer command {header[0]}: {message}") ct
+                    do! send
+                            ws
+                            (errorResponse
+                                header
+                                Protocol.FaultKind
+                                $"the sidecar could not answer command {header[0]}: {message}")
+                            ct
     }
 
 /// Windows schedules a process it considers background onto efficiency cores, and applies EcoQoS

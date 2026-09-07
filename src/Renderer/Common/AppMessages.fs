@@ -124,23 +124,39 @@ more structured information about Issie
 """
 
     /// Tab 3. What to send when reporting a bug, in the order it is useful to collect it.
-    let bugReport = """
-If you think Issie is not working it is very helpful if you can give us details: we usually answer
-and fix bugs, if they exist, very quickly. Before you contact us, look at the list below and answer
-as much as possible to make your Bug Report (sometimes it is not all possible, send what you can).
+    /// What a bug report has to tell us that Issie cannot work out for itself.
+    ///
+    /// **Data rather than prose, because they are needed in two places**: read here, and again as a
+    /// form to fill in inside the report the Copy button produces. Written once so the two cannot
+    /// come apart - the same reason the keyboard shortcut table is generated from the dispatch
+    /// table rather than written out.
+    ///
+    /// Everything a machine can answer - version, platform, what Issie complained about - is
+    /// collected automatically and is deliberately not asked for here.
+    let bugReportQuestions =
+        [ "What did you do that led to the unexpected behaviour?"
+          "What did you expect to happen?"
+          "What happened instead?"
+          "Please attach the project as a zip file, deleting the (possibly large) backup "
+          + "directory first - most bugs cannot be found without the design that caused them."
+          "If you know them, what exact steps reproduce it from a freshly opened project?" ]
 
-1. Which version of Issie (Info tab, About Issie)
-2. Which platform (Windows, Macos)
-3. What did you do that led to unexpected behaviour?
-4. What result did you expect?
-5. What result did you get?
-6. What project files caused this, the top-level sheet? Enclose project as zipped file deleting the
-   maybe large backup directory when you zip.
-7. If you can reproduce the bug yourself, try running the binary as `issie.exe --debug`
-   and opening dev tools (Ctrl-Shift-I). You can do this
-   after the bug happens. 2/3 of problems result in error messages displayed there. Screenshot the
-   error and its backtrace and send it.
-8. What precise actions (if you know them) led to the bug after loading this project
+    let bugReport =
+        let questions =
+            bugReportQuestions
+            |> List.mapi (fun i q -> $"{i + 1}. {q}")
+            |> String.concat "\n"
+
+        $"""
+If you think Issie is not working it is very helpful if you can give us details: we usually answer
+and fix bugs, if they exist, very quickly.
+
+Press **Copy error report** below, then paste what you get into an email to us or into a new issue
+at [github.com/tomcl/ISSIE/issues](https://github.com/tomcl/ISSIE/issues). It already contains your
+Issie version, your machine, and everything Issie has complained about this session - so all that
+is left is to answer these, which are included in what you paste:
+
+{questions}
 """
 
     /// Tab 4. Version, who wrote Issie, and what it is written in. Fourth because nobody opened

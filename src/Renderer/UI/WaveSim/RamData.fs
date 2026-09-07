@@ -116,7 +116,7 @@ let fetch
     (ram: FComponentId)
     (key: RamKey)
     (rows: int)
-    : JS.Promise<Result<FComponentId * (RamKey * RamView), string>> =
+    : JS.Promise<Result<FComponentId * (RamKey * RamView), SidecarClient.SidecarFailure>> =
     let (ComponentId cid), path = ram
     let pathIds = path |> List.map (fun (ComponentId p) -> p)
 
@@ -124,6 +124,6 @@ let fetch
         let! reply = SidecarClient.simReadRam epoch key.Cycle cid pathIds key.SparseUpTo key.Start rows
 
         match reply with
-        | Error e -> return Error $"reading memory {cid}: {e}"
+        | Error e -> return Error(SidecarClient.prefixFailure $"reading memory {cid}" e)
         | Ok view -> return Ok(ram, (key, view))
     }

@@ -474,11 +474,10 @@
 <h1><a name="Digital-design-that-explains-itself" class="anchor" href="#Digital-design-that-explains-itself">Digital design that explains itself</a></h1>
 <p><strong>ISSIE is a free, cross-platform EDA tool for digital logic: draw a schematic, simulate it, and
 see the waveforms — without reading a manual first.</strong></p>
-<p>Industry CAD systems are powerful and unteachable. Educational tools are teachable and can't scale.
+<p>Industry CAD systems are powerful and complex to learn. Educational tools are teachable and can't scale.
 ISSIE is built on the belief that this is a false choice: a tool can be learnable in the first ten
-minutes <em>and</em> still hold a working CPU with a 200,000-cycle program running on it. Every feature
-below exists because a beginner got stuck on something, and the answer was to fix the tool rather
-than write another paragraph of documentation.</p>
+minutes <em>and</em> still be used to design and simulate large designs. The features
+below make Issie intuitive to use for a novice, and efficient to use on large designs.</p>
 <p><img src="img/homePage/keyFeatures1.gif" alt="" /></p>
 <hr />
 <h2><a name="No-manual-needed" class="anchor" href="#No-manual-needed">No manual needed</a></h2>
@@ -492,11 +491,11 @@ than write another paragraph of documentation.</p>
 <tbody>
 <tr class="odd">
 <td align="left"><p><strong>Everything is tooltipped</strong></p></td>
-<td align="left"><p>Every component in the Catalogue explains what it does when you hover it — including the non-obvious ones. <em>"Every net label with the same name is one net, connected within a sheet without wires: use them for long connections and high fan-out."</em> Every field in the Properties pane explains itself the same way.</p></td>
+<td align="left"><p>Every component in the Catalogue explains what it does when you hover it. Every field in the Properties pane explains itself the same way.</p></td>
 </tr>
 <tr class="even">
 <td align="left"><p><strong>Search for what you mean</strong></p></td>
-<td align="left"><p>The Catalogue's search box matches the explanations as well as the names, so "subtract" finds the N bits XOR and "invert" finds Not — you do not have to already know Issie's word for the thing.</p></td>
+<td align="left"><p>The Catalogue's search box matches the explanations as well as the names, so "subtract" finds the N bits XOR and "invert" finds Not — you do not have to already know Issies's terminology.</p></td>
 </tr>
 <tr class="odd">
 <td align="left"><p><strong>Right-click anywhere</strong></p></td>
@@ -508,7 +507,7 @@ than write another paragraph of documentation.</p>
 </tr>
 <tr class="odd">
 <td align="left"><p><strong>Help where you are</strong></p></td>
-<td align="left"><p>The waveform simulator has its own <strong>Getting Started</strong> and <strong>Instructions</strong> panels, and the wave selector, RAM selector and parameter dialogs each explain themselves on their own face.</p></td>
+<td align="left"><p>The waveform simulator has its own <strong>Getting Started</strong> and <strong>Instructions</strong> panels, and the wave selector, RAM selector and parameter dialogs all have in-app help.</p></td>
 </tr>
 <tr class="even">
 <td align="left"><p><strong>Drag or click</strong></p></td>
@@ -523,9 +522,8 @@ than write another paragraph of documentation.</p>
 
 <hr />
 <h2><a name="Errors-tell-you-how-to-fix-them" class="anchor" href="#Errors-tell-you-how-to-fix-them">Errors tell you how to fix them</a></h2>
-<p>This is the design principle ISSIE is most stubborn about. An error message that only says
-<em>something is wrong</em> has failed. Every error names the thing, points at it, and where possible
-offers to correct it.</p>
+<p>This is Issie's core design principle. Issie helps you by correcting your mistakes. Invalid inputs tell you what is wrong, as soon as possible.
+A design will either simulate correctly, or tell you specifically what you need to change to make this happen.</p>
 <p><strong>The error is shown on the schematic.</strong> Every simulation error carries the components and
 connections responsible, and they are highlighted on the canvas the moment the error appears — you
 are not left hunting.</p>
@@ -587,6 +585,7 @@ code is good.</p>
 <h2><a name="A-schematic-editor-that-lays-out-for-you" class="anchor" href="#A-schematic-editor-that-lays-out-for-you">A schematic editor that lays out for you</a></h2>
 <p><img src="img/homePage/wireRouting.gif" alt="" /></p>
 <ul>
+<li><strong>Connect component ports</strong> immediately by dragging a wire. Invalid wires are immediately rejected.</li>
 <li>
 <strong>Auto-routing you almost never override.</strong> Wires route themselves around symbols, and then a
 whole-sheet separation pass spreads every wire on the sheet evenly. Any segment can still be
@@ -601,8 +600,9 @@ wires straight. Selections can be aligned or distributed with one key.
 whole thing with on-canvas handles.
 </li>
 <li>
-<strong>Custom components resize themselves</strong> around their port labels, and you can <code>Ctrl</code>-drag any
-port to any edge to make a readable symbol, or drag the corners to size it yourself.
+<strong>Custom components resize themselves</strong> around their port labels. You can use the right-click menu
+items on a custom component to drag any port to any edge to make a more readable symbol,
+or drag the corners to size it.
 </li>
 <li>
 *<em><code>Ctrl-0</code> fits the sheet to the window*</em> — the most-pressed key in ISSIE. <code>Ctrl</code> with <code>+</code> <code>-</code> <code>0</code>
@@ -613,9 +613,14 @@ application. <code>Space</code>-drag or <code>Shift</code>-drag pans.
 <strong>Three wire styles, three themes, optional grid and direction arrows</strong> — all switchable at any
 time without touching the design.
 </li>
-<li><strong>Undo and redo that work.</strong></li>
+<li><strong>Long undo and redo stacks that work.</strong></li>
+<li>
+<strong>Zoom the canvas or the whole of Issie</strong>. Issie works best with a laptop FHD or better screen, but it is responsive
+and it can be used in a much smaller window. Zoom the drawing canvas and the Issie UI separately. Use trackpad gestures
+to pan and zoom the canvas if you dont like mice!
+</li>
 </ul>
-<p>Around 40 component types, all width-agnostic where it makes sense: N-input gates (up to 19),
+<p>Around 40 component types, all width-agnostic where it makes sense: N-input gates (N up to 19),
 N-bit adders, shifters, registers and counters with optional enable/load ports, 2/4/8-way
 multiplexers, bus merge/split of up to 19 branches, bus select and compare, net labels, and
 synchronous and asynchronous ROM and RAM.</p>
@@ -627,14 +632,15 @@ synchronous and asynchronous ROM and RAM.</p>
 <p>Set inputs, read outputs, step the clock. Viewer components expose internal signals from <em>any</em>
 subsheet without rewiring, values display in the radix you choose, and <em>set default inputs</em>
 remembers a set of input values for both simulators.</p>
-<h3><a name="Truth-tables-for-the-combinational-part" class="anchor" href="#Truth-tables-for-the-combinational-part">Truth tables — for the combinational part</a></h3>
+<h3><a name="Truth-tables-for-the-combinational-logic" class="anchor" href="#Truth-tables-for-the-combinational-logic">Truth tables — for the combinational logic</a></h3>
 <p><img src="img/homePage/truthTable.png" alt="" /></p>
 <p>Generate a truth table for the whole sheet <strong>or for just the components you select</strong>. Then reduce
 it: hide columns, constrain inputs to the cases you care about, remove redundant rows, or switch
 inputs to <strong>algebraic</strong> variables and get a symbolic expression for each output instead of 2ⁿ rows.</p>
-<h3><a name="The-waveform-simulator-sophisticated-and-still-easy" class="anchor" href="#The-waveform-simulator-sophisticated-and-still-easy">The waveform simulator — sophisticated, and still easy</a></h3>
+<h3><a name="The-waveform-simulator-sophisticated-and-easy-to-use" class="anchor" href="#The-waveform-simulator-sophisticated-and-easy-to-use">The waveform simulator — sophisticated, and easy to use</a></h3>
 <p><img src="img/homePage/waveSim.gif" alt="" /></p>
-<p>This is the part of ISSIE most often described as better than the professional equivalent.</p>
+<p>This is a part of ISSIE often described as better than the professional equivalent for sophisticated designs.
+It is also simple and intuitive for and novices.</p>
 <table>
 <thead>
 <tr class="header">
@@ -668,7 +674,7 @@ inputs to <strong>algebraic</strong> variables and get a symbolic expression for
 <td align="left"><p>The other direction: rest the mouse on any wire of the schematic and its value at the cursor cycle appears beside the pointer. No hunting for the signal by name. It works in step simulation too, at the current clock tick.</p></td>
 </tr>
 <tr class="odd">
-<td align="left"><p><strong>Reorder by dragging, delete with one click</strong></p></td>
+<td align="left"><p><strong>Reorder waves by dragging, delete with one click</strong></p></td>
 <td align="left"><p>And your selection survives into the next simulation.</p></td>
 </tr>
 <tr class="even">
@@ -677,7 +683,7 @@ inputs to <strong>algebraic</strong> variables and get a symbolic expression for
 </tr>
 <tr class="odd">
 <td align="left"><p><strong>Scroll to simulate further</strong></p></td>
-<td align="left"><p>Drag the scrollbar past the end and the simulation extends itself. Waveforms are generated on demand, so only what you look at is drawn.</p></td>
+<td align="left"><p>All results are remembered. Scroll the whole simulation instantly. Drag the scrollbar past the end and the simulation extends itself. Waveforms are generated on demand, so only what you look at is drawn.</p></td>
 </tr>
 <tr class="even">
 <td align="left"><p><strong>RAM contents live</strong></p></td>
@@ -693,33 +699,36 @@ inputs to <strong>algebraic</strong> variables and get a symbolic expression for
 </tr>
 <tr class="odd">
 <td align="left"><p><strong>Edit while simulating</strong></p></td>
-<td align="left"><p>Change the design — even move to another sheet and edit it — and a green <strong>Refresh</strong> button lights up. Press it when you are ready.</p></td>
+<td align="left"><p>Change the design — even move to another sheet and edit it — and a green <strong>Refresh</strong> button lights up. Press it when you are ready and you see immediately the chnage in the waveforms and clock cycles you are looking at.</p></td>
 </tr>
 <tr class="even">
 <td align="left"><p><strong>Configurable</strong></p></td>
-<td align="left"><p>Font size and weight for readability; maximum simulated cycle up to 4,000,000, with a live estimate of the memory that will cost.</p></td>
+<td align="left"><p>Font size and weight for readability; maximum number of simulated cycles with a live estimate of the memory that will cost.</p></td>
 </tr>
 </tbody>
 </table>
 
-<p>ISSIE has its own simulator, built for this: write-once semantics on JavaScript typed arrays give
-functional-programming robustness at a speed that runs a CPU design for 200,000 clock cycles and
-keeps every waveform in memory.</p>
+<h3><a name="Performance" class="anchor" href="#Performance">Performance</a></h3>
+<p>ISSIE has its own simulator, every few years we rework this for higher performance.</p>
+<ul>
+<li>The first version of Issie would simulate a RISC CPU at 10 cycles per second. Issie will now simulate 100,000 cycles of the same CPU in one second. We hope for another 10X speedup over the next few years but we are now getting close to the fundamental limits.</li>
+<li>
+Issie will make good use of all the memory on your laptop to simulate very large designs. We have recently refactored the simulation for better memory
+performance.  Currently we can simulate designs 100X larger than a typical simple RISC CPU. We expect a further 10X improvement (space efficiency has not been a priority) over the next year.
+</li>
+</ul>
 <hr />
 <h2><a name="Designs-that-scale" class="anchor" href="#Designs-that-scale">Designs that scale</a></h2>
 <p><strong>Hierarchy.</strong> Any design sheet can be used as a custom component in another, any number of times.
-The <strong>Sheet</strong> menu draws the whole project as a tree with connector lines, showing which sheet
-contains which, and the same tree appears in the waveform simulator.</p>
+The <strong>Sheet</strong> menu draws the whole project hierarchy as a tree with connector lines, showing which sheet
+contains which, and the same tree appears in the waveform simulator to guide selection of waveforms.</p>
 <p><strong>Sheet parameters.</strong> Declare named integer parameters on a sheet — <code>WIDTH</code>, <code>DEPTH</code> — and use
 arithmetic expressions in them for bus widths, constants, memory sizes and split points. Each place
 the sheet is used gives its own values, so <strong>two instances of one sheet can legitimately differ</strong>,
-and ISSIE tracks each instance against <em>its own</em> bindings. Parameters carry a compulsory
-description and optional min/max constraints with author-written error messages, and you are asked
-for values when you place the component.</p>
-<p><strong>Component libraries.</strong> Ready-made parameterised components, offered in the Catalogue in their own
-section. Choosing one copies its sheet into your project and asks what its parameters should be, so
-it becomes an ordinary editable sheet rather than a black box. Any sheet you write can become a
-library component from its right-click menu.</p>
+and ISSIE tracks each instance against <em>its own</em> bindings.</p>
+<p><strong>Extend with user-writable component libraries.</strong> Ready-made parameterised components can be written as Issie designs with parameters
+and then used exactly as built-in components. Issie can be extended keeping the same simple interface
+for users. Library components can contain multiple sheets - for example CPUs.</p>
 <p><strong>Memory files.</strong> RAM and ROM contents can be edited in a table or initialised from a <code>.ram</code> text
 file, which may carry <code>//</code> comments — ISSIE shows them against the locations they describe, so a
 program in memory is readable.</p>
@@ -755,7 +764,7 @@ run. About 200 MB.
 cloud, no account, no telemetry.
 </li>
 <li>
-<strong>Developed and used in teaching at Imperial College London</strong>, by staff and undergraduates,
+<strong>Actively developed and used in teaching at Imperial College London</strong>, by staff and undergraduates,
 since 2020.
 </li>
 </ul>
@@ -800,13 +809,18 @@ since 2020.
     </a>
   </li>
   <li class="level-3">
-    <a href="#Truth-tables-for-the-combinational-part">
-      Truth tables — for the combinational part
+    <a href="#Truth-tables-for-the-combinational-logic">
+      Truth tables — for the combinational logic
     </a>
   </li>
   <li class="level-3">
-    <a href="#The-waveform-simulator-sophisticated-and-still-easy">
-      The waveform simulator — sophisticated, and still easy
+    <a href="#The-waveform-simulator-sophisticated-and-easy-to-use">
+      The waveform simulator — sophisticated, and easy to use
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Performance">
+      Performance
     </a>
   </li>
   <li class="level-2">

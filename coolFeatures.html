@@ -497,7 +497,7 @@ right-click menus, each labelled with its key.</p>
 <tr class="even">
 <td align="left"><p><strong>Component tooltips</strong></p></td>
 <td align="left"><p>Hover any Catalogue entry, or any field label in <strong>Properties</strong></p></td>
-<td align="left"><p>Every component explains what it is for, and every field explains what it sets and what people get wrong about it</p></td>
+<td align="left"><p>Every component explains what it is for, and every field explains what it sets and give syou immediate explanatory error feedback</p></td>
 </tr>
 <tr class="odd">
 <td align="left"><p><strong>Find a component</strong></p></td>
@@ -535,31 +535,36 @@ right-click menus, each labelled with its key.</p>
 <td align="left"><p>Duplicates keep the label with an incremented number. Works across sheets</p></td>
 </tr>
 <tr class="even">
+<td align="left"><p><strong>Paste as array</strong></p></td>
+<td align="left"><p>on-screen button or <code>Edit</code> menu</p></td>
+<td align="left"><p>Quickly create horizontal or vertical copies of any selected circuiy</p></td>
+</tr>
+<tr class="odd">
 <td align="left"><p><strong>Move a component's label</strong></p></td>
 <td align="left"><p>Drag the label; <code>Ctrl-Shift-Right</code> rotates it</p></td>
 <td align="left"></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><p><strong>Change port location on custom components</strong></p></td>
-<td align="left"><p>Hold <code>Ctrl</code> and drag a port to another position on the outline — or use <em>Move ports</em> on the component's right-click menu</p></td>
+<td align="left"><p>Use <em>Move ports</em> on the component's right-click menu and drag ports to rearrange</p></td>
 <td align="left"><p>Custom components can have a lot of ports; move them to make a readable symbol</p></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><p><strong>Resize a custom component</strong></p></td>
-<td align="left"><p>Hold <code>Ctrl</code> and drag a corner, use <em>Resize symbol</em> on its right-click menu, or set <code>Width Scale</code> / <code>Height Scale</code> in Properties</p></td>
+<td align="left"><p>Use <em>Resize symbol</em> on its right-click menu and drag a corner, or set <code>Width Scale</code> / <code>Height Scale</code> in Properties</p></td>
 <td align="left"><p>Auto-sizing keeps port legends from overlapping; override it when you want a particular shape</p></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><p><strong>Change anything about a component</strong></p></td>
 <td align="left"><p>Select it and use the <strong>Properties</strong> tab</p></td>
 <td align="left"><p>Labels, bus widths, number of gate inputs, MUX input order, optional adder/counter ports, memory contents, Verilog source</p></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><p><strong>Align / distribute</strong></p></td>
 <td align="left"><p><code>Ctrl-Shift-A</code> / <code>Ctrl-Shift-D</code>; rotate a label with <code>Ctrl-Shift-R</code></p></td>
 <td align="left"><p>Same-type components in the selection are aligned or evenly spaced; other types are left alone</p></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><p><strong>Rotate or scale a block</strong></p></td>
 <td align="left"><p>Drag a selection rectangle, then use the handles on the selection box</p></td>
 <td align="left"><p><code>Shift</code>-click adds or removes one component from the selection</p></td>
@@ -588,33 +593,18 @@ right-click menus, each labelled with its key.</p>
 <td align="left"><p>Returns a hand-routed wire to auto-routing</p></td>
 </tr>
 <tr class="odd">
-<td align="left"><p><strong>Re-separate / re-route</strong></p></td>
-<td align="left"><p>Edit menu, or <em>Reroute all wires</em> on the canvas right-click menu</p></td>
-<td align="left"><p>Applies the whole-sheet tidy-up to the selection, or to everything</p></td>
-</tr>
-<tr class="even">
-<td align="left"><p><strong>Wire type</strong></p></td>
-<td align="left"><p><code>View</code> → <code>Wire Type</code></p></td>
-<td align="left"><p><code>Jump</code>, <code>Radiussed</code> or <code>Modern</code> wires. Purely a display choice — it does not change the design</p></td>
-</tr>
-<tr class="odd">
-<td align="left"><p><strong>Wire arrows</strong></p></td>
-<td align="left"><p><code>View</code> → <code>Toggle Wire Arrows</code></p></td>
-<td align="left"><p>Show the direction of signals at wire end-points</p></td>
-</tr>
-<tr class="even">
-<td align="left"><p><strong>Net labels</strong></p></td>
-<td align="left"><p>Catalogue → <code>Input / Output</code> → <code>Net Label</code></p></td>
-<td align="left"><p>Every net label with the same name is one net, joined without wires. Use for long connections and high fan-out. Exactly one label in a same-name set must be driven</p></td>
-</tr>
-<tr class="odd">
-<td align="left"><p><strong>Terminate an unused output</strong></p></td>
-<td align="left"><p><code>Not Connected</code> component, or a <code>Viewer</code></p></td>
-<td align="left"><p>Issie will otherwise report the dangling output — and offer to insert the <code>Not Connected</code> for you</p></td>
+<td align="left"><p><strong>Separate manual routing / redraw all</strong></p></td>
+<td align="left"><p>Edit menu</p></td>
+<td align="left"><p>Applies the auto-routing and separation to everything, or keeps manual routing</p></td>
 </tr>
 </tbody>
 </table>
 
+<p>and spreads it out evenly |
+| <strong>Wire type</strong> | <code>View</code> → <code>Wire Type</code> | <code>Jump</code>, <code>Radiussed</code> or <code>Modern</code> wires. Purely a display choice — choose what you prefer |
+| <strong>Wire arrows</strong> | <code>View</code> → <code>Toggle Wire Arrows</code> | Show the direction of signals at wire end-points |
+| <strong>Net labels</strong> | Catalogue → <code>Input / Output</code> → <code>Net Label</code> | Every net label with the same name is one net, joined without wires. Use for long connections and high fan-out. Exactly one label in a same-name set must be driven - all other labels follow it |
+| <strong>Terminate an unused output</strong> | <code>Not Connected</code> component, or a <code>Viewer</code> | Issie will otherwise report the dangling output — and offer to insert the <code>Not Connected</code> for you |</p>
 <h2><a name="Sheets-hierarchy-and-the-project" class="anchor" href="#Sheets-hierarchy-and-the-project">Sheets, hierarchy and the project</a></h2>
 <table>
 <thead>
@@ -656,26 +646,31 @@ right-click menus, each labelled with its key.</p>
 <td align="left"><p>Ready-made parameterised components. Choosing one copies its sheet into your project and asks for its parameter values, so it stays an ordinary editable sheet</p></td>
 </tr>
 <tr class="odd">
+<td align="left"><p><strong>Array components</strong></p></td>
+<td align="left"><p>Catalogue → <code>Array components</code></p></td>
+<td align="left"><p><em>Advanced feature</em>. Write a design sheet that is copied as an array component. Special components create carry chains, multiplexed or concatenated outputs, etc. The equivalent of a Verilog for loop.</p></td>
+</tr>
+<tr class="even">
 <td align="left"><p><strong>Export a library</strong></p></td>
 <td align="left"><p>Right-click a library in Catalogue → <code>Library</code></p></td>
 <td align="left"><p>Copies it to a folder you choose, as a subdirectory named after the library — created if it is not there, brought up to date if it is. What lands is the library: a component you have since deleted goes from the copy too</p></td>
 </tr>
-<tr class="even">
-<td align="left"><p><strong>Edit a library</strong></p></td>
+<tr class="odd">
+<td align="left"><p><strong>Create or use a library</strong></p></td>
 <td align="left"><p><code>Open project</code>, then the library's folder</p></td>
 <td align="left"><p>A folder of <code>.ldgm</code> components opens as a project, each component a sheet — a multi-sheet component brings all of its sheets — and saving writes back into the library in place. Keep the library you are working on in a folder of your own: the shipped ones, and the store your saved and imported libraries land in, are not edited where they are</p></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><p><strong>Import a sheet</strong></p></td>
 <td align="left"><p><code>Sheet</code> → <code>Import Sheet</code></p></td>
-<td align="left"><p>Copy a sheet in from another project</p></td>
+<td align="left"><p>Copy a sheet, or set of sheets, in from another project</p></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><p><strong>Project browser</strong></p></td>
 <td align="left"><p><code>Project</code> → <code>New project</code> / <code>Open project</code></p></td>
 <td align="left"><p>An in-app file browser: the projects inside a folder are listed and can be opened with the arrow keys and <code>Enter</code></p></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><p><strong>Automatic backups</strong></p></td>
 <td align="left"><p>Automatic</p></td>
 <td align="left"><p>Every sheet is continuously snapshotted into a <code>backup/</code> subdirectory of the project</p></td>
@@ -747,7 +742,7 @@ right-click menus, each labelled with its key.</p>
 </table>
 
 <br><br>
-<h1><a name="Details-of-wire-routing-and-symbol-alignment" class="anchor" href="#Details-of-wire-routing-and-symbol-alignment">Details of wire routing and symbol alignment</a></h1>
+<h1><a name="Technical-details-of-wire-routing-and-symbol-alignment" class="anchor" href="#Technical-details-of-wire-routing-and-symbol-alignment">Technical details of wire routing and symbol alignment</a></h1>
 <h3><a name="Snapping" class="anchor" href="#Snapping">Snapping</a></h3>
 <p>This allows symbol edges to stick to other symbol edges when moving them in ISSIE, or symbols to stick to positions that make wires straight.</p>
 <h3><a name="Explicit-arrangement" class="anchor" href="#Explicit-arrangement">Explicit arrangement</a></h3>
@@ -766,19 +761,24 @@ right-click menus, each labelled with its key.</p>
 <li>Generate the <a href="#initial-segment-list">initial segment list</a></li>
 <li>Rotate the problem back to it's in the original orientation</li>
 <li>Run an iterative autorouting algorithm that attempts to create a valid route not overlapping any symbol by moving initial segments.</li>
-<li>Run a whole-sheet segment separation algorithm that spreads wires out evenly.</li>
+<li>Run a whole-sheet segment separation algorithm that spreads wires out evenly, swaps them to minimise crossings, and where possible combines wire segments in the same net.</li>
 </ol>
+<p>Auto-routing plays nicely with manual placement of individual wire segments. These segments stay where the use rhas placed them while
+otehr segments continue to be auto-routed. optionally, the user can apply the separation algorithm to manually routed segments to make them neater while keeping the user routing choice.</p>
+<p>Auto-routing redone every time any part of the schematic is changed and normally is all you need.</p>
 <h4><a name="Initial-segment-List" class="anchor" href="#Initial-segment-List">Initial segment List</a></h4>
 <p>Segments are generated based off of the two ports for each wire, with the assumption that the output port is always facing right. The orientation of the input port is checked as well as its relative position to the output port, allowing us to generate an initial segment list. This segment list consists of a small “nub” segment immediately joining the input and output port. These are followed by 0 length segments in order to facilitate previous functionality of ISSIE where we could drag wires fully. After these 0 length segments we create the remaining segments to link the two ports. These distances are either set to halfway between the two ports, or a small distance in order to get past the boundaries of a symbol.</p>
 <br><br>
 <h1><a name="Details-of-Operations" class="anchor" href="#Details-of-Operations">Details of Operations</a></h1>
 <h3><a name="Copy-and-paste" class="anchor" href="#Copy-and-paste">Copy and paste</a></h3>
 <p>The on-screen copy &amp; paste buttons can duplicate single components, or selected sets of components (see selection below). They can also be used to copy components from one design sheet to a new one.</p>
+<p><strong>Paste Array</strong> starts a dialog to help you create a regular array of
+the selected components and wires.</p>
 <h3><a name="Canvas-zooming" class="anchor" href="#Canvas-zooming">Canvas zooming</a></h3>
 <p>The canvas can be zoomed in or out with <code>Ctrl</code>+<code>+</code> and <code>Ctrl</code>+<code>-</code>, or auto-zoomed and panned to fit
 the whole circuit with <code>Ctrl-0</code>. The same chords work on macOS with <code>Cmd</code>. Adding <code>Alt</code> to any of
-the three zooms the whole application rather than the schematic.</p>
-<h3><a name="Symbol-rotation" class="anchor" href="#Symbol-rotation">Symbol rotation</a></h3>
+the three zooms the whole application rather than the schematic. Trackpad standard gestures also work for pan (two-finger swipe up/down or left/right) and zoom (two-finger pinch).</p>
+<h3><a name="Symbol-rotation-and-adjustment" class="anchor" href="#Symbol-rotation-and-adjustment">Symbol rotation and adjustment</a></h3>
 <p>Individual symbols can be rotated or flipped using the right-click menu or the Issie edit menu.</p>
 <h3><a name="Wire-display-types" class="anchor" href="#Wire-display-types">Wire display types</a></h3>
 <p>Wires can be displayed as radial, modern, or old-style jump. Switching display types can be done at any time and does not change the schematic.</p>
@@ -789,9 +789,9 @@ the three zooms the whole application rather than the schematic.</p>
 <li><strong>Height:</strong> Determined purely from the maximum number of ports on the left or right edge (n), setting the height to (n+1)<code>GridSize</code>, and spreading the ports GridSize apart.</li>
 <li><strong>Width:</strong> The distance between ports is determined by the maximum between the largest port label and <code>GridSize</code>. This ensures that the labels of the ports cannot overlap, whilst still being a minimum distance apart. The width can be calculated for both the Top and Bottom edges using the same approach as above using the maximum value, and taking the largest of these 2 values. In addition, the length of the longest labels from the Left and Right sides, as well as the component label (displayed in the center of the component) are added up and compared to the width obtained from the previous calculation. By selecting the component width as the maximum of these values, it can be ensured that labels associated with the component / ports do not overlap.</li>
 </ul>
-<p>Custom components' ports can be placed to different edges on the Symbol by pressing <code>Ctrl</code> (<code>Cmd</code>) and dragging the port.
+<p>Custom components' ports can be placed to different edges on the Symbol by using a right-click menu item and dragging the ports.
 When a port is dragged onto a different edge, the width and height of the component is automatically resized. The ports on one edge are always equidistant. The height of the component is determined purely from the number of ports on the left or right edge, depending on which one has more ports. The width of the component also considers the lengths of the ports on the top and bottom edges. The distance between ports on the top and bottom edges is big enough, such that it can fit the longest portlabel on the edge, but never smaller than 1 gridsize. The necessary width of the top/bottom edge is determined from this distance and from the number of ports on this edge. The width of the component is given by either the top or bottom edge width, whichever is bigger.</p>
-<p>The same UI (dragging component corners) can be used manually to override auto-sizing and make the custom symbol a desired size.</p>
+<p>The same UI (dragging component corners) can be used from a right-click menu item to override auto-sizing and make the custom symbol a desired size.</p>
 <h3><a name="Port-placement" class="anchor" href="#Port-placement">Port placement</a></h3>
 <p>The ordering of the ports on  a custom symbol is represented by its index in the list associated to a particular edge of the Symbol (Top, Left, Bottom, Right). We allow ports to be moved for custom components by clicking and dragging the port while holding down the <code>Ctrl</code> key.</p>
 <h3><a name="Schematic-rotation-and-scaling" class="anchor" href="#Schematic-rotation-and-scaling">Schematic rotation and scaling</a></h3>
@@ -834,8 +834,8 @@ When a port is dragged onto a different edge, the width and height of the compon
     </a>
   </li>
   <li class="level-1">
-    <a href="#Details-of-wire-routing-and-symbol-alignment">
-      Details of wire routing and symbol alignment
+    <a href="#Technical-details-of-wire-routing-and-symbol-alignment">
+      Technical details of wire routing and symbol alignment
     </a>
   </li>
   <li class="level-3">
@@ -879,8 +879,8 @@ When a port is dragged onto a different edge, the width and height of the compon
     </a>
   </li>
   <li class="level-3">
-    <a href="#Symbol-rotation">
-      Symbol rotation
+    <a href="#Symbol-rotation-and-adjustment">
+      Symbol rotation and adjustment
     </a>
   </li>
   <li class="level-3">

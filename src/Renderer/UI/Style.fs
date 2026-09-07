@@ -1,4 +1,4 @@
-module DiagramStyle
+﻿module DiagramStyle
 
 open ModelType
 open Fable.React
@@ -168,28 +168,71 @@ let canvasVisibleStyleList model =
         background
     ]
 
-/// The strip across the top of the canvas saying that the sheet below is a library component being
-/// looked at and cannot be changed.
+/// What is written across the top of the canvas about the sheet below it: the read-only banner and
+/// the sheet-kind legend, one under the other.
 ///
-/// Placed over the canvas rather than above it so that nothing moves when it appears, and it takes
-/// no pointer events: it sits on top of the schematic, and a band the mouse could not draw through
-/// would be worse than no banner.
-let canvasReadOnlyBannerStyle model = Style [
+/// They are stacked in a flex column rather than each given its own offset from the top of the
+/// canvas, because either can be absent and neither knows whether the other is showing - an offset
+/// would be a number that has to be kept in step with the height of something else.
+///
+/// Over the canvas rather than above it, so that nothing moves when one of them appears, and
+/// taking no pointer events: this sits on top of the schematic, and a band the mouse could not
+/// draw through would be worse than no banner.
+let canvasTopOverlayStyle model = Style [
     Position PositionOptions.Absolute
     Top (headerHeight ())
     Left "0px"
     Right (rightSectionWidth model)
     CSSProp.PointerEvents "none"
     ZIndex 10
+    Display DisplayOptions.Flex
+    FlexDirection "column"
+    AlignItems AlignItemsOptions.FlexStart
+]
+
+/// The colours one kind of sheet is written in. Backgrounds are translucent so that the schematic
+/// under them still reads, which is what makes these safe to leave on screen the whole time.
+type SheetKindColours = { Text: string; Background: string; Border: string }
+
+/// An array component: purple.
+let arraySheetColours =
+    { Text = "#4b2e83"; Background = "rgba(147,112,219,0.18)"; Border = "rgba(102,51,153,0.45)" }
+
+/// A library component: orange. The read-only banner takes the same three colours rather than
+/// keeping its own, so that "this came from a library" is one colour wherever it is said - it used
+/// to be purple, which is now the array colour.
+let librarySheetColours =
+    { Text = "#7a3e00"; Background = "rgba(255,159,64,0.20)"; Border = "rgba(200,110,20,0.5)" }
+
+/// The strip saying that the sheet below is a library component being looked at and cannot be
+/// changed. Spans the canvas, unlike the legend chips under it, which are as wide as their text.
+let canvasReadOnlyBannerStyle = Style [
+    AlignSelf AlignSelfOptions.Stretch
     Padding "4px 10px"
     FontSize "12px"
     TextAlign TextAlignOptions.Center
-    Color "#4b2e83"
-    BackgroundColor "rgba(147,112,219,0.16)"
-    BorderBottom "1px solid rgba(102,51,153,0.45)"
+    Color librarySheetColours.Text
+    BackgroundColor librarySheetColours.Background
+    BorderBottom ("1px solid " + librarySheetColours.Border)
     WhiteSpace WhiteSpaceOptions.Nowrap
     OverflowX OverflowOptions.Hidden
     TextOverflow "ellipsis"
+]
+
+/// One chip of the legend in the top-left corner of the canvas, saying what kind of sheet is on
+/// screen. A label on the schematic and not something to press, so it is translucent and lets the
+/// mouse through, as the buttons in the opposite corner do not.
+let canvasSheetKindStyle (colours: SheetKindColours) = Style [
+    MarginTop "6px"
+    MarginLeft "10px"
+    Padding "2px 8px"
+    BorderRadius "4px"
+    FontSize "12px"
+    FontWeight "600"
+    Color colours.Text
+    BackgroundColor colours.Background
+    Border ("1px solid " + colours.Border)
+    WhiteSpace WhiteSpaceOptions.Nowrap
 ]
 
 let canvasSmallMenuStyle = Style [

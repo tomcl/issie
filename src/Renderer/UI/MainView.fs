@@ -171,7 +171,7 @@ module Probe =
                   ] ]
         | _ -> []
 
-//------------------Banner over a library component's sheet-----------------------------//
+//------------------What is written over the top of a sheet------------------------------//
 //--------------------------------------------------------------------------------------//
 
 /// Says, for as long as it applies, that the sheet on screen is a library component being looked
@@ -184,7 +184,7 @@ module Probe =
 ///
 /// Named by the library and component their author gave them, not by the L<n>_ sheet the project
 /// keeps them in - that name is a detail of how the component is stored.
-let viewReadOnlyBanner (model: Model) =
+let private readOnlyBanner (model: Model) =
     match model.CurrentProj with
     | Some p when ModelHelpers.openSheetIsReadOnly model ->
         let origin =
@@ -195,10 +195,55 @@ let viewReadOnlyBanner (model: Model) =
                 | Some (Library (libName, compName)) -> Some $"{compName} · {libName} library"
                 | _ -> None)
             |> Option.defaultValue p.OpenFileName
-        div [ canvasReadOnlyBannerStyle model ] [
-            str $"👁 {origin} — read-only, and open only until this project is closed"
-        ]
-    | _ -> null
+        [ div [ canvasReadOnlyBannerStyle ] [
+            str $"👁 {origin} — read-only, and open only until this project is closed" ] ]
+    | _ -> []
+
+/// Whether the sheet on screen is a component of a library. Either of the two ways one can be:
+/// materialised into this project from a library and opened to be read, or - when the project
+/// itself IS a library, opened to be edited in place - any sheet of it.
+///
+/// Both are facts about where the sheet came from, so neither is visible on the schematic.
+let private openSheetIsLibraryComponent (model: Model) =
+    match model.CurrentProj with
+    | None -> false
+    | Some p ->
+        ComponentLibraries.isLibraryProject p
+        || (p.LoadedComponents
+            |> List.tryFind (fun ldc -> ldc.Name = p.OpenFileName)
+            |> Option.exists (fun ldc ->
+                match ldc.Form with
+                | Some (Library _) -> true
+                | _ -> false))
+
+/// What kind of sheet is on screen, as a translucent chip per kind in the canvas's top-left
+/// corner - the opposite corner from the editing buttons, and the same idea: something that is
+/// always in the one place, over the schematic rather than taking room from it.
+///
+/// Always there rather than shown once on opening, because neither fact is drawn on the sheet and
+/// both change what the sheet means. An array component's copies are not on the canvas - what is
+/// drawn is ONE of them - so nothing else on screen says the hardware is N of it, and a library
+/// component's sheet looks like any other sheet. A chip each, rather than one line, since a sheet
+/// can be both.
+let private sheetKindLegend (model: Model) =
+    let chip colours text = div [ canvasSheetKindStyle colours ] [ str text ]
+    let arrayChip =
+        ModelHelpers.openSheetArrayInfo model
+        |> Option.map (fun info -> chip arraySheetColours $"array sheet × {info.Copies}")
+        |> Option.toList
+    let libraryChip =
+        if openSheetIsLibraryComponent model
+        then [ chip librarySheetColours "library component sheet" ]
+        else []
+    arrayChip @ libraryChip
+
+/// Everything laid over the top of the canvas that describes the sheet below it, stacked in the
+/// one container so that the legend does not have to know how tall the banner is - or whether
+/// there is one.
+let viewCanvasTopOverlay (model: Model) =
+    match readOnlyBanner model @ sheetKindLegend model with
+    | [] -> null
+    | items -> div [ canvasTopOverlayStyle model ] items
 
 //------------------Buttons overlaid on Draw2D Diagram----------------------------------//
 //--------------------------------------------------------------------------------------//
@@ -725,8 +770,8 @@ let displayView model dispatch =
                 // main top bar function is early in compile order
                 TopMenuView.viewTopMenu model dispatch
 
-                // says that the sheet below belongs to a library component and cannot be changed
-                viewReadOnlyBanner model
+                // says what kind of sheet is below, and whether it can be changed
+                viewCanvasTopOverlay model
 
                 // editing buttons overlaid bottom-left on canvas
                 viewOnDiagramButtons model dispatch

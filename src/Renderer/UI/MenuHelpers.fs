@@ -67,9 +67,9 @@ let warnAppWidth (dispatch: Msg -> unit) (afterFun: _ -> unit ) =
                 div [] [str "Issie UI will be "; bSpan "severely degraded" ; str " when width < 1050 pixels."]
                 div [] [
                     str "Web Zoom Out ("
-                    (keyOf3 "Ctrl" "Shift" "-")
+                    (keyOf3 "Ctrl" "Alt" "-")
                     str ") or In ("
-                    (keyOf3 "Ctrl" "Shift" "+")
+                    (keyOf3 "Ctrl" "Alt" "+")
                     str ") will increase or decrease window width"]
                 (if appWidth < 1250 then bSpan "You are advised to Zoom Out now." else str "")
                 ] |> List.collect (fun s -> [s; br []])))

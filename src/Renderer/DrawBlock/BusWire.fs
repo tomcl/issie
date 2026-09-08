@@ -687,9 +687,15 @@ let view (model : Model) (highlighted: Highlighted) (dispatch : Dispatch<Msg>) =
                     | Jump,   false -> renderJumpWire props
                     | Modern, false 
                     | _,      true -> renderModernWire props
+                // The same colour as the wire it ends. The arrow is part of the wire and reads as
+                // one thing with it, so drawn black it stayed black while the wire it belonged to
+                // went blue for being selected or red for a width error - which said, at the one
+                // end of the wire the eye goes to, that something there was not selected.
+                let wireColour = props.ColorP.Text()
                 let polygon = {
                     defaultPolygon with
-                        Fill = "black"
+                        Fill = wireColour
+                        Stroke = wireColour
                         }
                 let x,y = props.InputPortLocation.X, props.InputPortLocation.Y
                 let ws = min 2.5 props.StrokeWidthP

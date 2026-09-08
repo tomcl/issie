@@ -800,7 +800,7 @@ let paneHintLine () =
         if scrollsSideways Constants.hierarchyPaneId || scrollsSideways Constants.wavesPaneId then
             "red", "app zoom out Ctrl-Alt/- to reduce scrolling"
         else
-            "black", "You can select waveforms direct from wires with right-click on the wire in the canvas"
+            "black", "NB: You can exit this dialog and select waveforms directly from the canvas, using right-click on a wire."
 
     div [ Style [ Color colour; FontSize "12px"; MarginLeft "10px" ] ] [ str text ]
 

@@ -535,23 +535,37 @@ let private keyShortName (key: KeyName) =
     | KNamed n when n = Names.enter -> "Return"
     | KNamed n -> n
 
-/// Compact form for a menu label, e.g. "Ctrl+Right" or "Cmd+Opt+Right".
-let chordLabel (isMac: bool) (chord: Chord) : string =
+/// The keys of a chord, short form, one per element: [ "Ctrl"; "Alt"; "-" ]. A list rather than a
+/// string so that a caller showing the keys THEMSELVES can draw one key per element; joined with
+/// "+" it is the compact label a menu wants.
+let chordShortParts (isMac: bool) (chord: Chord) : string list =
     let m = chord.Mods
     [ if m.Primary then yield (if isMac then "Cmd" else "Ctrl")
       if m.Secondary then yield (if isMac then "Ctrl" else "Meta")
       if m.Alt then yield (if isMac then "Opt" else "Alt")
       if m.Shift then yield "Shift"
       yield keyShortName chord.Key ]
-    |> String.concat "+"
 
-/// The label to show beside a menu item, or "" when the shortcut has no chord on this platform.
-let idLabel (isMac: bool) (id: ShortcutId) : string =
+/// Compact form for a menu label, e.g. "Ctrl+Right" or "Cmd+Opt+Right".
+let chordLabel (isMac: bool) (chord: Chord) : string =
+    chordShortParts isMac chord |> String.concat "+"
+
+/// The chord a shortcut fires on, on this platform: the first one, since a shortcut with several
+/// lists the one it is best known by first. None when it has no chord here.
+let idChord (isMac: bool) (id: ShortcutId) : Chord option =
     shortcuts
     |> List.tryFind (fun s -> s.Id = id)
     |> Option.bind (fun s -> chordsFor isMac s |> List.tryHead)
-    |> Option.map (chordLabel isMac)
-    |> Option.defaultValue ""
+
+/// The keys to press for a shortcut, short form, one per element. Empty when it has no chord on
+/// this platform - which is the only honest thing to show, and why anything telling the user which
+/// keys to press asks the table rather than writing them out.
+let idShortParts (isMac: bool) (id: ShortcutId) : string list =
+    idChord isMac id |> Option.map (chordShortParts isMac) |> Option.defaultValue []
+
+/// The label to show beside a menu item, or "" when the shortcut has no chord on this platform.
+let idLabel (isMac: bool) (id: ShortcutId) : string =
+    idChord isMac id |> Option.map (chordLabel isMac) |> Option.defaultValue ""
 
 // ---------------------------------------------------------------------------------------------
 // self-check

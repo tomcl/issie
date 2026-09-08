@@ -554,3 +554,38 @@ th, td {
 .projectBrowserList .menu-list a.is-active:hover {
   background-color: #dfe8f8;
 }
+
+/* ---------------------------------------------------------------------------
+   A key on the keyboard, where prose tells the user to press one. Drawn as a
+   cap rather than set in bold, so that "press Ctrl and Alt and minus" is read
+   as three keys at a glance instead of parsed out of a sentence - and so the
+   minus and plus signs, which are one character each and vanish inside running
+   text, are as visible as the words beside them.
+
+   Sized in em, so a cap tracks whatever text it sits in; the border and the
+   inset highlight are what make it a key rather than a box.
+   --------------------------------------------------------------------------- */
+.keyCap {
+  display: inline-block;
+  min-width: 1.2em;
+  padding: 0 0.25em;
+  border: 1px solid #b5b5b5;
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background-color: #fafafa;
+  box-shadow: inset 0 -1px 0 #ffffff;
+  font-family: inherit;
+  font-size: 0.78em;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+  color: #363636;
+}
+
+/* The + between two caps: quieter than the caps themselves, since it is not a
+   key to press but the instruction to hold them together. */
+.keyCapPlus {
+  padding: 0 0.05em;
+  font-size: 0.78em;
+  color: #7a7a7a;
+}

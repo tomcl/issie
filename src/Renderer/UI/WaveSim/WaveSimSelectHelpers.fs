@@ -438,7 +438,13 @@ let waveSelectBreadcrumbs
             // Heading and tree share the panel, as in the Sheet menu - the same tree should not
             // sit on two different backgrounds depending on where it is shown.
             div [ HTMLAttr.ClassName "treePanel"
-                  Style [Display DisplayOptions.Flex; FlexDirection "column"; AlignItems AlignItemsOptions.Center]] [
+                  Style [Display DisplayOptions.Flex; FlexDirection "column"; AlignItems AlignItemsOptions.Center
+                         // As wide as the tree, and never narrower than the pane it scrolls in. A
+                         // hierarchy wider than the pane used to leave the panel at the pane's
+                         // width, so its background - and the padding that keeps the tree off its
+                         // edge - stopped partway across the tree, and centring the rows inside
+                         // that box pushed them off the left of the pane where no scroll reaches.
+                         Width "max-content"; MinWidth "100%"]] [
                 div [ Style [ TextAlign TextAlignOptions.Center; FontSize "20px" ; FontWeight 600; PaddingBottom "10px"] ] [
                     str hierarchyText
                     ]
@@ -753,9 +759,13 @@ let makeSelectionTable
         | n when n > Constants.maxRecommendedViewerWaves -> "red"
         | n when n > Constants.maxWarningViewerWaves -> "orange"
         | _ -> "green"
-    div [Style [Display DisplayOptions.Flex; FlexDirection "column"; AlignItems AlignItemsOptions.Center]]
+    // As wide as the widest row, and never narrower than the pane it scrolls in: the rows are
+    // centred, so a table wider than the pane would otherwise hang off BOTH sides of it, and the
+    // left overflow of a scrolling box cannot be scrolled to.
+    div [Style [Display DisplayOptions.Flex; FlexDirection "column"; AlignItems AlignItemsOptions.Center
+                Width "max-content"; MinWidth "100%"]]
         [
-            p [Style [FontSize "20px"; FontWeight "600"; Color messageColour; PaddingBottom "15px"]] [str $"{ws.SelectedWaves.Length} waveforms selected"]       
+            p [Style [FontSize "20px"; FontWeight "600"; Color messageColour; PaddingBottom "15px"]] [str $"{ws.SelectedWaves.Length} waveforms selected"]
             wavePropsTable subSheetRows
         ]
     
@@ -903,21 +913,24 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
                     ]
                 ] [
                 
-                    // Left column: breadcrumbs with its own scrollbar.
+                    // Left column: breadcrumbs with its own scrollbars. Both axes, and said so:
+                    // overflow-y alone already made this a scrolling box in x as well (a visible
+                    // axis paired with one that is not computes to auto), and a design hierarchy
+                    // is as likely to be too wide as too tall.
                     div [
                         Style [
                             Height "100%"
-                            OverflowY OverflowOptions.Auto
+                            CSSProp.Custom("overflow", "auto")
                         ]
                     ] [ 
                         waveSelectBreadcrumbs wsModel hierarchy filteredWaves dispatch model
                     ]
 
-                    // Right column: wave selection with its own scrollbar.
+                    // Right column: wave selection with its own scrollbars, in both axes as above.
                     div [
                         Style [
                             Height "100%"
-                            OverflowY OverflowOptions.Auto
+                            CSSProp.Custom("overflow", "auto")
                         ]
                     ] [
                         makeSelectionTable wsModel hierarchy filteredWaves.OfSheet dispatch

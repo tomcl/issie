@@ -50,6 +50,10 @@ module Constants =
     /// Below this many waves on offer the selector opens every row, on the grounds that a list this
     /// short is quicker to read than to click through.
     let maxAutoExpandWaves = 50
+    /// The two scrolling panes of the wave selector, named so that the hint line above them can ask
+    /// the browser whether either is having to scroll.
+    let hierarchyPaneId = "WaveSelectHierarchyPane"
+    let wavesPaneId = "WaveSelectWavesPane"
 
 /// What leaving the wave selection dialog with a given number of waveforms selected does.
 type SelectionVerdict =
@@ -776,6 +780,30 @@ let makeSelectionTable
 // Modal Display for Wave Selection
 // -----------------------------------------
 
+/// The line of small text in the gap between the search boxes and the two panes.
+///
+/// Which line it is depends on whether either pane is having to scroll sideways - a fact about how
+/// wide the browser laid its content out, which nothing in the model knows, so it is read off the
+/// panes themselves as the code editor reads its own scroll container. The read is of the DOM the
+/// last render left, so the dialog's first frame has nothing to measure and a change of filter is
+/// followed a frame late. For a hint that is fine, and it is the price of not keeping a copy of a
+/// browser measurement in the model, where it would have to be kept true.
+///
+/// Sideways only. Scrolling down is what a list of waveforms normally does, so counting it would
+/// leave the warning permanently up and the tip under it never read.
+let paneHintLine () =
+    let scrollsSideways paneId =
+        let el = Browser.Dom.document.getElementById paneId
+        not (isNull el) && el.scrollWidth > el.clientWidth
+
+    let colour, text =
+        if scrollsSideways Constants.hierarchyPaneId || scrollsSideways Constants.wavesPaneId then
+            "red", "app zoom out Ctrl-Alt/- to reduce scrolling"
+        else
+            "black", "You can select waveforms direct from wires with right-click on the wire in the canvas"
+
+    div [ Style [ Color colour; FontSize "12px"; MarginLeft "10px" ] ] [ str text ]
+
 /// Displays the modal for wave selection. The top row shows the serach boxes.
 /// Below a two‑column grid shows the wave selection (left) and breadcrumbs (right).
 let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Model) : ReactElement =
@@ -874,6 +902,10 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
                             Height "auto"
                             BorderTopLeftRadius "0"
                             BorderTopRightRadius "0"
+                            // A column, so the hint sits in the gap under the search boxes rather
+                            // than beside them: a modal-card-head is a row by default.
+                            FlexDirection "column"
+                            AlignItems AlignItemsOptions.FlexStart
                         ]
                     ]
                 ] [
@@ -897,6 +929,8 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
                         showOnlySelectedBox wsModel dispatch
                     ]
 
+                    paneHintLine ()
+
                 ]
 
                 // Body with info row, search boxes row, then two columns for selection and breadcrumbs.
@@ -918,6 +952,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
                     // axis paired with one that is not computes to auto), and a design hierarchy
                     // is as likely to be too wide as too tall.
                     div [
+                        HTMLAttr.Id Constants.hierarchyPaneId
                         Style [
                             Height "100%"
                             CSSProp.Custom("overflow", "auto")
@@ -928,6 +963,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
 
                     // Right column: wave selection with its own scrollbars, in both axes as above.
                     div [
+                        HTMLAttr.Id Constants.wavesPaneId
                         Style [
                             Height "100%"
                             CSSProp.Custom("overflow", "auto")

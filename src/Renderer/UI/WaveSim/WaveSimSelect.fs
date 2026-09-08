@@ -50,7 +50,15 @@ let selectWavesButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEle
             isCarrier || not (Array.isEmpty fs.WaveIndex))
     let props, buttonFunc =
         if hasWaves then
-            selectWavesButtonProps "selectButton" true, (fun _ -> dispatch <| UpdateWSModel (fun ws -> {ws with WaveModalActive = true}))
+            let openModal _ =
+                dispatch <| UpdateWSModel(fun ws -> { ws with WaveModalActive = true })
+                // and one more render, once the browser has laid the dialog out. The hint line
+                // above the two panes says whether either of them is having to scroll, which it
+                // can only answer by measuring them - and on the render that opens the dialog
+                // they do not exist yet to be measured.
+                JSHelpers.delayedDispatch dispatch 0 (UpdateWSModel id) |> ignore
+
+            selectWavesButtonProps "selectButton" true, openModal
         else selectWavesButtonPropsLight "selectButton", (fun _ -> ())
     button 
         props

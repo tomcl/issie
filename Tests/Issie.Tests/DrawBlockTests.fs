@@ -140,6 +140,29 @@ let private measuredAt16px =
       "halfAdd", 60.625
       "CARRY_IN_FROM_PREVIOUS", 233.469 ]
 
+/// A wire holding exactly the segments a vertex list describes - including the zero-length ones,
+/// which issieVerticesToSegments would merge away. Rendering sees the segments the app holds, so a
+/// test of rendering has to be able to name them.
+let private wireFromVertices (vertices: (float * float) list) : BusWireT.Wire =
+    let id = ConnectionId 987654
+    let positions = vertices |> List.map (fun (x, y) -> { X = x; Y = y })
+    { WId = id
+      InputPort = InputPortId (PortId 987001)
+      OutputPort = OutputPortId (PortId 987002)
+      Color = HighLightColor.Red
+      Width = 1
+      Segments = BusWire.xyVerticesToSegments id positions
+      StartPos = List.head positions
+      InitialOrientation = BusWire.getSegmentOrientation positions[0] positions[1] }
+
+/// Where the arc of a radial bend leaves one run and rejoins the next, read back out of the SVG
+/// path commands renderRadialBend emits.
+let private radialBendEnds (before: BusWire.WireRun) (after: BusWire.WireRun) (rad: float) =
+    match (BusWire.renderRadialBend before after rad).Split([|' '; ','|]) |> Array.filter ((<>) "") with
+    | [| "L"; lx; ly; "A"; _; _; _; _; _; ex; ey |] ->
+        { X = float lx; Y = float ly }, { X = float ex; Y = float ey }
+    | other -> failtest $"a bend did not render as a line and an arc: %A{other}"
+
 let tests =
     testList "DrawBlock" [
 
@@ -427,5 +450,87 @@ let tests =
                     routed
             Expect.equal (Map.count separated.Wires) 3 "no wire was lost"
             checkWiresAreOrthogonalAndConnected separated "after separation"
+        }
+
+        test "a radial wire rounds every bend of the shape it draws, not of its segment list" {
+            // Both wires are taken from a sheet where three corners came out square. A stored
+            // segment list is not the drawn shape: it holds zero-length segments, and splits one
+            // straight piece over several segments - here a nub and the 1.7-long stub the
+            // separation pass left beside it. Judging a corner by its two adjacent segments made
+            // the radius 0 in both cases, so the run between two bends is what has to be measured.
+            let bendsOf vertices =
+                let wire = wireFromVertices vertices
+                BusWire.segmentRuns (getAbsSegments wire) |> BusWire.wireBends
+            let full = BusWire.Constants.cornerRadius
+
+            // G1 output to G3 input: two zero-length segments sit on the corner at the input nub
+            let toG3 =
+                bendsOf [ 1788.94, 1661.88; 1798.94, 1661.88; 1798.94, 1661.88; 1808.94, 1661.88
+                          1808.94, 1607.19; 1651.33, 1607.19; 1651.33, 1552.49; 1651.33, 1552.49
+                          1651.33, 1552.49; 1661.33, 1552.49 ]
+            Expect.equal (List.length toG3) 4 "the wire bends four times"
+            toG3 |> List.iteri (fun i (_, _, rad) ->
+                Expect.floatClose Accuracy.high rad full $"bend {i} should have the full radius")
+
+            // G4 output to G2 input: each nub is followed by a 1.7-long stub, and the two are one
+            // straight run of nearly 12 - room for a full radius between them and the long drop
+            let toG2 =
+                bendsOf [ 1776.33, 1747.55; 1786.33, 1747.55; 1786.33, 1747.55; 1788.02, 1747.55
+                          1788.02, 1806.49; 1789.72, 1806.49; 1789.72, 1806.49; 1799.72, 1806.49 ]
+            Expect.equal (List.length toG2) 2 "the wire bends twice"
+            toG2 |> List.iteri (fun i (_, _, rad) ->
+                Expect.floatClose Accuracy.high rad full $"bend {i} should have the full radius")
+        }
+
+        test "a radial bend is only tightened when the wire has no room for a full one" {
+            let full = BusWire.Constants.cornerRadius
+            let bendsOf vertices =
+                BusWire.segmentRuns (getAbsSegments (wireFromVertices vertices)) |> BusWire.wireBends
+            let radii vertices = bendsOf vertices |> List.map (fun (_, _, rad) -> rad)
+
+            // a 6-long run between two bends: each may have half of it and no more
+            Expect.equal (radii [ 0., 0.; 40., 0.; 40., 6.; 80., 6. ]) [ 3.; 3. ]
+                "two bends share the run between them"
+
+            // the same run at the end of the wire has one bend, which may have all of it
+            Expect.equal (radii [ 0., 0.; 40., 0.; 40., 6. ]) [ 6. ]
+                "a bend at the end of a wire is not made to share"
+
+            // and nothing is tightened when there is room
+            Expect.equal (radii [ 0., 0.; 40., 0.; 40., 40.; 80., 40. ]) [ full; full ]
+                "long runs everywhere, so every bend is the standard radius"
+        }
+
+        test "radial bends meet the runs they join and never overlap" {
+            // the arc has to start and finish on the wire, one radius back from the corner, or the
+            // path jumps: what the sweep flag and the four direction cases in renderRadialBend are
+            // there to get right. Every rotation of a corner is covered by walking a square.
+            let square = [ 0., 0.; 60., 0.; 60., 60.; 0., 60.; 0., 0.; 60., 0. ]
+            let reversed = List.rev square
+            let onRun (run: BusWire.WireRun) (p: XYPos) =
+                let along, across =
+                    match run.RunOrientation with
+                    | BusWireT.Horizontal -> p.X, abs (p.Y - run.RunStart.Y)
+                    | BusWireT.Vertical -> p.Y, abs (p.X - run.RunStart.X)
+                let lo, hi =
+                    match run.RunOrientation with
+                    | BusWireT.Horizontal -> min run.RunStart.X run.RunEnd.X, max run.RunStart.X run.RunEnd.X
+                    | BusWireT.Vertical -> min run.RunStart.Y run.RunEnd.Y, max run.RunStart.Y run.RunEnd.Y
+                across < 0.001 && along >= lo - 0.001 && along <= hi + 0.001
+            let check vertices =
+                BusWire.segmentRuns (getAbsSegments (wireFromVertices vertices))
+                |> BusWire.wireBends
+                |> List.iter (fun (before, after, rad) ->
+                    let bendStart, bendEnd = radialBendEnds before after rad
+                    Expect.isTrue (onRun before bendStart)
+                        $"the arc leaves %A{before.RunStart}-%A{before.RunEnd} at %A{bendStart}"
+                    Expect.isTrue (onRun after bendEnd)
+                        $"the arc rejoins %A{after.RunStart}-%A{after.RunEnd} at %A{bendEnd}"
+                    Expect.floatClose Accuracy.high (euclideanDistance bendStart before.RunEnd) rad
+                        "the arc leaves one radius before the corner"
+                    Expect.floatClose Accuracy.high (euclideanDistance bendEnd after.RunStart) rad
+                        "and rejoins one radius after it")
+            check square
+            check reversed
         }
     ]

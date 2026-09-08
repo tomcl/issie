@@ -455,77 +455,66 @@ let renderWireWidthText (props: WireRenderProps): ReactElement =
     | CommonTypes.Right -> makeText (outPos.X + xOffset) (outPos.Y - yOffset) text textStyle
     | CommonTypes.Left -> makeText (outPos.X - xLeftOffset) (outPos.Y - yOffset) text textStyle
 
-/// Creates the SVG command string required to render the wire
-/// (apart from the final "nub") with a radial display type 
-let renderRadialWireSVG 
-    (state : (string * Orientation)) 
-    (segmentpair : {| First : ASegment; Second :ASegment|}) 
-    : string * Orientation =
-    
-    let seg1Start = segmentpair.First.Start
-    let seg1End = segmentpair.First.End
-    let seg2Start = segmentpair.Second.Start
-    let seg2End = segmentpair.Second.End
-    
-    let dist1 = euclideanDistance seg1Start seg1End
-    let dist2 = euclideanDistance seg2Start seg2End
-    let rad = System.Math.Floor(min Constants.cornerRadius (max 0.0 (min (dist1/2.) (dist2/2.))))
-    let makeCommandString xStart yStart rad sweepflag xEnd yEnd : string =
-        $"L {xStart} {yStart} A {rad} {rad}, 45, 0, {sweepflag}, {xEnd} {yEnd}" 
+/// A maximal straight piece of a wire: all of it between two consecutive bends of the shape that
+/// is drawn. A wire's segment list is not that shape - it holds zero-length segments, and splits
+/// one straight piece over several segments - so radial rendering must work on runs and not on
+/// segments, or it rounds a corner where the wire is straight and squares one off where it bends.
+type WireRun = {
+        RunStart: XYPos
+        RunEnd: XYPos
+        RunOrientation: Orientation
+    }
+    with member inline this.Length = euclideanDistance this.RunStart this.RunEnd
 
-    //Checking if horizontal followed by length 0 vertical
-    if seg1Start.X = seg1End.X && 
-       seg1Start.X = seg2Start.X &&
-       seg1Start.X = seg2End.X then
-        let current = sprintf "L %f %f" seg1End.X seg1End.Y
-        if snd(state) = Horizontal then
-            (fst(state)+current, Vertical)
-        else 
-            (fst(state)+current, Horizontal)
-    //Checking if vertical followed by length 0 horizontal
-    else if seg1Start.Y = seg1End.Y && 
-            seg1Start.Y = seg2Start.Y && 
-            seg1Start.Y = seg2End.Y then
-        let current = sprintf "L %f %f" (seg1End.X) (seg1End.Y)
-        if snd(state) = Horizontal then
-            (fst(state)+current, Vertical)
-        else 
-            (fst(state)+current, Horizontal)           
-    
-    else
-        if snd(state) = Horizontal then
-            if seg1Start.X - seg1End.X > 0 then
-                if seg2Start.Y - seg2End.Y > 0 then
-                    let current:string = makeCommandString (seg1End.X+rad) seg1End.Y rad 1 seg2Start.X (seg2Start.Y-rad)
-                    ((fst(state)+current), Vertical)
-                else
-                    let current:string  =  makeCommandString (seg1End.X+rad) seg1End.Y rad 0 seg2Start.X (seg2Start.Y+rad)
-                    ((fst(state)+current), Vertical)
-            else
-                if seg2Start.Y - seg2End.Y > 0 then
-                    let current:string =  makeCommandString (seg1End.X-rad)seg1End.Y rad 0 seg2Start.X (seg2Start.Y-rad)
-                    ((fst(state)+current), Vertical)
-                else
-                    let current:string = makeCommandString (seg1End.X-rad) seg1End.Y rad 1 seg2Start.X (seg2Start.Y+rad)
-                    ((fst(state)+current), Vertical)
-        else
-            if seg1Start.Y - seg1End.Y > 0 then
-                if seg2Start.X - seg2End.X > 0 then
-                    let current :string =  makeCommandString seg1End.X (seg1End.Y+rad) rad 0 (seg2Start.X-rad) seg2Start.Y
-                    ((fst(state)+current), Horizontal)
-                else
-                    let current :string =  makeCommandString seg1End.X (seg1End.Y+rad) rad 1 (seg2Start.X+rad) seg2Start.Y
-                    ((fst(state)+current), Horizontal)
-            else
-                if seg2Start.X - seg2End.X > 0 then
-                    let current :string =  makeCommandString seg1End.X (seg1End.Y-rad) rad 1 (seg2Start.X-rad) seg2Start.Y
-                    ((fst(state)+current), Horizontal)
-                else
-                    let current :string =  makeCommandString seg1End.X (seg1End.Y-rad) rad  0 (seg2Start.X+rad) seg2Start.Y
-                    ((fst(state)+current), Horizontal)
+/// Collapse a wire's absolute segments into the runs between its bends: drop the zero-length
+/// segments, which have no shape, and merge whatever is then adjacent and collinear.
+let segmentRuns (absSegments: ASegment list) : WireRun list =
+    absSegments
+    |> List.filter (fun aSeg -> not aSeg.IsZero)
+    |> List.fold (fun runs (aSeg: ASegment) ->
+        match runs with
+        | run :: earlier when run.RunOrientation = aSeg.Orientation ->
+            { run with RunEnd = aSeg.End } :: earlier
+        | _ ->
+            { RunStart = aSeg.Start; RunEnd = aSeg.End; RunOrientation = aSeg.Orientation } :: runs)
+        []
+    |> List.rev
 
+/// The bends of a radial wire, each paired with the radius its corner is drawn with. A bend eats
+/// `rad` off the end of the run either side of it, so a run with a bend at both ends can give half
+/// of itself to each, and one at either end of the wire has a single bend and can give all of
+/// itself. The radius is therefore the standard one everywhere except where there is genuinely not
+/// the room for it: neighbouring bends never overlap, and a short run is the only thing that
+/// squares a corner off.
+let wireBends (runs: WireRun list) : (WireRun * WireRun * float) list =
+    let lastRun = List.length runs - 1
+    let room =
+        runs
+        |> List.mapi (fun i run -> if i = 0 || i = lastRun then run.Length else run.Length / 2.)
+    List.zip (List.pairwise runs) (List.pairwise room)
+    |> List.map (fun ((before, after), (roomBefore, roomAfter)) ->
+        before, after, List.min [Constants.cornerRadius; roomBefore; roomAfter])
 
- 
+/// The SVG commands drawing one bend of a radial wire: the line along `before` as far as where the
+/// corner starts to be rounded off, then the quarter circle of radius `rad` onto `after`.
+let renderRadialBend (before: WireRun) (after: WireRun) (rad: float) : string =
+    let corner = before.RunEnd
+    let directionOf (fromCoord: float) (toCoord: float) = if toCoord > fromCoord then 1. else -1.
+    let arc (bendStart: XYPos) (sweep: int) (bendEnd: XYPos) =
+        sprintf "L %f %f A %f %f, 45, 0, %d, %f %f"
+            bendStart.X bendStart.Y rad rad sweep bendEnd.X bendEnd.Y
+    match before.RunOrientation with
+    | Horizontal ->
+        let xDir = directionOf before.RunStart.X corner.X
+        let yDir = directionOf corner.Y after.RunEnd.Y
+        let sweep = if xDir * yDir > 0. then 1 else 0
+        arc { corner with X = corner.X - xDir * rad } sweep { corner with Y = corner.Y + yDir * rad }
+    | Vertical ->
+        let yDir = directionOf before.RunStart.Y corner.Y
+        let xDir = directionOf corner.X after.RunEnd.X
+        let sweep = if xDir * yDir > 0. then 0 else 1
+        arc { corner with Y = corner.Y - yDir * rad } sweep { corner with X = corner.X + xDir * rad }
+
 let renderModernWire (props:WireRenderProps) =
     let colour = props.ColorP.Text()
 
@@ -637,23 +626,20 @@ let renderJumpWire props =
 let renderRadialWire props =
     let absSegments = getAbsSegments props.Wire
     let firstVertex = absSegments.Head.Start
-    let secondVertex = absSegments.Head.End
     let lastVertex = (List.last absSegments).End
 
     let width = string props.StrokeWidthP
-    let widthOpt = EEExtensions.String.tryParseWith System.Int32.TryParse width
-
     let pathParameters = { defaultPath with Stroke = props.ColorP.Text(); StrokeWidth = width;}
-    let initialMoveCommand = sprintf "M %f %f "  firstVertex.X firstVertex.Y
-    let initialState = (initialMoveCommand, getSegmentOrientation firstVertex secondVertex )
-    
-    let radialPathCommands = fst(
+
+    let bendCommands =
         absSegments
-        |> List.pairwise
-        |> List.map (fun x -> ( {| First = fst(x); Second = snd(x) |}))
-        |> List.fold renderRadialWireSVG (initialState) )
-    let finalLineCommand = sprintf "L %f %f" lastVertex.X lastVertex.Y
-    let fullPathCommand = radialPathCommands + finalLineCommand
+        |> segmentRuns
+        |> wireBends
+        |> List.map (fun (before, after, rad) -> renderRadialBend before after rad)
+        |> String.concat " "
+
+    let fullPathCommand =
+        sprintf "M %f %f %s L %f %f" firstVertex.X firstVertex.Y bendCommands lastVertex.X lastVertex.Y
 
     let renderedSVGPath = makePathFromAttr fullPathCommand pathParameters
 

@@ -109,7 +109,7 @@ more structured information about Issie
 | Hover a Properties field | Every field in the Properties tab explains what it sets, and what people get wrong about it, when you hover its name |
 | Drag from the Catalogue | Drag a component out of the Catalogue and drop it where you want it, rather than clicking twice |
 | Probe a wire | With either simulator running, rest the mouse on any wire of the schematic to read the value it carries - at the waveform cursor's cycle, or at the step simulator's current clock tick |
-| Waveforms and the schematic | Hover a waveform's name to light up its component and wires on the schematic; the button beside the name opens the sheet it lives on. Right-click a component on the schematic to add its waveforms to the viewer |
+| Waveforms and the schematic | Hover a waveform's name to light up its component and wires on the schematic; the button beside the name opens the sheet it lives on. Right-click a component or wire on the schematic to add waveforms to the viewer |
 | Zoom keys | [[Ctrl +]] and [[Ctrl -]] zoom whatever you are looking at - the schematic, or the waveforms. [[Ctrl 0]] fits the whole sheet on the screen, which is the one to reach for most. Add [[Alt]] to any of the three to zoom the application itself instead |
 | Sheet descriptions | Add short descriptions to your design sheets |
 | Copy, Paste | Use copy and one or more Pastes (keys or on-screen buttons) to make duplicate components with the same name and increasing numbers. Copy multiple items onto the same sheet or a new sheet |

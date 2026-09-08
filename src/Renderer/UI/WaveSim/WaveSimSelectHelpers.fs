@@ -796,13 +796,17 @@ let paneHintLine () =
         let el = Browser.Dom.document.getElementById paneId
         not (isNull el) && el.scrollWidth > el.clientWidth
 
-    let colour, text =
+    // The keys are drawn as keys, from the shortcut table, as they are in the window size warning
+    // and in the shortcut list in Info: a chord named in prose can be wrong - these two are Cmd and
+    // Opt on a Mac - and set in running text it is missed.
+    let colour, line =
         if scrollsSideways Constants.hierarchyPaneId || scrollsSideways Constants.wavesPaneId then
-            "red", "app zoom out Ctrl-Alt/- to reduce scrolling"
+            "red", [ str "App Zoom-out "; keysOf KeyTypes.ScAppZoomOut; str " to reduce scrolling" ]
         else
-            "black", "NB: You can exit this dialog and select waveforms directly from the canvas, using right-click on a wire."
+            "black",
+            [ str "NB: You can exit this dialog and select waveforms directly from the canvas,                    using right-click on a wire." ]
 
-    div [ Style [ Color colour; FontSize "12px"; MarginLeft "10px" ] ] [ str text ]
+    div [ Style [ Color colour; FontSize "12px"; MarginLeft "10px" ] ] line
 
 /// Displays the modal for wave selection. The top row shows the serach boxes.
 /// Below a two‑column grid shows the wave selection (left) and breadcrumbs (right).

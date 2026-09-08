@@ -49,21 +49,6 @@ let displayFileErrorNotification err dispatch =
     let note = errorFilesNotification err
     dispatch <| SetFilesNotification note
 
-/// The keys to press for a shortcut, drawn as keys: [Ctrl]+[Alt]+[-].
-///
-/// Read off the shortcut table for the platform this is running on, never written out, for the
-/// same reason the shortcut list in Info is generated from it: prose that names a key cannot be
-/// held to what the key dispatcher actually does, and the two chords this was first written for
-/// said Ctrl and Alt on a Mac, where they are Cmd and Opt. A shortcut with no chord on this
-/// platform renders as nothing at all rather than as keys that do nothing.
-let keysOf (id: KeyTypes.ShortcutId) : ReactElement =
-    KeyTypes.idShortParts Bridge.isMac id
-    |> List.map (fun k -> span [ HTMLAttr.ClassName "keyCap" ] [ str k ])
-    |> List.mapi (fun i cap ->
-        if i = 0 then [ cap ] else [ span [ HTMLAttr.ClassName "keyCapPlus" ] [ str "+" ]; cap ])
-    |> List.concat
-    |> span [ Style [ WhiteSpace WhiteSpaceOptions.Nowrap ] ]
-
 let warnAppWidth (dispatch: Msg -> unit) (afterFun: _ -> unit ) =
     let appWidth = Browser.Dom.self.innerWidth
     let styledSpan styles txt = span [Style styles] [str <| txt]
@@ -83,11 +68,11 @@ let warnAppWidth (dispatch: Msg -> unit) (afterFun: _ -> unit ) =
                 div [] [str "Issie UI will be "; bSpan "slightly degraded" ; str " when width < 1150 pixels."]
                 div [] [str "Issie UI will be "; bSpan "severely degraded" ; str " when width < 1050 pixels."]
                 div [] [
-                    str "App Zoom Out ("
+                    str "App Zoom-out "
                     keysOf KeyTypes.ScAppZoomOut
-                    str ") or In ("
+                    str " or Zoom-in "
                     keysOf KeyTypes.ScAppZoomIn
-                    str ") will increase or decrease window width at any time using Issie."
+                    str " will increase or decrease window width at any time using Issie."
                 ]
                 (if appWidth < 1250 then bSpan "You are advised to Zoom Out now." else str "")
                 ] |> List.collect (fun s -> [s; br []])))

@@ -168,21 +168,12 @@ let viewInfoPopupAtTab (startTab: int) dispatch =
 
     let keys =
         let keyTable: ReactElement =
-            let makeKeyStrSpan (keyList: List<String>) (keyPaddingChar: String): ReactElement = 
-                match keyList with
-                | [] ->
-                    span [] [str "(none)"]
-                | _ ->
-                    keyList 
-                    |> List.mapFold (fun i e -> if i <> keyList.Length-1 then [e; keyPaddingChar], i+1 else [e], i+1) 0
-                    |> fst |> List.concat |> List.fold (fun s e -> s+e) "" |> fun s -> span [] [str s]
-
-            let makeKeyTableRow (action: String) (windowsKeyList: List<String>) (macosKeyList: List<String>)
+            let makeKeyTableRow (action: String) (windowsKeys: ReactElement) (macosKeys: ReactElement)
                 : ReactElement =
                 tr [] [
                     th [Scope "Row"] [str action]
-                    td [] [makeKeyStrSpan windowsKeyList " + "]
-                    td [] [makeKeyStrSpan macosKeyList "-"]
+                    td [] [windowsKeys]
+                    td [] [macosKeys]
                 ]
 
             /// Generated from the shortcut table rather than written out here, so it cannot drift
@@ -211,15 +202,18 @@ let viewInfoPopupAtTab (startTab: int) dispatch =
                     | KeyTypes.CatGesture -> 5
                     | KeyTypes.CatDev -> 6
 
-                /// only the first chord is shown: later ones are alternatives, not extra keys
-                let partsFor isMac (s: KeyTypes.ShortcutSpec) =
+                /// What one platform's column shows: the keys to press drawn as keys, or - for a
+                /// gesture - the words that describe it, which are a sentence and not a chord.
+                /// Only the first chord: later ones are alternatives, not extra keys.
+                let keysFor isMac (s: KeyTypes.ShortcutSpec) : ReactElement =
                     match s.Trigger with
-                    | KeyTypes.Gesture(win, mac) -> [ if isMac then mac else win ]
+                    | KeyTypes.Gesture(win, mac) -> str (if isMac then mac else win)
                     | KeyTypes.Chords _ ->
                         KeyTypes.chordsFor isMac s
                         |> List.tryHead
-                        |> Option.map (KeyTypes.chordParts isMac)
+                        |> Option.map (KeyTypes.chordShortParts isMac)
                         |> Option.defaultValue []
+                        |> DiagramStyle.keyCaps
 
                 KeyTypes.shortcuts
                 |> List.filter (fun s ->
@@ -232,7 +226,7 @@ let viewInfoPopupAtTab (startTab: int) dispatch =
                                    [str (categoryName cat)] ]
                     heading
                     :: (specs |> List.map (fun s ->
-                            makeKeyTableRow s.Doc (partsFor false s) (partsFor true s))))
+                            makeKeyTableRow s.Doc (keysFor false s) (keysFor true s))))
 
 
             let head =

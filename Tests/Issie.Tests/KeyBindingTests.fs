@@ -85,8 +85,7 @@ let tests =
                 [ ScCopy,                 "Ctrl+C",            "Cmd+C"
                   ScPaste,                "Ctrl+V",            "Cmd+V"
                   ScSelectAll,            "Ctrl+A",            "Cmd+A"
-                  // chordLabel is the compact menu form, so Del not Delete; the help table uses
-                  // chordParts, which spells it out
+                  // the compact form, which is what a key drawn as a key shows: Del not Delete
                   ScDelete,               "Del",               "Backspace"
                   ScRotateAnticlockwise,  "Ctrl+Left",         "Cmd+Left"
                   ScRotateClockwise,      "Ctrl+Right",        "Cmd+Right"

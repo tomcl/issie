@@ -495,30 +495,6 @@ let lookup (tbl: Map<KeyContext * Chord, ShortcutSpec>) (ctx: KeyContext) (chord
 // display
 // ---------------------------------------------------------------------------------------------
 
-let private keyDisplayName (key: KeyName) =
-    match key with
-    | KLetter c -> string c
-    | KDigit c -> string c
-    | KFn n -> $"F{n}"
-    | KNamed n when n = Names.arrowLeft -> "Left arrow"
-    | KNamed n when n = Names.arrowRight -> "Right arrow"
-    | KNamed n when n = Names.arrowUp -> "Up arrow"
-    | KNamed n when n = Names.arrowDown -> "Down arrow"
-    | KNamed n when n = Names.equal -> "Plus (+)"
-    | KNamed n when n = Names.minus -> "Minus (-)"
-    | KNamed n when n = Names.enter -> "Return"
-    | KNamed n -> n
-
-/// The parts of a chord, in the order they should be shown. Returned as a list so that the
-/// existing help-table renderer in UIPopups can join them with its own separator unchanged.
-let chordParts (isMac: bool) (chord: Chord) : string list =
-    let m = chord.Mods
-    [ if m.Primary then yield (if isMac then "Command" else "Control")
-      if m.Secondary then yield (if isMac then "Control" else "Meta")
-      if m.Alt then yield (if isMac then "Option" else "Alt")
-      if m.Shift then yield "Shift"
-      yield keyDisplayName chord.Key ]
-
 let private keyShortName (key: KeyName) =
     match key with
     | KLetter c -> string c

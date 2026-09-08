@@ -432,3 +432,32 @@ let zoomInSVG =
         ]
 
 let colorSpan color text = span [Style [Color color]] [str text]
+
+//---------------------------------------------------------------------------------------//
+//------------------------------------KEYS ON SCREEN-------------------------------------//
+//---------------------------------------------------------------------------------------//
+
+/// One chord drawn as the keys to press: [Ctrl]+[Alt]+[-].
+///
+/// Takes the parts rather than a shortcut, so that a caller showing a platform other than the one
+/// it is running on can do so - the shortcut list in Info shows both. Empty means the shortcut has
+/// no chord on that platform, which is said in words: an empty row would read as "no key needed".
+let keyCaps (parts: string list) : ReactElement =
+    match parts with
+    | [] -> span [] [ str "(none)" ]
+    | parts ->
+        parts
+        |> List.map (fun k -> span [ HTMLAttr.ClassName "keyCap" ] [ str k ])
+        |> List.mapi (fun i cap ->
+            if i = 0 then [ cap ] else [ span [ HTMLAttr.ClassName "keyCapPlus" ] [ str "+" ]; cap ])
+        |> List.concat
+        |> span [ Style [ WhiteSpace WhiteSpaceOptions.Nowrap ] ]
+
+/// The keys to press for a shortcut on the platform this is running on, drawn as keys.
+///
+/// Read off the shortcut table, never written out, for the same reason the shortcut list in Info is
+/// generated from it: prose that names a key cannot be held to what the key dispatcher does, and
+/// the two chords the window size warning was first written with said Ctrl and Alt on a Mac, where
+/// they are Cmd and Opt.
+let keysOf (id: KeyTypes.ShortcutId) : ReactElement =
+    keyCaps (KeyTypes.idShortParts Bridge.isMac id)

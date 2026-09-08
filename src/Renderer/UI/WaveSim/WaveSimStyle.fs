@@ -121,17 +121,17 @@ let normalFontStyle = [
     FontSize "14px"
 ]
 
-/// Style for top row of buttons
+/// Style for top row of buttons.
+///
+/// Each is as wide as its own label needs. It used to be one fixed width for a shipped build and a
+/// wider one for a development build - where the button that starts a simulation also names the
+/// simulator it will start - which made every OTHER button in the row that much fatter to hold a
+/// label none of them has, ran the row past the edge of the pane, and left the development build
+/// looking nothing like the one people use.
 let topRowButtonStyle isRightSide= Style [
     Height ModelHelpers.Constants.wsButtonHeight
-    Width (
-        if JSHelpers.debugLevel > 0 then
-            ModelHelpers.Constants.wsButtonWidthDev
-        else
-            ModelHelpers.Constants.wsButtonWidth
-    )
     FontSize "16px"
-    Flex "0 0.5"
+    Flex "0 0 auto"
     if isRightSide then MarginLeft "auto" else AlignSelf AlignSelfOptions.FlexStart
     MarginRight Constants.topRowButtonMargin
     MarginLeft Constants.topRowButtonMargin

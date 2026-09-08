@@ -1344,7 +1344,12 @@ let topHalf canvasState (model: Model) dispatch : ReactElement * bool =
             waveInfoButton (match wsModel.State with | Success -> "Instructions" | _ ->"Getting Started") dispatch
         ]
  
-        div [Style [MarginTop 15.; Display DisplayOptions.Flex; JustifyContent "space-between"]] [
+        // The start/end button on the left and the two selection buttons on the right, each as wide
+        // as its own label. The gap is what the ends of the row cannot be relied on for: they are
+        // pushed apart only while there is room to spare, and the two groups met in the middle as
+        // soon as there was not.
+        div [Style [MarginTop 15.; Display DisplayOptions.Flex; JustifyContent "space-between"
+                    CSSProp.Custom("gap", "30px"); FlexWrap "wrap"]] [
             refreshStartEndButton()
             div [Style [inlineNoWrap; Flex "0 1"]] [
                 WaveSimSelect.selectWavesButton wsModel dispatch

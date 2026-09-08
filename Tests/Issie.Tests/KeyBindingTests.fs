@@ -34,15 +34,32 @@ let tests =
                 "rows naming an id that is not a ShortcutId case - impossible, but check anyway"
         }
 
-        test "gestures carry no chords and no contexts" {
-            // A Gesture exists only so the help table can describe it. Giving one a context would
-            // suggest it is dispatchable, which it is not.
+        test "what is documented only is dispatched nowhere" {
+            // A Gesture, and keys the browser acts on rather than Issie, exist so that the help
+            // list can show them. Neither reaches the dispatcher: chordsFor is what builds the
+            // lookup table, so returning a chord from one of these would bind it, and a context
+            // would suggest it was bound already.
             shortcuts
-            |> List.filter (fun s -> match s.Trigger with Gesture _ -> true | Chords _ -> false)
+            |> List.filter (fun s ->
+                match s.Trigger with
+                | Gesture _
+                | HelpKeys _ -> true
+                | Chords _ -> false)
             |> List.iter (fun s ->
-                Expect.isEmpty s.Contexts $"{idName s.Id} is a gesture but declares contexts"
-                Expect.isEmpty (chordsFor false s) $"{idName s.Id} is a gesture but has windows chords"
-                Expect.isEmpty (chordsFor true s) $"{idName s.Id} is a gesture but has macOS chords")
+                Expect.isEmpty s.Contexts $"{idName s.Id} is documented only but declares contexts"
+                Expect.isEmpty (chordsFor false s) $"{idName s.Id} is documented only but is bound on windows"
+                Expect.isEmpty (chordsFor true s) $"{idName s.Id} is documented only but is bound on macOS")
+        }
+
+        test "the keys the browser acts on are shown as keys" {
+            // Tab moves between the boxes in the properties pane because the browser makes it, and
+            // the dispatcher's job is to leave it alone - but it is still a key the user presses,
+            // so the help list draws it as one rather than describing it in a sentence.
+            let spec = shortcuts |> List.find (fun s -> s.Id = GsTabBetweenBoxes)
+            [ false; true ]
+            |> List.iter (fun isMac ->
+                let shown = shownChordsFor isMac spec |> List.map (chordLabel isMac)
+                Expect.equal shown [ "Tab"; "Shift+Tab" ] $"the keys shown for Tab navigation (isMac={isMac})")
         }
 
         test "every chord-bearing shortcut names at least one context" {

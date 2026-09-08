@@ -1,4 +1,4 @@
-/// Turns a key press into an action, using the table in KeyTypes and the context the user is in.
+﻿/// Turns a key press into an action, using the table in KeyTypes and the context the user is in.
 ///
 /// This is the only place in Issie that should listen for keys. It replaces five mechanisms that
 /// grew independently and never agreed with each other: the Electron menu accelerators, the
@@ -323,11 +323,10 @@ let actionOf (id: ShortcutId) (dispatch: Msg -> unit) : unit =
     | ScSwallowCloseWindow -> ()
     | ScDevTools -> Bridge.toggleDevTools ()
 
-    // ---- gestures have no chord, so can never be resolved to ----
+    // ---- documented only: no chord reaches the dispatcher, so none of these can be resolved to ----
     | GsCtrlWheelZoom
     | GsShiftDragPan
     | GsSpaceDragPan
-    | GsCtrlHoldPorts
     | GsTabBetweenBoxes -> ()
 
 //-------------------------------------------------------------------------------------------------//

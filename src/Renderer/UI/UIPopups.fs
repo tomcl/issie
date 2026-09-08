@@ -210,16 +210,26 @@ let viewInfoPopupAtTab (startTab: int) dispatch =
 
                 /// What one platform's column shows: the keys to press drawn as keys, or - for a
                 /// gesture - the words that describe it, which are a sentence and not a chord.
-                /// Only the first chord: later ones are alternatives, not extra keys.
+                ///
+                /// One chord for a shortcut the dispatcher fires on, since later ones there are
+                /// alternative ways to the same action and listing them all reads as extra keys to
+                /// press. All of them for keys shown here and dispatched nowhere: Tab and
+                /// Shift+Tab are two directions, not two spellings of one.
                 let keysFor isMac (s: KeyTypes.ShortcutSpec) : ReactElement =
+                    let caps chords =
+                        chords
+                        |> List.map (KeyTypes.chordShortParts isMac >> DiagramStyle.keyCaps)
+                        |> List.mapi (fun i keys ->
+                            if i = 0 then [ keys ] else [ str " / "; keys ])
+                        |> List.concat
+                        |> function
+                           | [] -> DiagramStyle.keyCaps []
+                           | shown -> span [] shown
+
                     match s.Trigger with
                     | KeyTypes.Gesture(win, mac) -> str (if isMac then mac else win)
-                    | KeyTypes.Chords _ ->
-                        KeyTypes.chordsFor isMac s
-                        |> List.tryHead
-                        |> Option.map (KeyTypes.chordShortParts isMac)
-                        |> Option.defaultValue []
-                        |> DiagramStyle.keyCaps
+                    | KeyTypes.Chords _ -> caps (KeyTypes.chordsFor isMac s |> List.truncate 1)
+                    | KeyTypes.HelpKeys _ -> caps (KeyTypes.shownChordsFor isMac s)
 
                 KeyTypes.shortcuts
                 |> List.filter (fun s ->

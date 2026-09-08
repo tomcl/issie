@@ -167,11 +167,10 @@ type ShortcutId =
     /// bound to nothing on purpose - see the table
     | ScSwallowCloseWindow
     | ScDevTools
-    // ---- gestures: no chord, documented only ----
+    // ---- documented only: nothing here dispatches them ----
     | GsCtrlWheelZoom
     | GsShiftDragPan
     | GsSpaceDragPan
-    | GsCtrlHoldPorts
     | GsTabBetweenBoxes
 
 type Trigger =
@@ -181,6 +180,12 @@ type Trigger =
     /// Not a key at all - a mouse or modifier gesture that exists only so the help table can
     /// describe it. The help table was missing all of these.
     | Gesture of win: string * mac: string
+    /// Keys that work but that Issie does not dispatch: Tab moves between input boxes because the
+    /// browser makes it, and the dispatcher's job there is to leave it alone. Written as chords
+    /// like any other keys, so the help table shows them exactly as it shows dispatched ones, and
+    /// kept out of the lookup table, which is what "does not dispatch" means. Several are
+    /// alternatives, shown in order.
+    | HelpKeys of win: Chord list * mac: Chord list
 
 type Category =
     | CatFile
@@ -238,6 +243,8 @@ let private both (chords: Chord list) = Chords(chords, chords)
 let private winOnly (chords: Chord list) = Chords(chords, [])
 /// macOS only - inert elsewhere
 let private macOnly (chords: Chord list) = Chords([], chords)
+/// keys the browser acts on, the same on both platforms: shown in help, dispatched nowhere
+let private bothHelpOnly (chords: Chord list) = HelpKeys(chords, chords)
 
 /// The canvas, whether or not a gesture is in progress.
 let private sheet = [ SheetIdle; SheetBusy ]
@@ -462,19 +469,31 @@ let shortcuts: ShortcutSpec list =
       // already covers scrolling, and more fully - it has the touchpad and touchscreen ways too.
       spec GsShiftDragPan (Gesture("Shift + drag on canvas", "Shift-drag on canvas")) []
           "" CatGesture
-      spec GsCtrlHoldPorts (Gesture("Hold Control over a custom component", "Hold Command over a custom component")) []
-          "Show the ports and resize corners that can be dragged" CatGesture
-      spec GsTabBetweenBoxes (Gesture("Tab / Shift + Tab", "Tab / Shift-Tab")) []
+      // Keys, not a gesture: Tab and Shift+Tab are what the user presses, and were written out as
+      // a sentence in the one column where every other row draws the keys themselves.
+      spec GsTabBetweenBoxes
+          (bothHelpOnly [ ch Mods.none (named Names.tab)
+                          ch { Mods.none with Shift = true } (named Names.tab) ]) []
           "Move between input boxes in the properties pane" CatGesture ]
 
 // ---------------------------------------------------------------------------------------------
 // lookup
 // ---------------------------------------------------------------------------------------------
 
-/// Chords for one platform.
+/// Chords for one platform - the ones the dispatcher fires on, so help-only keys are not among
+/// them: this is what builds the lookup table.
 let chordsFor (isMac: bool) (spec: ShortcutSpec) : Chord list =
     match spec.Trigger with
     | Chords(win, mac) -> if isMac then mac else win
+    | Gesture _
+    | HelpKeys _ -> []
+
+/// The keys to SHOW for one platform: what the dispatcher fires on, or - for a shortcut the
+/// browser acts on rather than Issie - what the user presses anyway.
+let shownChordsFor (isMac: bool) (spec: ShortcutSpec) : Chord list =
+    match spec.Trigger with
+    | Chords(win, mac)
+    | HelpKeys(win, mac) -> if isMac then mac else win
     | Gesture _ -> []
 
 /// (context, chord) -> spec, for one platform. Built once per platform by the caller.
@@ -567,12 +586,14 @@ let validate () : string list =
             let ids = g |> List.map (snd >> string) |> String.concat ", "
             $"{name}: {chordLabel isMac c} in {ctx} is claimed by {ids}")
 
-    let gesturesHaveNoContexts =
+    let helpOnlyHaveNoContexts =
         shortcuts
         |> List.filter (fun s ->
             match s.Trigger with
-            | Gesture _ -> not (List.isEmpty s.Contexts)
+            | Gesture _
+            | HelpKeys _ -> not (List.isEmpty s.Contexts)
             | Chords _ -> false)
-        |> List.map (fun s -> $"{s.Id} is a Gesture but declares contexts, which can never match")
+        |> List.map (fun s ->
+            $"{s.Id} is shown in help only but declares contexts, which can never match")
 
-    duplicateIds @ clashesOn false "windows" @ clashesOn true "macos" @ gesturesHaveNoContexts
+    duplicateIds @ clashesOn false "windows" @ clashesOn true "macos" @ helpOnlyHaveNoContexts

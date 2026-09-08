@@ -564,6 +564,36 @@
             </div>
           </td>
         </tr>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="WireRun">
+                <a href="/issie/reference/buswire-wirerun.html">
+                  WireRun
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:BusWire.WireRun`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:BusWire.WireRun\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L462-462" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 A maximal straight piece of a wire: all of it between two consecutive bends of the shape that
+ is drawn. A wire's segment list is not that shape - it holds zero-length segments, and splits
+ one straight piece over several segments - so radial rendering must work on runs and not on
+ segments, or it rounds a corner where the wire is straight and squares one off where it bends.
+              </p>
+            </div>
+          </td>
+        </tr>
       </tbody>
     </table>
   </div>
@@ -1921,7 +1951,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWire.renderJumpWire\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L617-617" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L606-606" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2017,6 +2047,118 @@
             <div>
               <code onmouseout="hideTip(event, '391', 391)" onmouseover="showTip(event, '391', 391)">
                 <p>
+                  <a id="renderRadialBend">
+                    <a href="#renderRadialBend">
+                      <code><span>renderRadialBend&#32;<span>before&#32;after&#32;rad</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="391">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>renderRadialBend&#32;<span>before&#32;after&#32;rad</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        before
+                      </b>
+                      :
+                      <code><a href="/issie/reference/buswire-wirerun.html">WireRun</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        after
+                      </b>
+                      :
+                      <code><a href="/issie/reference/buswire-wirerun.html">WireRun</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        rad
+                      </b>
+                      :
+                      <code>float</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>string</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:BusWire.renderRadialBend`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWire.renderRadialBend\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L500-500" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The SVG commands drawing one bend of a radial wire: the line along `before` as far as where the
+ corner starts to be rounded off, then the quarter circle of radius `rad` onto `after`.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    before
+                  </span>
+                  :
+                  <code><a href="/issie/reference/buswire-wirerun.html">WireRun</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    after
+                  </span>
+                  :
+                  <code><a href="/issie/reference/buswire-wirerun.html">WireRun</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    rad
+                  </span>
+                  :
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '392', 392)" onmouseover="showTip(event, '392', 392)">
+                <p>
                   <a id="renderRadialWire">
                     <a href="#renderRadialWire">
                       <code><span>renderRadialWire&#32;<span>props</span></span></code>
@@ -2024,7 +2166,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="391">
+              <div class="fsdocs-tip" id="392">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>renderRadialWire&#32;<span>props</span></span></code>
@@ -2061,7 +2203,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWire.renderRadialWire\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L637-637" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L626-626" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2085,118 +2227,6 @@
                     Returns: 
                   </span>
                   <code><a href="https://learn.microsoft.com/dotnet/api/fable.react.reactelement">ReactElement</a></code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '392', 392)" onmouseover="showTip(event, '392', 392)">
-                <p>
-                  <a id="renderRadialWireSVG">
-                    <a href="#renderRadialWireSVG">
-                      <code><span>renderRadialWireSVG&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span>&#32;segmentpair</span></span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="392">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>renderRadialWireSVG&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span>&#32;segmentpair</span></span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        arg0
-                      </b>
-                      :
-                      <code>string</code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        arg1
-                      </b>
-                      :
-                      <code><a href="/issie/reference/drawmodeltype-buswiret-orientation.html">Orientation</a></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        segmentpair
-                      </b>
-                      :
-                      <code>(type)</code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><span>string&#32;*&#32;<a href="/issie/reference/drawmodeltype-buswiret-orientation.html">Orientation</a></span></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:BusWire.renderRadialWireSVG`')">
-                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
-                  </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWire.renderRadialWireSVG\'/>')">
-                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
-                  </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L460-460" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     Creates the SVG command string required to render the wire
- (apart from the final "nub") with a radial display type
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-params">
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    arg0
-                  </span>
-                  :
-                  <code>string</code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    arg1
-                  </span>
-                  :
-                  <code><a href="/issie/reference/drawmodeltype-buswiret-orientation.html">Orientation</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    segmentpair
-                  </span>
-                  :
-                  <code>(type)</code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-              </dl>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Returns: 
-                  </span>
-                  <code><span>string&#32;*&#32;<a href="/issie/reference/drawmodeltype-buswiret-orientation.html">Orientation</a></span></code>
                 </dt>
                 <dd class="fsdocs-return-docs"></dd>
               </dl>
@@ -2269,6 +2299,86 @@
             <div>
               <code onmouseout="hideTip(event, '394', 394)" onmouseover="showTip(event, '394', 394)">
                 <p>
+                  <a id="segmentRuns">
+                    <a href="#segmentRuns">
+                      <code><span>segmentRuns&#32;<span>absSegments</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="394">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>segmentRuns&#32;<span>absSegments</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        absSegments
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/drawmodeltype-buswiret-asegment.html">ASegment</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="/issie/reference/buswire-wirerun.html">WireRun</a>&#32;list</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:BusWire.segmentRuns`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWire.segmentRuns\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L471-471" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Collapse a wire's absolute segments into the runs between its bends: drop the zero-length
+ segments, which have no shape, and merge whatever is then adjacent and collinear.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    absSegments
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/drawmodeltype-buswiret-asegment.html">ASegment</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span><a href="/issie/reference/buswire-wirerun.html">WireRun</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '395', 395)" onmouseover="showTip(event, '395', 395)">
+                <p>
                   <a id="view">
                     <a href="#view">
                       <code><span>view&#32;<span>model&#32;highlighted&#32;dispatch</span></span></code>
@@ -2276,7 +2386,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="394">
+              <div class="fsdocs-tip" id="395">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>view&#32;<span>model&#32;highlighted&#32;dispatch</span></span></code>
@@ -2329,7 +2439,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWire.view\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L667-667" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L653-653" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2382,7 +2492,91 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '395', 395)" onmouseover="showTip(event, '395', 395)">
+              <code onmouseout="hideTip(event, '396', 396)" onmouseover="showTip(event, '396', 396)">
+                <p>
+                  <a id="wireBends">
+                    <a href="#wireBends">
+                      <code><span>wireBends&#32;<span>runs</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="396">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>wireBends&#32;<span>runs</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        runs
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/buswire-wirerun.html">WireRun</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><span>(<span><a href="/issie/reference/buswire-wirerun.html">WireRun</a>&#32;*&#32;<a href="/issie/reference/buswire-wirerun.html">WireRun</a>&#32;*&#32;float</span>)</span>&#32;list</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:BusWire.wireBends`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:BusWire.wireBends\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWire.fs#L489-489" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The bends of a radial wire, each paired with the radius its corner is drawn with. A bend eats
+ `rad` off the end of the run either side of it, so a run with a bend at both ends can give half
+ of itself to each, and one at either end of the wire has a single bend and can give all of
+ itself. The radius is therefore the standard one everywhere except where there is genuinely not
+ the room for it: neighbouring bends never overlap, and a short run is the only thing that
+ squares a corner off.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    runs
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/buswire-wirerun.html">WireRun</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span><span>(<span><a href="/issie/reference/buswire-wirerun.html">WireRun</a>&#32;*&#32;<a href="/issie/reference/buswire-wirerun.html">WireRun</a>&#32;*&#32;float</span>)</span>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '397', 397)" onmouseover="showTip(event, '397', 397)">
                 <p>
                   <a id="xyVerticesToSegments">
                     <a href="#xyVerticesToSegments">
@@ -2391,7 +2585,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="395">
+              <div class="fsdocs-tip" id="397">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>xyVerticesToSegments&#32;<span>connId&#32;xyVerticesList</span></span></code>

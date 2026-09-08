@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="Signature (issie)" />
+    <meta property="og:title" content="WireRun (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="Signature (issie)">
+    <meta name="twitter:title" content="WireRun (issie)">
     
-    <title>Signature (issie) | issie</title>
+    <title>WireRun (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -472,7 +472,7 @@
     <div id="content">
         <div>
   <h2>
-    Signature Type
+    WireRun Type
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
@@ -486,13 +486,9 @@
     </dt>
     <dt>
       Parent Module: 
-      <a href="/issie/reference/global-canvasextractor.html">
-        CanvasExtractor
+      <a href="/issie/reference/global-buswire.html">
+        BusWire
       </a>
-    </dt>
-    <dt>
-      Abbreviation For: 
-      <code><span><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span>&#32;*&#32;<span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></span></code>
     </dt>
     <dt>
       Base Type: 
@@ -500,20 +496,24 @@
     </dt>
     <dt>
       All Interfaces: 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralcomparable">IStructuralComparable</a></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/buswire-wirerun.html">WireRun</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
       , 
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/buswire-wirerun.html">WireRun</a>&gt;</span></code>
+      , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
       , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.runtime.compilerservices.ituple">ITuple</a></code>
+      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralcomparable">IStructuralComparable</a></code>
     </dt>
   </dl>
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         A sheet's ports: input labels and widths, then output labels and widths, each in the order the
- components appear on the sheet.
+         A maximal straight piece of a wire: all of it between two consecutive bends of the shape that
+ is drawn. A wire's segment list is not that shape - it holds zero-length segments, and splits
+ one straight piece over several segments - so radial rendering must work on runs and not on
+ segments, or it rounds a corner where the wire is straight and squares one off where it bends.
       </p>
     </div>
   </div>
@@ -521,7 +521,142 @@
   <div></div>
   <div></div>
   <div></div>
-  <div></div>
+  <div>
+    <h3>
+      Record fields
+    </h3>
+    <table class="table outer-list fsdocs-member-list">
+      <thead>
+        <tr>
+          <td class="fsdocs-member-list-header">
+            Record Field
+          </td>
+          <td class="fsdocs-member-list-header">
+            Description
+          </td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '3546', 3546)" onmouseover="showTip(event, '3546', 3546)">
+                <p>
+                  <a id="RunEnd">
+                    <a href="#RunEnd">
+                      <code>RunEnd</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="3546">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>RunEnd</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '3547', 3547)" onmouseover="showTip(event, '3547', 3547)">
+                <p>
+                  <a id="RunOrientation">
+                    <a href="#RunOrientation">
+                      <code>RunOrientation</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="3547">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>RunOrientation</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><a href="/issie/reference/drawmodeltype-buswiret-orientation.html">Orientation</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code><a href="/issie/reference/drawmodeltype-buswiret-orientation.html">Orientation</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '3548', 3548)" onmouseover="showTip(event, '3548', 3548)">
+                <p>
+                  <a id="RunStart">
+                    <a href="#RunStart">
+                      <code>RunStart</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="3548">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>RunStart</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
   <div></div>
   <div></div>
   <div>
@@ -543,25 +678,28 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3617', 3617)" onmouseover="showTip(event, '3617', 3617)">
+              <code onmouseout="hideTip(event, '3549', 3549)" onmouseover="showTip(event, '3549', 3549)">
                 <p>
-                  <a id="Item1">
-                    <a href="#Item1">
-                      <code><span>this.Item1</span></code>
+                  <a id="Length">
+                    <a href="#Length">
+                      <code><span>this.Length</span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3617">
+              <div class="fsdocs-tip" id="3549">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>this.Item1</span></code>
+                  <code><span>this.Length</span></code>
                   <br/>
                   <br/>
                   <span>
                     Returns: 
-                    <code><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></code>
+                    <code>float</code>
                   </span>
+                  <br/>
+                  Modifiers: 
+                  inline
                   <br/>
                 </div>
               </div>
@@ -573,46 +711,7 @@
                 <span class="fsdocs-return-name">
                   Returns: 
                 </span>
-                <code><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '3618', 3618)" onmouseover="showTip(event, '3618', 3618)">
-                <p>
-                  <a id="Item2">
-                    <a href="#Item2">
-                      <code><span>this.Item2</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="3618">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.Item2</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></code>
+                <code>float</code>
               </dt>
               <dd class="fsdocs-return-docs"></dd>
             </dl>

@@ -1,4 +1,11 @@
 #!/usr/bin/env -S dotnet fsi
+// The package source these #r lines resolve from, named here rather than left to whatever
+// NuGet config the machine happens to expose. `dotnet fsi` restores its #r references through
+// a project it generates under ~/.packagemanagement, OUTSIDE the repository, so the
+// Nuget.Config beside this file never applies to them - and on the v6.3.7 macOS build the
+// ambient config offered no source at all, so the restore saw only the SDK's offline
+// library-packs folder and the build failed before it had compiled anything.
+#i "nuget: https://api.nuget.org/v3/index.json"
 #r "nuget: Fake.Core.Target"
 #r "nuget: Fake.JavaScript.Npm, 6.0.0"
 //

@@ -1,4 +1,4 @@
-/// The shortcut table: a shortcut that can never fire, or that quietly shadows another, is
+﻿/// The shortcut table: a shortcut that can never fire, or that quietly shadows another, is
 /// invisible at runtime and very hard to spot by reading. These tests are what makes the table
 /// safe to edit.
 module KeyBindingTests
@@ -61,10 +61,12 @@ let tests =
                 set [ "ScTextCopy"; "ScTextCut"; "ScTextPaste"; "ScTextSelectAll"
                       "ScTextUndo"; "ScTextRedo"; "ScLeaveTextBox" ]
             // Keys an input box has no use for, so letting them through costs typing nothing and
-            // saves the user from losing zoom the moment a caret lands somewhere. The test that
-            // asks for them in TextEntry is below; both must be changed together, which is the
+            // saves the user from losing zoom the moment a caret lands somewhere. The tests that
+            // ask for them in TextEntry are below; both must be changed together, which is the
             // point of naming them twice.
-            let harmlessInATextBox = set [ "ScZoomIn"; "ScZoomOut"; "ScZoomToFit" ]
+            let harmlessInATextBox =
+                set [ "ScZoomIn"; "ScZoomOut"; "ScZoomToFit"
+                      "ScAppZoomIn"; "ScAppZoomOut"; "ScAppZoomReset" ]
             shortcuts
             |> List.filter (fun s -> List.contains TextEntry s.Contexts)
             |> List.iter (fun s ->
@@ -160,6 +162,23 @@ let tests =
                 |> List.iter (fun ctx ->
                     Expect.isTrue (List.contains ctx spec.Contexts)
                         $"{idName id} is not bound in {ctx}, so zoom dies there"))
+        }
+
+        test "application zoom works in every context, dialogs included" {
+            // The bug this pins: application zoom was bound only where the user is driving the app,
+            // so it did nothing while any dialog was up - including the warning that tells the user
+            // to press these very keys because the window is too narrow. Unlike the document zoom
+            // above, it scales the dialog along with everything else, so a modal context is where
+            // it is wanted most rather than least.
+            let everyContext =
+                [ SheetIdle; SheetBusy; WaveSim; Global; Popup; ProjectBrowser; TextEntry; CodeEditor ]
+            [ ScAppZoomIn; ScAppZoomOut; ScAppZoomReset ]
+            |> List.iter (fun id ->
+                let spec = shortcuts |> List.find (fun s -> s.Id = id)
+                everyContext
+                |> List.iter (fun ctx ->
+                    Expect.isTrue (List.contains ctx spec.Contexts)
+                        $"{idName id} is not bound in {ctx}, so application zoom dies there"))
         }
 
         test "the waveform cursor keys yield to a focused input box" {

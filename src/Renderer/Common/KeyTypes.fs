@@ -1,4 +1,4 @@
-/// The one place every keyboard shortcut in Issie is described.
+﻿/// The one place every keyboard shortcut in Issie is described.
 ///
 /// This module is deliberately pure: no Fable.React, no ElectronAPI, no ModelType, no Browser.Dom.
 /// It says *what* the shortcuts are, not what they do and not how they are delivered. The binding
@@ -243,6 +243,10 @@ let private macOnly (chords: Chord list) = Chords([], chords)
 let private sheet = [ SheetIdle; SheetBusy ]
 /// Anywhere the user is driving the app rather than typing into it.
 let private appWide = [ SheetIdle; SheetBusy; WaveSim; Global ]
+/// Every context there is, including the opaque ones - for a shortcut that has no competitor
+/// anywhere and whose effect is not about what the user happens to be looking at.
+let private everywhere =
+    [ SheetIdle; SheetBusy; WaveSim; Global; Popup; ProjectBrowser; TextEntry; CodeEditor ]
 
 // ---------------------------------------------------------------------------------------------
 // THE TABLE
@@ -368,15 +372,19 @@ let shortcuts: ShortcutSpec list =
       spec ScZoomToFit (both zoomReset) zoomable
           "Fit the whole circuit on the screen" CatView
 
+      // Everywhere, unlike the document zoom above: application zoom scales the window and
+      // everything in it, dialogs included, so in a modal context it is wanted MORE rather than
+      // less - and the warning about the window being too narrow tells the user to press exactly
+      // these keys, which it can only do while it is the thing on the screen.
       repeating (
           spec ScAppZoomIn
               (both [ ch Mods.primAlt (named Names.equal)
                       ch { Mods.primAlt with Shift = true } (named Names.equal) ])
-              appWide "Zoom whole application in" CatView)
+              everywhere "Zoom whole application in" CatView)
       repeating (
-          spec ScAppZoomOut (both [ ch Mods.primAlt (named Names.minus) ]) appWide
+          spec ScAppZoomOut (both [ ch Mods.primAlt (named Names.minus) ]) everywhere
               "Zoom whole application out" CatView)
-      spec ScAppZoomReset (both [ ch Mods.primAlt (KDigit '0') ]) appWide
+      spec ScAppZoomReset (both [ ch Mods.primAlt (KDigit '0') ]) everywhere
           "Zoom whole application reset" CatView
       spec ScFullScreen
           (Chords(win = [ ch Mods.none (KFn 11) ], mac = [ ch Mods.primSecondary (letter 'F') ]))

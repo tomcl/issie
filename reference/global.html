@@ -2217,6 +2217,38 @@
       <tr>
         <td class="fsdocs-entity-name">
           <p>
+            <a name="KeyCaps">
+              <a href="/issie/reference/global-keycaps.html">
+                KeyCaps
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:KeyCaps`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:KeyCaps\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/KeyCaps.fs#L7-7" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               Keys drawn as keys.
+
+ One place, this early in the build, because everything that tells the user which keys to press
+ draws them the same way: the shortcut list in Info, the dialogs that name a chord, and the help
+ text, which is markdown and so cannot reach any module that knows about the model. The
+ appearance is `keyCap` in extra.css; what is here is the arrangement.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
             <a name="KeyTypes">
               <a href="/issie/reference/global-keytypes.html">
                 KeyTypes
@@ -2335,7 +2367,7 @@
             <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Markdown\'/>')">
               <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
             </div>
-            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Markdown.fs#L28-28" class="fsdocs-source-link" title="Source on GitHub">
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Markdown.fs#L32-32" class="fsdocs-source-link" title="Source on GitHub">
               <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
             </a>
             <p class="fsdocs-summary">
@@ -2351,6 +2383,10 @@
  italic, inline code, links, bullet and numbered lists, and tables - which is core GitHub
  markdown with nothing left over. There are no images and no nested lists, so there is no
  support for them; a line that tries will render as its own text rather than silently vanish.
+
+ One addition to that subset: [[Ctrl 0]] draws the keys of a chord as keys. Help text that tells
+ the reader to press something should say it the way the rest of Issie does, and bold prose in
+ the middle of a sentence is not that.
 
  TWO THINGS THIS DELIBERATELY DOES NOT DO.
 

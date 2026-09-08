@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="Annotation (issie)" />
+    <meta property="og:title" content="KeyCaps (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="Annotation (issie)">
+    <meta name="twitter:title" content="KeyCaps (issie)">
     
-    <title>Annotation (issie) | issie</title>
+    <title>KeyCaps (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -472,7 +472,7 @@
     <div id="content">
         <div>
   <h2>
-    Annotation Type
+    KeyCaps Module
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
@@ -484,48 +484,28 @@
     <dt>
       Assembly: Renderer.dll
     </dt>
-    <dt>
-      Parent Module: 
-      <a href="/issie/reference/drawmodeltype-symbolt.html">
-        SymbolT
-      </a>
-    </dt>
-    <dt>
-      Base Type: 
-      <code>obj</code>
-    </dt>
-    <dt>
-      All Interfaces: 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/drawmodeltype-symbolt-annotation.html">Annotation</a>&gt;</span></code>
-      , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
-      , 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/drawmodeltype-symbolt-annotation.html">Annotation</a>&gt;</span></code>
-      , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
-      , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralcomparable">IStructuralComparable</a></code>
-    </dt>
   </dl>
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-        
+         Keys drawn as keys.
+
+ One place, this early in the build, because everything that tells the user which keys to press
+ draws them the same way: the shortcut list in Info, the dialogs that name a chord, and the help
+ text, which is markdown and so cannot reach any module that knows about the model. The
+ appearance is `keyCap` in extra.css; what is here is the arrangement.
       </p>
     </div>
   </div>
-  <div></div>
-  <div></div>
-  <div></div>
   <div>
     <h3>
-      Union cases
+      Functions and values
     </h3>
     <table class="table outer-list fsdocs-member-list">
       <thead>
         <tr>
           <td class="fsdocs-member-list-header">
-            Union case
+            Function or value
           </td>
           <td class="fsdocs-member-list-header">
             Description
@@ -536,81 +516,85 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4753', 4753)" onmouseover="showTip(event, '4753', 4753)">
+              <code onmouseout="hideTip(event, '1371', 1371)" onmouseover="showTip(event, '1371', 1371)">
                 <p>
-                  <a id="RotateButton">
-                    <a href="#RotateButton">
-                      <code><span>RotateButton&#32;<a href="/issie/reference/commontypes-rotation.html">Rotation</a></span></code>
+                  <a id="render">
+                    <a href="#render">
+                      <code><span>render&#32;<span>parts</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4753">
+              <div class="fsdocs-tip" id="1371">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>RotateButton&#32;<a href="/issie/reference/commontypes-rotation.html">Rotation</a></span></code>
+                  <code><span>render&#32;<span>parts</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        Item
+                        parts
                       </b>
                       :
-                      <code><a href="/issie/reference/commontypes-rotation.html">Rotation</a></code>
+                      <code><span>string&#32;list</span></code>
                     </span>
                     <br/>
                   </ul>
                   <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="https://learn.microsoft.com/dotnet/api/fable.react.reactelement">ReactElement</a></code>
+                  </span>
+                  <br/>
                 </div>
               </div>
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item
-                </span>
-                :
-                <code><a href="/issie/reference/commontypes-rotation.html">Rotation</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4754', 4754)" onmouseover="showTip(event, '4754', 4754)">
-                <p>
-                  <a id="ScaleButton">
-                    <a href="#ScaleButton">
-                      <code><span>ScaleButton</span></code>
-                    </a>
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:KeyCaps.render`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:KeyCaps.render\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/KeyCaps.fs#L18-18" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4754">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>ScaleButton</span></code>
-                  <br/>
-                  <br/>
+                  <p class="fsdocs-summary">
+                     One chord drawn as the keys to press: [Ctrl]+[Alt]+[-].
+
+ Takes the key names rather than a shortcut, so that a caller showing a platform other than the
+ one it is running on can do so - the shortcut list in Info shows both. Empty means the shortcut
+ has no chord on that platform, which is said in words: an empty row would read as "no key
+ needed".
+                  </p>
                 </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <div class="fsdocs-summary">
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L117-117" class="fsdocs-source-link" title="Source on GitHub">
-                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-              </a>
-              <p class="fsdocs-summary">
-                
-              </p>
-            </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    parts
+                  </span>
+                  :
+                  <code><span>string&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="https://learn.microsoft.com/dotnet/api/fable.react.reactelement">ReactElement</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
           </td>
         </tr>
       </tbody>
@@ -619,103 +603,10 @@
   <div></div>
   <div></div>
   <div></div>
-  <div>
-    <h3>
-      Instance members
-    </h3>
-    <table class="table outer-list fsdocs-member-list">
-      <thead>
-        <tr>
-          <td class="fsdocs-member-list-header">
-            Instance member
-          </td>
-          <td class="fsdocs-member-list-header">
-            Description
-          </td>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4755', 4755)" onmouseover="showTip(event, '4755', 4755)">
-                <p>
-                  <a id="IsRotateButton">
-                    <a href="#IsRotateButton">
-                      <code><span>this.IsRotateButton</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4755">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsRotateButton</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4756', 4756)" onmouseover="showTip(event, '4756', 4756)">
-                <p>
-                  <a id="IsScaleButton">
-                    <a href="#IsScaleButton">
-                      <code><span>this.IsScaleButton</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4756">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsScaleButton</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
   <div></div>
 </div>
         

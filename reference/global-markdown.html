@@ -501,6 +501,10 @@
  markdown with nothing left over. There are no images and no nested lists, so there is no
  support for them; a line that tries will render as its own text rather than silently vanish.
 
+ One addition to that subset: [[Ctrl 0]] draws the keys of a chord as keys. Help text that tells
+ the reader to press something should say it the way the rest of Issie does, and bold prose in
+ the middle of a sentence is not that.
+
  TWO THINGS THIS DELIBERATELY DOES NOT DO.
 
  It does not produce an HTML string. Rendering markdown by handing HTML to
@@ -552,7 +556,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Markdown.Block\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Markdown.fs#L42-42" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Markdown.fs#L50-50" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -579,7 +583,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Markdown.Inline\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Markdown.fs#L34-34" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Markdown.fs#L38-38" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -610,7 +614,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1405', 1405)" onmouseover="showTip(event, '1405', 1405)">
+              <code onmouseout="hideTip(event, '1410', 1410)" onmouseover="showTip(event, '1410', 1410)">
                 <p>
                   <a id="parse">
                     <a href="#parse">
@@ -619,7 +623,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1405">
+              <div class="fsdocs-tip" id="1410">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>parse&#32;<span>text</span></span></code>
@@ -656,7 +660,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Markdown.parse\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Markdown.fs#L178-178" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Markdown.fs#L196-196" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -693,7 +697,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1406', 1406)" onmouseover="showTip(event, '1406', 1406)">
+              <code onmouseout="hideTip(event, '1411', 1411)" onmouseover="showTip(event, '1411', 1411)">
                 <p>
                   <a id="parseInlines">
                     <a href="#parseInlines">
@@ -702,7 +706,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1406">
+              <div class="fsdocs-tip" id="1411">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>parseInlines&#32;<span>line</span></span></code>
@@ -739,7 +743,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Markdown.parseInlines\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Markdown.fs#L61-61" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Markdown.fs#L69-69" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -777,7 +781,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1407', 1407)" onmouseover="showTip(event, '1407', 1407)">
+              <code onmouseout="hideTip(event, '1412', 1412)" onmouseover="showTip(event, '1412', 1412)">
                 <p>
                   <a id="render">
                     <a href="#render">
@@ -786,7 +790,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1407">
+              <div class="fsdocs-tip" id="1412">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>render&#32;<span>onLink&#32;text</span></span></code>
@@ -831,7 +835,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Markdown.render\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Markdown.fs#L281-281" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Markdown.fs#L300-300" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -872,7 +876,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1408', 1408)" onmouseover="showTip(event, '1408', 1408)">
+              <code onmouseout="hideTip(event, '1413', 1413)" onmouseover="showTip(event, '1413', 1413)">
                 <p>
                   <a id="renderBlocks">
                     <a href="#renderBlocks">
@@ -881,7 +885,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1408">
+              <div class="fsdocs-tip" id="1413">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>renderBlocks&#32;<span>onLink&#32;blocks</span></span></code>
@@ -926,7 +930,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Markdown.renderBlocks\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Markdown.fs#L257-257" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Markdown.fs#L276-276" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -967,7 +971,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1409', 1409)" onmouseover="showTip(event, '1409', 1409)">
+              <code onmouseout="hideTip(event, '1414', 1414)" onmouseover="showTip(event, '1414', 1414)">
                 <p>
                   <a id="renderInlines">
                     <a href="#renderInlines">
@@ -976,7 +980,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1409">
+              <div class="fsdocs-tip" id="1414">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>renderInlines&#32;<span>onLink&#32;inlines</span></span></code>
@@ -1021,7 +1025,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Markdown.renderInlines\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Markdown.fs#L247-247" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Markdown.fs#L265-265" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

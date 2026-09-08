@@ -586,12 +586,18 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ContextMenuBuilder.makeClickableReturner\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/ContextMenuBuilder.fs#L16-16" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/ContextMenuBuilder.fs#L25-25" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
                      function used to implement main process 
  context menu items. It should not be changed.
+
+ An item that has a keyboard shortcut carries it as an accelerator, so the platform draws it
+ where it draws every other one - on the right of the menu, in that platform's own words. It is
+ registered with nothing: registerAccelerator false. Issie dispatches every key itself, from one
+ listener, and an accelerator registered here would be a second claim on the same chord - which
+ is the arrangement the key dispatcher was written to replace.
                   </p>
                 </div>
               </summary>
@@ -706,7 +712,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ContextMenuBuilder.makeMenu\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/ContextMenuBuilder.fs#L45-45" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/ContextMenuBuilder.fs#L59-59" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

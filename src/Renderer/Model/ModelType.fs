@@ -1093,6 +1093,14 @@ type PinnedCanvas = {
 }
 
 type Model = {
+    /// The width of the app window in CSS pixels, as the browser last reported it.
+    ///
+    /// An external input, like a key or the pointer's position: it arrives on the window's resize
+    /// event - which a change of web zoom also fires - and nothing else writes it. It is in the
+    /// model rather than measured where it is wanted because a render happens only when the model
+    /// changes, so a view that reads the window directly stands still until something unrelated
+    /// happens to it.
+    WindowWidth: float
     /// Which pane last received a mouse-down, and so where unmodified keys go.
     /// Set on mouse-down only - never on mouse-move - so it cannot change under the user's hand
     /// while they are typing. It replaces a flag set from the pointer's position on every mouse
@@ -1335,6 +1343,7 @@ type Model = {
             | Some name, _ -> name
             | None, None -> failwithf "What? Project is not open cannot guess sheet!"
 
+let windowWidth_ = Lens.create (fun a -> a.WindowWidth) (fun s a -> {a with WindowWidth = s})
 let waveSimSheet_ = Lens.create (fun a -> a.WaveSimSheet) (fun s a -> {a with WaveSimSheet = s})
 let waveSim_ = Lens.create (fun a -> a.WaveSim) (fun s a -> {a with WaveSim = s})
 let codeEditorState_ = Lens.create (fun a -> a.CodeEditorState) (fun s a -> {a with CodeEditorState = s})

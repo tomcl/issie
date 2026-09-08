@@ -1,4 +1,4 @@
-module MenuHelpers
+﻿module MenuHelpers
 open EEExtensions
 open Fulma
 open Fable.React
@@ -58,7 +58,11 @@ let warnAppWidth (dispatch: Msg -> unit) (afterFun: _ -> unit ) =
     if appWidth < Constants.minGoodAppWidth then
         (Some afterFun, dispatch)
         ||> PopupHelpers.dynamicConfirmationPopup "Issie Window Size Warning" "Continue" (fun model ->
-            let appWidth = Browser.Dom.self.innerWidth
+            // From the model, so that resizing the window or zooming the app while this is up
+            // moves the figure it quotes: the resize event puts the new width there and the
+            // render that follows draws this again. Read off the window instead, it stood still
+            // at whatever it was when the dialog opened.
+            let appWidth = model.WindowWidth
             let keyOf3 s1 s2 s3 = span [] [bSpan s1; tSpan " + "; bSpan s2 ; tSpan " + "; bSpan s3]
             div [] ([
                 div [] [str $"The issie app window is currently "; bSpan $"{appWidth} pixels"; str " in width."]

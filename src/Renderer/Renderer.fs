@@ -627,6 +627,23 @@ let appSubscriptions (_model: ModelType.Model) : Sub<Msg> =
     /// Every wheel over the canvas arrives here, natively and non-passive: React's own wheel
     /// listeners are passive, so only from here can a zoom gesture stop the accompanying scroll.
     let subWheel = domNonPassiveListenerSub "wheel" SheetDisplay.onCanvasWheel
+    /// The window's width, which parts of the view are laid out from - what the size warning
+    /// quotes, how much of the project path the top menu shows. Changing the window's size or the
+    /// app's zoom is not a message, so nothing rendered again and those figures stood still at
+    /// whatever they were when something last happened; web zoom changes the window's inner width,
+    /// so it arrives here too.
+    ///
+    /// The width is put IN the model rather than the event merely asking for a render, because
+    /// Elmish renders when the model changes and a model handed back unchanged renders nothing -
+    /// which is also what makes a resize that changed only the height, or a run of events
+    /// reporting a width that has not moved, cost nothing.
+    let subResize =
+        windowListenerSub "resize" (fun dispatch ->
+            fun _ ->
+                dispatch (
+                    UpdateModel(fun m ->
+                        let width = Browser.Dom.self.innerWidth
+                        if m.WindowWidth = width then m else Optic.set windowWidth_ width m)))
     /// unfinished code
     /// add hook in main function to display a context menu
     /// create menu as shown in main.fs
@@ -654,6 +671,7 @@ let appSubscriptions (_model: ModelType.Model) : Sub<Msg> =
         ["keyup"], subUp
         ["blur"], subBlur
         ["wheel"], subWheel
+        ["resize"], subResize
         ["contextmenu"], subRightClick
         ["ipc"; "context-menu-command"], subContextMenuCommand
     ]

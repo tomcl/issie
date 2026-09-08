@@ -290,6 +290,7 @@ let viewOnDiagramButtons model dispatch =
 
 
 let init() = {
+    WindowWidth = Browser.Dom.self.innerWidth
     KeyFocusPane = LeftPane
     RunAfterRenderWithSpinner = None
     SpinnerPayload = None

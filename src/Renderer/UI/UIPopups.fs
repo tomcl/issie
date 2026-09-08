@@ -167,11 +167,17 @@ let viewInfoPopupAtTab (startTab: int) dispatch =
         ]
 
     let keys =
+        // A row header, so a screen reader says which action a key belongs to, but not drawn as
+        // one: bold, an action read exactly like the heading of the group it is under and the
+        // groups stopped separating anything.
+        let actionCell (action: String) =
+            th [Scope "Row"; Style [FontWeight "normal"]] [str action]
+
         let keyTable: ReactElement =
             let makeKeyTableRow (action: String) (windowsKeys: ReactElement) (macosKeys: ReactElement)
                 : ReactElement =
                 tr [] [
-                    th [Scope "Row"] [str action]
+                    actionCell action
                     td [] [windowsKeys]
                     td [] [macosKeys]
                 ]
@@ -221,8 +227,12 @@ let viewInfoPopupAtTab (startTab: int) dispatch =
                 |> List.groupBy (fun s -> s.Category)
                 |> List.sortBy (fst >> order)
                 |> List.collect (fun (cat, specs) ->
+                    // The one bold thing in the column, and set off from the group above it,
+                    // so the eye can find where one group ends and the next begins.
                     let heading =
-                        tr [] [ th [Scope "Row"; ColSpan 3; Style [PaddingTop "1em"]]
+                        tr [] [ th [Scope "Col"
+                                    ColSpan 3
+                                    Style [ PaddingTop "1.4em"; FontSize "1.05em" ]]
                                    [str (categoryName cat)] ]
                     heading
                     :: (specs |> List.map (fun s ->
@@ -242,7 +252,7 @@ let viewInfoPopupAtTab (startTab: int) dispatch =
         let otherInputTable: ReactElement =
             let makeOtherInputTableRow (action: String) (mouse: String) (touchpad: String) (touchscreen: String) =
                 tr [] [
-                    th [Scope "Row"] [str action]
+                    actionCell action
                     td [] [str mouse]
                     td [] [str touchpad]
                     td [] [str touchscreen]

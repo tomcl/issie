@@ -1,4 +1,4 @@
-/// Building and popping up the right-click menus, for the main process only.
+﻿/// Building and popping up the right-click menus, for the main process only.
 ///
 /// The menu DATA - which menus exist and what is on them - stays in ContextMenus.fs, which both
 /// processes compile: the renderer needs it to ask for a menu by name and to recognise the item
@@ -11,8 +11,17 @@ open Fable.Core.JsInterop
 open ElectronAPI
 open ContextMenus
 
+[<Emit("process.platform === 'darwin'")>]
+let private isMac : bool = jsNative
+
 /// function used to implement main process 
 /// context menu items. It should not be changed.
+///
+/// An item that has a keyboard shortcut carries it as an accelerator, so the platform draws it
+/// where it draws every other one - on the right of the menu, in that platform's own words. It is
+/// registered with nothing: registerAccelerator false. Issie dispatches every key itself, from one
+/// listener, and an accelerator registered here would be a second claim on the same chord - which
+/// is the arrangement the key dispatcher was written to replace.
 let makeClickableReturner
         (dispatchToRenderer: (string * string) -> unit)
         (ev: IpcMainEvent)
@@ -24,6 +33,11 @@ let makeClickableReturner
                     dispatchToRenderer (menuType,s)
                     ev))
         "label", unbox Some s
+        match acceleratorOf s with
+        | Some(win, mac) ->
+            "accelerator", unbox Some (if isMac then mac else win)
+            "registerAccelerator", unbox Some false
+        | None -> ()
     |]
     |> createObj
     |> unbox

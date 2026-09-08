@@ -197,6 +197,72 @@ let tests =
                         $"{idName id} is not bound in {ctx}, so application zoom dies there"))
         }
 
+        test "the right-click menus show the keys that actually fire" {
+            // The accelerators in ContextMenus are written out, because that file is compiled into
+            // the main process, which has none of the renderer and so cannot read the table. This
+            // is what stops the copy drifting: it can see both. Electron spells a chord its own
+            // way, so the comparison is against a translation of what the table holds rather than
+            // against the table's own label.
+            let electronKey (key: KeyName) =
+                match key with
+                | KLetter c -> string c
+                | KDigit c -> string c
+                | KFn n -> $"F{n}"
+                | KNamed n when n = Names.arrowLeft -> "Left"
+                | KNamed n when n = Names.arrowRight -> "Right"
+                | KNamed n when n = Names.arrowUp -> "Up"
+                | KNamed n when n = Names.arrowDown -> "Down"
+                // the physical = key, which Electron names by the character it carries
+                | KNamed n when n = Names.equal -> "Plus"
+                | KNamed n when n = Names.minus -> "-"
+                | KNamed n -> n
+
+            let electronAccelerator isMac (c: Chord) =
+                [ if c.Mods.Primary then yield (if isMac then "Command" else "Ctrl")
+                  if c.Mods.Secondary then yield (if isMac then "Ctrl" else "Super")
+                  if c.Mods.Alt then yield (if isMac then "Option" else "Alt")
+                  if c.Mods.Shift then yield "Shift"
+                  yield electronKey c.Key ]
+                |> String.concat "+"
+
+            /// The menu item, and the shortcut its accelerator claims to be.
+            let items =
+                [ "Rotate Clockwise", ScRotateClockwise
+                  "Rotate AntiClockwise", ScRotateAnticlockwise
+                  "Flip Vertical", ScFlipVertical
+                  "Flip Horizontal", ScFlipHorizontal
+                  "Delete", ScDelete
+                  "Delete Box", ScDelete
+                  "Copy", ScCopy
+                  "Copy Box", ScCopy
+                  "Paste", ScPaste
+                  "Zoom-in and centre", ScZoomIn
+                  "Zoom-out", ScZoomOut
+                  "Fit to window", ScZoomToFit ]
+
+            items
+            |> List.iter (fun (item, id) ->
+                let expected =
+                    [ false; true ]
+                    |> List.map (fun isMac ->
+                        idChord isMac id
+                        |> Option.map (electronAccelerator isMac)
+                        |> Option.defaultValue "")
+                match ContextMenus.acceleratorOf item with
+                | Some(win, mac) ->
+                    Expect.equal [ win; mac ] expected $"the keys shown on '{item}'"
+                | None -> failtestf "'%s' has no accelerator, so the menu shows no key for it" item)
+
+            // and nothing claims a key it has no shortcut for
+            ContextMenus.contextMenus
+            |> List.collect snd
+            |> List.distinct
+            |> List.filter (fun item -> (ContextMenus.acceleratorOf item).IsSome)
+            |> List.iter (fun item ->
+                Expect.isTrue (items |> List.exists (fst >> (=) item))
+                    $"'{item}' shows a key but is not in the list checked against the table")
+        }
+
         test "the waveform cursor keys yield to a focused input box" {
             // Left and Right step the cursor, and must not do so while someone is typing. That is
             // TextEntry's opacity doing the work: the arrows are simply not bound there.

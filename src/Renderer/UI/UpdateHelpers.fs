@@ -1,4 +1,4 @@
-module UpdateHelpers
+﻿module UpdateHelpers
 
 open Elmish
 open Fulma
@@ -724,25 +724,25 @@ let processContextMenuClick
         |> map uISheetTrail_ (fun trail -> p.OpenFileName :: trail)
         |> withNoCmd
 
-    | DBComp sym, "Rotate Clockwise (Ctrl+Right)" ->
+    | DBComp sym, "Rotate Clockwise" ->
         rotateDispatch Degree90
         model
         |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
         |> withNoCmd
 
-    | DBComp sym, "Rotate AntiClockwise (Ctrl+Left)" ->
+    | DBComp sym, "Rotate AntiClockwise" ->
         rotateDispatch Degree270
         model
         |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
         |> withNoCmd
     
-    | DBComp sym, "Flip Vertical (Ctrl+Up)" ->
+    | DBComp sym, "Flip Vertical" ->
         flipDispatch SymbolT.FlipVertical
         model
         |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
         |> withNoCmd
     
-     | DBComp sym, "Flip Horizontal (Ctrl+Down)" ->
+     | DBComp sym, "Flip Horizontal" ->
         flipDispatch SymbolT.FlipHorizontal
         model
         |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
@@ -765,12 +765,12 @@ let processContextMenuClick
         |> set simSubTabVisible_ WaveSim
         |> withMsg (UpdateWSModel (fun ws -> {ws with PortSelectComp = Some sym.Id}))
 
-    | DBComp _, "Delete (DEL)" ->
+    | DBComp _, "Delete" ->
         keyDispatch SheetT.KeyboardMsg.DEL
         model  
         |> withNoCmd
     
-    | DBComp sym, "Copy (Ctrl+C)" ->
+    | DBComp sym, "Copy" ->
         let model =
             if model.Sheet.SelectedComponents = [] then // make sure at least one symbol is selected for copy
                 model
@@ -805,52 +805,52 @@ let processContextMenuClick
         |> map (sheet_ >-> SheetT.wire_) (BusWireSeparate.separateAndOrderModelSegments [wire.WId])
         |> withNoCmd
     
-    | DBScalingBox selectedcomps, "Rotate Clockwise (Ctrl+Right)"->
+    | DBScalingBox selectedcomps, "Rotate Clockwise"->
         rotateDispatch Degree90
         model 
         |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
 
-    | DBScalingBox selectedcomps, "Rotate AntiClockwise (Ctrl+Left)"->
+    | DBScalingBox selectedcomps, "Rotate AntiClockwise"->
         rotateDispatch Degree270
         model 
         |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
     
-    | DBScalingBox selectedcomps, "Flip Vertical (Ctrl+Up)"->
+    | DBScalingBox selectedcomps, "Flip Vertical"->
         flipDispatch SymbolT.FlipVertical
         model 
         |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
     
-    | DBScalingBox selectedcomps, "Flip Horizontal (Ctrl+Down)" ->
+    | DBScalingBox selectedcomps, "Flip Horizontal" ->
         flipDispatch SymbolT.FlipHorizontal
         model 
         |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
     
-    | DBScalingBox _, "Delete Box (DEL)" ->
+    | DBScalingBox _, "Delete Box" ->
         keyDispatch SheetT.KeyboardMsg.DEL
         model  
         |> withNoCmd
     
-    | DBScalingBox _, "Copy Box (Ctrl+C)" ->
+    | DBScalingBox _, "Copy Box" ->
         keyDispatch SheetT.KeyboardMsg.CtrlC
         model  
         |> withNoCmd
     
-    | DBCanvas pos, "Zoom-in (Ctrl+plus) and centre"  ->
+    | DBCanvas pos, "Zoom-in and centre"  ->
         model
         |> map (sheet_ >-> SheetT.zoom_)  (fun zoom -> min Sheet.Constants.maxMagnification (zoom*Sheet.Constants.zoomIncrement))
         |> withMsg (Sheet (SheetT.Msg.KeepZoomCentered pos))
 
-    | DBCanvas pos, "Zoom-out (Ctrl+minus)" ->
+    | DBCanvas pos, "Zoom-out" ->
         keyDispatch SheetT.KeyboardMsg.ZoomOut
         model
         |> withNoCmd
 
-    | DBCanvas _, "Fit to window (Ctrl+0)" ->
+    | DBCanvas _, "Fit to window" ->
         keyDispatch SheetT.KeyboardMsg.CtrlW
         model
         |> withNoCmd
     
-    | DBCanvas pos, "Paste (Ctrl+V)" ->
+    | DBCanvas pos, "Paste" ->
         keyDispatch SheetT.KeyboardMsg.CtrlV
         model
         |> withNoCmd

@@ -1,4 +1,4 @@
-module ContextMenus
+﻿module ContextMenus
 open Fable.Core
 open Fable.Core.JsInterop
 open ElectronAPI
@@ -49,7 +49,7 @@ let private sheetItems (offerSetAsTop: bool) =
 let private devSheetItems = ["Lock"; "Unlock"; "Lock Subtree"; "Unlock Subtree"]
 
 let private componentItems =
-    ["Rotate Clockwise (Ctrl+Right)"; "Rotate AntiClockwise (Ctrl+Left)" ; "Flip Vertical (Ctrl+Up)"; "Flip Horizontal (Ctrl+Down)" ; "Delete (DEL)"; "Copy (Ctrl+C)"; "Properties"]
+    ["Rotate Clockwise"; "Rotate AntiClockwise" ; "Flip Vertical"; "Flip Horizontal" ; "Delete"; "Copy"; "Properties"]
 
 let private customComponentItems =
     ["Go to sheet" ; "Properties" ; "Move ports" ; "Resize symbol"]
@@ -60,10 +60,8 @@ let private libraryInstanceItems (openItem: string) =
     [openItem ; "Properties" ; "Move ports" ; "Resize symbol"]
 
 /// What the sheet background offers whatever kind of sheet it is.
-// These labels spell their own keys, so they have to be kept in step with KeyTypes by hand - this
-// file cannot see it, being compiled into the main process as well.
 let private canvasItems =
-    ["Zoom-in (Ctrl+plus) and centre" ; "Zoom-out (Ctrl+minus)" ; "Fit to window (Ctrl+0)" ; "Paste (Ctrl+V)"; "Reroute all wires"; "Properties"]
+    ["Zoom-in and centre" ; "Zoom-out" ; "Fit to window" ; "Paste"; "Reroute all wires"; "Properties"]
 
 /// The context menu info is a map of menu name -> list of menu items
 /// menu and item names can be arbitrary strings
@@ -81,7 +79,7 @@ let contextMenus = [
         "LibraryInstanceWaveSim", libraryInstanceItems viewLibraryItem @ [addWavesItem]
         "LibraryInstanceOpen", libraryInstanceItems hideLibraryItem
         "LibraryInstanceOpenWaveSim", libraryInstanceItems hideLibraryItem @ [addWavesItem]
-        "ScalingBox", ["Rotate Clockwise (Ctrl+Right)"; "Rotate AntiClockwise (Ctrl+Left)" ; "Flip Vertical (Ctrl+Up)"; "Flip Horizontal (Ctrl+Down)"; "Delete Box (DEL)"; "Copy Box (Ctrl+C)"; "Move Box (Drag any component)"]
+        "ScalingBox", ["Rotate Clockwise"; "Rotate AntiClockwise" ; "Flip Vertical"; "Flip Horizontal"; "Delete Box"; "Copy Box"; "Move Box (Drag any component)"]
         "Component", componentItems
         "ComponentWaveSim", componentItems @ [addWavesItem]
         "Canvas", canvasItems
@@ -95,7 +93,7 @@ let contextMenus = [
         "ComponentReadOnly", ["Properties"]
         "LibraryInstanceReadOnly", [viewLibraryItem; "Properties"]
         "LibraryInstanceOpenReadOnly", [hideLibraryItem; "Properties"]
-        "CanvasReadOnly", ["Zoom-in (Ctrl+plus) and centre" ; "Zoom-out (Ctrl+minus)" ; "Fit to window (Ctrl+0)" ; "Properties"]
+        "CanvasReadOnly", ["Zoom-in and centre" ; "Zoom-out" ; "Fit to window" ; "Properties"]
         "SheetMenuBreadcrumbLibrary", [hideLibraryItem]
         // Each of these is the name of a case in UIPopups.viewWaveInfoPopup, which is given the
         // item clicked on verbatim. A name here that has no case there reaches its catch-all, so
@@ -141,3 +139,29 @@ let isMenuName (name: string) : bool = Map.containsKey name menuMap
 /// Every menu name, for saying what was expected when a lookup fails.
 let menuNames : string array =
     menuMap |> Map.toList |> List.map fst |> List.toArray
+
+/// The keys shown beside a right-click menu item, as Electron accelerators: (Windows/Linux, macOS).
+///
+/// SHOWN and never registered - see ContextMenuBuilder - so this decides what the menu says and
+/// nothing at all about what a key does. The items used to spell their keys inside their own
+/// labels, which put "Ctrl" in front of a macOS user whose key is Cmd, and put the keys on the left
+/// where every other menu on the machine draws them on the right.
+///
+/// Written out rather than read from KeyTypes because this file is compiled into the main process,
+/// which has none of the renderer. Issie.KeyBindings holds the two together: the test suite can see
+/// both, and fails if a chord here is not the chord that fires.
+let acceleratorOf (item: string) : (string * string) option =
+    match item with
+    | "Rotate Clockwise" -> Some("Ctrl+Right", "Command+Right")
+    | "Rotate AntiClockwise" -> Some("Ctrl+Left", "Command+Left")
+    | "Flip Vertical" -> Some("Ctrl+Up", "Command+Up")
+    | "Flip Horizontal" -> Some("Ctrl+Down", "Command+Down")
+    | "Delete"
+    | "Delete Box" -> Some("Delete", "Backspace")
+    | "Copy"
+    | "Copy Box" -> Some("Ctrl+C", "Command+C")
+    | "Paste" -> Some("Ctrl+V", "Command+V")
+    | "Zoom-in and centre" -> Some("Ctrl+Plus", "Command+Plus")
+    | "Zoom-out" -> Some("Ctrl+-", "Command+-")
+    | "Fit to window" -> Some("Ctrl+0", "Command+0")
+    | _ -> None

@@ -218,12 +218,12 @@ let viewInfoPopupAtTab (startTab: int) dispatch =
                 let keysFor isMac (s: KeyTypes.ShortcutSpec) : ReactElement =
                     let caps chords =
                         chords
-                        |> List.map (KeyTypes.chordShortParts isMac >> DiagramStyle.keyCaps)
+                        |> List.map (KeyTypes.chordShortParts isMac >> KeyCaps.render)
                         |> List.mapi (fun i keys ->
                             if i = 0 then [ keys ] else [ str " / "; keys ])
                         |> List.concat
                         |> function
-                           | [] -> DiagramStyle.keyCaps []
+                           | [] -> KeyCaps.render []
                            | shown -> span [] shown
 
                     match s.Trigger with

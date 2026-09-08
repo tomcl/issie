@@ -1,4 +1,4 @@
-/// A small markdown renderer for Issie's in-app help.
+﻿/// A small markdown renderer for Issie's in-app help.
 ///
 /// Issie's longer help text - the Info window, the waveform simulator's help panels, the bodies of
 /// confirmation popups - used to be written as React element trees: `str` and `bSpan` and `li`
@@ -10,6 +10,10 @@
 /// italic, inline code, links, bullet and numbered lists, and tables - which is core GitHub
 /// markdown with nothing left over. There are no images and no nested lists, so there is no
 /// support for them; a line that tries will render as its own text rather than silently vanish.
+///
+/// One addition to that subset: [[Ctrl 0]] draws the keys of a chord as keys. Help text that tells
+/// the reader to press something should say it the way the rest of Issie does, and bold prose in
+/// the middle of a sentence is not that.
 ///
 /// TWO THINGS THIS DELIBERATELY DOES NOT DO.
 ///
@@ -38,6 +42,10 @@ type Inline =
     | Code of string
     /// [shown](url). The url is handed to the caller's handler; nothing here opens it.
     | Link of shown: string * url: string
+    /// [[Ctrl 0]] - the keys of one chord, drawn as keys rather than described in the prose.
+    /// Written with spaces between the keys, so that the + key needs no escaping, and shown by
+    /// KeyCaps like every other place Issie names a key.
+    | Keys of string list
 
 type Block =
     /// `#`, `##`, `###` - level is 1, 2 or 3.
@@ -94,6 +102,16 @@ let parseInlines (line: string) : Inline list =
         elif starts "`" then
             match closes "`" (i + 1) with
             | Some j -> go (j + 1) plain (Code (line.Substring(i + 1, j - i - 1)) :: flush acc)
+            | None -> plain.Append line[i] |> ignore; go (i + 1) plain acc
+        elif starts "[[" then
+            // [[Ctrl 0]], and only in that shape: an unclosed [[ is ordinary text
+            match closes "]]" (i + 2) with
+            | Some j ->
+                let parts =
+                    line.Substring(i + 2, j - i - 2).Split ' '
+                    |> Array.toList
+                    |> List.filter (fun s -> s <> "")
+                go (j + 2) plain (Keys parts :: flush acc)
             | None -> plain.Append line[i] |> ignore; go (i + 1) plain acc
         elif starts "[" then
             // [shown](url), and only in that shape: a bare [ is ordinary text
@@ -251,7 +269,8 @@ let renderInlines (onLink: string -> unit) (inlines: Inline list) : ReactElement
         | Bold t -> b [] [ str t ]
         | Italic t -> i [] [ str t ]
         | Code t -> span [ Style Styles.code ] [ str t ]
-        | Link (shown, url) -> a [ OnClick (fun _ -> onLink url) ] [ str shown ])
+        | Link (shown, url) -> a [ OnClick (fun _ -> onLink url) ] [ str shown ]
+        | Keys parts -> KeyCaps.render parts)
 
 /// Rendered markdown, as one element ready to drop into a popup body.
 let renderBlocks (onLink: string -> unit) (blocks: Block list) : ReactElement =

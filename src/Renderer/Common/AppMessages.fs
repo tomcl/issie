@@ -110,11 +110,10 @@ more structured information about Issie
 | Drag from the Catalogue | Drag a component out of the Catalogue and drop it where you want it, rather than clicking twice |
 | Probe a wire | With either simulator running, rest the mouse on any wire of the schematic to read the value it carries - at the waveform cursor's cycle, or at the step simulator's current clock tick |
 | Waveforms and the schematic | Hover a waveform's name to light up its component and wires on the schematic; the button beside the name opens the sheet it lives on. Right-click a component on the schematic to add its waveforms to the viewer |
-| Zoom keys | Ctrl with + or - zooms whatever you are looking at - the schematic, or the waveforms. Ctrl-0 fits the whole sheet on the screen, which is the one to reach for most. Add Alt to any of the three to zoom the application itself instead |
+| Zoom keys | [[Ctrl +]] and [[Ctrl -]] zoom whatever you are looking at - the schematic, or the waveforms. [[Ctrl 0]] fits the whole sheet on the screen, which is the one to reach for most. Add [[Alt]] to any of the three to zoom the application itself instead |
 | Sheet descriptions | Add short descriptions to your design sheets |
 | Copy, Paste | Use copy and one or more Pastes (keys or on-screen buttons) to make duplicate components with the same name and increasing numbers. Copy multiple items onto the same sheet or a new sheet |
 | Undo, Redo | From onscreen buttons or keys - use them, they work well! |
-| Ctrl-drag | Ctrl-drag ports on custom components to a new position on any side. Change the component height, width in properties if it is the wrong size. |
 | 2-MUX properties | Swap 0/1 inputs in properties if this makes a neater diagram |
 | Counters, Adders | Hide inputs/outputs you do not need from properties |
 | Set Default input values | Set the input values you want in the step simulator and 'click set default inputs', or set individually in input properties. This will remember the values for both step simulator and waveform viewer |
@@ -333,7 +332,7 @@ module Fields =
             "Top (LSB) output width (bits)",
                 "How many of the input's bits go to the top output. The rest go to the bottom one, so \
                  the two together always add up to the input width. Flip the component vertically \
-                 (Ctrl+Down) if you want the least significant bits at the bottom instead."
+                 if you want the least significant bits at the bottom instead."
             "Address width (bits)",
                 "How many bits the address has, and so how many locations this memory has: 2^n of \
                  them. It can be an expression in the sheet's properties, like any other width. \
@@ -516,8 +515,8 @@ module WaveHelp =
 - Choose the top sheet you want to simulate and press **Start**. The top sheet's own inputs and
   outputs are shown straight away. Press the **Select Waves** button to change which waveforms are
   viewed - any signal on any sheet can be shown. See the selection popup info button for more info.
-- Use **Ctrl/+** and **Ctrl/-** to show fewer or more clock cycles. The same two keys zoom the
-  schematic when the schematic has the keyboard: they zoom whatever you are looking at. Add **Alt**
+- Use [[Ctrl +]] and [[Ctrl -]] to show fewer or more clock cycles. The same two keys zoom the
+  schematic when the schematic has the keyboard: they zoom whatever you are looking at. Add [[Alt]]
   to zoom the whole application instead. The **Info** button lists every key for your platform
   under **Keyboard Shortcuts**.
 - Drag the **grey horizontal divider bar** to make the waveform viewer wider.
@@ -562,14 +561,14 @@ module WaveHelp =
 - Scroll or use **Scrollbar arrows** and the **zoom out and zoom in** controls to show which cycles
   to display.
 - Move the coloured **cursor clock cycle** using **a click on the waveforms,** the **cursor box
-  number,** **box controls,** or the **Left/Right arrow keys** once you have clicked anywhere in
+  number,** **box controls,** or the [[Left]] and [[Right]] arrow keys once you have clicked anywhere in
   this pane. They step the cursor until you click the schematic or type in a box.
 - The column to the right of the waveforms shows signal values in the cursor cycle
 - Drag the **grey vertical divider** to alter the screen space used by waveforms
 - Waveforms will scroll vertically if you select more than will fit on the screen.
 - Use **Select RAM** to view RAM contents for the current cycle.
 - Use **Bin Hex uDec sDec** buttons to change the display radix.
-- **Ctrl/+** and **Ctrl/-** show fewer or more clock cycles. Add **Alt** to zoom the whole
+- [[Ctrl +]] and [[Ctrl -]] show fewer or more clock cycles. Add [[Alt]] to zoom the whole
   application instead.
 """
 

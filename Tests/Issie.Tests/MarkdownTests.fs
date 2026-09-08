@@ -1,4 +1,4 @@
-/// The markdown used for Issie's in-app help, and the help itself.
+﻿/// The markdown used for Issie's in-app help, and the help itself.
 ///
 /// Markdown.parse is pure and returns data, so every message in AppMessages can be read here under
 /// plain .NET - no browser, no React. That matters more than the parser tests: the risk with
@@ -17,6 +17,7 @@ let private textOf (inlines: Inline list) =
         | Bold t -> t
         | Italic t -> t
         | Code t -> t
+        | Keys parts -> String.concat "+" parts
         | Link (shown, _) -> shown)
     |> String.concat ""
 
@@ -52,6 +53,15 @@ let tests =
             Expect.equal (parseInlines "plain **bold** and *italic* and `code`")
                 [ Text "plain "; Bold "bold"; Text " and "; Italic "italic"; Text " and "; Code "code" ]
                 "each mark runs to its own closing mark"
+            Expect.equal (parseInlines "press [[Ctrl 0]] to fit")
+                [ Text "press "; Keys [ "Ctrl"; "0" ]; Text " to fit" ]
+                "a chord is the keys of it, drawn as keys"
+            Expect.equal (parseInlines "[[Ctrl +]] zooms in")
+                [ Keys [ "Ctrl"; "+" ]; Text " zooms in" ]
+                "the + key needs no escaping, which is why the keys are separated by spaces"
+            Expect.equal (parseInlines "an unclosed [[Ctrl is text")
+                [ Text "an unclosed [[Ctrl is text" ]
+                "an unclosed chord is left alone, as an unclosed mark is"
             Expect.equal (parseInlines "see [F#](https://fsharp.org/) for more")
                 [ Text "see "; Link ("F#", "https://fsharp.org/"); Text " for more" ]
                 "a link keeps its shown text and its url apart"

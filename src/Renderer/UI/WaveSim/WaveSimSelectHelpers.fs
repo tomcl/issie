@@ -804,7 +804,7 @@ let paneHintLine () =
             "red", [ str "App Zoom-out "; keysOf KeyTypes.ScAppZoomOut; str " to reduce scrolling" ]
         else
             "black",
-            [ str "NB: You can exit this dialog and select waveforms directly from the canvas,                    using right-click on a wire." ]
+            [ str "NB: You can exit this dialog and select waveforms directly from the canvas, using right-click on a symbol or wire." ]
 
     div [ Style [ Color colour; FontSize "12px"; MarginLeft "10px" ] ] line
 

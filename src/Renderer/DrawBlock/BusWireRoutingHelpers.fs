@@ -153,6 +153,27 @@ module Constants =
     /// What two nets drawn on top of each other cost, per unit length, relative to a unit of wire
     /// drawn. Removing an overlap must always beat any saving in wire length.
     let overlapCostWeight = 20.
+    /// How far a segment ought to stand from a symbol it runs alongside. This is what
+    /// calcSegPositions places one at when a symbol edge bounds its cluster, so it is the
+    /// clearance separation is actually trying to achieve - which is what makes it the right
+    /// thing for the acceptance rule to score.
+    let clearanceFromSymbol = maxSegmentSeparation
+    /// What a unit of missing symbol clearance costs, relative to a unit of wire drawn.
+    ///
+    /// The exchange rate has a break-even that can be worked out rather than guessed. Separation's
+    /// canonical move pushes a segment d further from a symbol edge; where the segment beyond it
+    /// has zero length - which is how a route arrives at a port - both of its neighbours grow, so
+    /// the move costs 2d of wire to buy d of clearance. Any weight above 2 accepts that move and
+    /// any weight below rejects it, which is what the cost function did when it had no clearance
+    /// term at all: separation was refused whole on every sheet with no overlap to pay for it.
+    ///
+    /// 5 leaves margin over the break-even without letting clearance outrank wire length so far
+    /// that a long detour looks worth making: a 500-unit detour still has to buy 100 units of
+    /// clearance before it is taken. Measured over the WireQuality corpus, 3 and 5 give identical
+    /// wire, bends and crossings on every sheet - the plateau runs from just above the break-even
+    /// - while 10 is over the far edge of it, flipping wrappedArrays to its worse phase and
+    /// costing reg16x8 five crossings.
+    let clearanceCostWeight = 5.
     /// Most rounds of (horizontal, then vertical) separation. A round is only entered while the
     /// sheet is still improving, so this binds only where the two directions fight each other.
     /// Measured at 2, 3 and 5 over the WireQuality corpus and a 192-wire sheet: wire drawn, bends

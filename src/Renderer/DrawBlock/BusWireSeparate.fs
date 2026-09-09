@@ -1155,16 +1155,99 @@ type private CostSweep =
       /// open run for each net on this line - at most a handful, so a list beats a map
       ByNet: (OutputPortId * float * float) list }
 
-/// How bad a wiring is: the length of wire actually drawn, plus a heavy penalty for two different
-/// nets drawn on top of each other.
+/// Symbol clearance missing from a sheet: for every segment separation is able to move, and every
+/// symbol that segment runs alongside, how far short of clearanceFromSymbol it stands.
+///
+/// This is the half of separation's objective that length cannot express. Spreading segments and
+/// standing them clear of symbols both make the drawing LONGER, so a cost function counting only
+/// wire would refuse every separation which had no overlap to pay for it - and did, leaving wires
+/// hugging the symbols they arrive at on any sheet whose nets do not cross.
+///
+/// A segment is charged for the WORST symbol it runs beside, not the sum over all of them, and not
+/// scaled by how much of it runs alongside. What a reader notices is that a wire is touching a
+/// symbol; neither how long the touch is nor how many symbols it repeats against changes the
+/// answer to "should this segment move". Summing over symbols instead makes the term grow with
+/// symbol density, so on a dense sheet clearance outranks everything else the cost measures - and
+/// it duly did: summing cost reg16x8 nine crossings and 600 units of wire after a drag, and
+/// pushed wrappedArrays onto the worse of its two phases. Taking the worst symbol leaves every
+/// corpus sheet exactly where it was.
+///
+/// The two symbols a wire connects to are NOT exempt, unlike in adjustSegmentsInModel. A wire must
+/// be allowed to touch its own symbol, but that is what the nub is for, and the nub - with the
+/// zero-length segment beside it and everything else separation cannot move - is excluded here
+/// anyway. The riser that arrives at a port hugging that symbol's edge is exactly what this is
+/// meant to see. Where a wire legitimately runs INSIDE its own symbol's box (a mux SEL port sits
+/// in from the trapezoid edge) the full clearance is charged and no round can remove it, which
+/// costs nothing: the acceptance rule compares two layouts of one sheet, and a charge present in
+/// both cancels.
+let clearanceCost (model: Model) : float =
+    let boxes =
+        model.Symbol.Symbols
+        |> Map.valuesL
+        |> List.filter (fun sym -> sym.Annotation = None)
+        |> List.map Symbol.getSymbolBoundingBox
+        |> Array.ofList
+
+    /// Segments separation can move: the interior ones of a wire long enough to be worth
+    /// separating, as makeLines selects them. Scoring a segment no pass can move would add a
+    /// constant, and scoring a nub would add one that is always at its maximum.
+    let movableSegments (wire: Wire) =
+        let numSegs = wire.Segments.Length
+        if euclideanDistance wire.StartPos wire.EndPos <= minWireLengthToSeparate then
+            []
+        else
+            getFilteredAbsSegments
+                (fun _ seg ->
+                    seg.Index <> 0
+                    && seg.Index <> numSegs - 1
+                    && abs seg.Length > minVisibleSegmentLength)
+                wire
+
+    /// The segment and the box each reduced to (across, along), so one piece of arithmetic serves
+    /// both orientations - as everywhere else in this module.
+    let shortfall (aSeg: ASegment) (box: BoundingBox) =
+        let p, lo, hi, pLo, pHi, bLo, bHi =
+            match aSeg.Orientation with
+            | Horizontal ->
+                aSeg.Start.Y,
+                min aSeg.Start.X aSeg.End.X, max aSeg.Start.X aSeg.End.X,
+                box.TopLeft.Y, box.TopLeft.Y + box.H, box.TopLeft.X, box.TopLeft.X + box.W
+            | Vertical ->
+                aSeg.Start.X,
+                min aSeg.Start.Y aSeg.End.Y, max aSeg.Start.Y aSeg.End.Y,
+                box.TopLeft.X, box.TopLeft.X + box.W, box.TopLeft.Y, box.TopLeft.Y + box.H
+        if hi <= bLo || bHi <= lo then
+            0. // the segment does not run alongside this symbol at all
+        else
+            // negative where the segment is inside the box, so the clamp charges the full
+            // clearance there and a segment leaving a symbol always sees its charge fall
+            let gap = max (pLo - p) (p - pHi) |> max 0.
+            clearanceFromSymbol - min gap clearanceFromSymbol
+
+    model.Wires
+    |> Map.valuesL
+    |> List.sumBy (fun wire ->
+        movableSegments wire
+        |> List.sumBy (fun aSeg -> (0., boxes) ||> Array.fold (fun worst b -> max worst (shortfall aSeg b))))
+
+/// How bad a wiring is, in three terms: the length of wire actually drawn, a heavy penalty for two
+/// different nets drawn on top of each other, and what clearance the wires are short of.
 ///
 /// Wire drawn is the length of the UNION of the segments on each line of the drawing, so two
 /// segments of one net lying on top of each other are one wire and are counted once. That makes
 /// "keep wires short" and "let a net share a trunk" the same objective rather than two which have
 /// to be traded off by hand.
 ///
-/// This is called once per settling round, so it is one sort and one sweep. Deliberately not built
-/// on makeLines, which links same-net lines pairwise and costs as much as a separation pass.
+/// The clearance term is what makes this a score for SEPARATION rather than for routing. The other
+/// two are both minimised by the drawing separation starts from: spreading segments apart and
+/// standing them clear of symbols costs wire and removes no overlap, so a length-only cost refuses
+/// every round of it that has nothing else to show, and a sheet whose nets never cross was left
+/// exactly as routing drew it - wires hugging the symbols they arrive at. A cost function used to
+/// accept or reject a pass has to measure what that pass is for.
+///
+/// This is called once per settling round: one sort and one sweep for the first two terms, one
+/// pass over segments against symbol boxes for the third. Deliberately not built on makeLines,
+/// which links same-net lines pairwise and costs as much as a separation pass.
 let wiringCost (model: Model) : float =
     let drawn =
         model.Wires
@@ -1218,7 +1301,9 @@ let wiringCost (model: Model) : float =
                 ByNet = byNet })
         |> flush
 
-    swept.Drawn + overlapCostWeight * (swept.Drawn - swept.Covered)
+    swept.Drawn
+    + overlapCostWeight * (swept.Drawn - swept.Covered)
+    + clearanceCostWeight * clearanceCost model
 
 /// Perform complete segment ordering and separation for segments of given orientation.
 /// wiresToRoute: the clusters worked on are those holding at least one of these wires. Lines are

@@ -413,10 +413,9 @@ was a fixed sequence of five passes, which on such a sheet landed on whichever p
 ended on — so the wiring depended on how many passes there happened to be, and running the pass
 again flipped it.
 
-The loop replaces the count with a decision. `wiringCost` scores the sheet — wire drawn, plus a
-heavy penalty for two nets drawn on top of each other — and a round is kept only if it improved
-that score by more than `settlingTolerance`. Three properties follow, and they are the reason for
-the shape:
+The loop replaces the count with a decision. `wiringCost` scores the sheet and a round is kept only
+if it improved that score by more than `settlingTolerance`. Three properties follow, and they are
+the reason for the shape:
 
 - **Idempotence.** The pass returns what it was given unless it can show it improved it, so
   applying it again changes nothing. That is a property of the acceptance rule, not of the round
@@ -424,6 +423,53 @@ the shape:
 - **An oscillation resolves to its better phase** rather than flipping for ever.
 - **Ties break towards not moving**, which is what makes a drawing feel stable to someone dragging
   components.
+
+#### What `wiringCost` scores
+
+Three terms, summed:
+
+| term | what it is | weight |
+|---|---|---|
+| wire drawn | length of the UNION of the segments on each line of the drawing, per net — so a net sharing a trunk with itself is counted once | 1 |
+| net overlap | length two *different* nets are drawn on top of each other | `overlapCostWeight` (20) |
+| missing clearance | per segment separation can move, how far short of `clearanceFromSymbol` (30) it stands from the **worst** symbol it runs alongside | `clearanceCostWeight` (5) |
+
+The first two come out of one sort and one sweep: segments are reduced to (direction, perpendicular
+coordinate, span, net), sorted so that everything on one line of the drawing arrives together, and
+the sweep keeps an open run per net (giving *drawn*) and one over all nets (giving *covered*, from
+which the overlap is *drawn − covered*). The third is a separate pass of segments against symbol
+boxes, about a third of the total and well under a millisecond on the largest sheet in the corpus.
+
+**The clearance term is what makes this a score for separation rather than for routing**, and
+leaving it out was a real bug rather than a missing refinement. Both of the other terms are already
+at their minimum in the drawing separation *starts* from: spreading segments apart and standing
+them clear of symbols costs wire and removes no overlap. So a cost with only those two refuses
+every round of separation that has no overlap to pay for it — and on a sheet whose nets never
+cross there is none, so nothing moved at all and the wires were left exactly as routing drew them,
+hugging the symbols they arrive at. Separation was computing the right positions and having them
+thrown away. A rule used to accept or reject a pass has to measure what that pass is for.
+
+Two details of the clearance term are load-bearing:
+
+- **Worst symbol per segment, not the sum over symbols, and not scaled by length.** A sum grows
+  with symbol density, so on a dense sheet clearance outranks everything else — measured, that cost
+  `reg16x8` nine crossings and 600 units of wire after a drag and pushed `wrappedArrays` onto the
+  worse of its two phases. The worst-symbol form leaves every corpus sheet exactly where it was.
+- **The weight has a break-even that can be derived.** Separation's canonical move pushes a segment
+  *d* further from a symbol edge; at the end of a wire, where the segment beyond it has zero
+  length, both of its neighbours grow, so the move costs 2*d* of wire to buy *d* of clearance.
+  Below 2 every such move is refused. 3 and 5 give identical corpus numbers — the plateau starts
+  just above the break-even — and 10 is past the far edge of it.
+
+The symbols a wire connects to are **not** exempt here, unlike in `adjustSegmentsInModel`. A wire
+must be allowed to touch its own symbol, but that is what the nub is for, and nubs are excluded
+anyway; the riser arriving at a port hugging that symbol's edge is precisely what this is meant to
+see. Where a wire legitimately runs inside its own symbol's box — a mux SEL port sits in from the
+trapezoid edge — the full clearance is charged and no round can remove it, which costs nothing:
+the rule compares two layouts of one sheet, and a charge present in both cancels. That is the
+general reason crowding the term cannot resolve is harmless. Wires squeezed into a channel too
+narrow for 30 are all charged, `calcSegPositions` shrinks the spacing to fit as it always did, and
+the charge is near enough the same in every candidate layout to drop out of the comparison.
 
 A round that moves nothing at all is detected without costing anything (`adjustSegmentsInModel`
 reports whether any segment moved), which is the common case after a drag and the reason the pass

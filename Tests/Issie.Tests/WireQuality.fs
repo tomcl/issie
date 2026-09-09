@@ -851,11 +851,68 @@ let tests =
                 $"different nets run alongside each other closer than minimum separation: %A{tooClose}"
         }
 
-        test "a wire passing a symbol clears it by wireSeparationFromSymbol" {
+        test "a wire turning back to a port stands clear of the symbols at both ends" {
+            // The reported case, and the one the clearance term was added for: two gates with the
+            // sink to the left of and below the driver, so the wire leaves rightwards, turns back
+            // across the sheet and comes into the sink's left edge from beyond it. The riser at
+            // each end runs alongside the symbol it belongs to.
+            //
+            // Routing leaves them at different distances, and neither is the answer: the template
+            // for this shape puts the driver-side turn at `xStart + startNub + 10` (20 clear) and
+            // the sink-side one at `xEnd - 10`, which is the nub column itself (10 clear). There
+            // is a whole empty sheet either side of both. Separation puts both at
+            // clearanceFromSymbol, and the point of the test is that it is ALLOWED to: these two
+            // nets never touch, so there is no overlap to pay for the wire the move costs, and
+            // before wiringCost scored clearance the round was refused and the wires kept the two
+            // numbers routing happened to give them.
+            let sheet =
+                describeSheet "turnback"
+                    [ comp "A" (GateN(And, 2)); comp "B" (GateN(And, 2)) ]
+                    [ "A" ==> "B/0" ]
+            let canvas =
+                canvasOf sheet
+                |> movedTo [ "A", { X = 700.; Y = 300. }; "B", { X = 300.; Y = 500. } ]
+            let m = separate (routedModel canvas)
+            let boxes =
+                m.Symbol.Symbols
+                |> Map.toList
+                |> List.map (fun (_, sy) -> sy.Component.Label, Symbol.getSymbolBoundingBox sy)
+            // every segment separation could have moved, against every symbol it runs beside
+            let hugs =
+                [ for _, w in Map.toList m.Wires do
+                    let n = w.Segments.Length
+                    for sg in getAbsSegments w do
+                        if not sg.IsZero && sg.Segment.Index <> 0 && sg.Segment.Index <> n - 1 then
+                            let p, lo, hi =
+                                match sg.Orientation with
+                                | Horizontal -> sg.Start.Y, min sg.Start.X sg.End.X, max sg.Start.X sg.End.X
+                                | Vertical -> sg.Start.X, min sg.Start.Y sg.End.Y, max sg.Start.Y sg.End.Y
+                            for label, b in boxes do
+                                let pLo, pHi, bLo, bHi =
+                                    match sg.Orientation with
+                                    | Horizontal -> b.TopLeft.Y, b.TopLeft.Y + b.H, b.TopLeft.X, b.TopLeft.X + b.W
+                                    | Vertical -> b.TopLeft.X, b.TopLeft.X + b.W, b.TopLeft.Y, b.TopLeft.Y + b.H
+                                let gap = max (pLo - p) (p - pHi)
+                                if hi > bLo && bHi > lo
+                                   && gap < BusWireRoutingHelpers.Constants.clearanceFromSymbol - 1.0 then
+                                    yield $"seg{sg.Segment.Index} runs %.1f{gap} from {label}" ]
+            Expect.isEmpty hugs
+                $"segments hug a symbol on a sheet with room either side: %A{hugs}"
+        }
+
+        test "a wire passing a symbol stands clear of it" {
             // The mend for the 7px hug: wires in channels sit 15-30 apart, so a wire skimming a
-            // symbol at 7px read as touching it. Routing now clears the symbol by
-            // wireSeparationFromSymbol (15), and separation leaves a lone wire where routing put
-            // it. Channels may still squeeze below this where space demands.
+            // symbol at 7px read as touching it. Routing clears the symbol by
+            // wireSeparationFromSymbol (15) and separation, which has the whole sheet to look at
+            // and room here, then takes it out to clearanceFromSymbol (30) - what calcSegPositions
+            // places a segment at from a bound it cannot cross. Channels may still squeeze below
+            // this where space demands.
+            //
+            // This asserted 15 until wiringCost learned to score clearance. It was not recording
+            // an intent: separation wanted 30 all along and was computing it, and the acceptance
+            // rule - which then counted only wire length - threw the whole round away because
+            // moving out costs wire. A lone wire kept routing's number because nothing was
+            // allowed to improve on it.
             let sheet =
                 describeSheet "hug"
                     [ comp "I" (Input1(1, None)); comp "O" (Output 1); comp "OBS" (NbitsAdderNoCinCout 8) ]
@@ -885,8 +942,8 @@ let tests =
                     |> List.map (fun sg -> sg.Start.Y - (box.TopLeft.Y + box.H)))
                 |> List.filter (fun d -> d > 0.)
                 |> List.min
-            Expect.isTrue (abs (clearance - BusWireRoutingHelpers.Constants.wireSeparationFromSymbol) < 1.0)
-                $"the wire passes %.2f{clearance} below the symbol; wireSeparationFromSymbol is                    %.0f{BusWireRoutingHelpers.Constants.wireSeparationFromSymbol}"
+            Expect.isTrue (abs (clearance - BusWireRoutingHelpers.Constants.clearanceFromSymbol) < 1.0)
+                $"the wire passes %.2f{clearance} below the symbol; clearanceFromSymbol is                    %.0f{BusWireRoutingHelpers.Constants.clearanceFromSymbol}"
         }
 
         test "separating one wire is local; a drag separates everything" {

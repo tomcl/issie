@@ -4,23 +4,37 @@
     <meta charset="UTF-8">
     <meta content="IE=edge" http-equiv="X-UA-Compatible">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
-    <meta content="Main" name="author">
-    <!-- Opengraph properties (https://ogp.me/) -->
-    <meta property="og:site_name" content="issie">
+    <meta content="Tom Clarke and the ISSIE contributors, Imperial College London" name="author">
+    <!--
+      Opengraph properties (https://ogp.me/). og:url and og:image have to be
+      absolute - a relative one is ignored, which is why a link to this site used
+      to preview as a blank card. The origin is therefore written out here rather
+      than taken from the site-relative root substitution.
+      The description and og:description tags come from each page's
+      "description:" front matter, by way of the meta-tags substitution below.
+      Do not name a substitution inside a comment: it is replaced there too, and
+      the resulting tags are then inert inside the comment.
+    -->
+    <meta property="og:site_name" content="Issie">
     <meta property="og:title" content="Features" />
-    <meta property="og:url" content="/issie/features.html">
+    <meta property="og:url" content="https://tomcl.github.io/issie/features.html">
     <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://tomcl.github.io/issie/img/homePage/catalogue.png">
+    <meta property="og:image:alt" content="An ISSIE schematic beside the component Catalogue">
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:site" content="/issie/">
     <meta name="twitter:title" content="Features">
-    
-    <title>Features | issie</title>
+    <meta name="twitter:image" content="https://tomcl.github.io/issie/img/homePage/catalogue.png">
+    <link rel="canonical" href="https://tomcl.github.io/issie/features.html">
+    <meta name="description" content="Everything ISSIE does: tooltipped components, errors that say how to fix them, auto-routing, step, truth-table and waveform simulation, sheet parameters and Verilog.">
+<meta name="twitter:site" content="Everything ISSIE does: tooltipped components, errors that say how to fix them, auto-routing, step, truth-table and waveform simulation, sheet parameters and Verilog.">
+<meta name="og:description" content="Everything ISSIE does: tooltipped components, errors that say how to fix them, auto-routing, step, truth-table and waveform simulation, sheet parameters and Verilog.">
+    <title>Features | Issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
     <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
-    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/x-icon"/>
     <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
     <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
     <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
@@ -90,6 +104,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/issiestick.html">
     ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/about.html">
+    About Issie
   </a>
 </li>             
 <li class="nav-item ">
@@ -244,8 +263,11 @@
             </ul>
         </div>
         <a href="/issie/">
-            <img alt="Header menu logo" src="/issie//issieIcon.png">
-            <strong>issie</strong>
+            <!-- The chip mark, matching the application splash screen. Written out rather
+                 than left to the FsDocsLogoSource project property, which fsdocs did not
+                 apply to content pages even once its own log reported the new value. -->
+            <img alt="Issie logo" src="/issie/img/issie-chip.svg" width="36" height="30">
+            <strong>Issie</strong>
         </a>
     </div>
     <div class="end">
@@ -315,6 +337,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/issiestick.html">
     ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/about.html">
+    About Issie
   </a>
 </li>             
 <li class="nav-item ">
@@ -471,14 +498,13 @@
 <main>
     <div id="content">
         
-<h1><a name="Digital-design-that-explains-itself" class="anchor" href="#Digital-design-that-explains-itself">Digital design that explains itself</a></h1>
-<p><strong>ISSIE is a free, cross-platform EDA tool for digital logic: draw a schematic, simulate it, and
-see the waveforms — without reading a manual first.</strong></p>
-<p>Industry CAD systems are powerful and complex to learn. Educational tools are teachable and can't scale.
-ISSIE is built on the belief that this is a false choice: a tool can be learnable in the first ten
-minutes <em>and</em> still be used to design and simulate large designs. The features
-below make Issie intuitive to use for a novice, and efficient to use on large designs.</p>
-<p><img src="img/homePage/keyFeatures1.gif" alt="" /></p>
+<h1><a name="What-ISSIE-does" class="anchor" href="#What-ISSIE-does">What ISSIE does</a></h1>
+<p>The full feature reference: everything below is in the released application today. For the short
+version, see the <a href="index.html">home page</a>; for how to drive the schematic editor key by key, see
+<a href="coolFeatures.html">Schematic Editor Features</a>.</p>
+<p>These features are what make ISSIE intuitive for a novice <em>and</em> efficient on a large design — the
+two things it is built to be at once.</p>
+<img src="img/homePage/keyFeatures1.gif" alt="Components being dragged from the ISSIE Catalogue onto a schematic and wired together" width="1899" height="948" />
 <hr />
 <h2><a name="No-manual-needed" class="anchor" href="#No-manual-needed">No manual needed</a></h2>
 <table>
@@ -495,7 +521,7 @@ below make Issie intuitive to use for a novice, and efficient to use on large de
 </tr>
 <tr class="even">
 <td align="left"><p><strong>Search for what you mean</strong></p></td>
-<td align="left"><p>The Catalogue's search box matches the explanations as well as the names, so "subtract" finds the N bits XOR and "invert" finds Not — you do not have to already know Issies's terminology.</p></td>
+<td align="left"><p>The Catalogue's search box matches the explanations as well as the names, so "subtract" finds the N bits XOR and "invert" finds Not — you do not have to already know Issie's terminology.</p></td>
 </tr>
 <tr class="odd">
 <td align="left"><p><strong>Right-click anywhere</strong></p></td>
@@ -583,7 +609,7 @@ own words. Verilog components are compiled as you type, and the Save button unlo
 code is good.</p>
 <hr />
 <h2><a name="A-schematic-editor-that-lays-out-for-you" class="anchor" href="#A-schematic-editor-that-lays-out-for-you">A schematic editor that lays out for you</a></h2>
-<p><img src="img/homePage/wireRouting.gif" alt="" /></p>
+<img src="img/homePage/wireRouting.gif" alt="A wire rerouting itself around symbols as a component is dragged across the sheet" width="1899" height="948" loading="lazy" />
 <ul>
 <li><strong>Connect component ports</strong> immediately by dragging a wire. Invalid wires are immediately rejected.</li>
 <li>
@@ -617,30 +643,30 @@ time without touching the design.
 <li>
 <strong>Zoom the canvas or the whole of Issie</strong>. Issie works best with a laptop FHD or better screen, but it is responsive
 and it can be used in a much smaller window. Zoom the drawing canvas and the Issie UI separately. Use trackpad gestures
-to pan and zoom the canvas if you dont like mice!
+to pan and zoom the canvas if you do not like mice!
 </li>
 </ul>
 <p>Around 40 component types, all width-agnostic where it makes sense: N-input gates (N up to 19),
 N-bit adders, shifters, registers and counters with optional enable/load ports, 2/4/8-way
 multiplexers, bus merge/split of up to 19 branches, bus select and compare, net labels, and
 synchronous and asynchronous ROM and RAM.</p>
-<p><img src="img/homePage/catalogue.png" alt="" /></p>
+<img src="img/homePage/catalogue.png" alt="The ISSIE Catalogue pane, its component types grouped into collapsible sections" width="1918" height="1006" loading="lazy" />
 <hr />
 <h2><a name="Three-ways-to-simulate" class="anchor" href="#Three-ways-to-simulate">Three ways to simulate</a></h2>
 <h3><a name="Step-simulation-immediate-feedback" class="anchor" href="#Step-simulation-immediate-feedback">Step simulation — immediate feedback</a></h3>
-<p><img src="img/homePage/stepSim.gif" alt="" /></p>
+<img src="img/homePage/stepSim.gif" alt="The step simulator: input values being changed and the outputs updating immediately" width="1899" height="948" loading="lazy" />
 <p>Set inputs, read outputs, step the clock. Viewer components expose internal signals from <em>any</em>
 subsheet without rewiring, values display in the radix you choose, and <em>set default inputs</em>
 remembers a set of input values for both simulators.</p>
 <h3><a name="Truth-tables-for-the-combinational-logic" class="anchor" href="#Truth-tables-for-the-combinational-logic">Truth tables — for the combinational logic</a></h3>
-<p><img src="img/homePage/truthTable.png" alt="" /></p>
+<img src="img/homePage/truthTable.png" alt="A generated truth table with its input and output columns, and the reduction controls" width="1918" height="1008" loading="lazy" />
 <p>Generate a truth table for the whole sheet <strong>or for just the components you select</strong>. Then reduce
 it: hide columns, constrain inputs to the cases you care about, remove redundant rows, or switch
 inputs to <strong>algebraic</strong> variables and get a symbolic expression for each output instead of 2ⁿ rows.</p>
 <h3><a name="The-waveform-simulator-sophisticated-and-easy-to-use" class="anchor" href="#The-waveform-simulator-sophisticated-and-easy-to-use">The waveform simulator — sophisticated, and easy to use</a></h3>
-<p><img src="img/homePage/waveSim.gif" alt="" /></p>
+<img src="img/homePage/waveSim.gif" alt="The waveform simulator showing several signals, with the cursor being moved across cycles" width="1899" height="948" loading="lazy" />
 <p>This is a part of ISSIE often described as better than the professional equivalent for sophisticated designs.
-It is also simple and intuitive for and novices.</p>
+It is also simple and intuitive for novices.</p>
 <table>
 <thead>
 <tr class="header">
@@ -699,7 +725,7 @@ It is also simple and intuitive for and novices.</p>
 </tr>
 <tr class="odd">
 <td align="left"><p><strong>Edit while simulating</strong></p></td>
-<td align="left"><p>Change the design — even move to another sheet and edit it — and a green <strong>Refresh</strong> button lights up. Press it when you are ready and you see immediately the chnage in the waveforms and clock cycles you are looking at.</p></td>
+<td align="left"><p>Change the design — even move to another sheet and edit it — and a green <strong>Refresh</strong> button lights up. Press it when you are ready and you see the change immediately in the waveforms and clock cycles you are looking at.</p></td>
 </tr>
 <tr class="even">
 <td align="left"><p><strong>Configurable</strong></p></td>
@@ -732,7 +758,7 @@ for users. Library components can contain multiple sheets - for example CPUs.</p
 <p><strong>Memory files.</strong> RAM and ROM contents can be edited in a table or initialised from a <code>.ram</code> text
 file, which may carry <code>//</code> comments — ISSIE shows them against the locations they describe, so a
 program in memory is readable.</p>
-<p><img src="img/homePage/memoryEditor.png" alt="" /></p>
+<img src="img/homePage/memoryEditor.png" alt="The memory editor showing addresses and data words, with comments from the .ram file" width="1920" height="1147" loading="lazy" />
 <p><strong>Never lose work.</strong> Every sheet is continuously snapshotted to a <code>backup/</code> folder inside the
 project.</p>
 <hr />
@@ -747,7 +773,7 @@ sheet, so it simulates exactly like the equivalent schematic. See
 for an FPGA toolchain. See <a href="verilogGenerate.html">Verilog Output</a>. An integrated build flow for
 <a href="issiestick.html">ISSIE-Stick</a> hardware also exists, from an earlier project, but is no longer
 maintained.</p>
-<p><img src="img/homePage/verilogComp.PNG" alt="" /></p>
+<img src="img/homePage/verilogComp.PNG" alt="The Verilog component editor with syntax-highlighted source and its error list" width="1900" height="1080" loading="lazy" />
 <hr />
 <h2><a name="Practical-matters" class="anchor" href="#Practical-matters">Practical matters</a></h2>
 <ul>
@@ -756,7 +782,7 @@ maintained.</p>
 <a href="https://github.com/tomcl/issie/blob/master/LICENSE.md">GNU GPL v3 or later</a>.
 </li>
 <li>
-<strong>Windows, macOS (Apple Silicon) and Linux.</strong> No installation and no system changes: unzip and
+<strong>Windows, macOS and Linux</strong>, each built for x64 and Arm64. No installation and no system changes: unzip and
 run. About 200 MB.
 </li>
 <li>
@@ -769,18 +795,32 @@ since 2020.
 </li>
 </ul>
 <br>
-<p>*<em><a href="gettingStarted.html">Get ISSIE</a>*</em> · <strong><a href="userGuide.html">One-page tutorial</a></strong> ·
+<p><strong><a href="gettingStarted.html">Get ISSIE</a></strong> &middot;
+<strong><a href="userGuide.html">One-page tutorial</a></strong> &middot;
 <strong><a href="coolFeatures.html">Editor feature reference</a></strong></p>
 
         
+        <!-- Inside the content column rather than a sibling of <main>, so that it
+             needs no change to the page's grid placement. The Imperial credit is
+             worded as the splash screen words it, and is text: the College's logo
+             is not ours to place, and its brand guidelines govern its use. -->
+        <footer class="site-footer">
+            <p><span class="wordmark">ISSIE</span> &mdash; Interactive Schematic Simulator with Integrated Editor.</p>
+            <p>Developed by staff and students of the
+                <a href="https://www.imperial.ac.uk/electrical-engineering">Department of Electrical
+                and Electronic Engineering, Imperial College London</a>.</p>
+            <p><a href="https://github.com/tomcl/issie/">Source on GitHub</a> &middot;
+                <a href="https://github.com/tomcl/issie/blob/master/LICENSE.md">GNU GPL v3 or later</a> &middot;
+                <a href="https://github.com/tomcl/issie/releases/">Releases</a></p>
+        </footer>
     </div>
 </main>
 <aside id="fsdocs-page-menu">
     <p id="on-this-page">On this page</p>
     <ul>
   <li class="level-1">
-    <a href="#Digital-design-that-explains-itself">
-      Digital design that explains itself
+    <a href="#What-ISSIE-does">
+      What ISSIE does
     </a>
   </li>
   <li class="level-2">

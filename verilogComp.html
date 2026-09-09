@@ -4,23 +4,37 @@
     <meta charset="UTF-8">
     <meta content="IE=edge" http-equiv="X-UA-Compatible">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
-    <meta content="Main" name="author">
-    <!-- Opengraph properties (https://ogp.me/) -->
-    <meta property="og:site_name" content="issie">
+    <meta content="Tom Clarke and the ISSIE contributors, Imperial College London" name="author">
+    <!--
+      Opengraph properties (https://ogp.me/). og:url and og:image have to be
+      absolute - a relative one is ignored, which is why a link to this site used
+      to preview as a blank card. The origin is therefore written out here rather
+      than taken from the site-relative root substitution.
+      The description and og:description tags come from each page's
+      "description:" front matter, by way of the meta-tags substitution below.
+      Do not name a substitution inside a comment: it is replaced there too, and
+      the resulting tags are then inert inside the comment.
+    -->
+    <meta property="og:site_name" content="Issie">
     <meta property="og:title" content="Verilog Components" />
-    <meta property="og:url" content="/issie/verilogComp.html">
+    <meta property="og:url" content="https://tomcl.github.io/issie/verilogComp.html">
     <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://tomcl.github.io/issie/img/homePage/catalogue.png">
+    <meta property="og:image:alt" content="An ISSIE schematic beside the component Catalogue">
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:site" content="/issie/">
     <meta name="twitter:title" content="Verilog Components">
-    
-    <title>Verilog Components | issie</title>
+    <meta name="twitter:image" content="https://tomcl.github.io/issie/img/homePage/catalogue.png">
+    <link rel="canonical" href="https://tomcl.github.io/issie/verilogComp.html">
+    <meta name="description" content="Writing a component's logic in SystemVerilog instead of drawing it, and the language subset ISSIE's Verilog compiler accepts.">
+<meta name="twitter:site" content="Writing a component's logic in SystemVerilog instead of drawing it, and the language subset ISSIE's Verilog compiler accepts.">
+<meta name="og:description" content="Writing a component's logic in SystemVerilog instead of drawing it, and the language subset ISSIE's Verilog compiler accepts.">
+    <title>Verilog Components | Issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
     <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
-    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/x-icon"/>
     <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
     <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
     <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
@@ -90,6 +104,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/issiestick.html">
     ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/about.html">
+    About Issie
   </a>
 </li>             
 <li class="nav-item ">
@@ -244,8 +263,11 @@
             </ul>
         </div>
         <a href="/issie/">
-            <img alt="Header menu logo" src="/issie//issieIcon.png">
-            <strong>issie</strong>
+            <!-- The chip mark, matching the application splash screen. Written out rather
+                 than left to the FsDocsLogoSource project property, which fsdocs did not
+                 apply to content pages even once its own log reported the new value. -->
+            <img alt="Issie logo" src="/issie/img/issie-chip.svg" width="36" height="30">
+            <strong>Issie</strong>
         </a>
     </div>
     <div class="end">
@@ -315,6 +337,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/issiestick.html">
     ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/about.html">
+    About Issie
   </a>
 </li>             
 <li class="nav-item ">
@@ -472,7 +499,7 @@
     <div id="content">
         
 <h1><a name="ISSIE-Verilog-Components" class="anchor" href="#ISSIE-Verilog-Components">ISSIE Verilog Components</a></h1>
-<h3><a name="Introduction" class="anchor" href="#Introduction">Introduction</a></h3>
+<h2><a name="Introduction" class="anchor" href="#Introduction">Introduction</a></h2>
 <p>An ISSIE component can be defined by Verilog source instead of a schematic. The component can then
 be placed on any sheet from the Catalogue, like any custom component. Create one with
 <code>Verilog</code> -&gt; <code>New Verilog Component</code> in the Catalogue; edit an existing one from its Properties
@@ -489,7 +516,7 @@ notably there are <strong>no</strong> <code>initial</code> blocks, no <code>alwa
 <code>reg</code>/<code>logic</code> declarations (use <code>bit</code>/<code>wire</code>), no <code>casez</code>/<code>casex</code>, no functions, tasks or
 <code>generate</code>, no <code>/</code>, <code>%</code> or <code>**</code> operators, no tri-state logic, no <code>$</code>-system tasks, no
 <code>`</code>-directives, only <code>//</code> comments (not <code>/* */</code>), and one module per file.</p>
-<h3><a name="Module-declaration" class="anchor" href="#Module-declaration">Module declaration</a></h3>
+<h2><a name="Module-declaration" class="anchor" href="#Module-declaration">Module declaration</a></h2>
 <p>Both old-style and new-style (ANSI) headers are supported. Port declarations <strong>must include the
 <code>bit</code> keyword</strong> — <code>input [15:0] instr;</code> is rejected, <code>input bit [15:0] instr;</code> is required.</p>
 <p>Old style — ports named in the header, declared in the body:</p>
@@ -528,11 +555,11 @@ Every bit of every output must be assigned, on every path (no accidental latches
 may be driven twice.
 </li>
 </ul>
-<h3><a name="Identifiers" class="anchor" href="#Identifiers">Identifiers</a></h3>
+<h2><a name="Identifiers" class="anchor" href="#Identifiers">Identifiers</a></h2>
 <p>Standard Verilog rules: a letter or underscore first, then letters, digits, <code>_</code> and <code>$</code>
 (so <code>_state</code> and <code>count$next</code> are fine; a leading <code>$</code> is reserved for system tasks, which are
 not supported).</p>
-<h3><a name="Declarations" class="anchor" href="#Declarations">Declarations</a></h3>
+<h2><a name="Declarations" class="anchor" href="#Declarations">Declarations</a></h2>
 <ul>
 <li>
 Internal signals: <code>wire x;</code>, <code>bit x;</code>, <code>wire [7:0] y;</code>, <code>bit [7:0] y;</code> — <code>wire</code> and <code>bit</code> are
@@ -552,7 +579,7 @@ register files, not large RAMs.
 <code>localparam</code> is not supported.
 </li>
 </ul>
-<h3><a name="Numbers" class="anchor" href="#Numbers">Numbers</a></h3>
+<h2><a name="Numbers" class="anchor" href="#Numbers">Numbers</a></h2>
 <p>Numbers can be written in binary, hexadecimal or decimal form, sized or unsized:</p>
 <table>
 <thead>
@@ -588,7 +615,7 @@ register files, not large RAMs.
 <p>No <code>x</code>/<code>z</code> values, no <code>_</code> separators, no octal, no signed literals. A sized number must fit its
 stated width, and widths must be consistent: the checker verifies that the right-hand side of
 every assignment fits the left-hand side.</p>
-<h3><a name="Operators" class="anchor" href="#Operators">Operators</a></h3>
+<h2><a name="Operators" class="anchor" href="#Operators">Operators</a></h2>
 <p>In descending order of precedence (operators in one row have equal precedence):</p>
 <table>
 <thead>
@@ -674,13 +701,13 @@ A conditional cannot nest inside another conditional's arms; use an intermediate
 </li>
 <li>Concatenation is not allowed on the left-hand side of an assignment.</li>
 </ul>
-<h3><a name="Continuous-assignment" class="anchor" href="#Continuous-assignment">Continuous assignment</a></h3>
+<h2><a name="Continuous-assignment" class="anchor" href="#Continuous-assignment">Continuous assignment</a></h2>
 <table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="verilog">assign out = expression;
 </code></pre></td></tr></table>
 <p>One assignment per statement. The left-hand side may be a whole signal, a bit (<code>out[3] = …</code>,
 including a variable index) or a part select (<code>out[7:4] = …</code>); assigning bits or slices
 separately is fine as long as every output bit ends up assigned exactly once.</p>
-<h3><a name="Procedural-blocks" class="anchor" href="#Procedural-blocks">Procedural blocks</a></h3>
+<h2><a name="Procedural-blocks" class="anchor" href="#Procedural-blocks">Procedural blocks</a></h2>
 <p>Two forms only:</p>
 <table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="verilog">always_comb begin ... end                    // combinational: blocking assignments (=) only
 always_ff @(posedge clk) begin ... end       // synchronous: non-blocking assignments (&lt;=) only
@@ -711,7 +738,7 @@ A variable read in <code>always_comb</code> must not be written later in the sam
 dependency cycles across the design are rejected.
 </li>
 </ul>
-<h3><a name="Module-instantiation" class="anchor" href="#Module-instantiation">Module instantiation</a></h3>
+<h2><a name="Module-instantiation" class="anchor" href="#Module-instantiation">Module instantiation</a></h2>
 <p>A Verilog component can instantiate other components of the current project (Verilog or
 schematic), by name, with <strong>named</strong> port connections:</p>
 <table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="verilog">adder4 add1 (.a(x), .b(y), .sum(s));
@@ -725,7 +752,7 @@ Parameter overrides (<code>#(.N(8))</code>) work on Verilog components that decl
 creates and saves a specialised copy of the component's sheet with the overridden value.
 </li>
 </ul>
-<h3><a name="What-the-compiler-generates" class="anchor" href="#What-the-compiler-generates">What the compiler generates</a></h3>
+<h2><a name="What-the-compiler-generates" class="anchor" href="#What-the-compiler-generates">What the compiler generates</a></h2>
 <p>The Verilog is synthesised to a normal ISSIE sheet: expressions become gates, adders,
 multiplexers, bus selections and merges; <code>always_ff</code> variables become registers; arrays become
 banks of registers (there is currently no RAM/ROM inference); instantiations become the
@@ -733,6 +760,19 @@ corresponding custom components. You can open the generated sheet like any other
 the step simulator or wave simulator.</p>
 
         
+        <!-- Inside the content column rather than a sibling of <main>, so that it
+             needs no change to the page's grid placement. The Imperial credit is
+             worded as the splash screen words it, and is text: the College's logo
+             is not ours to place, and its brand guidelines govern its use. -->
+        <footer class="site-footer">
+            <p><span class="wordmark">ISSIE</span> &mdash; Interactive Schematic Simulator with Integrated Editor.</p>
+            <p>Developed by staff and students of the
+                <a href="https://www.imperial.ac.uk/electrical-engineering">Department of Electrical
+                and Electronic Engineering, Imperial College London</a>.</p>
+            <p><a href="https://github.com/tomcl/issie/">Source on GitHub</a> &middot;
+                <a href="https://github.com/tomcl/issie/blob/master/LICENSE.md">GNU GPL v3 or later</a> &middot;
+                <a href="https://github.com/tomcl/issie/releases/">Releases</a></p>
+        </footer>
     </div>
 </main>
 <aside id="fsdocs-page-menu">
@@ -743,52 +783,52 @@ the step simulator or wave simulator.</p>
       ISSIE Verilog Components
     </a>
   </li>
-  <li class="level-3">
+  <li class="level-2">
     <a href="#Introduction">
       Introduction
     </a>
   </li>
-  <li class="level-3">
+  <li class="level-2">
     <a href="#Module-declaration">
       Module declaration
     </a>
   </li>
-  <li class="level-3">
+  <li class="level-2">
     <a href="#Identifiers">
       Identifiers
     </a>
   </li>
-  <li class="level-3">
+  <li class="level-2">
     <a href="#Declarations">
       Declarations
     </a>
   </li>
-  <li class="level-3">
+  <li class="level-2">
     <a href="#Numbers">
       Numbers
     </a>
   </li>
-  <li class="level-3">
+  <li class="level-2">
     <a href="#Operators">
       Operators
     </a>
   </li>
-  <li class="level-3">
+  <li class="level-2">
     <a href="#Continuous-assignment">
       Continuous assignment
     </a>
   </li>
-  <li class="level-3">
+  <li class="level-2">
     <a href="#Procedural-blocks">
       Procedural blocks
     </a>
   </li>
-  <li class="level-3">
+  <li class="level-2">
     <a href="#Module-instantiation">
       Module instantiation
     </a>
   </li>
-  <li class="level-3">
+  <li class="level-2">
     <a href="#What-the-compiler-generates">
       What the compiler generates
     </a>

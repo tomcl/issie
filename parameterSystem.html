@@ -4,23 +4,37 @@
     <meta charset="UTF-8">
     <meta content="IE=edge" http-equiv="X-UA-Compatible">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
-    <meta content="Main" name="author">
-    <!-- Opengraph properties (https://ogp.me/) -->
-    <meta property="og:site_name" content="issie">
+    <meta content="Tom Clarke and the ISSIE contributors, Imperial College London" name="author">
+    <!--
+      Opengraph properties (https://ogp.me/). og:url and og:image have to be
+      absolute - a relative one is ignored, which is why a link to this site used
+      to preview as a blank card. The origin is therefore written out here rather
+      than taken from the site-relative root substitution.
+      The description and og:description tags come from each page's
+      "description:" front matter, by way of the meta-tags substitution below.
+      Do not name a substitution inside a comment: it is replaced there too, and
+      the resulting tags are then inert inside the comment.
+    -->
+    <meta property="og:site_name" content="Issie">
     <meta property="og:title" content="Parameter System" />
-    <meta property="og:url" content="/issie/parameterSystem.html">
+    <meta property="og:url" content="https://tomcl.github.io/issie/parameterSystem.html">
     <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://tomcl.github.io/issie/img/homePage/catalogue.png">
+    <meta property="og:image:alt" content="An ISSIE schematic beside the component Catalogue">
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:site" content="/issie/">
     <meta name="twitter:title" content="Parameter System">
-    
-    <title>Parameter System | issie</title>
+    <meta name="twitter:image" content="https://tomcl.github.io/issie/img/homePage/catalogue.png">
+    <link rel="canonical" href="https://tomcl.github.io/issie/parameterSystem.html">
+    <meta name="description" content="Symbolic integer parameters on ISSIE design sheets: the expression language, constraints, per-instance bindings, and how they resolve at simulation time.">
+<meta name="twitter:site" content="Symbolic integer parameters on ISSIE design sheets: the expression language, constraints, per-instance bindings, and how they resolve at simulation time.">
+<meta name="og:description" content="Symbolic integer parameters on ISSIE design sheets: the expression language, constraints, per-instance bindings, and how they resolve at simulation time.">
+    <title>Parameter System | Issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
     <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
-    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/x-icon"/>
     <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
     <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
     <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
@@ -90,6 +104,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/issiestick.html">
     ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/about.html">
+    About Issie
   </a>
 </li>             
 <li class="nav-item ">
@@ -244,8 +263,11 @@
             </ul>
         </div>
         <a href="/issie/">
-            <img alt="Header menu logo" src="/issie//issieIcon.png">
-            <strong>issie</strong>
+            <!-- The chip mark, matching the application splash screen. Written out rather
+                 than left to the FsDocsLogoSource project property, which fsdocs did not
+                 apply to content pages even once its own log reported the new value. -->
+            <img alt="Issie logo" src="/issie/img/issie-chip.svg" width="36" height="30">
+            <strong>Issie</strong>
         </a>
     </div>
     <div class="end">
@@ -315,6 +337,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/issiestick.html">
     ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/about.html">
+    About Issie
   </a>
 </li>             
 <li class="nav-item ">
@@ -473,7 +500,7 @@
         
 <h1><a name="Parameter-System-Documentation" class="anchor" href="#Parameter-System-Documentation">Parameter System Documentation</a></h1>
 <h2><a name="Overview" class="anchor" href="#Overview">Overview</a></h2>
-<p>The parameter system in Issie allows users to define symbolic integer parameters on design sheets and use them in mathematical expressions to configure component properties. This enables parameterized component design where values can be dynamically calculated based on parameter bindings rather than being hardcoded. The system supports hierarchical parameter scoping and instance-specific parameter overrides.</p>
+<p>The parameter system in Issie allows users to define symbolic integer parameters on design sheets and use them in mathematical expressions to configure component properties. This enables parameterised component design where values can be dynamically calculated based on parameter bindings rather than being hardcoded. The system supports hierarchical parameter scoping and instance-specific parameter overrides.</p>
 <h2><a name="Key-Features" class="anchor" href="#Key-Features">Key Features</a></h2>
 <ul>
 <li><strong>Symbolic Parameters</strong>: Define named integer parameters (e.g., <code>WIDTH</code>, <code>SIZE</code>) at the sheet level</li>
@@ -610,7 +637,7 @@ constraints that are not met are returned, not dispatched. It must stay that way
 <code>editParameterBox</code>'s <code>isDisabled</code> calls it <em>while rendering</em>, so anything it dispatched would
 re-render and dispatch again
 </li>
-<li>*<em><code>updateComponents</code>*</em>: Batch update all parameterized components</li>
+<li>*<em><code>updateComponents</code>*</em>: Batch update all parameterised components</li>
 <li>
 *<em><code>markSheetParamsChanged</code>*</em>: Flag the open sheet as needing saving. An edit confined to what a
 sheet declares leaves the canvas identical, and <code>UpdateHelpers.currentSheetIsOutOfDate</code> compares
@@ -799,7 +826,7 @@ has an id</p>
     
 <span class="id">Persist</span> <span class="k">to</span> <span class="pn">.</span><span class="id">dgm</span> <span class="id">file</span> <span class="id">on</span> <span class="id">save</span>
 </code></pre>
-<h3><a name="2-Component-Parameterization-Flow" class="anchor" href="#2-Component-Parameterization-Flow">2. Component Parameterization Flow</a></h3>
+<h3><a name="2-Component-Parameterisation-Flow" class="anchor" href="#2-Component-Parameterisation-Flow">2. Component Parameterisation Flow</a></h3>
 <pre class="fssnip highlighted"><code lang="fsharp"><span class="id">User</span> <span class="id">selects</span> <span class="id">component</span> <span class="id">property</span>
     
 <span class="id">ParameterView</span><span class="pn">.</span><span class="id">paramInputField</span>
@@ -944,10 +971,10 @@ one. The list of two-argument functions is derived from the <code>ParamBinFunc</
 <code>EEExtensions.Union.allCases</code>, so adding a case to that type reserves its name and reaches the
 parser with no second edit; only <code>binFuncName</code> must then cover it, which the compiler requires.</p>
 <p><strong>One name rule.</strong> <code>ParameterTypes.isValidParamName</code> (<code>[a-zA-Z][a-zA-Z0-9]*</code>, and not a built-in
-function name) is both what the "Add parameter" dialog accepts and what the tokenizer reads as a
+function name) is both what the "Add parameter" dialog accepts and what the tokeniser reads as a
 name, because a name that cannot be written in an expression is of no use. Two rules diverging
-breaks it in both directions: a name the dialog takes but the tokenizer will not read can be
-declared and never referred to, and one the tokenizer reads but the dialog marks invalid is shown
+breaks it in both directions: a name the dialog takes but the tokeniser will not read can be
+declared and never referred to, and one the tokeniser reads but the dialog marks invalid is shown
 in red and accepted anyway. That is also why a function name cannot be a parameter: the parser
 reads <code>min</code> as the function, so a parameter of that name could never be referred to. A number run
 directly into a name (<code>2W</code>) is reported as such, since it is either a missing <code>*</code> or a name from a
@@ -956,13 +983,13 @@ file written under a looser rule.</p>
 expression, so every function over <code>ParamExpression</code> already handles it and no saved file changes.
 A negated literal is folded to <code>PInt -n</code> so it renders back as the user typed it.</p>
 <p>Notes and caveats:
-- Tokenizer restricts inputs to digits/letters/operators/whitespace; unsupported characters are reported precisely.
+- Tokeniser restricts inputs to digits/letters/operators/whitespace; unsupported characters are reported precisely.
 - Division or modulo by zero is reported as an informative evaluation error, as is a parameter
 defined in terms of itself, and a shift by a negative or oversized number of places.
 - A single <code>&lt;</code> or <code>&gt;</code> is a token only so that it can be refused with a message saying a shift is
-written <code>&lt;&lt;</code>. Unmatched characters are dropped by the tokenizer, so without it <code>a&lt;b</code> would
+written <code>&lt;&lt;</code>. Unmatched characters are dropped by the tokeniser, so without it <code>a&lt;b</code> would
 tokenise as <code>a b</code> and be reported as a number run into a name.</p>
-<p>Code: <code>src/Renderer/Common/ParameterTypes.fs</code> (<code>parseExpression</code>, <code>isValidParamName</code>, tokenizer
+<p>Code: <code>src/Renderer/Common/ParameterTypes.fs</code> (<code>parseExpression</code>, <code>isValidParamName</code>, tokeniser
 regex, and helpers). <code>Tests/Issie.Tests/Properties.fs</code> holds a render/parse round-trip property
 over generated expressions, negative literals included.</p>
 <h2><a name="Parameter-Scoping-amp-Precedence" class="anchor" href="#Parameter-Scoping-amp-Precedence">Parameter Scoping &amp; Precedence</a></h2>
@@ -1266,7 +1293,7 @@ wrapper's own outline ports carry the width expressions of the array components 
 <code>BusOut</code>'s multiplied by the copy count — so an instance binding a width resizes the copies and the
 array's own ports together. <code>resolveSheet</code> resolves all of it without knowing any of this happened.</p>
 <h2><a name="Component-Support" class="anchor" href="#Component-Support">Component Support</a></h2>
-<h3><a name="Currently-Parameterizable-Components" class="anchor" href="#Currently-Parameterizable-Components">Currently Parameterizable Components</a></h3>
+<h3><a name="Currently-Parameterisable-Components" class="anchor" href="#Currently-Parameterisable-Components">Currently Parameterisable Components</a></h3>
 <h4><a name="Width-Configurable-Components" class="anchor" href="#Width-Configurable-Components">Width-Configurable Components</a></h4>
 <ul>
 <li>Registers (<code>Register</code>, <code>RegisterE</code>)</li>
@@ -1706,6 +1733,19 @@ type Result&lt;&#39;T,&#39;TError&gt; =
 <div class="fsdocs-tip" id="fs23">type &#39;T list = List&lt;&#39;T&gt;</div>
 <div class="fsdocs-tip" id="fs24">type unit = Unit</div>
 
+        <!-- Inside the content column rather than a sibling of <main>, so that it
+             needs no change to the page's grid placement. The Imperial credit is
+             worded as the splash screen words it, and is text: the College's logo
+             is not ours to place, and its brand guidelines govern its use. -->
+        <footer class="site-footer">
+            <p><span class="wordmark">ISSIE</span> &mdash; Interactive Schematic Simulator with Integrated Editor.</p>
+            <p>Developed by staff and students of the
+                <a href="https://www.imperial.ac.uk/electrical-engineering">Department of Electrical
+                and Electronic Engineering, Imperial College London</a>.</p>
+            <p><a href="https://github.com/tomcl/issie/">Source on GitHub</a> &middot;
+                <a href="https://github.com/tomcl/issie/blob/master/LICENSE.md">GNU GPL v3 or later</a> &middot;
+                <a href="https://github.com/tomcl/issie/releases/">Releases</a></p>
+        </footer>
     </div>
 </main>
 <aside id="fsdocs-page-menu">
@@ -1787,8 +1827,8 @@ type Result&lt;&#39;T,&#39;TError&gt; =
     </a>
   </li>
   <li class="level-3">
-    <a href="#2-Component-Parameterization-Flow">
-      2. Component Parameterization Flow
+    <a href="#2-Component-Parameterisation-Flow">
+      2. Component Parameterisation Flow
     </a>
   </li>
   <li class="level-3">
@@ -1937,8 +1977,8 @@ type Result&lt;&#39;T,&#39;TError&gt; =
     </a>
   </li>
   <li class="level-3">
-    <a href="#Currently-Parameterizable-Components">
-      Currently Parameterizable Components
+    <a href="#Currently-Parameterisable-Components">
+      Currently Parameterisable Components
     </a>
   </li>
   <li class="level-4">

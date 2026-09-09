@@ -4,23 +4,37 @@
     <meta charset="UTF-8">
     <meta content="IE=edge" http-equiv="X-UA-Compatible">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
-    <meta content="Main" name="author">
-    <!-- Opengraph properties (https://ogp.me/) -->
-    <meta property="og:site_name" content="issie">
+    <meta content="Tom Clarke and the ISSIE contributors, Imperial College London" name="author">
+    <!--
+      Opengraph properties (https://ogp.me/). og:url and og:image have to be
+      absolute - a relative one is ignored, which is why a link to this site used
+      to preview as a blank card. The origin is therefore written out here rather
+      than taken from the site-relative root substitution.
+      The description and og:description tags come from each page's
+      "description:" front matter, by way of the meta-tags substitution below.
+      Do not name a substitution inside a comment: it is replaced there too, and
+      the resulting tags are then inert inside the comment.
+    -->
+    <meta property="og:site_name" content="Issie">
     <meta property="og:title" content="Schematic Editor Features" />
-    <meta property="og:url" content="/issie/coolFeatures.html">
+    <meta property="og:url" content="https://tomcl.github.io/issie/coolFeatures.html">
     <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://tomcl.github.io/issie/img/homePage/catalogue.png">
+    <meta property="og:image:alt" content="An ISSIE schematic beside the component Catalogue">
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:site" content="/issie/">
     <meta name="twitter:title" content="Schematic Editor Features">
-    
-    <title>Schematic Editor Features | issie</title>
+    <meta name="twitter:image" content="https://tomcl.github.io/issie/img/homePage/catalogue.png">
+    <link rel="canonical" href="https://tomcl.github.io/issie/coolFeatures.html">
+    <meta name="description" content="A reference for every schematic editor operation in ISSIE: placing components, wiring, sheets and hierarchy, simulation, and the keys for each.">
+<meta name="twitter:site" content="A reference for every schematic editor operation in ISSIE: placing components, wiring, sheets and hierarchy, simulation, and the keys for each.">
+<meta name="og:description" content="A reference for every schematic editor operation in ISSIE: placing components, wiring, sheets and hierarchy, simulation, and the keys for each.">
+    <title>Schematic Editor Features | Issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
     <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
-    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/x-icon"/>
     <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
     <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
     <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
@@ -90,6 +104,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/issiestick.html">
     ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/about.html">
+    About Issie
   </a>
 </li>             
 <li class="nav-item ">
@@ -244,8 +263,11 @@
             </ul>
         </div>
         <a href="/issie/">
-            <img alt="Header menu logo" src="/issie//issieIcon.png">
-            <strong>issie</strong>
+            <!-- The chip mark, matching the application splash screen. Written out rather
+                 than left to the FsDocsLogoSource project property, which fsdocs did not
+                 apply to content pages even once its own log reported the new value. -->
+            <img alt="Issie logo" src="/issie/img/issie-chip.svg" width="36" height="30">
+            <strong>Issie</strong>
         </a>
     </div>
     <div class="end">
@@ -315,6 +337,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/issiestick.html">
     ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/about.html">
+    About Issie
   </a>
 </li>             
 <li class="nav-item ">
@@ -497,7 +524,7 @@ right-click menus, each labelled with its key.</p>
 <tr class="even">
 <td align="left"><p><strong>Component tooltips</strong></p></td>
 <td align="left"><p>Hover any Catalogue entry, or any field label in <strong>Properties</strong></p></td>
-<td align="left"><p>Every component explains what it is for, and every field explains what it sets and give syou immediate explanatory error feedback</p></td>
+<td align="left"><p>Every component explains what it is for, and every field explains what it sets, and gives you immediate explanatory error feedback</p></td>
 </tr>
 <tr class="odd">
 <td align="left"><p><strong>Find a component</strong></p></td>
@@ -537,7 +564,7 @@ right-click menus, each labelled with its key.</p>
 <tr class="even">
 <td align="left"><p><strong>Paste as array</strong></p></td>
 <td align="left"><p>on-screen button or <code>Edit</code> menu</p></td>
-<td align="left"><p>Quickly create horizontal or vertical copies of any selected circuiy</p></td>
+<td align="left"><p>Quickly create horizontal or vertical copies of any selected circuitry</p></td>
 </tr>
 <tr class="odd">
 <td align="left"><p><strong>Move a component's label</strong></p></td>
@@ -568,6 +595,11 @@ right-click menus, each labelled with its key.</p>
 <td align="left"><p><strong>Rotate or scale a block</strong></p></td>
 <td align="left"><p>Drag a selection rectangle, then use the handles on the selection box</p></td>
 <td align="left"><p><code>Shift</code>-click adds or removes one component from the selection</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Snapping</strong></p></td>
+<td align="left"><p>Automatic while dragging</p></td>
+<td align="left"><p>A symbol sticks to the edges of other symbols, and to the positions that make its wires straight</p></td>
 </tr>
 </tbody>
 </table>
@@ -741,69 +773,36 @@ right-click menus, each labelled with its key.</p>
 </tbody>
 </table>
 
-<br><br>
-<h1><a name="Technical-details-of-wire-routing-and-symbol-alignment" class="anchor" href="#Technical-details-of-wire-routing-and-symbol-alignment">Technical details of wire routing and symbol alignment</a></h1>
-<h3><a name="Snapping" class="anchor" href="#Snapping">Snapping</a></h3>
-<p>This allows symbol edges to stick to other symbol edges when moving them in ISSIE, or symbols to stick to positions that make wires straight.</p>
-<h3><a name="Explicit-arrangement" class="anchor" href="#Explicit-arrangement">Explicit arrangement</a></h3>
-<p>Selections of same-type components can be aligned vertically or horizontally, or distributed with equal spacing. Differing type components are omitted from the operation even if selected.</p>
-<h3><a name="Manual-wire-routing" class="anchor" href="#Manual-wire-routing">Manual wire routing</a></h3>
-<p>Manual routing has been reworked to have the following behaviour:</p>
-<ul>
-<li>A <strong>non-binding segment</strong> can be dragged anywhere</li>
-<li>A <strong>binding segment</strong> cannot be dragged past the <strong>nubLength</strong> of the wire, which is the minimum length of the nubs coming out of the ports (defined as <code>static member nubLength</code> in <code>Wire</code> type)</li>
-</ul>
-<p>A segment is defined as binding for a particular port if it is the first segment of non-zero length perpendicular to the port's nub.</p>
-<h3><a name="Wire-auto-routing" class="anchor" href="#Wire-auto-routing">Wire auto-routing</a></h3>
-<p>Auto-routing is done in 5 stages:</p>
-<ol>
-<li>Normalise the routing problem so that the output port is facing right</li>
-<li>Generate the <a href="#initial-segment-list">initial segment list</a></li>
-<li>Rotate the problem back to it's in the original orientation</li>
-<li>Run an iterative autorouting algorithm that attempts to create a valid route not overlapping any symbol by moving initial segments.</li>
-<li>Run a whole-sheet segment separation algorithm that spreads wires out evenly, swaps them to minimise crossings, and where possible combines wire segments in the same net.</li>
-</ol>
-<p>Auto-routing plays nicely with manual placement of individual wire segments. These segments stay where the use rhas placed them while
-otehr segments continue to be auto-routed. optionally, the user can apply the separation algorithm to manually routed segments to make them neater while keeping the user routing choice.</p>
-<p>Auto-routing redone every time any part of the schematic is changed and normally is all you need.</p>
-<h4><a name="Initial-segment-List" class="anchor" href="#Initial-segment-List">Initial segment List</a></h4>
-<p>Segments are generated based off of the two ports for each wire, with the assumption that the output port is always facing right. The orientation of the input port is checked as well as its relative position to the output port, allowing us to generate an initial segment list. This segment list consists of a small “nub” segment immediately joining the input and output port. These are followed by 0 length segments in order to facilitate previous functionality of ISSIE where we could drag wires fully. After these 0 length segments we create the remaining segments to link the two ports. These distances are either set to halfway between the two ports, or a small distance in order to get past the boundaries of a symbol.</p>
-<br><br>
-<h1><a name="Details-of-Operations" class="anchor" href="#Details-of-Operations">Details of Operations</a></h1>
-<h3><a name="Copy-and-paste" class="anchor" href="#Copy-and-paste">Copy and paste</a></h3>
-<p>The on-screen copy &amp; paste buttons can duplicate single components, or selected sets of components (see selection below). They can also be used to copy components from one design sheet to a new one.</p>
-<p><strong>Paste Array</strong> starts a dialog to help you create a regular array of
-the selected components and wires.</p>
-<h3><a name="Canvas-zooming" class="anchor" href="#Canvas-zooming">Canvas zooming</a></h3>
-<p>The canvas can be zoomed in or out with <code>Ctrl</code>+<code>+</code> and <code>Ctrl</code>+<code>-</code>, or auto-zoomed and panned to fit
-the whole circuit with <code>Ctrl-0</code>. The same chords work on macOS with <code>Cmd</code>. Adding <code>Alt</code> to any of
-the three zooms the whole application rather than the schematic. Trackpad standard gestures also work for pan (two-finger swipe up/down or left/right) and zoom (two-finger pinch).</p>
-<h3><a name="Symbol-rotation-and-adjustment" class="anchor" href="#Symbol-rotation-and-adjustment">Symbol rotation and adjustment</a></h3>
-<p>Individual symbols can be rotated or flipped using the right-click menu or the Issie edit menu.</p>
-<h3><a name="Wire-display-types" class="anchor" href="#Wire-display-types">Wire display types</a></h3>
-<p>Wires can be displayed as radial, modern, or old-style jump. Switching display types can be done at any time and does not change the schematic.</p>
-<p>Radial wires are the most interesting (and readable) form of wire display. Wire bends have small quadrant connections thus distinguishing between wires that cross and a wire joining two perpendicular wires. Visually, radial display makes connectivity easier to follow. The radius is <code>BusWire.Constants.cornerRadius</code>, and every bend gets it unless the wire has nowhere to put it.</p>
-<p>Which bends those are is a question about the shape drawn, not about the segment list: a wire holds zero-length segments, and the routing and separation passes will split one straight piece over several segments — a nub and a 2-long stub beside it, say. <code>BusWire.segmentRuns</code> therefore drops the zero-length segments and merges what is then collinear, so that a run is exactly the straight piece between two bends, and <code>BusWire.wireBends</code> measures the room from those. A bend eats one radius off the run either side of it, so a run with a bend at each end gives half of itself to each and one at the end of the wire gives all of itself to its single bend. Neighbouring bends can then never overlap, and a corner is only squared off when the run beside it is genuinely shorter than the radius.</p>
-<h3><a name="Symbol-auto-sizing" class="anchor" href="#Symbol-auto-sizing">Symbol auto-sizing</a></h3>
-<p>Custom components (symbols) are dynamically resized depending on their port configuration. The minimum distance between 2 ports is set as <code>GridSize = 30</code>, which is defined as a <code>[&lt;Literal&gt;]</code> at the top of <code>Symbol.fs</code>. The dimensions of a component are determined as follows:</p>
-<ul>
-<li><strong>Height:</strong> Determined purely from the maximum number of ports on the left or right edge (n), setting the height to (n+1)<code>GridSize</code>, and spreading the ports GridSize apart.</li>
-<li><strong>Width:</strong> The distance between ports is determined by the maximum between the largest port label and <code>GridSize</code>. This ensures that the labels of the ports cannot overlap, whilst still being a minimum distance apart. The width can be calculated for both the Top and Bottom edges using the same approach as above using the maximum value, and taking the largest of these 2 values. In addition, the length of the longest labels from the Left and Right sides, as well as the component label (displayed in the center of the component) are added up and compared to the width obtained from the previous calculation. By selecting the component width as the maximum of these values, it can be ensured that labels associated with the component / ports do not overlap.</li>
-</ul>
-<p>Custom components' ports can be placed to different edges on the Symbol by using a right-click menu item and dragging the ports.
-When a port is dragged onto a different edge, the width and height of the component is automatically resized. The ports on one edge are always equidistant. The height of the component is determined purely from the number of ports on the left or right edge, depending on which one has more ports. The width of the component also considers the lengths of the ports on the top and bottom edges. The distance between ports on the top and bottom edges is big enough, such that it can fit the longest portlabel on the edge, but never smaller than 1 gridsize. The necessary width of the top/bottom edge is determined from this distance and from the number of ports on this edge. The width of the component is given by either the top or bottom edge width, whichever is bigger.</p>
-<p>The same UI (dragging component corners) can be used from a right-click menu item to override auto-sizing and make the custom symbol a desired size.</p>
-<h3><a name="Port-placement" class="anchor" href="#Port-placement">Port placement</a></h3>
-<p>The ordering of the ports on  a custom symbol is represented by its index in the list associated to a particular edge of the Symbol (Top, Left, Bottom, Right). We allow ports to be moved for custom components by clicking and dragging the port while holding down the <code>Ctrl</code> key.</p>
-<h3><a name="Schematic-rotation-and-scaling" class="anchor" href="#Schematic-rotation-and-scaling">Schematic rotation and scaling</a></h3>
-<p>Any <strong>group of components</strong> on the schematic can be selected, and then rotated and/or scaled.</p>
-<ul>
-<li>Dragging the mouse will select a rectangle.</li>
-<li>Shift-click will add or remove a component from the current  selection.</li>
-<li>A selected block of components will show icons for intuitive rotating and scaling.</li>
-</ul>
+<h2><a name="Why-the-wire-display-types-look-different" class="anchor" href="#Why-the-wire-display-types-look-different">Why the wire display types look different</a></h2>
+<p>Wires can be drawn as <strong>radial</strong>, <strong>modern</strong> or old-style <strong>jump</strong>; switching between them at any
+time changes nothing about the design. Radial is usually the most readable: a bend is drawn as a
+small quadrant, which distinguishes a wire <em>crossing</em> another from a wire <em>joining</em> it, so
+connectivity can be followed by eye. A bend is squared off only where the straight run beside it is
+too short to fit the radius.</p>
+<p>How wires are routed and then separated across the sheet — and why a segment has a signed length
+and no position — is described in
+<a href="dev/wireRouting.html">How a wire gets its shape</a>.</p>
+<h2><a name="Why-symbols-are-the-size-they-are" class="anchor" href="#Why-symbols-are-the-size-they-are">Why symbols are the size they are</a></h2>
+<p>A custom component is sized from its ports: its height comes from whichever of the left and right
+edges carries more ports, and its width from the longest port labels on the top and bottom edges
+together with the component's own label. Ports on one edge are always equally spaced. This is what
+keeps port legends from overlapping as you move ports between edges. Use <em>Resize symbol</em> on the
+right-click menu, or the <code>Width Scale</code> and <code>Height Scale</code> fields in Properties, to override it.</p>
 
         
+        <!-- Inside the content column rather than a sibling of <main>, so that it
+             needs no change to the page's grid placement. The Imperial credit is
+             worded as the splash screen words it, and is text: the College's logo
+             is not ours to place, and its brand guidelines govern its use. -->
+        <footer class="site-footer">
+            <p><span class="wordmark">ISSIE</span> &mdash; Interactive Schematic Simulator with Integrated Editor.</p>
+            <p>Developed by staff and students of the
+                <a href="https://www.imperial.ac.uk/electrical-engineering">Department of Electrical
+                and Electronic Engineering, Imperial College London</a>.</p>
+            <p><a href="https://github.com/tomcl/issie/">Source on GitHub</a> &middot;
+                <a href="https://github.com/tomcl/issie/blob/master/LICENSE.md">GNU GPL v3 or later</a> &middot;
+                <a href="https://github.com/tomcl/issie/releases/">Releases</a></p>
+        </footer>
     </div>
 </main>
 <aside id="fsdocs-page-menu">
@@ -834,74 +833,14 @@ When a port is dragged onto a different edge, the width and height of the compon
       Simulation, appearance and help
     </a>
   </li>
-  <li class="level-1">
-    <a href="#Technical-details-of-wire-routing-and-symbol-alignment">
-      Technical details of wire routing and symbol alignment
+  <li class="level-2">
+    <a href="#Why-the-wire-display-types-look-different">
+      Why the wire display types look different
     </a>
   </li>
-  <li class="level-3">
-    <a href="#Snapping">
-      Snapping
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#Explicit-arrangement">
-      Explicit arrangement
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#Manual-wire-routing">
-      Manual wire routing
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#Wire-auto-routing">
-      Wire auto-routing
-    </a>
-  </li>
-  <li class="level-4">
-    <a href="#Initial-segment-List">
-      Initial segment List
-    </a>
-  </li>
-  <li class="level-1">
-    <a href="#Details-of-Operations">
-      Details of Operations
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#Copy-and-paste">
-      Copy and paste
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#Canvas-zooming">
-      Canvas zooming
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#Symbol-rotation-and-adjustment">
-      Symbol rotation and adjustment
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#Wire-display-types">
-      Wire display types
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#Symbol-auto-sizing">
-      Symbol auto-sizing
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#Port-placement">
-      Port placement
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#Schematic-rotation-and-scaling">
-      Schematic rotation and scaling
+  <li class="level-2">
+    <a href="#Why-symbols-are-the-size-they-are">
+      Why symbols are the size they are
     </a>
   </li>
 </ul>

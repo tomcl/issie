@@ -4,23 +4,37 @@
     <meta charset="UTF-8">
     <meta content="IE=edge" http-equiv="X-UA-Compatible">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
-    <meta content="Main" name="author">
-    <!-- Opengraph properties (https://ogp.me/) -->
-    <meta property="og:site_name" content="issie">
+    <meta content="Tom Clarke and the ISSIE contributors, Imperial College London" name="author">
+    <!--
+      Opengraph properties (https://ogp.me/). og:url and og:image have to be
+      absolute - a relative one is ignored, which is why a link to this site used
+      to preview as a blank card. The origin is therefore written out here rather
+      than taken from the site-relative root substitution.
+      The description and og:description tags come from each page's
+      "description:" front matter, by way of the meta-tags substitution below.
+      Do not name a substitution inside a comment: it is replaced there too, and
+      the resulting tags are then inert inside the comment.
+    -->
+    <meta property="og:site_name" content="Issie">
     <meta property="og:title" content="User Tutorial" />
-    <meta property="og:url" content="/issie/userGuide.html">
+    <meta property="og:url" content="https://tomcl.github.io/issie/userGuide.html">
     <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://tomcl.github.io/issie/img/homePage/catalogue.png">
+    <meta property="og:image:alt" content="An ISSIE schematic beside the component Catalogue">
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:site" content="/issie/">
     <meta name="twitter:title" content="User Tutorial">
-    
-    <title>User Tutorial | issie</title>
+    <meta name="twitter:image" content="https://tomcl.github.io/issie/img/homePage/catalogue.png">
+    <link rel="canonical" href="https://tomcl.github.io/issie/userGuide.html">
+    <meta name="description" content="A one-page ISSIE tutorial, from a single AND gate to a clocked design with waveform simulation, truth tables, Verilog components and sheet parameters.">
+<meta name="twitter:site" content="A one-page ISSIE tutorial, from a single AND gate to a clocked design with waveform simulation, truth tables, Verilog components and sheet parameters.">
+<meta name="og:description" content="A one-page ISSIE tutorial, from a single AND gate to a clocked design with waveform simulation, truth tables, Verilog components and sheet parameters.">
+    <title>User Tutorial | Issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
     <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
-    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/x-icon"/>
     <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
     <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
     <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
@@ -90,6 +104,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/issiestick.html">
     ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/about.html">
+    About Issie
   </a>
 </li>             
 <li class="nav-item ">
@@ -244,8 +263,11 @@
             </ul>
         </div>
         <a href="/issie/">
-            <img alt="Header menu logo" src="/issie//issieIcon.png">
-            <strong>issie</strong>
+            <!-- The chip mark, matching the application splash screen. Written out rather
+                 than left to the FsDocsLogoSource project property, which fsdocs did not
+                 apply to content pages even once its own log reported the new value. -->
+            <img alt="Issie logo" src="/issie/img/issie-chip.svg" width="36" height="30">
+            <strong>Issie</strong>
         </a>
     </div>
     <div class="end">
@@ -315,6 +337,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/issiestick.html">
     ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/about.html">
+    About Issie
   </a>
 </li>             
 <li class="nav-item ">
@@ -471,15 +498,18 @@
 <main>
     <div id="content">
         
-<h2><a name="Getting-Started" class="anchor" href="#Getting-Started">Getting Started</a></h2>
-<h3><a name="Downloading-and-Running-ISSIE" class="anchor" href="#Downloading-and-Running-ISSIE">Downloading and Running ISSIE</a></h3>
-<p>Find the <a href="https://github.com/tomcl/issie/releases/latest">latest ISSIE release</a>. At the bottom of the page, under <code>Assets</code>, you can find the latest pre-built binary for your platform: Windows, MacOS and Linux are all built, each for x64 and Arm64. ISSIE will require in total about 200M of disk space.</p>
+<h1><a name="ISSIE-user-tutorial" class="anchor" href="#ISSIE-user-tutorial">ISSIE user tutorial</a></h1>
+<p>One page, followed in order, taking a first design from a single AND gate up to a clocked circuit
+with a waveform simulation. It can be skimmed to see what ISSIE can do, or worked through in
+detail. If you only want to install ISSIE and start, see <a href="gettingStarted.html">Getting Started</a>.</p>
+<h2><a name="Downloading-and-running-ISSIE" class="anchor" href="#Downloading-and-running-ISSIE">Downloading and running ISSIE</a></h2>
+<p>Find the <a href="https://github.com/tomcl/issie/releases/latest">latest ISSIE release</a>. At the bottom of the page, under <code>Assets</code>, you can find the latest pre-built binary for your platform: Windows, macOS and Linux are all built, each for x64 and Arm64. ISSIE will require in total about 200M of disk space.</p>
 <ul>
 <li><strong>Windows:</strong> unzip *.zip anywhere and double-click the top-level <code>Issie.exe</code> application in the unzipped files.</li>
 <li>
-<strong>MacOS:</strong> Double click the dmg file  and run the application inside the folder, or drag and drop this to install.
+<strong>macOS:</strong> Double click the dmg file  and run the application inside the folder, or drag and drop this to install.
 <ul>
-<li>The MacOs binaries are signed.</li>
+<li>The macOS binaries are signed.</li>
 </ul>
 </li>
 <li><strong>Linux:</strong> unzip *.zip anywhere and run the <code>issie</code> executable in the unzipped files.</li>
@@ -487,14 +517,14 @@
 <strong>If you can't find a binary</strong>:
 <ul>
 <li>
-MacOs binaries are sometimes not uptodate. You can always generate your only binary by 
-<a href="https://github.com/tomcl/ISSIE#getting-started-as-developer">setting up for development</a> and running <code>npm run dist</code>. This will not need to be signed if runnng on your own machine. Note that you do not need to edit source code to generate a binary.
+macOS binaries are sometimes not up to date. You can always generate your own binary by 
+<a href="https://github.com/tomcl/ISSIE#getting-started-as-developer">setting up for development</a> and running <code>npm run dist</code>. This will not need to be signed if it is running on your own machine. Note that you do not need to edit source code to generate a binary.
 </li>
-<li>You can look through previous releases to find the last posted binary for your system. However ISSIE newer releases often have significant new functionality and bug fixes. It is best to have the latest release,</li>
+<li>You can look through previous releases to find the last posted binary for your system. However ISSIE newer releases often have significant new functionality and bug fixes. It is best to have the latest release.</li>
 </ul>
 </li>
 </ul>
-<h3><a name="Creating-a-New-Project" class="anchor" href="#Creating-a-New-Project">Creating a New Project</a></h3>
+<h2><a name="Creating-a-new-project" class="anchor" href="#Creating-a-new-project">Creating a new project</a></h2>
 <p>When ISSIE opens with no project it offers <code>New project</code>, <code>Open project</code> and <code>Open demo project</code>,
 followed by any projects you have opened before.</p>
 <ul>
@@ -513,7 +543,7 @@ the project as a tree showing which sheet uses which.</p>
 <p>If you would rather look around first, <code>Open demo project</code> offers five worked designs — from a full
 adder up to a CPU running a program. They are reset to their initial state every time you open
 them, so nothing you do to them is permanent.</p>
-<h3><a name="Your-first-design" class="anchor" href="#Your-first-design">Your first design</a></h3>
+<h2><a name="Your-first-design" class="anchor" href="#Your-first-design">Your first design</a></h2>
 <p>Let's start with a very simple schematic: a simple 2-input AND gate.</p>
 <p>Add the following components to your canvas from the <code>Catalogue</code> tab. Click a component and then
 click the canvas, or drag it straight out of the Catalogue and drop it where you want it. Hovering
@@ -534,10 +564,10 @@ without knowing what Issie calls it.</p>
 <li>Output 'OUT' to the output port of the AND gate</li>
 </ul>
 <p>Your design should look like this:</p>
-<p><img src="img/userGuide/firstDesign.gif" alt="" /></p>
+<img src="img/userGuide/firstDesign.gif" alt="The first tutorial design being built: two inputs, an AND gate and an output, wired up" width="1899" height="948" />
 <h3><a name="Simulation" class="anchor" href="#Simulation">Simulation</a></h3>
 <p>Time to simulate the design and see how the output <code>OUT</code> changes as we change the two inputs.</p>
-<p>Click the <code>Simulation</code> tab which is located on the top-right corner and then <code>Start Simulation</code>. Now you can change the value of the two inputs and see how the value of the output. Try all 4 combinations of inputs:</p>
+<p>Click the <code>Simulation</code> tab which is located on the top-right corner and then <code>Start Simulation</code>. Now you can change the value of the two inputs and see how the value of the output changes. Try all 4 combinations of inputs:</p>
 <ul>
 <li>A=0, B=0</li>
 <li>A=0, B=1</li>
@@ -545,7 +575,7 @@ without knowing what Issie calls it.</p>
 <li>A=1, B=1</li>
 </ul>
 <p>and check that the output is correct based on the truth table of the AND gate.</p>
-<p><img src="img/userGuide/firstDesignSim.gif" alt="" /></p>
+<img src="img/userGuide/firstDesignSim.gif" alt="The AND gate design in step simulation, with the output changing as the inputs are set" width="1899" height="948" loading="lazy" />
 <p><strong>Well Done!</strong> You just completed your first ISSIE design.</p>
 <h2><a name="Exploiting-the-ISSIE-Features" class="anchor" href="#Exploiting-the-ISSIE-Features">Exploiting the ISSIE Features</a></h2>
 <h3><a name="A-slightly-more-complex-design" class="anchor" href="#A-slightly-more-complex-design">A slightly more complex design</a></h3>
@@ -560,9 +590,9 @@ Delete the output <code>OUT</code>
 </ul>
 </li>
 <li>Add a new 1-bit output <code>RESULT</code></li>
-<li>Make all necessary connections by dragging as before to achieve a diagram like the one bellow:</li>
+<li>Make all necessary connections by dragging as before to achieve a diagram like the one below:</li>
 </ul>
-<p><img src="img/userGuide/features1.png" alt="" /></p>
+<img src="img/userGuide/features1.png" alt="The four-input design: A and B into an AND gate, C and the AND output into a multiplexer selected by D, and both into an OR gate driving RESULT" width="3100" height="1280" loading="lazy" />
 <p>Again, <strong>simulate the design</strong> and check the output remains correct as you change the values of the 4 inputs</p>
 <h3><a name="Improving-the-look-of-a-schematic" class="anchor" href="#Improving-the-look-of-a-schematic">Improving the look of a schematic</a></h3>
 <p>The schematic here is not easy to read. <strong>Let's improve it!</strong> The ISSIE canvas is fully customisable to allow the creation of readable and good-looking schematics. Specifically, we can:</p>
@@ -577,7 +607,7 @@ Delete the output <code>OUT</code>
 right-click menu of whatever you want to change, or all together under <code>Info</code> →
 <em>Keyboard Shortcuts</em>, which lists the keys as they are on <strong>your</strong> platform.</p>
 <p><strong>The improved schematic:</strong></p>
-<p><img src="img/userGuide/features2.gif" alt="" /></p>
+<img src="img/userGuide/features2.gif" alt="The same design after rotating, aligning and rerouting to make it readable" width="1899" height="948" loading="lazy" />
 <h3><a name="Summary" class="anchor" href="#Summary">Summary</a></h3>
 <ul>
 <li>In the <code>Catalogue</code> Menu we can find an extensive and complete library of components (gates, flip-flops, RAMs, ROMs, n-bit registers)</li>
@@ -611,16 +641,16 @@ right-click <code>main</code> in the design tree, and choose <code>Rename</code>
 <li>
 Add to the main sheet:
 <ul>
-<li>Asynchronous ROM (<code>MEMORIES</code> =&gt; <code>ROM (asynchronous)</code>). Select 4 bits addressor, 4 bits data and the <code>Enter data later</code> option</li>
+<li>Asynchronous ROM (<code>MEMORIES</code> =&gt; <code>ROM (asynchronous)</code>). Select 4 address bits, 4 bits of data and the <code>Enter data later</code> option</li>
 <li>Your decoder (<code>THIS PROJECT</code> =&gt; <code>decoder</code>)</li>
 <li>1-bit output named 'RESULT' (<code>INPUT/OUTPUT</code> =&gt; <code>Output</code>)</li>
-<li>4-bit input named 'Addressor' (<code>INPUT/OUTPUT</code> =&gt; <code>Input</code>)</li>
+<li>4-bit input named 'ADDR' (<code>INPUT/OUTPUT</code> =&gt; <code>Input</code>)</li>
 </ul>
 </li>
 <li>Using 3 <code>SplitWire</code> components (<code>BUSES</code> =&gt; <code>SplitWire</code>) separate the 4-bit ROM output to 4 1-bit wires. (see image below)</li>
 <li>Make the appropriate connections to achieve the schematic below</li>
 </ol>
-<p><img src="img/userGuide/custom.png" alt="" /></p>
+<img src="img/userGuide/custom.png" alt="The main sheet: the ADDR input feeding an asynchronous ROM, whose four output bits are split by three SplitWire components into the decoder custom component" width="3112" height="712" loading="lazy" />
 <h3><a name="Improving-the-design-sheet" class="anchor" href="#Improving-the-design-sheet">Improving the design sheet</a></h3>
 <p>It's time to <strong>move ports on custom symbols</strong>. ISSIE allows you to re-order and change the side of
 input and output ports of custom symbols by <code>CTRL</code> + <code>CLICKING ON THE PORT</code> you want to move — hold
@@ -628,13 +658,13 @@ input and output ports of custom symbols by <code>CTRL</code> + <code>CLICKING O
 not remember the key, both are also on the custom component's right-click menu as <em>Move ports</em> and
 <em>Resize symbol</em>.</p>
 <p>Preview how it works in the gif below:</p>
-<p><img src="img/userGuide/custom2.gif" alt="" /></p>
+<img src="img/userGuide/custom2.gif" alt="Ports on a custom component being dragged to different edges, the symbol resizing as they move" width="1899" height="948" loading="lazy" />
 <h3><a name="ROM-Initialisation" class="anchor" href="#ROM-Initialisation">ROM Initialisation</a></h3>
 <p>Currently our ROM is empty as we selected the option <code>Enter Data Later</code> before. Let's put some values in our ROM.</p>
 <ol>
 <li>Select the ROM and click on the <code>Properties</code> tab</li>
 <li>Click on <code>view/edit memory content</code></li>
-<li>Change the content of the 16 memory location available by assigning a random 4-bit number to each one</li>
+<li>Change the content of the 16 memory locations available by assigning a random 4-bit number to each one</li>
 <li>Click <code>done</code></li>
 </ol>
 <p>ISSIE also allows ROM and RAM initialisation via <code>.ram</code> text files of hex data in the project
@@ -643,19 +673,19 @@ comment against that location wherever the memory is displayed, which is what ma
 in a ROM readable. A <code>.ram</code> file that will not parse is reported by line and by reason, rather than
 just failing to load. See the ISSIE <strong>Eratosthenes</strong> demo for an example. The memory component
 <strong>properties</strong> tab offers additional options when there are <code>.ram</code> files present.</p>
-<h3><a name="Simulation-1" class="anchor" href="#Simulation-1">Simulation</a></h3>
-<p>Simulate your design! Change the value of the addressor input and see whether your decoder produces a true or false result for each number you assigned to the ROM.</p>
+<h3><a name="Simulating-the-ROM-design" class="anchor" href="#Simulating-the-ROM-design">Simulating the ROM design</a></h3>
+<p>Simulate your design! Change the value of the <code>ADDR</code> input and see whether your decoder produces a true or false result for each number you assigned to the ROM.</p>
 <p>While a simulation is running — step or waveform — you can also <strong>rest the mouse on any wire</strong> of
 the schematic to read the value it is carrying. That is usually quicker than finding the signal by
 name, and it works for wires inside subsheets too.</p>
 <h2><a name="Waveform-Simulation" class="anchor" href="#Waveform-Simulation">Waveform Simulation</a></h2>
 <h3><a name="Creating-a-clocked-design" class="anchor" href="#Creating-a-clocked-design">Creating a clocked design</a></h3>
-<p>Let's now modify our previous design to make it <strong>clocked</strong> (sequential). We use a counter to form a custom addressor that will increment every clock cycle. Using the waveform simulator we will be able to view the output of our circuit for all memory locations. In order to create such designs easily, ISSIE offers a <code>Counter</code> component which, starting from 0, increments by one every clock cycle. Note that counters also have options, under properties, to add <code>Load</code> or <code>Enable</code> inputs.</p>
+<p>Let's now modify our previous design to make it <strong>clocked</strong> (sequential). We replace the <code>ADDR</code> input with a counter, so that the address increments every clock cycle. Using the waveform simulator we will be able to view the output of our circuit for all memory locations. In order to create such designs easily, ISSIE offers a <code>Counter</code> component which, starting from 0, increments by one every clock cycle. Note that counters also have options, under properties, to add <code>Load</code> or <code>Enable</code> inputs.</p>
 <p>Add a <code>Counter</code> from the Catalogue (<code>FLIP FLOPS AND REGISTERS</code>). Now select the component and click on <code>Properties</code>. In properties remove the <code>load</code> and <code>enable</code> ports and give them the default functionality (which is what we want in this case): enable=1; load=0;</p>
 <p>Edit the previous design to create a schematic like the one below:</p>
-<p><img src="img/userGuide/waveform.png" alt="" /></p>
+<img src="img/userGuide/waveform.png" alt="The clocked version of the design, with a counter driving the ROM address" width="1920" height="1011" loading="lazy" />
 <h3><a name="Simulating-your-design" class="anchor" href="#Simulating-your-design">Simulating your design</a></h3>
-<p>As soon as you connect everything correctly, You can simulate your design. Click on <code>Simulations</code> and then <code>Wave Simulation</code>.</p>
+<p>As soon as you connect everything correctly, you can simulate your design. Click on <code>Simulations</code> and then <code>Wave Simulation</code>.</p>
 <ul>
 <li>
 Click the <code>Start Simulation</code> button. The top sheet's own inputs and outputs are shown
@@ -666,11 +696,11 @@ To choose different signals — anything on any sheet of the design, not just th
 <code>Select Waves</code>
 </li>
 </ul>
-<p><img src="img/userGuide/select1.png" alt="" /></p>
+<img src="img/userGuide/select1.png" alt="The Select Waves dialog, showing the design hierarchy tree and the available signals" width="1887" height="1323" loading="lazy" />
 <ul>
 <li>Click the <code>Main</code> breadcrumb to filter so only main sheet ports are visible.</li>
 </ul>
-<p><img src="img/userGuide/select2.png" alt="" /></p>
+<img src="img/userGuide/select2.png" alt="The Select Waves dialog filtered by the Main breadcrumb, so only top-sheet ports are listed" width="1853" height="526" loading="lazy" />
 <ul>
 <li>
 Select:
@@ -691,7 +721,7 @@ To check what you have selected:
 </li>
 <li>Use <code>Select RAM</code> to select the ROM contents to view.</li>
 <li>Change the data format to either <code>hex</code> or <code>bin</code> to make the waveforms more readable</li>
-<li>adjust the number of clock cycles displayed using the <code>+/-</code> zoom controls.</li>
+<li>Adjust the number of clock cycles displayed using the <code>+/-</code> zoom controls.</li>
 <li>Order the waveforms <code>CNT1 / AROM1 / RESULT</code> by dragging the waveform names up or down.</li>
 <li>Check that the waveform simulator output matches your previous (Step Simulation) results.</li>
 <li>
@@ -701,7 +731,7 @@ the simulation extends itself further in time.
 <li>Drag the grey horizontal divider to make the waveform display wider or narrower (you can do this at any time).</li>
 <li>You can check how these features work on a much larger design with 100,000 clock cycles using the Eratosthenes sieve demo.</li>
 </ul>
-<p><img src="img/userGuide/waveform1.png" alt="" /></p>
+<img src="img/userGuide/waveform1.png" alt="The waveform viewer showing the counter, ROM address and RESULT waveforms with the cursor set" width="2029" height="1485" loading="lazy" />
 <h3><a name="Finding-your-way-between-the-waveforms-and-the-schematic" class="anchor" href="#Finding-your-way-between-the-waveforms-and-the-schematic">Finding your way between the waveforms and the schematic</a></h3>
 <p>A waveform is not much use if you cannot tell which part of the design it came from. ISSIE keeps
 the two joined up:</p>
@@ -727,13 +757,13 @@ the waveform side of the divider.
 </li>
 <li>
 The <strong>Configure</strong> button sets the waveform font size and weight, and the maximum number of cycles
-the simulation may run to, with a live estimate of the memory that will need.
+the simulation may run to, with a live estimate of the memory that will need to be used.
 </li>
 <li>The <strong>Info</strong> button at the top right of the viewer explains all of this inside the app.</li>
 </ul>
 <h3><a name="Changing-your-design" class="anchor" href="#Changing-your-design">Changing your design</a></h3>
 <p>Now, keeping the simulation open,  add an extra register between the counter and the ROM address (or make any other change you want) and check that the simulation has the expected output. You can see the changes in the waveform simulator by clicking the <code>Refresh</code> button which will be enabled as soon as there is a change in the schematic.</p>
-<p><img src="img/userGuide/waveform2.png" alt="" /></p>
+<img src="img/userGuide/waveform2.png" alt="The waveforms after an extra register is added to the design and Refresh is pressed" width="2035" height="1218" loading="lazy" />
 <h2><a name="Truth-Table" class="anchor" href="#Truth-Table">Truth Table</a></h2>
 <p>One of ISSIE's features is the ability to view the truth table for a small combinational circuit.</p>
 <ul>
@@ -743,7 +773,7 @@ the simulation may run to, with a live estimate of the memory that will need.
 <li>Click on <code>Remove Redundancies</code></li>
 <li>The truth table should look like this:</li>
 </ul>
-<p><img src="img/userGuide/truthTable1.png" alt="" /></p>
+<img src="img/userGuide/truthTable1.png" alt="The decoder's truth table with redundant rows removed" width="1920" height="1009" loading="lazy" />
 <p>You can also select your inputs to be <strong>algebraic values</strong> to get an expression for each of your outputs.</p>
 <ul>
 <li>Click on <code>Back to full table</code></li>
@@ -751,10 +781,10 @@ the simulation may run to, with a live estimate of the memory that will need.
 <li>Select the inputs (<code>C</code>, <code>B</code>, <code>A</code>) you want to be algebraic values</li>
 <li>Truth table should now look like this:</li>
 </ul>
-<p><img src="img/userGuide/truthTable2.png" alt="" /></p>
+<img src="img/userGuide/truthTable2.png" alt="The same truth table with algebraic inputs, giving a Boolean expression for the output" width="831" height="1155" loading="lazy" />
 <h2><a name="Verilog-Component" class="anchor" href="#Verilog-Component">Verilog Component</a></h2>
 <p>Last but not least, ISSIE allows you to create custom components by defining their logic in Verilog — combinational logic, and also synchronous logic using <code>always_ff @(posedge clk)</code>. The supported language subset is documented on the <a href="verilogComp.html">Verilog Components</a> page. Click on <code>Verilog</code> -&gt; <code>New Verilog Component</code> (Catalogue) and write the logic of your decoder in Verilog — note that port declarations need the <code>bit</code> keyword, e.g. <code>input bit [15:0] instr;</code>.</p>
-<p><img src="img/userGuide/verilog1.png" alt="" /></p>
+<img src="img/userGuide/verilog1.png" alt="The Verilog component editor with the decoder's logic written as Verilog" width="1920" height="1030" loading="lazy" />
 <ul>
 <li>Click <code>Save</code></li>
 <li>Replace the previous Decoder with the new one (found under <code>Verilog</code> section in the Catalogue)</li>
@@ -871,27 +901,40 @@ agrees with nothing. Put a library you mean to change in a folder of your own fi
 <p>For inspiration, look when you start ISSIE under the <strong>demos</strong> option  for Eratosthenes Sieve demo which consists of an EEP1 CPU running an Eratosthenes Sieve program written in EEP1 assembly language. The sieve occupies most of EEP1 RAM and the program takes 200,000 clock cycles to run.</p>
 
         
+        <!-- Inside the content column rather than a sibling of <main>, so that it
+             needs no change to the page's grid placement. The Imperial credit is
+             worded as the splash screen words it, and is text: the College's logo
+             is not ours to place, and its brand guidelines govern its use. -->
+        <footer class="site-footer">
+            <p><span class="wordmark">ISSIE</span> &mdash; Interactive Schematic Simulator with Integrated Editor.</p>
+            <p>Developed by staff and students of the
+                <a href="https://www.imperial.ac.uk/electrical-engineering">Department of Electrical
+                and Electronic Engineering, Imperial College London</a>.</p>
+            <p><a href="https://github.com/tomcl/issie/">Source on GitHub</a> &middot;
+                <a href="https://github.com/tomcl/issie/blob/master/LICENSE.md">GNU GPL v3 or later</a> &middot;
+                <a href="https://github.com/tomcl/issie/releases/">Releases</a></p>
+        </footer>
     </div>
 </main>
 <aside id="fsdocs-page-menu">
     <p id="on-this-page">On this page</p>
     <ul>
+  <li class="level-1">
+    <a href="#ISSIE-user-tutorial">
+      ISSIE user tutorial
+    </a>
+  </li>
   <li class="level-2">
-    <a href="#Getting-Started">
-      Getting Started
+    <a href="#Downloading-and-running-ISSIE">
+      Downloading and running ISSIE
     </a>
   </li>
-  <li class="level-3">
-    <a href="#Downloading-and-Running-ISSIE">
-      Downloading and Running ISSIE
+  <li class="level-2">
+    <a href="#Creating-a-new-project">
+      Creating a new project
     </a>
   </li>
-  <li class="level-3">
-    <a href="#Creating-a-New-Project">
-      Creating a New Project
-    </a>
-  </li>
-  <li class="level-3">
+  <li class="level-2">
     <a href="#Your-first-design">
       Your first design
     </a>
@@ -952,8 +995,8 @@ agrees with nothing. Put a library you mean to change in a folder of your own fi
     </a>
   </li>
   <li class="level-3">
-    <a href="#Simulation-1">
-      Simulation
+    <a href="#Simulating-the-ROM-design">
+      Simulating the ROM design
     </a>
   </li>
   <li class="level-2">

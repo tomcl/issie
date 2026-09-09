@@ -4,26 +4,38 @@
     <meta charset="UTF-8">
     <meta content="IE=edge" http-equiv="X-UA-Compatible">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
-    <meta content="Main" name="author">
-    <!-- Opengraph properties (https://ogp.me/) -->
-    <meta property="og:site_name" content="issie">
+    <meta content="Tom Clarke and the ISSIE contributors, Imperial College London" name="author">
+    <!--
+      Opengraph properties (https://ogp.me/). og:url and og:image have to be
+      absolute - a relative one is ignored, which is why a link to this site used
+      to preview as a blank card. The origin is therefore written out here rather
+      than taken from the site-relative root substitution.
+      The description and og:description tags come from each page's
+      "description:" front matter, by way of the meta-tags substitution below.
+      Do not name a substitution inside a comment: it is replaced there too, and
+      the resulting tags are then inert inside the comment.
+    -->
+    <meta property="og:site_name" content="Issie">
     <meta property="og:title" content="Build Speed and Fable Caching
 " />
-    <meta property="og:url" content="/issie/BUILD_OPTIMIZATION.html">
+    <meta property="og:url" content="https://tomcl.github.io/issie/BUILD_OPTIMIZATION.html">
     <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://tomcl.github.io/issie/img/homePage/catalogue.png">
+    <meta property="og:image:alt" content="An ISSIE schematic beside the component Catalogue">
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:site" content="/issie/">
     <meta name="twitter:title" content="Build Speed and Fable Caching
 ">
+    <meta name="twitter:image" content="https://tomcl.github.io/issie/img/homePage/catalogue.png">
+    <link rel="canonical" href="https://tomcl.github.io/issie/BUILD_OPTIMIZATION.html">
     
     <title>Build Speed and Fable Caching
- | issie</title>
+ | Issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
     <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
-    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/x-icon"/>
     <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
     <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
     <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
@@ -93,6 +105,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/issiestick.html">
     ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/about.html">
+    About Issie
   </a>
 </li>             
 <li class="nav-item ">
@@ -247,8 +264,11 @@
             </ul>
         </div>
         <a href="/issie/">
-            <img alt="Header menu logo" src="/issie//issieIcon.png">
-            <strong>issie</strong>
+            <!-- The chip mark, matching the application splash screen. Written out rather
+                 than left to the FsDocsLogoSource project property, which fsdocs did not
+                 apply to content pages even once its own log reported the new value. -->
+            <img alt="Issie logo" src="/issie/img/issie-chip.svg" width="36" height="30">
+            <strong>Issie</strong>
         </a>
     </div>
     <div class="end">
@@ -318,6 +338,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/issiestick.html">
     ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/about.html">
+    About Issie
   </a>
 </li>             
 <li class="nav-item ">
@@ -478,15 +503,15 @@
 <h2><a name="The-scripts" class="anchor" href="#The-scripts">The scripts</a></h2>
 <ul>
 <li>
-<code>npm run app</code> — <a href="../scripts/app.js"><code>scripts/app.js</code></a>: starts the app in whichever of <code>dev</code> /
+<code>npm run app</code> — <a href="https://github.com/tomcl/issie/blob/master/scripts/app.js"><code>scripts/app.js</code></a>: starts the app in whichever of <code>dev</code> /
 <code>dev:once</code> the generated JS already belongs to, so there is no mode to keep track of. Use this
 unless you specifically want one of them. <code>npm run app -- --which</code> says what it would pick and
 why without starting anything; anything else after <code>--</code> goes through to Electron.
 </li>
 <li>
-<code>npm run dev</code> — <a href="../scripts/dev.js"><code>scripts/dev.js</code></a> runs <code>dotnet fable watch</code> for <code>src/Main</code>
+<code>npm run dev</code> — <a href="https://github.com/tomcl/issie/blob/master/scripts/dev.js"><code>scripts/dev.js</code></a> runs <code>dotnet fable watch</code> for <code>src/Main</code>
 and <code>src/Renderer</code> <strong>in parallel</strong>, then starts webpack + Electron
-(<a href="../scripts/start.js"><code>scripts/start.js</code></a>) as soon as both projects' generated JS is safe to
+(<a href="https://github.com/tomcl/issie/blob/master/scripts/start.js"><code>scripts/start.js</code></a>) as soon as both projects' generated JS is safe to
 load. Hot reload of renderer changes while running.
 </li>
 <li>
@@ -496,13 +521,13 @@ Edits need a rerun.
 </li>
 <li><code>npm run debug</code> — <code>dev</code> plus the <code>ASSERTS</code> define on the renderer.</li>
 <li>
-<code>npm run compile</code> — <a href="../scripts/parallel-compile.js"><code>scripts/parallel-compile.js</code></a>: one-shot
+<code>npm run compile</code> — <a href="https://github.com/tomcl/issie/blob/master/scripts/parallel-compile.js"><code>scripts/parallel-compile.js</code></a>: one-shot
 parallel compile of both projects with the <code>PRODUCTION</code> define. Used by <code>pack</code> and <code>dist</code>.
 </li>
 <li><code>node scripts/dev.js --no-app</code> — either mode without launching Electron (compile check).</li>
 </ul>
-<p>Every one of these reaches <a href="../scripts/start.js"><code>scripts/start.js</code></a>, which frees the two ports it
-needs before using them (<a href="../scripts/free-port.js"><code>scripts/free-port.js</code></a>): 8672 for the webpack
+<p>Every one of these reaches <a href="https://github.com/tomcl/issie/blob/master/scripts/start.js"><code>scripts/start.js</code></a>, which frees the two ports it
+needs before using them (<a href="https://github.com/tomcl/issie/blob/master/scripts/free-port.js"><code>scripts/free-port.js</code></a>): 8672 for the webpack
 dev server and 9222 for the DevTools protocol that <code>scripts/inspect-canvas.js</code> talks to. A session
 interrupted in any of the usual ways leaves both held, and the failure that follows is worse than
 it sounds: the port is bound <em>after</em> a full Fable compile and after Electron has been told to open,
@@ -512,7 +537,7 @@ port is killed, whatever it is; that is a more reliable test than matching comma
 <p>A <code>fable watch</code> holds no port, so nothing above reaches it — and it is the leftover that matters
 most, because it is still watching: it recompiles on the next file change and can flip the tree's
 build mode under whoever runs the app next. Every entry point above therefore starts by removing
-the watchers an interrupted session left (<a href="../scripts/free-watchers.js"><code>scripts/free-watchers.js</code></a>).</p>
+the watchers an interrupted session left (<a href="https://github.com/tomcl/issie/blob/master/scripts/free-watchers.js"><code>scripts/free-watchers.js</code></a>).</p>
 <p>That check has to be nearly free, since it runs before a <code>dev:once</code> that is otherwise instant on an
 unchanged tree, and Windows cannot list processes without spawning PowerShell — 250ms before it has
 done anything, 640ms for the query. So a watch session leaves a note in <code>build-fable</code> saying it
@@ -521,7 +546,7 @@ owner is still alive, means there is nothing to look for: about 10ms, and the us
 note left by a session that was killed is worth the listing, and then a leftover is identified by
 its PARENT being gone rather than by its pid — the shell <code>dev.js</code> spawns it through dies with the
 session while the Fable process under it does not, which is the whole problem.</p>
-<p><a href="../scripts/clean-dev.js"><code>scripts/clean-dev.js</code></a> is still the tool for sweeping a whole abandoned
+<p><a href="https://github.com/tomcl/issie/blob/master/scripts/clean-dev.js"><code>scripts/clean-dev.js</code></a> is still the tool for sweeping a whole abandoned
 session on request. It matches command lines rather than parentage, so it catches a watcher started
 some other way — and it will kill a running app, which is why it is a command you run and not
 something that happens at startup.</p>
@@ -544,10 +569,10 @@ the app in seconds either way.
 <h2><a name="What-breaks-it" class="anchor" href="#What-breaks-it">What breaks it</a></h2>
 <ul>
 <li>
-<p><strong>A stale <code>.fs.js</code> timestamp</strong>, which <a href="../scripts/refresh-stale-output.js"><code>scripts/refresh-stale-output.js</code></a>
+<p><strong>A stale <code>.fs.js</code> timestamp</strong>, which <a href="https://github.com/tomcl/issie/blob/master/scripts/refresh-stale-output.js"><code>scripts/refresh-stale-output.js</code></a>
 exists to prevent. It pairs each generated file with its source through the <code>sources</code> entry of the
 source map beside it, since the output no longer sits next to the <code>.fs</code> — see
-<a href="../scripts/fable-output.js"><code>scripts/fable-output.js</code></a>. Fable rewrites an output file only when
+<a href="https://github.com/tomcl/issie/blob/master/scripts/fable-output.js"><code>scripts/fable-output.js</code></a>. Fable rewrites an output file only when
 its <em>content</em> changed, and the up-to-date check above is about timestamps, so the two can
 disagree. A <code>.fs</code> whose mtime moves
 without its emitted JS changing — a comment or warning-only edit, a <code>git checkout</code>, a rebase —
@@ -583,6 +608,19 @@ recorded in the cracking cache and defeats output reuse for the next run. In par
 files and caches for a genuinely fresh start.</p>
 
         
+        <!-- Inside the content column rather than a sibling of <main>, so that it
+             needs no change to the page's grid placement. The Imperial credit is
+             worded as the splash screen words it, and is text: the College's logo
+             is not ours to place, and its brand guidelines govern its use. -->
+        <footer class="site-footer">
+            <p><span class="wordmark">ISSIE</span> &mdash; Interactive Schematic Simulator with Integrated Editor.</p>
+            <p>Developed by staff and students of the
+                <a href="https://www.imperial.ac.uk/electrical-engineering">Department of Electrical
+                and Electronic Engineering, Imperial College London</a>.</p>
+            <p><a href="https://github.com/tomcl/issie/">Source on GitHub</a> &middot;
+                <a href="https://github.com/tomcl/issie/blob/master/LICENSE.md">GNU GPL v3 or later</a> &middot;
+                <a href="https://github.com/tomcl/issie/releases/">Releases</a></p>
+        </footer>
     </div>
 </main>
 <aside id="fsdocs-page-menu">

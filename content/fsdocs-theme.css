@@ -1,1 +1,129 @@
-﻿/* Override any variables here */
+/*
+  Issie theme.
+
+  The palette is the application's own, taken from the splash screen
+  (static/splash.html) so that the site and the app that it documents look like
+  one thing: teal on ink, with the chip mark in the header.
+
+      --teal          #00d2b4     --ink     #071a24
+      --teal-bright   #2ff0d4     --ink-2   #0d2b39
+      --teal-deep     #00a98f
+
+  Brand teal is too light to be readable as text on a light background - #00d2b4
+  on #f5f5f6 is 1.8:1, and even #00a98f is only 2.7:1 - so the light theme darkens
+  it for anything that carries words and keeps the brand value for borders and
+  accents, where contrast rules do not apply. Every text colour below was
+  measured; the ratio is in the comment beside it.
+
+  These variables are defined in fsdocs-default.css and re-declared here, which
+  works because this stylesheet is linked after it.
+*/
+
+:root {
+    /* Issie brand, unmodified. Use these rather than repeating hex values. */
+    --issie-teal: #00d2b4;
+    --issie-teal-bright: #2ff0d4;
+    --issie-teal-deep: #00a98f;
+    --issie-ink: #071a24;
+    --issie-ink-2: #0d2b39;
+    /* Darkened for use as text on a light ground. */
+    --issie-teal-text: #00695c;
+    --issie-teal-text-strong: #00544a;
+
+    --primary: var(--issie-teal-deep);
+    --heading-color: var(--issie-ink-2);          /* 13.6:1 on the page background */
+    --link-color: var(--issie-teal-text);         /*  6.1:1 */
+    --link-hover: var(--issie-teal-text-strong);  /*  7.7:1 - darker on hover, so the
+                                                     hover state is not the weaker one */
+    --header-background: #f2faf8;                 /* the faintest teal cast */
+    --menu-item-hover-background: #e2f2ee;
+    --nav-item-active-border-color: var(--issie-teal-deep);
+    --code-color: #0f5132;
+}
+
+[data-theme=dark] {
+    --primary: var(--issie-teal);
+    --background: var(--issie-ink);
+    --header-background: var(--issie-ink-2);
+    --text-color: #eaf7f5;                        /* 16.2:1 on ink */
+    --heading-color: #bff4ea;                     /* 14.7:1 */
+    --link-color: var(--issie-teal-bright);       /* 12.3:1 */
+    --link-hover: #bff4ea;
+    --code-background: #0d2b39;
+    --code-color: #eaf7f5;
+    --menu-item-hover-background: #12384a;
+    --search-background: #041219;
+    --nav-category: #79c8bd;                      /*  9.1:1 - the splash subtitle colour */
+    --nav-item-active-border-color: var(--issie-teal);
+    --header-border: #1d4a5e;
+    --scrollbar-track-background: #0d2b39;
+    --scrollbar-thumb-background: #1d4a5e;
+}
+
+/* The chip mark is wider than it is tall; the default header rule sets a height
+   only, which is what we want, but it also rounds the corners of what it assumes
+   is a square bitmap. */
+header .start img {
+    border-radius: 0;
+}
+
+/* fsdocs defines --heading-color but applies it to nothing in the content
+   column, so headings inherit the body colour and the palette never reaches
+   them. Both values are measured against their own background: 13.6:1 light,
+   14.7:1 dark. */
+#content h1,
+#content h2,
+#content h3,
+#content h4 {
+    color: var(--heading-color);
+}
+
+/*
+  Content images carry width and height attributes so that the page does not
+  reflow when a large screenshot arrives. The default theme sets max-width
+  without height, which would then squash them: both are needed.
+*/
+#content img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* A screenshot of an application reads better with an edge than floating on the
+   page background. */
+#content p > img,
+#content > img {
+    border: 1px solid var(--header-border);
+    border-radius: var(--radius);
+}
+
+/* The download / tutorial / features block at the top of the home page. */
+#content .cta {
+    margin: var(--spacing-400) 0;
+    padding: var(--spacing-200) var(--spacing-400);
+    border-left: var(--spacing-50) solid var(--primary);
+    background-color: var(--header-background);
+    border-radius: var(--radius);
+}
+
+#content .cta p {
+    margin: var(--spacing-200) 0;
+}
+
+/* Site footer, at the end of the content column on every page. */
+#content .site-footer {
+    margin-top: var(--spacing-700);
+    padding-top: var(--spacing-300);
+    border-top: 1px solid var(--header-border);
+    font-size: var(--font-100);
+    color: var(--nav-category);
+}
+
+#content .site-footer p {
+    margin: var(--spacing-100) 0;
+}
+
+#content .site-footer .wordmark {
+    font-weight: 600;
+    letter-spacing: .12em;
+    color: var(--heading-color);
+}

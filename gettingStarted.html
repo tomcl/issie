@@ -4,23 +4,37 @@
     <meta charset="UTF-8">
     <meta content="IE=edge" http-equiv="X-UA-Compatible">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
-    <meta content="Main" name="author">
-    <!-- Opengraph properties (https://ogp.me/) -->
-    <meta property="og:site_name" content="issie">
+    <meta content="Tom Clarke and the ISSIE contributors, Imperial College London" name="author">
+    <!--
+      Opengraph properties (https://ogp.me/). og:url and og:image have to be
+      absolute - a relative one is ignored, which is why a link to this site used
+      to preview as a blank card. The origin is therefore written out here rather
+      than taken from the site-relative root substitution.
+      The description and og:description tags come from each page's
+      "description:" front matter, by way of the meta-tags substitution below.
+      Do not name a substitution inside a comment: it is replaced there too, and
+      the resulting tags are then inert inside the comment.
+    -->
+    <meta property="og:site_name" content="Issie">
     <meta property="og:title" content="Getting Started" />
-    <meta property="og:url" content="/issie/gettingStarted.html">
+    <meta property="og:url" content="https://tomcl.github.io/issie/gettingStarted.html">
     <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://tomcl.github.io/issie/img/homePage/catalogue.png">
+    <meta property="og:image:alt" content="An ISSIE schematic beside the component Catalogue">
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:site" content="/issie/">
     <meta name="twitter:title" content="Getting Started">
-    
-    <title>Getting Started | issie</title>
+    <meta name="twitter:image" content="https://tomcl.github.io/issie/img/homePage/catalogue.png">
+    <link rel="canonical" href="https://tomcl.github.io/issie/gettingStarted.html">
+    <meta name="description" content="How to download and run ISSIE on Windows, macOS or Linux, and how to set up to build it from source.">
+<meta name="twitter:site" content="How to download and run ISSIE on Windows, macOS or Linux, and how to set up to build it from source.">
+<meta name="og:description" content="How to download and run ISSIE on Windows, macOS or Linux, and how to set up to build it from source.">
+    <title>Getting Started | Issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
     <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
-    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/x-icon"/>
     <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
     <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
     <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
@@ -90,6 +104,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/issiestick.html">
     ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/about.html">
+    About Issie
   </a>
 </li>             
 <li class="nav-item ">
@@ -244,8 +263,11 @@
             </ul>
         </div>
         <a href="/issie/">
-            <img alt="Header menu logo" src="/issie//issieIcon.png">
-            <strong>issie</strong>
+            <!-- The chip mark, matching the application splash screen. Written out rather
+                 than left to the FsDocsLogoSource project property, which fsdocs did not
+                 apply to content pages even once its own log reported the new value. -->
+            <img alt="Issie logo" src="/issie/img/issie-chip.svg" width="36" height="30">
+            <strong>Issie</strong>
         </a>
     </div>
     <div class="end">
@@ -315,6 +337,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/issiestick.html">
     ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/about.html">
+    About Issie
   </a>
 </li>             
 <li class="nav-item ">
@@ -472,9 +499,9 @@
     <div id="content">
         
 <h1><a name="Getting-Started" class="anchor" href="#Getting-Started">Getting Started</a></h1>
-<h2><a name="Users" class="anchor" href="#Users">Users</a></h2>
-<p>Go to the <a href="https://github.com/tomcl/issie/releases/latest">latest ISSIE release</a>. Scroll down this page till at the bottom you find the <code>Assets</code> section - this has binaries for Windows and Macos and linux PCs. Download the appropriate one and unzip it anywhere (or add the dmg file to applications under Macos by double-clicking).</p>
-<p>No installation is required - ISSIE runs from the unzipped files under windows if you double-click the top-level <code>issie.exe</code> file with the blue ISSIE chip icon. The Windows binaries are currently unsigned</p>
+<h2><a name="Downloading-and-running-ISSIE" class="anchor" href="#Downloading-and-running-ISSIE">Downloading and running ISSIE</a></h2>
+<p>Go to the <a href="https://github.com/tomcl/issie/releases/latest">latest ISSIE release</a>. Scroll down this page till at the bottom you find the <code>Assets</code> section - this has binaries for Windows, macOS and Linux, each built for x64 and Arm64. Download the appropriate one and unzip it anywhere (or add the dmg file to Applications under macOS by double-clicking).</p>
+<p>No installation is required - ISSIE runs from the unzipped files under Windows if you double-click the top-level <code>issie.exe</code> file with the blue ISSIE chip icon. The Windows binaries are currently unsigned; the macOS ones are signed.</p>
 <p>Issie is designed to be intuitive with no manual required. Users will find the one page <a href="userGuide.html">User Tutorial</a> here is a useful introduction to Issie features. It can be skimmed quickly to see what is possible, or followed in detail for an easy introduction.</p>
 <h3><a name="Creating-binaries" class="anchor" href="#Creating-binaries">Creating binaries</a></h3>
 <p>It is possible for users to create their own binaries from source, if for example the latest release does not have an uploaded set of binaries. Binaries for a given platform can be created on that platform and run successfully without signing. Follow the steps in <a href="https://github.com/tomcl/ISSIE#getting-started-as-developer">Getting Started as Developer</a>, then run <code>npm run dist</code>.</p>
@@ -497,6 +524,19 @@ The ISSIE <a href="https://github.com/tomcl/issie/wiki">wiki</a> has information
 </ul>
 
         
+        <!-- Inside the content column rather than a sibling of <main>, so that it
+             needs no change to the page's grid placement. The Imperial credit is
+             worded as the splash screen words it, and is text: the College's logo
+             is not ours to place, and its brand guidelines govern its use. -->
+        <footer class="site-footer">
+            <p><span class="wordmark">ISSIE</span> &mdash; Interactive Schematic Simulator with Integrated Editor.</p>
+            <p>Developed by staff and students of the
+                <a href="https://www.imperial.ac.uk/electrical-engineering">Department of Electrical
+                and Electronic Engineering, Imperial College London</a>.</p>
+            <p><a href="https://github.com/tomcl/issie/">Source on GitHub</a> &middot;
+                <a href="https://github.com/tomcl/issie/blob/master/LICENSE.md">GNU GPL v3 or later</a> &middot;
+                <a href="https://github.com/tomcl/issie/releases/">Releases</a></p>
+        </footer>
     </div>
 </main>
 <aside id="fsdocs-page-menu">
@@ -508,8 +548,8 @@ The ISSIE <a href="https://github.com/tomcl/issie/wiki">wiki</a> has information
     </a>
   </li>
   <li class="level-2">
-    <a href="#Users">
-      Users
+    <a href="#Downloading-and-running-ISSIE">
+      Downloading and running ISSIE
     </a>
   </li>
   <li class="level-3">

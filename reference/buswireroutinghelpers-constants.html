@@ -519,6 +519,137 @@
             <div>
               <code onmouseout="hideTip(event, '452', 452)" onmouseover="showTip(event, '452', 452)">
                 <p>
+                  <a id="clearanceCostWeight">
+                    <a href="#clearanceCostWeight">
+                      <code><span>clearanceCostWeight&#32;<span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="452">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>clearanceCostWeight&#32;<span></span></span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>float</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:P:BusWireRoutingHelpers.Constants.clearanceCostWeight`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:BusWireRoutingHelpers.Constants.clearanceCostWeight\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireRoutingHelpers.fs#L176-176" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     What a unit of missing symbol clearance costs, relative to a unit of wire drawn.
+
+ The exchange rate has a break-even that can be worked out rather than guessed. Separation's
+ canonical move pushes a segment d further from a symbol edge; where the segment beyond it
+ has zero length - which is how a route arrives at a port - both of its neighbours grow, so
+ the move costs 2d of wire to buy d of clearance. Any weight above 2 accepts that move and
+ any weight below rejects it, which is what the cost function did when it had no clearance
+ term at all: separation was refused whole on every sheet with no overlap to pay for it.
+
+ 5 leaves margin over the break-even without letting clearance outrank wire length so far
+ that a long detour looks worth making: a 500-unit detour still has to buy 100 units of
+ clearance before it is taken. Measured over the WireQuality corpus, 3 and 5 give identical
+ wire, bends and crossings on every sheet - the plateau runs from just above the break-even
+ - while 10 is over the far edge of it, flipping wrappedArrays to its worse phase and
+ costing reg16x8 five crossings.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '453', 453)" onmouseover="showTip(event, '453', 453)">
+                <p>
+                  <a id="clearanceFromSymbol">
+                    <a href="#clearanceFromSymbol">
+                      <code><span>clearanceFromSymbol&#32;<span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="453">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>clearanceFromSymbol&#32;<span></span></span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>float</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:P:BusWireRoutingHelpers.Constants.clearanceFromSymbol`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:BusWireRoutingHelpers.Constants.clearanceFromSymbol\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireRoutingHelpers.fs#L160-160" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     How far a segment ought to stand from a symbol it runs alongside. This is what
+ calcSegPositions places one at when a symbol edge bounds its cluster, so it is the
+ clearance separation is actually trying to achieve - which is what makes it the right
+ thing for the acceptance rule to score.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '454', 454)" onmouseover="showTip(event, '454', 454)">
+                <p>
                   <a id="extensionTolerance">
                     <a href="#extensionTolerance">
                       <code><span>extensionTolerance&#32;<span></span></span></code>
@@ -526,7 +657,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="452">
+              <div class="fsdocs-tip" id="454">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>extensionTolerance&#32;<span></span></span></code>
@@ -551,7 +682,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:BusWireRoutingHelpers.Constants.extensionTolerance\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireRoutingHelpers.fs#L169-169" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireRoutingHelpers.fs#L190-190" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -576,7 +707,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '453', 453)" onmouseover="showTip(event, '453', 453)">
+              <code onmouseout="hideTip(event, '455', 455)" onmouseover="showTip(event, '455', 455)">
                 <p>
                   <a id="maxCallsToShiftHorizontalSeg">
                     <a href="#maxCallsToShiftHorizontalSeg">
@@ -585,7 +716,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="453">
+              <div class="fsdocs-tip" id="455">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>maxCallsToShiftHorizontalSeg&#32;<span></span></span></code>
@@ -615,7 +746,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '454', 454)" onmouseover="showTip(event, '454', 454)">
+              <code onmouseout="hideTip(event, '456', 456)" onmouseover="showTip(event, '456', 456)">
                 <p>
                   <a id="maxCornerSize">
                     <a href="#maxCornerSize">
@@ -624,7 +755,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="454">
+              <div class="fsdocs-tip" id="456">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>maxCornerSize&#32;<span></span></span></code>
@@ -654,7 +785,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '455', 455)" onmouseover="showTip(event, '455', 455)">
+              <code onmouseout="hideTip(event, '457', 457)" onmouseover="showTip(event, '457', 457)">
                 <p>
                   <a id="maxSegmentSeparation">
                     <a href="#maxSegmentSeparation">
@@ -663,7 +794,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="455">
+              <div class="fsdocs-tip" id="457">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>maxSegmentSeparation&#32;<span></span></span></code>
@@ -693,7 +824,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '456', 456)" onmouseover="showTip(event, '456', 456)">
+              <code onmouseout="hideTip(event, '458', 458)" onmouseover="showTip(event, '458', 458)">
                 <p>
                   <a id="maxSettlingRounds">
                     <a href="#maxSettlingRounds">
@@ -702,7 +833,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="456">
+              <div class="fsdocs-tip" id="458">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>maxSettlingRounds&#32;<span></span></span></code>
@@ -727,7 +858,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:BusWireRoutingHelpers.Constants.maxSettlingRounds\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireRoutingHelpers.fs#L162-162" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireRoutingHelpers.fs#L183-183" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -755,7 +886,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '457', 457)" onmouseover="showTip(event, '457', 457)">
+              <code onmouseout="hideTip(event, '459', 459)" onmouseover="showTip(event, '459', 459)">
                 <p>
                   <a id="minVisibleSegmentLength">
                     <a href="#minVisibleSegmentLength">
@@ -764,7 +895,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="457">
+              <div class="fsdocs-tip" id="459">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>minVisibleSegmentLength&#32;<span></span></span></code>
@@ -818,7 +949,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '458', 458)" onmouseover="showTip(event, '458', 458)">
+              <code onmouseout="hideTip(event, '460', 460)" onmouseover="showTip(event, '460', 460)">
                 <p>
                   <a id="minWireLengthToSeparate">
                     <a href="#minWireLengthToSeparate">
@@ -827,7 +958,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="458">
+              <div class="fsdocs-tip" id="460">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>minWireLengthToSeparate&#32;<span></span></span></code>
@@ -857,7 +988,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '459', 459)" onmouseover="showTip(event, '459', 459)">
+              <code onmouseout="hideTip(event, '461', 461)" onmouseover="showTip(event, '461', 461)">
                 <p>
                   <a id="minWireSeparation">
                     <a href="#minWireSeparation">
@@ -866,7 +997,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="459">
+              <div class="fsdocs-tip" id="461">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>minWireSeparation&#32;<span></span></span></code>
@@ -896,7 +1027,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '460', 460)" onmouseover="showTip(event, '460', 460)">
+              <code onmouseout="hideTip(event, '462', 462)" onmouseover="showTip(event, '462', 462)">
                 <p>
                   <a id="overlapCostWeight">
                     <a href="#overlapCostWeight">
@@ -905,7 +1036,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="460">
+              <div class="fsdocs-tip" id="462">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>overlapCostWeight&#32;<span></span></span></code>
@@ -954,7 +1085,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '461', 461)" onmouseover="showTip(event, '461', 461)">
+              <code onmouseout="hideTip(event, '463', 463)" onmouseover="showTip(event, '463', 463)">
                 <p>
                   <a id="overlapTolerance">
                     <a href="#overlapTolerance">
@@ -963,7 +1094,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="461">
+              <div class="fsdocs-tip" id="463">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>overlapTolerance&#32;<span></span></span></code>
@@ -1011,7 +1142,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '462', 462)" onmouseover="showTip(event, '462', 462)">
+              <code onmouseout="hideTip(event, '464', 464)" onmouseover="showTip(event, '464', 464)">
                 <p>
                   <a id="sameNetTrunkCapture">
                     <a href="#sameNetTrunkCapture">
@@ -1020,7 +1151,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="462">
+              <div class="fsdocs-tip" id="464">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sameNetTrunkCapture&#32;<span></span></span></code>
@@ -1084,7 +1215,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '463', 463)" onmouseover="showTip(event, '463', 463)">
+              <code onmouseout="hideTip(event, '465', 465)" onmouseover="showTip(event, '465', 465)">
                 <p>
                   <a id="separateCaptureOverlap">
                     <a href="#separateCaptureOverlap">
@@ -1093,7 +1224,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="463">
+              <div class="fsdocs-tip" id="465">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>separateCaptureOverlap&#32;<span></span></span></code>
@@ -1141,7 +1272,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '464', 464)" onmouseover="showTip(event, '464', 464)">
+              <code onmouseout="hideTip(event, '466', 466)" onmouseover="showTip(event, '466', 466)">
                 <p>
                   <a id="settlingTolerance">
                     <a href="#settlingTolerance">
@@ -1150,7 +1281,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="464">
+              <div class="fsdocs-tip" id="466">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>settlingTolerance&#32;<span></span></span></code>
@@ -1175,7 +1306,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:BusWireRoutingHelpers.Constants.settlingTolerance\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireRoutingHelpers.fs#L165-165" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/BusWireRoutingHelpers.fs#L186-186" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1199,7 +1330,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '465', 465)" onmouseover="showTip(event, '465', 465)">
+              <code onmouseout="hideTip(event, '467', 467)" onmouseover="showTip(event, '467', 467)">
                 <p>
                   <a id="smallOffset">
                     <a href="#smallOffset">
@@ -1208,7 +1339,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="465">
+              <div class="fsdocs-tip" id="467">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>smallOffset&#32;<span></span></span></code>
@@ -1238,7 +1369,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '466', 466)" onmouseover="showTip(event, '466', 466)">
+              <code onmouseout="hideTip(event, '468', 468)" onmouseover="showTip(event, '468', 468)">
                 <p>
                   <a id="wireSeparationFromSymbol">
                     <a href="#wireSeparationFromSymbol">
@@ -1247,7 +1378,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="466">
+              <div class="fsdocs-tip" id="468">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>wireSeparationFromSymbol&#32;<span></span></span></code>

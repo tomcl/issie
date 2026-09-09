@@ -1,5 +1,6 @@
 ---
 title: Getting Started
+description: How to download and run ISSIE on Windows, macOS or Linux, and how to set up to build it from source.
 category: Documentation
 categoryindex: 1
 index: 3
@@ -7,11 +8,11 @@ index: 3
 
 # Getting Started
 
-## Users
+## Downloading and running ISSIE
 
-Go to the [latest ISSIE release](https://github.com/tomcl/issie/releases/latest). Scroll down this page till at the bottom you find the `Assets` section - this has binaries for Windows and Macos and linux PCs. Download the appropriate one and unzip it anywhere (or add the dmg file to applications under Macos by double-clicking). 
+Go to the [latest ISSIE release](https://github.com/tomcl/issie/releases/latest). Scroll down this page till at the bottom you find the `Assets` section - this has binaries for Windows, macOS and Linux, each built for x64 and Arm64. Download the appropriate one and unzip it anywhere (or add the dmg file to Applications under macOS by double-clicking). 
 
-No installation is required - ISSIE runs from the unzipped files under windows if you double-click the top-level `issie.exe` file with the blue ISSIE chip icon. The Windows binaries are currently unsigned
+No installation is required - ISSIE runs from the unzipped files under Windows if you double-click the top-level `issie.exe` file with the blue ISSIE chip icon. The Windows binaries are currently unsigned; the macOS ones are signed.
 
 Issie is designed to be intuitive with no manual required. Users will find the one page [User Tutorial](userGuide.html) here is a useful introduction to Issie features. It can be skimmed quickly to see what is possible, or followed in detail for an easy introduction.
 

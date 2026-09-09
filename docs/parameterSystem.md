@@ -1,5 +1,6 @@
 ---
 title: Parameter System
+description: Symbolic integer parameters on ISSIE design sheets: the expression language, constraints, per-instance bindings, and how they resolve at simulation time.
 category: Documentation
 categoryindex: 1
 index: 8

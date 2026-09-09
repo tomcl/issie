@@ -1,5 +1,6 @@
 ---
 title: Schematic Editor Features
+description: A reference for every schematic editor operation in ISSIE: placing components, wiring, sheets and hierarchy, simulation, and the keys for each.
 category: Documentation
 categoryindex: 1
 index: 5
@@ -19,7 +20,7 @@ ISSIE features developed over several years to help you create readable schemati
 | Feature | How | Explanation |
 | :---- | :---- | :---- |
 | **Place a component** | Click it in the Catalogue, then click the canvas — or **drag it straight from the Catalogue** and drop it where you want it | While you drag, a ghost of the real symbol follows the cursor. A drop onto space already occupied by another symbol is refused rather than overlapping them |
-| **Component tooltips** | Hover any Catalogue entry, or any field label in **Properties** | Every component explains what it is for, and every field explains what it sets and give syou immediate explanatory error feedback|
+| **Component tooltips** | Hover any Catalogue entry, or any field label in **Properties** | Every component explains what it is for, and every field explains what it sets, and gives you immediate explanatory error feedback|
 | **Find a component** | Type in the Catalogue's search box | Matches the explanations as well as the names, so "subtract" finds the N bits XOR. Sections holding a match open themselves |
 | **Size-to-fit** | `Ctrl-0` | Most often used keyboard shortcut: zooms and centres the schematic so it all fits on screen |
 | **Zoom the canvas** | `Ctrl`+`+` / `Ctrl`+`-`; `Ctrl`+mouse wheel | `Ctrl` with `+` `-` `0` zooms whatever you are looking at — the schematic, or the waveforms in the wave simulator. Add `Alt` to zoom the whole application instead |
@@ -27,13 +28,14 @@ ISSIE features developed over several years to help you create readable schemati
 | **Rotate and flip components** | `Ctrl`+`Right`: rotate clockwise <br> `Ctrl`+`Left`: rotate anti-clockwise <br> `Ctrl`+`Up`: flip vertically <br> `Ctrl`+`Down`: flip horizontally | Also on the Edit menu and on a component's right-click menu |
 | **Undo / redo** | `Ctrl-Z` / `Ctrl-Y`, or the on-screen buttons | |
 | **Copy / paste** | `Ctrl-C` / `Ctrl-V`, or the on-screen buttons | Duplicates keep the label with an incremented number. Works across sheets |
-| **Paste as array** | on-screen button or `Edit` menu | Quickly create horizontal or vertical copies of any selected circuiy |
+| **Paste as array** | on-screen button or `Edit` menu | Quickly create horizontal or vertical copies of any selected circuitry |
 | **Move a component's label** | Drag the label; `Ctrl-Shift-Right` rotates it | |
 | **Change port location on custom components** | Use *Move ports* on the component's right-click menu and drag ports to rearrange | Custom components can have a lot of ports; move them to make a readable symbol |
 | **Resize a custom component** | Use *Resize symbol* on its right-click menu and drag a corner, or set `Width Scale` / `Height Scale` in Properties | Auto-sizing keeps port legends from overlapping; override it when you want a particular shape |
 | **Change anything about a component** | Select it and use the **Properties** tab | Labels, bus widths, number of gate inputs, MUX input order, optional adder/counter ports, memory contents, Verilog source |
 | **Align / distribute** | `Ctrl-Shift-A` / `Ctrl-Shift-D`; rotate a label with `Ctrl-Shift-R` | Same-type components in the selection are aligned or evenly spaced; other types are left alone |
 | **Rotate or scale a block** | Drag a selection rectangle, then use the handles on the selection box | `Shift`-click adds or removes one component from the selection |
+| **Snapping** | Automatic while dragging | A symbol sticks to the edges of other symbols, and to the positions that make its wires straight |
 
 ## Wires and connections
 
@@ -80,99 +82,23 @@ and spreads it out evenly |
 | **Keyboard shortcuts** | **Info** → *Keyboard Shortcuts* | Generated from the same table the app dispatches keys with, for your platform, so it is always correct |
 | **Errors** | Automatic | Every error names what is wrong and how to correct it, highlights the components and connections responsible on the canvas, and where the fix is unambiguous offers a button that applies it and restarts the simulation |
 
-<br><br>
 
-# Technical details of wire routing and symbol alignment
+## Why the wire display types look different
 
-### Snapping
+Wires can be drawn as **radial**, **modern** or old-style **jump**; switching between them at any
+time changes nothing about the design. Radial is usually the most readable: a bend is drawn as a
+small quadrant, which distinguishes a wire *crossing* another from a wire *joining* it, so
+connectivity can be followed by eye. A bend is squared off only where the straight run beside it is
+too short to fit the radius.
 
-This allows symbol edges to stick to other symbol edges when moving them in ISSIE, or symbols to stick to positions that make wires straight.
+How wires are routed and then separated across the sheet — and why a segment has a signed length
+and no position — is described in
+[How a wire gets its shape](dev/wireRouting.html).
 
-### Explicit arrangement
+## Why symbols are the size they are
 
-Selections of same-type components can be aligned vertically or horizontally, or distributed with equal spacing. Differing type components are omitted from the operation even if selected.
-
-### Manual wire routing
-
-Manual routing has been reworked to have the following behaviour:
-
-- A **non-binding segment** can be dragged anywhere
-- A **binding segment** cannot be dragged past the **nubLength** of the wire, which is the minimum length of the nubs coming out of the ports (defined as `static member nubLength` in `Wire` type)
-
-A segment is defined as binding for a particular port if it is the first segment of non-zero length perpendicular to the port's nub. 
-
-### Wire auto-routing
-
-Auto-routing is done in 5 stages:
-
-1. Normalise the routing problem so that the output port is facing right
-2. Generate the [initial segment list](#initial-segment-list)
-3. Rotate the problem back to it's in the original orientation
-4. Run an iterative autorouting algorithm that attempts to create a valid route not overlapping any symbol by moving initial segments.
-5. Run a whole-sheet segment separation algorithm that spreads wires out evenly, swaps them to minimise crossings, and where possible combines wire segments in the same net.
-
-Auto-routing plays nicely with manual placement of individual wire segments. These segments stay where the use rhas placed them while
-otehr segments continue to be auto-routed. optionally, the user can apply the separation algorithm to manually routed segments to make them neater while keeping the user routing choice.
-
-Auto-routing redone every time any part of the schematic is changed and normally is all you need.
-
-#### Initial segment List
-
-Segments are generated based off of the two ports for each wire, with the assumption that the output port is always facing right. The orientation of the input port is checked as well as its relative position to the output port, allowing us to generate an initial segment list. This segment list consists of a small “nub” segment immediately joining the input and output port. These are followed by 0 length segments in order to facilitate previous functionality of ISSIE where we could drag wires fully. After these 0 length segments we create the remaining segments to link the two ports. These distances are either set to halfway between the two ports, or a small distance in order to get past the boundaries of a symbol.
-
-<br><br>
-
-# Details of Operations
-
-### Copy and paste
-
-The on-screen copy & paste buttons can duplicate single components, or selected sets of components (see selection below). They can also be used to copy components from one design sheet to a new one.
-
-**Paste Array** starts a dialog to help you create a regular array of
-the selected components and wires.
-
-### Canvas zooming
-
-The canvas can be zoomed in or out with `Ctrl`+`+` and `Ctrl`+`-`, or auto-zoomed and panned to fit
-the whole circuit with `Ctrl-0`. The same chords work on macOS with `Cmd`. Adding `Alt` to any of
-the three zooms the whole application rather than the schematic. Trackpad standard gestures also work for pan (two-finger swipe up/down or left/right) and zoom (two-finger pinch).
-
-### Symbol rotation and adjustment
-
-Individual symbols can be rotated or flipped using the right-click menu or the Issie edit menu. 
-
-### Wire display types
-
-Wires can be displayed as radial, modern, or old-style jump. Switching display types can be done at any time and does not change the schematic.
-
-Radial wires are the most interesting (and readable) form of wire display. Wire bends have small quadrant connections thus distinguishing between wires that cross and a wire joining two perpendicular wires. Visually, radial display makes connectivity easier to follow. The radius is `BusWire.Constants.cornerRadius`, and every bend gets it unless the wire has nowhere to put it.
-
-Which bends those are is a question about the shape drawn, not about the segment list: a wire holds zero-length segments, and the routing and separation passes will split one straight piece over several segments — a nub and a 2-long stub beside it, say. `BusWire.segmentRuns` therefore drops the zero-length segments and merges what is then collinear, so that a run is exactly the straight piece between two bends, and `BusWire.wireBends` measures the room from those. A bend eats one radius off the run either side of it, so a run with a bend at each end gives half of itself to each and one at the end of the wire gives all of itself to its single bend. Neighbouring bends can then never overlap, and a corner is only squared off when the run beside it is genuinely shorter than the radius.
-
-
-### Symbol auto-sizing
-
-Custom components (symbols) are dynamically resized depending on their port configuration. The minimum distance between 2 ports is set as `GridSize = 30`, which is defined as a `[<Literal>]` at the top of `Symbol.fs`. The dimensions of a component are determined as follows:
-
-- **Height:** Determined purely from the maximum number of ports on the left or right edge (n), setting the height to (n+1)`GridSize`, and spreading the ports GridSize apart.
-- **Width:** The distance between ports is determined by the maximum between the largest port label and `GridSize`. This ensures that the labels of the ports cannot overlap, whilst still being a minimum distance apart. The width can be calculated for both the Top and Bottom edges using the same approach as above using the maximum value, and taking the largest of these 2 values. In addition, the length of the longest labels from the Left and Right sides, as well as the component label (displayed in the center of the component) are added up and compared to the width obtained from the previous calculation. By selecting the component width as the maximum of these values, it can be ensured that labels associated with the component / ports do not overlap.
-
-Custom components' ports can be placed to different edges on the Symbol by using a right-click menu item and dragging the ports.
-When a port is dragged onto a different edge, the width and height of the component is automatically resized. The ports on one edge are always equidistant. The height of the component is determined purely from the number of ports on the left or right edge, depending on which one has more ports. The width of the component also considers the lengths of the ports on the top and bottom edges. The distance between ports on the top and bottom edges is big enough, such that it can fit the longest portlabel on the edge, but never smaller than 1 gridsize. The necessary width of the top/bottom edge is determined from this distance and from the number of ports on this edge. The width of the component is given by either the top or bottom edge width, whichever is bigger.
-
-The same UI (dragging component corners) can be used from a right-click menu item to override auto-sizing and make the custom symbol a desired size.
-
-### Port placement
-
-The ordering of the ports on  a custom symbol is represented by its index in the list associated to a particular edge of the Symbol (Top, Left, Bottom, Right). We allow ports to be moved for custom components by clicking and dragging the port while holding down the `Ctrl` key. 
-
-### Schematic rotation and scaling
-
-Any **group of components** on the schematic can be selected, and then rotated and/or scaled. 
-
-* Dragging the mouse will select a rectangle. 
-* Shift-click will add or remove a component from the current  selection.
-* A selected block of components will show icons for intuitive rotating and scaling.
-
-
-
+A custom component is sized from its ports: its height comes from whichever of the left and right
+edges carries more ports, and its width from the longest port labels on the top and bottom edges
+together with the component's own label. Ports on one edge are always equally spaced. This is what
+keeps port legends from overlapping as you move ports between edges. Use *Resize symbol* on the
+right-click menu, or the `Width Scale` and `Height Scale` fields in Properties, to override it.

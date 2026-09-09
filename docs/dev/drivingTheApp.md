@@ -164,7 +164,7 @@ do not believe a single number.
 `send` takes a **name from a fixed table**, not a serialised `Msg`. A `Msg` is an F# union carrying
 models, canvases and functions; nothing useful survives a round trip through JSON, and a
 dispatch-anything surface in a debug build is a hazard for the sake of messages nobody wanted to
-send. Add a row to `commands` in [`src/Renderer/UI/DevHarness.fs`](../../src/Renderer/UI/DevHarness.fs)
+send. Add a row to `commands` in [`src/Renderer/UI/DevHarness.fs`](https://github.com/tomcl/issie/blob/master/src/Renderer/UI/DevHarness.fs)
 — that is the intended way to extend it. Each row sends the message the corresponding UI element
 sends, so driving the app from here and driving it by hand cannot diverge.
 

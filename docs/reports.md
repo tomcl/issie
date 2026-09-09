@@ -1,5 +1,6 @@
 ---
 title: Technical Reports
+description: Long technical reports written by final-year project students on parts of ISSIE.
 category: Documentation
 categoryindex: 1
 index: 9

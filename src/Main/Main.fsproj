@@ -26,7 +26,7 @@
     <RepositoryUrl>https://github.com/tomcl/issie</RepositoryUrl>
     <FsDocsReleaseNotesLink>https://github.com/tomcl/issie/releases/</FsDocsReleaseNotesLink>
     <FsDocsLicenseLink>https://github.com/tomcl/issie/blob/master/LICENSE.md</FsDocsLicenseLink>
-    <FsDocsLogoSource>/issieIcon.png</FsDocsLogoSource>
+    <FsDocsLogoSource>issieIcon.png</FsDocsLogoSource>
   </PropertyGroup>
   <PropertyGroup>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>

@@ -1,21 +1,21 @@
 ---
 title: Features
+description: Everything ISSIE does: tooltipped components, errors that say how to fix them, auto-routing, step, truth-table and waveform simulation, sheet parameters and Verilog.
 category: Documentation
 categoryindex: 1
 index: 2
 ---
 
-# Digital design that explains itself
+# What ISSIE does
 
-**ISSIE is a free, cross-platform EDA tool for digital logic: draw a schematic, simulate it, and
-see the waveforms — without reading a manual first.**
+The full feature reference: everything below is in the released application today. For the short
+version, see the [home page](index.html); for how to drive the schematic editor key by key, see
+[Schematic Editor Features](coolFeatures.html).
 
-Industry CAD systems are powerful and complex to learn. Educational tools are teachable and can't scale.
-ISSIE is built on the belief that this is a false choice: a tool can be learnable in the first ten
-minutes *and* still be used to design and simulate large designs. The features
-below make Issie intuitive to use for a novice, and efficient to use on large designs.
+These features are what make ISSIE intuitive for a novice *and* efficient on a large design — the
+two things it is built to be at once.
 
-![](img/homePage/keyFeatures1.gif)
+<img src="img/homePage/keyFeatures1.gif" alt="Components being dragged from the ISSIE Catalogue onto a schematic and wired together" width="1899" height="948" />
 
 ---
 
@@ -24,7 +24,7 @@ below make Issie intuitive to use for a novice, and efficient to use on large de
 |  |  |
 | :--- | :--- |
 | **Everything is tooltipped** | Every component in the Catalogue explains what it does when you hover it. Every field in the Properties pane explains itself the same way. |
-| **Search for what you mean** | The Catalogue's search box matches the explanations as well as the names, so "subtract" finds the N bits XOR and "invert" finds Not — you do not have to already know Issies's terminology. |
+| **Search for what you mean** | The Catalogue's search box matches the explanations as well as the names, so "subtract" finds the N bits XOR and "invert" finds Not — you do not have to already know Issie's terminology. |
 | **Right-click anywhere** | Components, custom components, wires, the canvas, sheet names in the tree, even the project path — each offers exactly the actions that make sense there, with their keyboard shortcuts written on the item. |
 | **The help is generated from the code** | The Keyboard Shortcuts table in **Info** is built from the same table the key dispatcher reads, for *your* platform. It cannot list a key that does not work, or miss one that does. |
 | **Help where you are** | The waveform simulator has its own **Getting Started** and **Instructions** panels, and the wave selector, RAM selector and parameter dialogs all have in-app help. |
@@ -75,7 +75,7 @@ code is good.
 
 ## A schematic editor that lays out for you
 
-![](img/homePage/wireRouting.gif)
+<img src="img/homePage/wireRouting.gif" alt="A wire rerouting itself around symbols as a component is dragged across the sheet" width="1899" height="948" loading="lazy" />
 
 - **Connect component ports** immediately by dragging a wire. Invalid wires are immediately rejected.
 - **Auto-routing you almost never override.** Wires route themselves around symbols, and then a
@@ -96,14 +96,14 @@ code is good.
 - **Long undo and redo stacks that work.**
 - **Zoom the canvas or the whole of Issie**. Issie works best with a laptop FHD or better screen, but it is responsive
   and it can be used in a much smaller window. Zoom the drawing canvas and the Issie UI separately. Use trackpad gestures
-  to pan and zoom the canvas if you dont like mice!
+  to pan and zoom the canvas if you do not like mice!
 
 Around 40 component types, all width-agnostic where it makes sense: N-input gates (N up to 19),
 N-bit adders, shifters, registers and counters with optional enable/load ports, 2/4/8-way
 multiplexers, bus merge/split of up to 19 branches, bus select and compare, net labels, and
 synchronous and asynchronous ROM and RAM.
 
-![](img/homePage/catalogue.png)
+<img src="img/homePage/catalogue.png" alt="The ISSIE Catalogue pane, its component types grouped into collapsible sections" width="1918" height="1006" loading="lazy" />
 
 ---
 
@@ -111,7 +111,7 @@ synchronous and asynchronous ROM and RAM.
 
 ### Step simulation — immediate feedback
 
-![](img/homePage/stepSim.gif)
+<img src="img/homePage/stepSim.gif" alt="The step simulator: input values being changed and the outputs updating immediately" width="1899" height="948" loading="lazy" />
 
 Set inputs, read outputs, step the clock. Viewer components expose internal signals from *any*
 subsheet without rewiring, values display in the radix you choose, and *set default inputs*
@@ -119,7 +119,7 @@ remembers a set of input values for both simulators.
 
 ### Truth tables — for the combinational logic
 
-![](img/homePage/truthTable.png)
+<img src="img/homePage/truthTable.png" alt="A generated truth table with its input and output columns, and the reduction controls" width="1918" height="1008" loading="lazy" />
 
 Generate a truth table for the whole sheet **or for just the components you select**. Then reduce
 it: hide columns, constrain inputs to the cases you care about, remove redundant rows, or switch
@@ -127,10 +127,10 @@ inputs to **algebraic** variables and get a symbolic expression for each output 
 
 ### The waveform simulator — sophisticated, and easy to use
 
-![](img/homePage/waveSim.gif)
+<img src="img/homePage/waveSim.gif" alt="The waveform simulator showing several signals, with the cursor being moved across cycles" width="1899" height="948" loading="lazy" />
 
 This is a part of ISSIE often described as better than the professional equivalent for sophisticated designs.
-It is also simple and intuitive for and novices.
+It is also simple and intuitive for novices.
 
 | | |
 | :--- | :--- |
@@ -146,7 +146,7 @@ It is also simple and intuitive for and novices.
 | **RAM contents live** | *Select RAM* shows a memory's contents at the cursor cycle, with the locations being read and written marked — and any comments from the `.ram` file that initialised it shown against their addresses. |
 | **Zoom, and sample-zoom** | Ordinary zoom for detail; a sampling multiplier for viewing hundreds of thousands of cycles at once. |
 | **Bin / Hex / uDec / sDec** | Switch radix at any time; values too wide to fit are shown in the cursor column instead. |
-| **Edit while simulating** | Change the design — even move to another sheet and edit it — and a green **Refresh** button lights up. Press it when you are ready and you see immediately the chnage in the waveforms and clock cycles you are looking at. |
+| **Edit while simulating** | Change the design — even move to another sheet and edit it — and a green **Refresh** button lights up. Press it when you are ready and you see the change immediately in the waveforms and clock cycles you are looking at. |
 | **Configurable** | Font size and weight for readability; maximum number of simulated cycles with a live estimate of the memory that will cost. |
 
 
@@ -179,7 +179,7 @@ for users. Library components can contain multiple sheets - for example CPUs.
 file, which may carry `//` comments — ISSIE shows them against the locations they describe, so a
 program in memory is readable.
 
-![](img/homePage/memoryEditor.png)
+<img src="img/homePage/memoryEditor.png" alt="The memory editor showing addresses and data words, with comments from the .ram file" width="1920" height="1147" loading="lazy" />
 
 **Never lose work.** Every sheet is continuously snapshotted to a `backup/` folder inside the
 project.
@@ -200,7 +200,7 @@ for an FPGA toolchain. See [Verilog Output](verilogGenerate.html). An integrated
 [ISSIE-Stick](issiestick.html) hardware also exists, from an earlier project, but is no longer
 maintained.
 
-![](img/homePage/verilogComp.PNG)
+<img src="img/homePage/verilogComp.PNG" alt="The Verilog component editor with syntax-highlighted source and its error list" width="1900" height="1080" loading="lazy" />
 
 ---
 
@@ -208,7 +208,7 @@ maintained.
 
 - **Free and open source**, on [GitHub](https://github.com/tomcl/issie) under the
   [GNU GPL v3 or later](https://github.com/tomcl/issie/blob/master/LICENSE.md).
-- **Windows, macOS (Apple Silicon) and Linux.** No installation and no system changes: unzip and
+- **Windows, macOS and Linux**, each built for x64 and Arm64. No installation and no system changes: unzip and
   run. About 200 MB.
 - **Your files are yours.** One human-readable JSON file per sheet, in a folder you choose. No
   cloud, no account, no telemetry.
@@ -217,5 +217,6 @@ maintained.
 
 <br>
 
-**[Get ISSIE](gettingStarted.html)** · **[One-page tutorial](userGuide.html)** ·
-**[Editor feature reference](coolFeatures.html)**
+<p><strong><a href="gettingStarted.html">Get ISSIE</a></strong> &middot;
+<strong><a href="userGuide.html">One-page tutorial</a></strong> &middot;
+<strong><a href="coolFeatures.html">Editor feature reference</a></strong></p>

@@ -1,8 +1,9 @@
 ---
 title: Contacts
+description: How to report a problem with ISSIE, request a feature, or get in touch about using it for teaching.
 category: Documentation
 categoryindex: 1
-index: 11
+index: 12
 ---
 
 # Contacts

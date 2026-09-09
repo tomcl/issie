@@ -1,5 +1,6 @@
 ---
 title: ISSIE-Stick FPGA hardware
+description: The ISSIE-Stick USB FPGA board and its iCE40 build flow: what was built, what is still in the app, and what reviving it would take.
 category: Documentation
 categoryindex: 1
 index: 10

@@ -1,5 +1,6 @@
 ---
 title: Verilog Components
+description: Writing a component's logic in SystemVerilog instead of drawing it, and the language subset ISSIE's Verilog compiler accepts.
 category: Documentation
 categoryindex: 1
 index: 6
@@ -7,7 +8,7 @@ index: 6
 
 # ISSIE Verilog Components
 
-### Introduction
+## Introduction
 
 An ISSIE component can be defined by Verilog source instead of a schematic. The component can then
 be placed on any sheet from the Catalogue, like any custom component. Create one with
@@ -28,7 +29,7 @@ notably there are **no** `initial` blocks, no `always @(...)` (use `always_comb`
 `generate`, no `/`, `%` or `**` operators, no tri-state logic, no `$`-system tasks, no
 `` ` ``-directives, only `//` comments (not `/* */`), and one module per file.
 
-### Module declaration
+## Module declaration
 
 Both old-style and new-style (ANSI) headers are supported. Port declarations **must include the
 `bit` keyword** — `input [15:0] instr;` is rejected, `input bit [15:0] instr;` is required.
@@ -71,13 +72,13 @@ Rules that the checker enforces:
 - Every bit of every output must be assigned, on every path (no accidental latches), and no bit
   may be driven twice.
 
-### Identifiers
+## Identifiers
 
 Standard Verilog rules: a letter or underscore first, then letters, digits, `_` and `$`
 (so `_state` and `count$next` are fine; a leading `$` is reserved for system tasks, which are
 not supported).
 
-### Declarations
+## Declarations
 
 - Internal signals: `wire x;`, `bit x;`, `wire [7:0] y;`, `bit [7:0] y;` — `wire` and `bit` are
   treated identically. Declare before use.
@@ -89,7 +90,7 @@ not supported).
 - `parameter N = 4;` in the body, or `#(parameter N = 4, M = 2)` in a new-style header.
   `localparam` is not supported.
 
-### Numbers
+## Numbers
 
 Numbers can be written in binary, hexadecimal or decimal form, sized or unsized:
 
@@ -105,7 +106,7 @@ No `x`/`z` values, no `_` separators, no octal, no signed literals. A sized numb
 stated width, and widths must be consistent: the checker verifies that the right-hand side of
 every assignment fits the left-hand side.
 
-### Operators
+## Operators
 
 In descending order of precedence (operators in one row have equal precedence):
 
@@ -136,7 +137,7 @@ Notable restrictions:
   `if`/`else` chain in an `always_comb` block instead.
 - Concatenation is not allowed on the left-hand side of an assignment.
 
-### Continuous assignment
+## Continuous assignment
 
 ```verilog
 assign out = expression;
@@ -146,7 +147,7 @@ One assignment per statement. The left-hand side may be a whole signal, a bit (`
 including a variable index) or a part select (`out[7:4] = …`); assigning bits or slices
 separately is fine as long as every output bit ends up assigned exactly once.
 
-### Procedural blocks
+## Procedural blocks
 
 Two forms only:
 
@@ -174,7 +175,7 @@ Inside a block you can use:
 - A variable read in `always_comb` must not be written later in the same block, and combinational
   dependency cycles across the design are rejected.
 
-### Module instantiation
+## Module instantiation
 
 A Verilog component can instantiate other components of the current project (Verilog or
 schematic), by name, with **named** port connections:
@@ -189,7 +190,7 @@ counter #(.N(8)) c1 (.en(enable), .q(count));
 - Parameter overrides (`#(.N(8))`) work on Verilog components that declare parameters: ISSIE
   creates and saves a specialised copy of the component's sheet with the overridden value.
 
-### What the compiler generates
+## What the compiler generates
 
 The Verilog is synthesised to a normal ISSIE sheet: expressions become gates, adders,
 multiplexers, bus selections and merges; `always_ff` variables become registers; arrays become

@@ -4,24 +4,24 @@ How the dev build gets fast startup, and what silently makes it slow again.
 
 ## The scripts
 
-- `npm run app` — [`scripts/app.js`](../scripts/app.js): starts the app in whichever of `dev` /
+- `npm run app` — [`scripts/app.js`](https://github.com/tomcl/issie/blob/master/scripts/app.js): starts the app in whichever of `dev` /
   `dev:once` the generated JS already belongs to, so there is no mode to keep track of. Use this
   unless you specifically want one of them. `npm run app -- --which` says what it would pick and
   why without starting anything; anything else after `--` goes through to Electron.
-- `npm run dev` — [`scripts/dev.js`](../scripts/dev.js) runs `dotnet fable watch` for `src/Main`
+- `npm run dev` — [`scripts/dev.js`](https://github.com/tomcl/issie/blob/master/scripts/dev.js) runs `dotnet fable watch` for `src/Main`
   and `src/Renderer` **in parallel**, then starts webpack + Electron
-  ([`scripts/start.js`](../scripts/start.js)) as soon as both projects' generated JS is safe to
+  ([`scripts/start.js`](https://github.com/tomcl/issie/blob/master/scripts/start.js)) as soon as both projects' generated JS is safe to
   load. Hot reload of renderer changes while running.
 - `npm run dev:once` — same launcher with a one-shot compile and no watcher. When nothing changed
   since the last compile, Fable skips compilation entirely and the app is up in a few seconds.
   Edits need a rerun.
 - `npm run debug` — `dev` plus the `ASSERTS` define on the renderer.
-- `npm run compile` — [`scripts/parallel-compile.js`](../scripts/parallel-compile.js): one-shot
+- `npm run compile` — [`scripts/parallel-compile.js`](https://github.com/tomcl/issie/blob/master/scripts/parallel-compile.js): one-shot
   parallel compile of both projects with the `PRODUCTION` define. Used by `pack` and `dist`.
 - `node scripts/dev.js --no-app` — either mode without launching Electron (compile check).
 
-Every one of these reaches [`scripts/start.js`](../scripts/start.js), which frees the two ports it
-needs before using them ([`scripts/free-port.js`](../scripts/free-port.js)): 8672 for the webpack
+Every one of these reaches [`scripts/start.js`](https://github.com/tomcl/issie/blob/master/scripts/start.js), which frees the two ports it
+needs before using them ([`scripts/free-port.js`](https://github.com/tomcl/issie/blob/master/scripts/free-port.js)): 8672 for the webpack
 dev server and 9222 for the DevTools protocol that `scripts/inspect-canvas.js` talks to. A session
 interrupted in any of the usual ways leaves both held, and the failure that follows is worse than
 it sounds: the port is bound *after* a full Fable compile and after Electron has been told to open,
@@ -32,7 +32,7 @@ port is killed, whatever it is; that is a more reliable test than matching comma
 A `fable watch` holds no port, so nothing above reaches it — and it is the leftover that matters
 most, because it is still watching: it recompiles on the next file change and can flip the tree's
 build mode under whoever runs the app next. Every entry point above therefore starts by removing
-the watchers an interrupted session left ([`scripts/free-watchers.js`](../scripts/free-watchers.js)).
+the watchers an interrupted session left ([`scripts/free-watchers.js`](https://github.com/tomcl/issie/blob/master/scripts/free-watchers.js)).
 
 That check has to be nearly free, since it runs before a `dev:once` that is otherwise instant on an
 unchanged tree, and Windows cannot list processes without spawning PowerShell — 250ms before it has
@@ -43,7 +43,7 @@ note left by a session that was killed is worth the listing, and then a leftover
 its PARENT being gone rather than by its pid — the shell `dev.js` spawns it through dies with the
 session while the Fable process under it does not, which is the whole problem.
 
-[`scripts/clean-dev.js`](../scripts/clean-dev.js) is still the tool for sweeping a whole abandoned
+[`scripts/clean-dev.js`](https://github.com/tomcl/issie/blob/master/scripts/clean-dev.js) is still the tool for sweeping a whole abandoned
 session on request. It matches command lines rather than parentage, so it catches a watcher started
 some other way — and it will kill a running app, which is why it is a command you run and not
 something that happens at startup.
@@ -63,10 +63,10 @@ Fable has no on-disk cache of typed ASTs: a cold compile type-checks every file 
 
 ## What breaks it
 
-- **A stale `.fs.js` timestamp**, which [`scripts/refresh-stale-output.js`](../scripts/refresh-stale-output.js)
+- **A stale `.fs.js` timestamp**, which [`scripts/refresh-stale-output.js`](https://github.com/tomcl/issie/blob/master/scripts/refresh-stale-output.js)
   exists to prevent. It pairs each generated file with its source through the `sources` entry of the
   source map beside it, since the output no longer sits next to the `.fs` — see
-  [`scripts/fable-output.js`](../scripts/fable-output.js). Fable rewrites an output file only when
+  [`scripts/fable-output.js`](https://github.com/tomcl/issie/blob/master/scripts/fable-output.js). Fable rewrites an output file only when
   its *content* changed, and the up-to-date check above is about timestamps, so the two can
   disagree. A `.fs` whose mtime moves
   without its emitted JS changing — a comment or warning-only edit, a `git checkout`, a rebase —

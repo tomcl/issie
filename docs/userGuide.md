@@ -1,27 +1,32 @@
 ---
 title: User Tutorial
+description: A one-page ISSIE tutorial, from a single AND gate to a clocked design with waveform simulation, truth tables, Verilog components and sheet parameters.
 category: Documentation
 categoryindex: 1
 index: 4
 ---
 
-## Getting Started
+# ISSIE user tutorial
 
-### Downloading and Running ISSIE
+One page, followed in order, taking a first design from a single AND gate up to a clocked circuit
+with a waveform simulation. It can be skimmed to see what ISSIE can do, or worked through in
+detail. If you only want to install ISSIE and start, see [Getting Started](gettingStarted.html).
 
-Find the [latest ISSIE release](https://github.com/tomcl/issie/releases/latest). At the bottom of the page, under `Assets`, you can find the latest pre-built binary for your platform: Windows, MacOS and Linux are all built, each for x64 and Arm64. ISSIE will require in total about 200M of disk space.
+## Downloading and running ISSIE
+
+Find the [latest ISSIE release](https://github.com/tomcl/issie/releases/latest). At the bottom of the page, under `Assets`, you can find the latest pre-built binary for your platform: Windows, macOS and Linux are all built, each for x64 and Arm64. ISSIE will require in total about 200M of disk space.
 
 - **Windows:** unzip \*.zip anywhere and double-click the top-level `Issie.exe` application in the unzipped files.
-- **MacOS:** Double click the dmg file  and run the application inside the folder, or drag and drop this to install.
-    - The MacOs binaries are signed. 
+- **macOS:** Double click the dmg file  and run the application inside the folder, or drag and drop this to install.
+    - The macOS binaries are signed. 
 - **Linux:** unzip \*.zip anywhere and run the `issie` executable in the unzipped files.
 - **If you can't find a binary**: 
-   - MacOs binaries are sometimes not uptodate. You can always generate your only binary by 
-[setting up for development](https://github.com/tomcl/ISSIE#getting-started-as-developer) and running `npm run dist`. This will not need to be signed if runnng on your own machine. Note that you do not need to edit source code to generate a binary.
-   - You can look through previous releases to find the last posted binary for your system. However ISSIE newer releases often have significant new functionality and bug fixes. It is best to have the latest release,
+   - macOS binaries are sometimes not up to date. You can always generate your own binary by 
+[setting up for development](https://github.com/tomcl/ISSIE#getting-started-as-developer) and running `npm run dist`. This will not need to be signed if it is running on your own machine. Note that you do not need to edit source code to generate a binary.
+   - You can look through previous releases to find the last posted binary for your system. However ISSIE newer releases often have significant new functionality and bug fixes. It is best to have the latest release.
     
 
-### Creating a New Project
+## Creating a new project
 
 
 When ISSIE opens with no project it offers `New project`, `Open project` and `Open demo project`,
@@ -42,7 +47,7 @@ If you would rather look around first, `Open demo project` offers five worked de
 adder up to a CPU running a program. They are reset to their initial state every time you open
 them, so nothing you do to them is permanent.
 
-### Your first design
+## Your first design
 
 
 Let's start with a very simple schematic: a simple 2-input AND gate. 
@@ -68,15 +73,14 @@ Now make the appropriate wiring to connect all the components by clicking on one
 
 Your design should look like this:
 
-![](img/userGuide/firstDesign.gif)
-
+<img src="img/userGuide/firstDesign.gif" alt="The first tutorial design being built: two inputs, an AND gate and an output, wired up" width="1899" height="948" />
 
 ### Simulation
 
 
 Time to simulate the design and see how the output `OUT` changes as we change the two inputs.
 
-Click the `Simulation` tab which is located on the top-right corner and then `Start Simulation`. Now you can change the value of the two inputs and see how the value of the output. Try all 4 combinations of inputs: 
+Click the `Simulation` tab which is located on the top-right corner and then `Start Simulation`. Now you can change the value of the two inputs and see how the value of the output changes. Try all 4 combinations of inputs: 
 
 - A=0, B=0  
 - A=0, B=1  
@@ -85,8 +89,7 @@ Click the `Simulation` tab which is located on the top-right corner and then `St
    
 and check that the output is correct based on the truth table of the AND gate.
 
-![](img/userGuide/firstDesignSim.gif)
-
+<img src="img/userGuide/firstDesignSim.gif" alt="The AND gate design in step simulation, with the output changing as the inputs are set" width="1899" height="948" loading="lazy" />
 
 **Well Done!** You just completed your first ISSIE design.  
 
@@ -102,9 +105,9 @@ This section will exploit the features of ISSIE to create clean and good-looking
 - Delete the output `OUT`
   - Note: You can delete components and/or wires by selecting them and clicking the `delete` button on your keyboard
 - Add a new 1-bit output `RESULT`   
-- Make all necessary connections by dragging as before to achieve a diagram like the one bellow:
+- Make all necessary connections by dragging as before to achieve a diagram like the one below:
 
-![](img/userGuide/features1.png)
+<img src="img/userGuide/features1.png" alt="The larger tutorial design before tidying: four inputs, an OR gate, a MUX and an output" width="1920" height="1014" loading="lazy" />
 
 Again, **simulate the design** and check the output remains correct as you change the values of the 4 inputs
 
@@ -125,8 +128,7 @@ right-click menu of whatever you want to change, or all together under `Info` �
 
 **The improved schematic:**
 
-![](img/userGuide/features2.gif)
-
+<img src="img/userGuide/features2.gif" alt="The same design after rotating, aligning and rerouting to make it readable" width="1899" height="948" loading="lazy" />
 
 ### Summary
 
@@ -172,7 +174,7 @@ In this section we will create a hierarchical design with multiple design sheets
 4. Using 3 `SplitWire` components (`BUSES` => `SplitWire`) separate the 4-bit ROM output to 4 1-bit wires. (see image below)
 5. Make the appropriate connections to achieve the schematic below
 
-![](img/userGuide/custom.png)
+<img src="img/userGuide/custom.png" alt="The main sheet: an asynchronous ROM feeding the decoder custom component through SplitWire components" width="1920" height="1014" loading="lazy" />
 
 ### Improving the design sheet
 
@@ -185,8 +187,7 @@ not remember the key, both are also on the custom component's right-click menu a
 
 Preview how it works in the gif below:
 
-![](img/userGuide/custom2.gif)
-
+<img src="img/userGuide/custom2.gif" alt="Ports on a custom component being dragged to different edges, the symbol resizing as they move" width="1899" height="948" loading="lazy" />
 
 ### ROM Initialisation
 
@@ -195,7 +196,7 @@ Currently our ROM is empty as we selected the option `Enter Data Later` before. 
 
 1. Select the ROM and click on the `Properties` tab
 2. Click on `view/edit memory content`
-3. Change the content of the 16 memory location available by assigning a random 4-bit number to each one
+3. Change the content of the 16 memory locations available by assigning a random 4-bit number to each one
 4. Click `done`
 
 ISSIE also allows ROM and RAM initialisation via `.ram` text files of hex data in the project
@@ -205,7 +206,7 @@ in a ROM readable. A `.ram` file that will not parse is reported by line and by 
 just failing to load. See the ISSIE **Eratosthenes** demo for an example. The memory component
 **properties** tab offers additional options when there are `.ram` files present.
 
-### Simulation
+### Simulating the ROM design
 
 
 Simulate your design! Change the value of the addressor input and see whether your decoder produces a true or false result for each number you assigned to the ROM.
@@ -225,12 +226,12 @@ Add a `Counter` from the Catalogue (`FLIP FLOPS AND REGISTERS`). Now select the 
 
 Edit the previous design to create a schematic like the one below:
 
-![](img/userGuide/waveform.png)
+<img src="img/userGuide/waveform.png" alt="The clocked version of the design, with a counter driving the ROM address" width="1920" height="1011" loading="lazy" />
 
 ### Simulating your design
 
 
-As soon as you connect everything correctly, You can simulate your design. Click on `Simulations` and then `Wave Simulation`.
+As soon as you connect everything correctly, you can simulate your design. Click on `Simulations` and then `Wave Simulation`.
 
 
 - Click the `Start Simulation` button. The top sheet's own inputs and outputs are shown
@@ -238,11 +239,11 @@ As soon as you connect everything correctly, You can simulate your design. Click
 - To choose different signals — anything on any sheet of the design, not just the top one — click
   `Select Waves`
 
-![](img/userGuide/select1.png)
+<img src="img/userGuide/select1.png" alt="The Select Waves dialog, showing the design hierarchy tree and the available signals" width="1887" height="1323" loading="lazy" />
 
 - Click the `Main` breadcrumb to filter so only main sheet ports are visible.
 
-![](img/userGuide/select2.png)
+<img src="img/userGuide/select2.png" alt="The Select Waves dialog filtered by the Main breadcrumb, so only top-sheet ports are listed" width="1853" height="526" loading="lazy" />
 
 - Select:
   - `AROM1 Addr`
@@ -255,7 +256,7 @@ As soon as you connect everything correctly, You can simulate your design. Click
   - Click `Done`
 - Use `Select RAM` to select the ROM contents to view.
 - Change the data format to either `hex` or `bin` to make the waveforms more readable
-- adjust the number of clock cycles displayed using the `+/-` zoom controls.
+- Adjust the number of clock cycles displayed using the `+/-` zoom controls.
 - Order the waveforms `CNT1 / AROM1 / RESULT` by dragging the waveform names up or down.
 - Check that the waveform simulator output matches your previous (Step Simulation) results.
 - Use the scroll bar to view additional clock cycles. Drag the thumb past the right-hand end and
@@ -263,7 +264,7 @@ As soon as you connect everything correctly, You can simulate your design. Click
 - Drag the grey horizontal divider to make the waveform display wider or narrower (you can do this at any time).
 - You can check how these features work on a much larger design with 100,000 clock cycles using the Eratosthenes sieve demo.
 
-![](img/userGuide/waveform1.png)
+<img src="img/userGuide/waveform1.png" alt="The waveform viewer showing the counter, ROM address and RESULT waveforms with the cursor set" width="2029" height="1485" loading="lazy" />
 
 ### Finding your way between the waveforms and the schematic
 
@@ -282,7 +283,7 @@ the two joined up:
   selected signal's value at that cycle. `Left`/`Right` arrows step the cursor when the mouse is on
   the waveform side of the divider.
 - The **Configure** button sets the waveform font size and weight, and the maximum number of cycles
-  the simulation may run to, with a live estimate of the memory that will need.
+  the simulation may run to, with a live estimate of the memory that will need to be used.
 - The **Info** button at the top right of the viewer explains all of this inside the app.
 
 
@@ -292,7 +293,7 @@ the two joined up:
 Now, keeping the simulation open,  add an extra register between the counter and the ROM address (or make any other change you want) and check that the simulation has the expected output. You can see the changes in the waveform simulator by clicking the `Refresh` button which will be enabled as soon as there is a change in the schematic. 
 
 
-![](img/userGuide/waveform2.png)
+<img src="img/userGuide/waveform2.png" alt="The waveforms after an extra register is added to the design and Refresh is pressed" width="2035" height="1218" loading="lazy" />
 
 ## Truth Table
 
@@ -304,8 +305,7 @@ One of ISSIE's features is the ability to view the truth table for a small combi
 - Click on `Remove Redundancies`
 - The truth table should look like this:
 
-![](img/userGuide/truthTable1.png)
-
+<img src="img/userGuide/truthTable1.png" alt="The decoder's truth table with redundant rows removed" width="1920" height="1009" loading="lazy" />
 
 You can also select your inputs to be **algebraic values** to get an expression for each of your outputs.
 
@@ -314,13 +314,13 @@ You can also select your inputs to be **algebraic values** to get an expression 
 - Select the inputs (`C`, `B`, `A`) you want to be algebraic values
 - Truth table should now look like this:
 
-![](img/userGuide/truthTable2.png)
+<img src="img/userGuide/truthTable2.png" alt="The same truth table with algebraic inputs, giving a Boolean expression for the output" width="831" height="1155" loading="lazy" />
 
 ## Verilog Component
 
 Last but not least, ISSIE allows you to create custom components by defining their logic in Verilog — combinational logic, and also synchronous logic using `always_ff @(posedge clk)`. The supported language subset is documented on the [Verilog Components](verilogComp.html) page. Click on `Verilog` -> `New Verilog Component` (Catalogue) and write the logic of your decoder in Verilog — note that port declarations need the `bit` keyword, e.g. `input bit [15:0] instr;`.
 
-![](img/userGuide/verilog1.png)
+<img src="img/userGuide/verilog1.png" alt="The Verilog component editor with the decoder's logic written as Verilog" width="1920" height="1030" loading="lazy" />
 
 - Click `Save`
 - Replace the previous Decoder with the new one (found under `Verilog` section in the Catalogue)

@@ -3,7 +3,7 @@
 Small defects and unfinished corners that are worth knowing about before working near them, and
 that are too minor to have their own page. Each was checked against the code, not inherited from an
 older list. Design-level limitations of the parameter system are in
-[parameterSystem.md](../parameterSystem.md#known-limitations) instead.
+[parameterSystem.md](../parameterSystem.md), under *Known Limitations*, instead.
 
 Delete an entry when it is fixed. A list that keeps its history stops being read.
 
@@ -102,7 +102,7 @@ How these two passes are meant to work is in [wireRouting.md](wireRouting.md).
 - `VerilogComponent/TestParser.fs` (937 lines) is a hand-driven test runner that compiles into the
   shipped renderer, reads paths that exist only in a dev checkout, and keeps `printf` on the
   `SourceHygiene` allowlist. It should go once its corpus runner is in Expecto — see
-  [verilogTesting.md](verilogTesting.md#route-a-automate-the-existing-icarus-differential-test).
+  [verilogTesting.md](verilogTesting.md), under *Route A*.
 
 ## Documentation
 

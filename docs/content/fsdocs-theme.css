@@ -1,1 +1,24 @@
-﻿/* Override any variables here */
+/* Override any variables here */
+
+/*
+  Content images carry width and height attributes so that the page does not
+  reflow when a large screenshot arrives. The default theme sets max-width
+  without height, which would then squash them: both are needed.
+*/
+#content img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* The download / tutorial / features block at the top of the home page. */
+#content .cta {
+    margin: var(--spacing-400) 0;
+    padding: var(--spacing-200) var(--spacing-400);
+    border-left: var(--spacing-50) solid var(--primary);
+    background-color: var(--blockquote-bacground-color);
+    border-radius: var(--radius);
+}
+
+#content .cta p {
+    margin: var(--spacing-200) 0;
+}

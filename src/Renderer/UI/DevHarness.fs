@@ -677,6 +677,15 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
           dispatch (Sheet(SheetT.KeyPress SheetT.KeyboardMsg.CtrlC))
           "selected all and copied"
 
+      "zoomToFit",
+      // What Ctrl-0 sends - the most-pressed key in Issie, and the one a screenshot of a sheet
+      // wants before it is taken, since a sheet opens wherever it was last left. The keyboard
+      // route goes through an Electron accelerator, which is in the main process and so out of
+      // reach of anything driving the renderer.
+      fun _ _ dispatch ->
+          dispatch (Sheet(SheetT.KeyPress SheetT.KeyboardMsg.CtrlW))
+          "zoomed to fit the sheet in the window"
+
       "pasteArray",
       // "<vertical|horizontal> <copies> [firstSuffix]" - what the Paste array dialog sends when its
       // button is pressed, so that the paste itself can be driven without going through the dialog.

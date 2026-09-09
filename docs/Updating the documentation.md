@@ -31,6 +31,34 @@ See [Issue 532](https://github.com/tomcl/issie/issues/532) for more details of w
 PR to ISSIE master the changed documentation.
 
 
+## Screenshots
+
+The tutorial's screenshots are **taken by a script from a running Issie**, not captured by hand:
+
+```bash
+dotnet fsi scripts/doc-shot-projects.fsx     # write the projects they are taken from
+npm run app -- -d                            # Issie must be a debug build
+node scripts/doc-shots.js                    # list the shots
+node scripts/doc-shots.js all                # take them
+```
+
+`doc-shot-projects.fsx` writes the tutorial's designs as data through the
+[sheet description DSL](dev/sheetDescriptionDsl.html), so a screenshot can be retaken against a
+later Issie without anyone redrawing a schematic. `doc-shots.js` drives the app through the
+[dev harness](dev/drivingTheApp.html) and captures each picture.
+
+Two things it exists to get right, both of which the old screenshots got wrong:
+
+- **Resolution.** A screenshot is shown about 800 CSS px wide on the site. Captured from a
+  maximised window at 1700–1900 px, Issie's 11px UI text arrives at under 5px and cannot be read.
+  Each shot is therefore clipped to the part of the window it is about — usually just the drawn
+  circuit — and taken at twice the device density.
+- **Staleness.** A picture drawn by hand goes out of date silently. One written as data can be
+  regenerated, and a design that no longer simulates fails the run instead of being photographed.
+
+Not every picture is scripted yet: the truth-table, Verilog-editor and waveform-viewer shots are
+still the hand-captured originals. Adding one means adding a row to `SHOTS` in `doc-shots.js`.
+
 ## Gotcha
 
 `build_docs.sh` refuses to finish if fsdocs produced no `output/index.html`. That check is there

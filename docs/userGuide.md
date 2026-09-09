@@ -107,7 +107,7 @@ This section will exploit the features of ISSIE to create clean and good-looking
 - Add a new 1-bit output `RESULT`   
 - Make all necessary connections by dragging as before to achieve a diagram like the one below:
 
-<img src="img/userGuide/features1.png" alt="The larger tutorial design before tidying: four inputs, an OR gate, a MUX and an output" width="1920" height="1014" loading="lazy" />
+<img src="img/userGuide/features1.png" alt="The four-input design: A and B into an AND gate, C and the AND output into a multiplexer selected by D, and both into an OR gate driving RESULT" width="3100" height="1280" loading="lazy" />
 
 Again, **simulate the design** and check the output remains correct as you change the values of the 4 inputs
 
@@ -167,14 +167,14 @@ In this section we will create a hierarchical design with multiple design sheets
    right-click `main` in the design tree, and choose `Rename`
 2. Add a new sheet (**Sheet** → `New Sheet`, or `Ctrl-N`) and name it `main`
 3. Add to the main sheet:
-   - Asynchronous ROM (`MEMORIES` => `ROM (asynchronous)`). Select 4 bits addressor, 4 bits data and the `Enter data later` option
+   - Asynchronous ROM (`MEMORIES` => `ROM (asynchronous)`). Select 4 address bits, 4 bits of data and the `Enter data later` option
    - Your decoder (`THIS PROJECT` => `decoder`)
    - 1-bit output named 'RESULT' (`INPUT/OUTPUT` => `Output`) 
-   - 4-bit input named 'Addressor' (`INPUT/OUTPUT` => `Input`) 
+   - 4-bit input named 'ADDR' (`INPUT/OUTPUT` => `Input`) 
 4. Using 3 `SplitWire` components (`BUSES` => `SplitWire`) separate the 4-bit ROM output to 4 1-bit wires. (see image below)
 5. Make the appropriate connections to achieve the schematic below
 
-<img src="img/userGuide/custom.png" alt="The main sheet: an asynchronous ROM feeding the decoder custom component through SplitWire components" width="1920" height="1014" loading="lazy" />
+<img src="img/userGuide/custom.png" alt="The main sheet: the ADDR input feeding an asynchronous ROM, whose four output bits are split by three SplitWire components into the decoder custom component" width="3112" height="712" loading="lazy" />
 
 ### Improving the design sheet
 
@@ -209,7 +209,7 @@ just failing to load. See the ISSIE **Eratosthenes** demo for an example. The me
 ### Simulating the ROM design
 
 
-Simulate your design! Change the value of the addressor input and see whether your decoder produces a true or false result for each number you assigned to the ROM.
+Simulate your design! Change the value of the `ADDR` input and see whether your decoder produces a true or false result for each number you assigned to the ROM.
 
 While a simulation is running — step or waveform — you can also **rest the mouse on any wire** of
 the schematic to read the value it is carrying. That is usually quicker than finding the signal by
@@ -220,7 +220,7 @@ name, and it works for wires inside subsheets too.
 ### Creating a clocked design
 
 
-Let's now modify our previous design to make it **clocked** (sequential). We use a counter to form a custom addressor that will increment every clock cycle. Using the waveform simulator we will be able to view the output of our circuit for all memory locations. In order to create such designs easily, ISSIE offers a `Counter` component which, starting from 0, increments by one every clock cycle. Note that counters also have options, under properties, to add `Load` or `Enable` inputs.
+Let's now modify our previous design to make it **clocked** (sequential). We replace the `ADDR` input with a counter, so that the address increments every clock cycle. Using the waveform simulator we will be able to view the output of our circuit for all memory locations. In order to create such designs easily, ISSIE offers a `Counter` component which, starting from 0, increments by one every clock cycle. Note that counters also have options, under properties, to add `Load` or `Enable` inputs.
 
 Add a `Counter` from the Catalogue (`FLIP FLOPS AND REGISTERS`). Now select the component and click on `Properties`. In properties remove the `load` and `enable` ports and give them the default functionality (which is what we want in this case): enable=1; load=0;
 

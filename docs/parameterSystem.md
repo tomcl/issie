@@ -10,7 +10,7 @@ index: 8
 
 ## Overview
 
-The parameter system in Issie allows users to define symbolic integer parameters on design sheets and use them in mathematical expressions to configure component properties. This enables parameterized component design where values can be dynamically calculated based on parameter bindings rather than being hardcoded. The system supports hierarchical parameter scoping and instance-specific parameter overrides.
+The parameter system in Issie allows users to define symbolic integer parameters on design sheets and use them in mathematical expressions to configure component properties. This enables parameterised component design where values can be dynamically calculated based on parameter bindings rather than being hardcoded. The system supports hierarchical parameter scoping and instance-specific parameter overrides.
 
 ## Key Features
 
@@ -154,7 +154,7 @@ Manages all parameter-related user interactions:
   constraints that are not met are returned, not dispatched. It must stay that way —
   `editParameterBox`'s `isDisabled` calls it *while rendering*, so anything it dispatched would
   re-render and dispatch again
-- **`updateComponents`**: Batch update all parameterized components
+- **`updateComponents`**: Batch update all parameterised components
 - **`markSheetParamsChanged`**: Flag the open sheet as needing saving. An edit confined to what a
   sheet declares leaves the canvas identical, and `UpdateHelpers.currentSheetIsOutOfDate` compares
   canvases, so without this the save button stays dark and the work is dropped when the sheet is
@@ -318,7 +318,7 @@ markSheetParamsChanged — the canvas has not changed, so say so explicitly
 Persist to .dgm file on save
 ```
 
-### 2. Component Parameterization Flow
+### 2. Component Parameterisation Flow
 ```
 User selects component property
     ↓
@@ -455,10 +455,10 @@ one. The list of two-argument functions is derived from the `ParamBinFunc` DU by
 parser with no second edit; only `binFuncName` must then cover it, which the compiler requires.
 
 **One name rule.** `ParameterTypes.isValidParamName` (`[a-zA-Z][a-zA-Z0-9]*`, and not a built-in
-function name) is both what the "Add parameter" dialog accepts and what the tokenizer reads as a
+function name) is both what the "Add parameter" dialog accepts and what the tokeniser reads as a
 name, because a name that cannot be written in an expression is of no use. Two rules diverging
-breaks it in both directions: a name the dialog takes but the tokenizer will not read can be
-declared and never referred to, and one the tokenizer reads but the dialog marks invalid is shown
+breaks it in both directions: a name the dialog takes but the tokeniser will not read can be
+declared and never referred to, and one the tokeniser reads but the dialog marks invalid is shown
 in red and accepted anyway. That is also why a function name cannot be a parameter: the parser
 reads `min` as the function, so a parameter of that name could never be referred to. A number run
 directly into a name (`2W`) is reported as such, since it is either a missing `*` or a name from a
@@ -469,14 +469,14 @@ expression, so every function over `ParamExpression` already handles it and no s
 A negated literal is folded to `PInt -n` so it renders back as the user typed it.
 
 Notes and caveats:
-- Tokenizer restricts inputs to digits/letters/operators/whitespace; unsupported characters are reported precisely.
+- Tokeniser restricts inputs to digits/letters/operators/whitespace; unsupported characters are reported precisely.
 - Division or modulo by zero is reported as an informative evaluation error, as is a parameter
   defined in terms of itself, and a shift by a negative or oversized number of places.
 - A single `<` or `>` is a token only so that it can be refused with a message saying a shift is
-  written `<<`. Unmatched characters are dropped by the tokenizer, so without it `a<b` would
+  written `<<`. Unmatched characters are dropped by the tokeniser, so without it `a<b` would
   tokenise as `a b` and be reported as a number run into a name.
 
-Code: `src/Renderer/Common/ParameterTypes.fs` (`parseExpression`, `isValidParamName`, tokenizer
+Code: `src/Renderer/Common/ParameterTypes.fs` (`parseExpression`, `isValidParamName`, tokeniser
 regex, and helpers). `Tests/Issie.Tests/Properties.fs` holds a render/parse round-trip property
 over generated expressions, negative literals included.
 
@@ -737,7 +737,7 @@ array's own ports together. `resolveSheet` resolves all of it without knowing an
 
 ## Component Support
 
-### Currently Parameterizable Components
+### Currently Parameterisable Components
 
 #### Width-Configurable Components
 - Registers (`Register`, `RegisterE`)

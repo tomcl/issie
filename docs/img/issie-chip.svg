@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The Issie chip. The same geometry as the splash screen (static/splash.html), so
+  that the site and the application carry one mark: body 326x459 with r=33
+  corners, a knocked-out dot and bar, and three leads a side on a 147.5 pitch.
+  Vector rather than a scaled-down issieIcon.png, which is a bitmap and goes
+  soft at the size a page header uses.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 548 459" role="img" aria-label="Issie">
+  <title>Issie</title>
+  <defs>
+    <linearGradient id="issieChipFill" x1="0" y1="0" x2=".35" y2="1">
+      <stop offset="0" stop-color="#1ae6c8"/>
+      <stop offset=".55" stop-color="#00d2b4"/>
+      <stop offset="1" stop-color="#00a98f"/>
+    </linearGradient>
+    <!-- the dot and the bar are holes in the body, not lighter paint on top of it -->
+    <mask id="issieChipHoles">
+      <rect x="111" y="0" width="326" height="459" rx="33" fill="#fff"/>
+      <circle cx="209" cy="82" r="44" fill="#000"/>
+      <rect x="278" y="53" width="111" height="58" rx="29" fill="#000"/>
+    </mask>
+  </defs>
+
+  <g fill="url(#issieChipFill)">
+    <rect x="111" y="0" width="326" height="459" rx="33" mask="url(#issieChipHoles)"/>
+
+    <g>
+      <rect x="0" y="66.5" width="89" height="31" rx="15.5"/>
+      <rect x="50" y="44.5" width="39" height="75" rx="9"/>
+      <rect x="459" y="66.5" width="89" height="31" rx="15.5"/>
+      <rect x="459" y="44.5" width="39" height="75" rx="9"/>
+
+      <rect x="0" y="214" width="89" height="31" rx="15.5"/>
+      <rect x="50" y="192" width="39" height="75" rx="9"/>
+      <rect x="459" y="214" width="89" height="31" rx="15.5"/>
+      <rect x="459" y="192" width="39" height="75" rx="9"/>
+
+      <rect x="0" y="361.5" width="89" height="31" rx="15.5"/>
+      <rect x="50" y="339.5" width="39" height="75" rx="9"/>
+      <rect x="459" y="361.5" width="89" height="31" rx="15.5"/>
+      <rect x="459" y="339.5" width="39" height="75" rx="9"/>
+    </g>
+  </g>
+</svg>

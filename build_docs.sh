@@ -22,7 +22,12 @@ escape_angle_brackets () {
 escape_angle_brackets src/Main Main
 escape_angle_brackets src/Renderer Renderer
 
-dotnet fsdocs build
+# --clean, because fsdocs otherwise leaves whatever is already in output/ in
+# place: reference pages for types that no longer exist, and pages carrying an
+# older template, both of which then look like a change that failed to take. CI
+# never sees this - it starts from a fresh checkout with no output/ at all - so
+# without --clean a local build does not show what will be published.
+dotnet fsdocs build --clean
 
 # fsdocs catches its own phase errors and still exits 0, and the deploy step
 # publishes whatever is in output/ - so a failed build silently overwrites the

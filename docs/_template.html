@@ -61,7 +61,10 @@
             </ul>
         </div>
         <a href="{{fsdocs-logo-link}}">
-            <img alt="Issie logo" src="{{root}}{{fsdocs-logo-src}}">
+            <!-- The chip mark, matching the application splash screen. Written out rather
+                 than left to the FsDocsLogoSource project property, which fsdocs did not
+                 apply to content pages even once its own log reported the new value. -->
+            <img alt="Issie logo" src="{{root}}img/issie-chip.svg" width="36" height="30">
             <strong>Issie</strong>
         </a>
     </div>
@@ -94,6 +97,19 @@
     <div id="content">
         {{fsdocs-content}}
         {{fsdocs-tooltips}}
+        <!-- Inside the content column rather than a sibling of <main>, so that it
+             needs no change to the page's grid placement. The Imperial credit is
+             worded as the splash screen words it, and is text: the College's logo
+             is not ours to place, and its brand guidelines govern its use. -->
+        <footer class="site-footer">
+            <p><span class="wordmark">ISSIE</span> &mdash; Interactive Schematic Simulator with Integrated Editor.</p>
+            <p>Developed by staff and students of the
+                <a href="https://www.imperial.ac.uk/electrical-engineering">Department of Electrical
+                and Electronic Engineering, Imperial College London</a>.</p>
+            <p><a href="{{fsdocs-repository-link}}">Source on GitHub</a> &middot;
+                <a href="{{fsdocs-license-link}}">GNU GPL v3 or later</a> &middot;
+                <a href="{{fsdocs-release-notes-link}}">Releases</a></p>
+        </footer>
     </div>
 </main>
 <aside id="fsdocs-page-menu">

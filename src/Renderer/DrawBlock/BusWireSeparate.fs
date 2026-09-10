@@ -679,21 +679,22 @@ let adjustSegmentsInModel
     // own span overlaps while the cluster bound, taken from a different member, allows it. That
     // is how a wire was once dragged through a multiplexer 23px past its cluster bound.
     //
-    // The check is per segment against each symbol box, exempting the two symbols the wire
-    // connects to (a mux SEL wire legitimately enters its own box). Only NEWLY entering is
-    // refused: a wire already across a symbol - routing sometimes gives up - may still move,
-    // else it could never move out.
+    // The check is per segment against every symbol box, INCLUDING the two the wire connects to.
+    // A symbol's own edge is what stops a wire being pulled back into it, and that is as true of
+    // the symbol a wire ends on as of any other: what a wire may put inside a symbol is its nub,
+    // and a nub is not a line here. This used to exempt both endpoint symbols, because a mux SEL
+    // wire has to enter its own box to reach the port - it no longer does, since routing works in
+    // the space outside the boxes and hands the piece between box and port to the nub. See
+    // BusWireUpdateHelpers.autoroute. With the exemption in place a segment could be moved 26
+    // units into the multiplexer it was going to, and nothing objected.
+    //
+    // Only NEWLY entering is refused: a wire already across a symbol - routing sometimes gives up
+    // - may still move, else it could never move out.
     let boxes =
         model.Symbol.Symbols
         |> Map.toList
         |> List.filter (fun (_, sym) -> sym.Annotation = None)
         |> List.map (fun (cid, sym) -> cid, Symbol.getSymbolBoundingBox sym)
-    let endpointsOf (wid: ConnectionId) =
-        match Map.tryFind wid model.Wires with
-        | None -> []
-        | Some w ->
-            [ model.Symbol.Ports[portIdOfInput w.InputPort].HostId
-              model.Symbol.Ports[portIdOfOutput w.OutputPort].HostId ]
     /// the line own segment span - not line.B, which linking may have grown to a union
     let segSpan (line: Line) =
         match line.Seg1 with
@@ -704,15 +705,13 @@ let adjustSegmentsInModel
             | Vertical -> min seg.Start.Y seg.End.Y, max seg.Start.Y seg.End.Y
     let insideABoxAt (line: Line) (p: float) =
         let lo, hi = segSpan line
-        let exempt = endpointsOf line.Wid
         boxes
-        |> List.exists (fun (cid, b) ->
-            not (List.contains cid exempt)
-            && (let pLo, pHi, bLo, bHi =
-                    match ori with
-                    | Horizontal -> b.TopLeft.Y, b.TopLeft.Y + b.H, b.TopLeft.X, b.TopLeft.X + b.W
-                    | Vertical -> b.TopLeft.X, b.TopLeft.X + b.W, b.TopLeft.Y, b.TopLeft.Y + b.H
-                pLo + 0.5 < p && p < pHi - 0.5 && lo < bHi - 0.5 && bLo + 0.5 < hi))
+        |> List.exists (fun (_, b) ->
+            let pLo, pHi, bLo, bHi =
+                match ori with
+                | Horizontal -> b.TopLeft.Y, b.TopLeft.Y + b.H, b.TopLeft.X, b.TopLeft.X + b.W
+                | Vertical -> b.TopLeft.X, b.TopLeft.X + b.W, b.TopLeft.Y, b.TopLeft.Y + b.H
+            pLo + 0.5 < p && p < pHi - 0.5 && lo < bHi - 0.5 && bLo + 0.5 < hi)
     let newlyEntersABox (line: Line) (p: float) =
         insideABoxAt line p && not (insideABoxAt line (positionNow line))
     lines
@@ -1567,14 +1566,29 @@ let alignSameNetDepartures (wiresToRoute: ConnectionId list) (model: Model) : Mo
                 else
                     Some(netDrawnLength (moved :: others), moved)
 
-    /// One scan over one net: the first strictly-improving merge, applied.
+    /// One scan over one net: the BEST strictly-improving merge, applied.
+    ///
+    /// Best and not merely first, which is what makes this reach the same answer from different
+    /// routings of one net. Merging is a hill-climb over the positions the net's risers already
+    /// occupy, and a net usually offers several improving moves at once; taking whichever the
+    /// scan happened to reach first walks a path that depends on the order wires came out of the
+    /// map, and different paths end at different local minima.
+    ///
+    /// WireQuality's longFanout is the case. Four wires leave SRC along one trunk and rise to four
+    /// registers, and every riser can sit at x=840 - the midpoint an ordinary route picks - or at
+    /// x=1200, where a branch off another wire of the net puts it. All four at 1200 draws 2835; all
+    /// four at 840 draws 3915, because the shared trunk carries them further before they split.
+    /// Taking the first improving merge, the sheet ended on whichever of those routing happened to
+    /// leave more risers near, and a route chosen for costing the net least - which is what
+    /// BusWireRoute.smartAutoroute now does - put them near the wrong one. Steepest descent finds
+    /// 2835 from either.
     let improveNet (model: Model) (netWires: Wire list) : Model option =
         let current = netDrawnLength netWires
         List.allPairs netWires netWires
         |> List.filter (fun (a, b) -> connToInt a.WId < connToInt b.WId)
-        |> List.tryPick (fun (a, b) ->
+        |> List.collect (fun (a, b) ->
             List.allPairs (departures a) (departures b)
-            |> List.tryPick (fun ((iA, rA, tA), (iB, rB, tB)) ->
+            |> List.collect (fun ((iA, rA, tA), (iB, rB, tB)) ->
                 let pOf (r: ASegment) =
                     match r.Orientation with
                     | Vertical -> r.Start.X
@@ -1598,16 +1612,19 @@ let alignSameNetDepartures (wiresToRoute: ConnectionId list) (model: Model) : Mo
                    || abs (baseOf rA - baseOf rB) > 1.0 // the two turns must leave the same trunk line
                    || abs (pOf rA - pOf rB) < 1.0 // already together
                    || not trunksShared then
-                    None
+                    []
                 else
                     [ tryMove netWires a iA (pOf rB); tryMove netWires b iB (pOf rA) ]
-                    |> List.choose id
-                    |> List.filter (fun (len, _) -> len < current - 0.5)
-                    |> function
-                       | [] -> None
-                       | candidates ->
-                           let _, best = candidates |> List.minBy fst
-                           Some(Optic.set (wireOf_ best.WId) best model)))
+                    |> List.choose id))
+        |> List.filter (fun (len, _) -> len < current - 0.5)
+        |> function
+           | [] -> None
+           | candidates ->
+               // Shortest drawn wire wins; the moved wire's id breaks a tie, so that which of two
+               // equally good merges is taken is settled here rather than by the order the net's
+               // wires came out of the map.
+               let _, best = candidates |> List.minBy (fun (len, w) -> len, connToInt w.WId)
+               Some(Optic.set (wireOf_ best.WId) best model)
 
     let netsInScope =
         let routable = Set.ofList wiresToRoute

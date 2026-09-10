@@ -50,11 +50,14 @@ open BusWireRoutingHelpers.Constants
 
 /// add a nub and zero length segment to the start of the wire if needed
 ///
-/// `minNub` is the shortest this end's nub may be: the length that gets it clear of its own
-/// symbol's bounding box, which is not zero for a mux SEL port - see BusWireUpdateHelpers.portInset.
-/// This function shortens a nub to fit what the wire has, and without the floor it would undo the
-/// minimum the route was built with.
-let ensureStartingNub (minNub: float) (wire: Wire) =
+/// `inset` is how far this end's port sits INSIDE its own symbol's bounding box - not zero for a
+/// mux SEL, see BusWireUpdateHelpers.portInset. This shortens a nub to fit the run the wire has,
+/// and it does that in the space autoroute routes in: the first `inset` of the nub is inside the
+/// symbol and is not room the wire may spend, so it is taken off before the length is worked out
+/// and put back afterwards. The `max 0.` is what stops the wire's own end being drawn back past
+/// the box edge - a nub of exactly the inset, whose turn then sits ON the edge with every pass
+/// downstream free to read it as either side.
+let ensureStartingNub (inset: float) (wire: Wire) =
 
     let updateIndices: Segment list -> Segment list =
         List.mapi (fun i seg -> { seg with Index = i })
@@ -65,7 +68,7 @@ let ensureStartingNub (minNub: float) (wire: Wire) =
     elif segs[1].Length = 0. && (sign segs.[0].Length * sign segs[2].Length = -1) then
         let totalLength = segs[0].Length + segs[2].Length
         let dir = float <| sign segs[0].Length
-        let thisNubLength = max (min nubLength minNub) (min nubLength (abs totalLength))
+        let thisNubLength = inset + min nubLength (max 0. (abs totalLength - inset))
         let nub = { segs[0] with Length = dir * thisNubLength; Draggable = false; IntersectOrJumpList = [] }
         let newSeg2 = { segs[0] with Length = totalLength - dir * thisNubLength; Draggable = true; IntersectOrJumpList = [] }
         let newSegs = nub :: segs[1] :: newSeg2 :: segs[3..]
@@ -74,7 +77,7 @@ let ensureStartingNub (minNub: float) (wire: Wire) =
         let seg0 = segs[0]
         let seg1 = segs[1]
         let dir = sign segs[0].Length |> float
-        let thisNubLength = max (min nubLength minNub) (min nubLength (abs seg0.Length))
+        let thisNubLength = inset + min nubLength (max 0. (abs seg0.Length - inset))
         let nub = {seg0 with Length = dir * thisNubLength; Draggable = false ; IntersectOrJumpList = []}
         let zero = { seg1 with Length = 0. ; IntersectOrJumpList = []; Draggable = true}
         let newSeg2 = {seg0 with Length = seg0.Length - dir*thisNubLength; IntersectOrJumpList = []; Draggable = true}
@@ -82,9 +85,9 @@ let ensureStartingNub (minNub: float) (wire: Wire) =
     else
         wire
         
-/// `startMin` and `endMin` are the two ends' minimum nub lengths, in the wire's own direction.
-let ensureBothNubs (startMin: float) (endMin: float) =
-    ensureStartingNub startMin >> reverseWire >> ensureStartingNub endMin >> reverseWire
+/// `startInset` and `endInset` are the two ends' port insets, in the wire's own direction.
+let ensureBothNubs (startInset: float) (endInset: float) =
+    ensureStartingNub startInset >> reverseWire >> ensureStartingNub endInset >> reverseWire
 
 
 /// Checks if a wire intersects any symbol within +/- minWireSeparation.
@@ -126,26 +129,6 @@ let findWireSymbolIntersectionsBySegment (model: Model) (wire: Wire) : (int * Bo
     let inputCompId = model.Symbol.Ports.[portIdOfInput wire.InputPort].HostId
     let outputCompId = model.Symbol.Ports.[portIdOfOutput wire.OutputPort].HostId
 
-    let componentIsMux (comp:Component) =
-        match comp.Type with
-        | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 -> true
-        | _ -> false
-
-    // this was added to fix MUX SEL port wire rooting bug, it is irrelevant in other cases
-    let inputIsSelect =
-        let inputSymbol = model.Symbol.Symbols.[inputCompId]
-        let inputCompInPorts = inputSymbol.Component.InputPorts
-        
-        componentIsMux inputSymbol.Component && (inputCompInPorts.[List.length inputCompInPorts - 1].Id = portIdOfInput wire.InputPort)
-
-    let inputCompRotation =
-        model.Symbol.Symbols.[inputCompId].STransform.Rotation
-
-    let outputCompRotation =
-        model.Symbol.Symbols.[outputCompId].STransform.Rotation
-
-    let isConnectedToSelf = inputCompId = outputCompId
-
     let expandBox (box: BoundingBox) (borderSize: float)=
                {
                     W = box.W + borderSize * 2.
@@ -157,7 +140,11 @@ let findWireSymbolIntersectionsBySegment (model: Model) (wire: Wire) : (int * Bo
                 }
  
 
-    let boxesIntersectedBySegment (lastSeg:bool) (startIndex,startPos) (endIndex,endPos) =
+    // No symbol is exempt and no multiplexer is a special case. A wire's ends are ON the boxes it
+    // starts and finishes at - the piece of nub between the box and an inset port is not routed
+    // here, see BusWireUpdateHelpers.autoroute - so every segment this looks at is one that ought
+    // to be outside every box on the sheet, its own two included.
+    let boxesIntersectedBySegment (startIndex,startPos) (endIndex,endPos) =
         allBoundingBoxes
         |> List.map (fun (comp, boundingBox) ->
                 let borderSize =
@@ -166,26 +153,16 @@ let findWireSymbolIntersectionsBySegment (model: Model) (wire: Wire) : (int * Bo
                     else
                         minWireSeparation
                 comp, expandBox boundingBox borderSize)
-        |> List.filter (fun (comp, boundingBox) ->
-            // A mux SEL port sits inside its own symbol's bounding box, so the final segments of a
-            // wire reaching one have to be allowed into that box. Only THAT box: this used to
-            // exempt every mux and demux on the sheet, so a wire climbing to a SEL port past
-            // another mux could not see it and was drawn straight through it - and since the check
-            // found nothing, no shift was attempted either.
-            match comp.Type, lastSeg && comp.Id = inputCompId with
-            | Mux2, true | Mux4, true | Mux8, true | Demux2, true | Demux4, true | Demux8, true -> false
-            | _, _ ->
-                 match segmentIntersectsBoundingBox boundingBox startPos endPos with // do not consider the symbols that the wire is connected to
+        |> List.filter (fun (_, boundingBox) ->
+                 match segmentIntersectsBoundingBox boundingBox startPos endPos with
                  | Some _ ->
                     true // segment intersects bounding box
-                 | None -> false // no intersection
-        )
-        |> List.map (fun (compType, boundingBox) -> boundingBox)
+                 | None -> false) // no intersection
+        |> List.map snd
 
 
     segVertices
-    |> List.map (fun (i, (startPos, endPos)) ->
-        i, boxesIntersectedBySegment (i > List.length segVertices - 2 && inputIsSelect) startPos endPos)
+    |> List.map (fun (i, (startPos, endPos)) -> i, boxesIntersectedBySegment startPos endPos)
     |> List.filter (fun (_, boxes) -> not boxes.IsEmpty)
 
 /// Bounding boxes of symbols intersected by wire, however many of its segments hit them.
@@ -683,16 +660,20 @@ let private edgeOfTravel (seg: ASegment) =
 /// The ordinary routing of a pair of points, given the edge each leaves by. This is the body of
 /// autoroute with the port lookups taken out, so that it can also route from a point part way
 /// along an existing wire.
-/// `destInset` is the destination port's inset - see BusWireUpdateHelpers.portInset. The start is a
-/// point part way along another wire, not a port, so it has none.
+/// `destInset` is the destination port's inset - see BusWireUpdateHelpers.portInset - and is
+/// handled exactly as autoroute handles it: routed to where the nub crosses the box, and that nub
+/// lengthened to the port afterwards. The start is a point part way along another wire, not a
+/// port, so it has no inset.
 let private routeBetween wid (startPos: XYPos) (startEdge: Edge) (destPos: XYPos) (destEdge: Edge)
                           (destInset: float) =
+    let destExit = destPos + outwardOf destEdge * destInset
     let normStart, normEnd =
-        rotateStartDest CommonTypes.Right (genPortInfo startEdge startPos, genPortInfo destEdge destPos)
+        rotateStartDest CommonTypes.Right (genPortInfo startEdge startPos, genPortInfo destEdge destExit)
     {| edge = CommonTypes.Right
-       segments = makeInitialSegmentsList wid normStart.Position normEnd.Position normEnd.Edge 0. destInset |}
+       segments = makeInitialSegmentsList wid normStart.Position normEnd.Position normEnd.Edge |}
     |> rotateSegments startEdge
     |> (fun w -> w.segments)
+    |> extendNubsToPorts 0. destInset
 
 /// Route `wire` by following `refWire` - another wire of the same net - as far as the end of its
 /// segment `branchAt`, and going on from there.
@@ -776,8 +757,29 @@ let smartAutoroute (model: Model) (wire: Wire) : Wire =
     /// A wire of a net which is drawn on its own, when it could have shared a trunk with the rest
     /// of the net, is the failure that shows most: not because it is longer, but because a reader
     /// can no longer see at a glance which wires are one signal. So a route which branches off a
-    /// wire of the same net is preferred to the ordinary one whenever it is legal, and the branch
-    /// points nearest the destination - the ones which share the most - are tried first.
+    /// wire of the same net is preferred to the ordinary one whenever it is legal.
+    ///
+    /// Which one is preferred is decided by what each candidate COSTS the net: the length it draws
+    /// that the net is not drawing already. A length shared with another wire of the net is free -
+    /// it is the same line of the drawing - so "share as much as possible" and "draw as little as
+    /// possible" are one objective here rather than two to be traded off.
+    ///
+    /// It used to be decided by how near each branch point was to the destination, on the reading
+    /// that the nearest branch shares the most. That is a proxy, and it fails where the ordinary
+    /// route ALREADY shares the trunk: a branch further along that same trunk shares no more and
+    /// can cost a great deal. On 3cpu's `next` JMP drives two gates, and the route to the nearer
+    /// one ran along the trunk to a branch point 39 units PAST it and doubled back, because that
+    /// branch point was nearer the destination than the driving port was. It drew 432 units where
+    /// the ordinary route - which runs along the same trunk anyway - draws 334.
+    ///
+    /// Costing candidates needs BusWireSeparate's merge to be able to move a whole set of risers
+    /// at once, and did not work before it could. The two decide the same thing from opposite
+    /// ends: routing puts risers where a wire is cheapest, and merging slides them together
+    /// afterwards. Where merging could only move one riser at a time it was stuck wherever routing
+    /// left the majority, so choosing the locally cheapest route locked in the majority's position
+    /// - and on WireQuality's longFanout that was the wrong one, by 12% of the sheet's wire. With
+    /// a set able to move together, both arrangements reach the same answer and the cheaper route
+    /// is free to be taken.
     ///
     /// This matters most for the long wires, which often have several destinations: three long
     /// wires crossing a sheet nearly in parallel is what this is here to prevent.
@@ -785,12 +787,54 @@ let smartAutoroute (model: Model) (wire: Wire) : Wire =
         match model.SnapToNet with
         | false -> initialWire
         | true ->
-            // nearest branch point to the destination first, and the first that is legal wins. The
-            // ordinary route is in the running as the branch at the driver port, so a branch has to
-            // start nearer the destination than the port does before it is taken at all.
+            /// A drawn segment of a wire reduced to (orientation, the coordinate across it, the
+            /// interval it covers along itself). Zero-length segments draw nothing.
+            let spansOf (w: Wire) =
+                getAbsSegments w
+                |> List.filter (fun s -> not s.IsZero)
+                |> List.map (fun s ->
+                    match s.Orientation with
+                    | Horizontal -> Horizontal, s.Start.Y, min s.Start.X s.End.X, max s.Start.X s.End.X
+                    | Vertical -> Vertical, s.Start.X, min s.Start.Y s.End.Y, max s.Start.Y s.End.Y)
+            /// what this net already draws, from the wires of it which are routed
+            let alreadyDrawn =
+                model.Wires
+                |> Map.valuesL
+                |> List.filter (fun w ->
+                    w.OutputPort = wire.OutputPort && w.WId <> wire.WId && not w.Segments.IsEmpty)
+                |> List.collect spansOf
+            let unionLength (intervals: (float * float) list) =
+                intervals
+                |> List.sortBy fst
+                |> List.fold
+                    (fun (total, upTo) (lo, hi) -> total + max 0. (hi - max lo upTo), max upTo hi)
+                    (0., -infinity)
+                |> fst
+            /// how much of what a candidate draws is new to the net
+            let newInk (candidate: Wire) =
+                spansOf candidate
+                |> List.sumBy (fun (ori, p, lo, hi) ->
+                    let covered =
+                        alreadyDrawn
+                        |> List.choose (fun (o, q, l, h) ->
+                            // overlapTolerance, not equality: two wires of one net leaving the same
+                            // port are collinear to the pixel, but a route joining a trunk from a
+                            // port a unit or two off still means to be on it
+                            if o = ori && abs (q - p) < overlapTolerance && min hi h > max lo l then
+                                Some(max lo l, min hi h)
+                            else
+                                None)
+                        |> unionLength
+                    hi - lo - covered)
+            let drawnLength (w: Wire) = w.Segments |> List.sumBy (fun sg -> abs sg.Length)
             let destPos = Symbol.getInputPortLocation None model.Symbol wire.InputPort
+            // Cheapest for the net first, then shortest, then nearest branch point: a total order,
+            // so which of two equally good routes is taken is a fact about the geometry and not
+            // about the order the candidates were generated in. The ordinary route is in the
+            // running as the branch at the driving port, so a branch has to be a saving over not
+            // branching before it is taken at all. Legality is still checked lazily, in that order.
             (euclideanDistance initialWire.StartPos destPos, initialWire) :: sameNetRoutes model wire
-            |> List.sortBy fst
+            |> List.sortBy (fun (branchDistance, w) -> newInk w, drawnLength w, branchDistance)
             |> List.tryFind (fun (_, w) -> List.isEmpty (findWireSymbolIntersections model w))
             |> Option.map snd
             |> Option.defaultValue initialWire

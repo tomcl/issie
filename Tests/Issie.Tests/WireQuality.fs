@@ -568,7 +568,11 @@ let private recorded =
       { Sheet = "fanout"; Ink = 9002.; Bends = 98; Crossings = 0; FannedNetInk = 3257.; Settle = Some 0 }
       { Sheet = "staggeredFanout"; Ink = 4089.; Bends = 36; Crossings = 9; FannedNetInk = 1725.; Settle = Some 0 }
       { Sheet = "longFanout"; Ink = 8965.; Bends = 34; Crossings = 10; FannedNetInk = 2835.; Settle = Some 0 }
-      { Sheet = "reg16x8"; Ink = 19676.; Bends = 147; Crossings = 81; FannedNetInk = 12762.; Settle = Some 0 }
+      // reg16x8 re-pinned when same-net routes came to be chosen by what they cost the net, and
+      // separation's merge came to take the steepest improving move rather than the first it
+      // found: ink -462, crossings -5, fanned net ink -462. It is the only corpus sheet either
+      // change moves.
+      { Sheet = "reg16x8"; Ink = 19214.; Bends = 147; Crossings = 76; FannedNetInk = 12300.; Settle = Some 0 }
       // tangle re-pinned when canvas ids became integers: the DSL now numbers components 1..n,
       // which changes separation's tie-breaking order on this deliberately pathological sheet
       { Sheet = "tangle"; Ink = 11004.; Bends = 82; Crossings = 66; FannedNetInk = 8004.; Settle = Some 0 } ]
@@ -1093,6 +1097,278 @@ let tests =
             Expect.isEmpty (detachedWires start) "the sheet was already broken when it was loaded"
             Expect.isEmpty (detachedWires dragged)
                 "dragging MUX1 left wires drawn from where its port used to be"
+        }
+
+        test "a wire into a mux SEL is drawn straight, and still goes round the mux body" {
+            // A mux SEL sits nine units INSIDE its symbol's bounding box - the symbol is a
+            // trapezium and the port is on the sloping side - and the box is the obstacle routing
+            // and separation both work against.
+            //
+            // On 3cpu's `next` sheet G1 sits directly under MUX1 with their ports exactly in line,
+            // 28 units apart, so the route is a straight climb. It was drawn 45 units out round
+            // the far side of the multiplexer and back, because sixteen units of the approach that
+            // any wire to that port has to make read as an intersection with the very symbol the
+            // wire was going to.
+            //
+            // Routing now works in the space OUTSIDE the boxes - see
+            // BusWireUpdateHelpers.autoroute - so nothing here is a special case any more. The
+            // second half of this test is what holds that: it would also pass if the mux were
+            // simply exempted from its own wire's obstacle test, and that is wrong in the other
+            // direction, letting a wire reaching the SEL from above be drawn straight down through
+            // the multiplexer.
+            let next = (TestFixtures.loadProject "3cpu" |> List.find (fun c -> c.Name = "next")).CanvasState
+            let m = separate (routedModel next)
+            let comps, _ = next
+            let labelOfPort pid =
+                comps
+                |> List.find (fun c -> c.InputPorts @ c.OutputPorts |> List.exists (fun p -> p.Id = pid))
+                |> fun c -> c.Label
+            let selWid =
+                m.Wires
+                |> Map.toList
+                |> List.find (fun (_, w) ->
+                    labelOfPort (portIdOfOutput w.OutputPort) = "G1"
+                    && labelOfPort (portIdOfInput w.InputPort) = "MUX1")
+                |> fst
+            /// how much wire is drawn, against the straight line between the two ports. The ports
+            /// are in line, so the shortest legal route IS that line and any excess is a detour -
+            /// the one this is about went 45 units out round the multiplexer and back.
+            let excess (m: Model) =
+                let w = m.Wires[selWid]
+                let destPos, startPos = Symbol.getTwoPortLocations m.Symbol w.InputPort w.OutputPort
+                (getAbsSegments w |> List.sumBy (fun s -> abs s.Segment.Length))
+                - euclideanDistance startPos destPos
+            Expect.isLessThan (excess m) 1.
+                $"G1 -> MUX1.SEL is drawn %.1f{excess m} units longer than the straight climb it is"
+
+            // Through the gesture as well as from the saved sheet: a routing fault lives in the
+            // drag, and a sheet re-routed from nothing is not what a user is looking at. Dragging
+            // G1 straight down keeps the two ports in line, so every one of these is the same
+            // climb, only longer - and only the short ones bite, since it is the sixteen units of
+            // approach that are inside the obstacle however long the rest of the wire is.
+            //
+            // The sweep starts 10 above where G1 is drawn, which leaves the ports 18 apart: closer
+            // than that and the two nubs alone are longer than the wire, so `roomForNub` shortens
+            // them and a jog appears which has nothing to do with any of this.
+            let g1 =
+                m.Symbol.Symbols |> Map.toList |> List.find (fun (_, s) -> s.Component.Label = "G1") |> fst
+            let bentByDrag =
+                [ for dy in -10 .. 10 .. 200 ->
+                    let dragged =
+                        { m with Symbol = SymbolUpdate.moveSymbols m.Symbol [ g1 ] { X = 0.; Y = float dy } }
+                        |> fun dragged -> BusWireSeparate.routeAndSeparateSymbolWires dragged g1
+                    dy, excess dragged ]
+                |> List.filter (fun (_, over) -> over > 1.)
+            Expect.isEmpty bentByDrag
+                $"dragging G1 down bent its SEL wire at (offset, units over) %A{bentByDrag}"
+
+            // A mux with its driver above it: the SEL is on the far side, so the wire has to go
+            // round. Swept across the mux, since which side it goes round changes with the offset.
+            let fromAbove =
+                describeSheet "muxSelFromAbove" [ comp "IN" (Input1(1, None)); comp "MUX" Mux2 ] [ "IN" ==> "MUX/SEL" ]
+            let throughTheBody =
+                [ for dx in -120 .. 20 .. 120 ->
+                    let placed =
+                        canvasOf fromAbove
+                        |> movedTo [ "IN", { X = 700. + float dx; Y = 200. }; "MUX", { X = 700.; Y = 500. } ]
+                    let m = separate (routedModel placed)
+                    let sym =
+                        m.Symbol.Symbols |> Map.toList |> List.map snd
+                        |> List.find (fun s -> s.Component.Label = "MUX")
+                    let box = Symbol.getSymbolBoundingBox sym
+                    let sel = sym.Component.InputPorts |> List.last
+                    let selY = (Symbol.getPortLocation None m.Symbol sel.Id).Y
+                    // everything above the SEL port's line: the part of the box no wire has any
+                    // business in. Inset by a unit so that running along an edge does not count.
+                    let body =
+                        { TopLeft = { X = box.TopLeft.X + 1.; Y = box.TopLeft.Y + 1. }
+                          W = box.W - 2.
+                          H = selY - box.TopLeft.Y - 2. }
+                    let crossings =
+                        m.Wires
+                        |> Map.toList
+                        |> List.sumBy (fun (_, w) ->
+                            getAbsSegments w
+                            |> List.filter (fun s ->
+                                not s.IsZero && (segmentIntersectsBoundingBox body s.Start s.End).IsSome)
+                            |> List.length)
+                    dx, crossings ]
+                |> List.filter (fun (_, crossings) -> crossings > 0)
+            Expect.isEmpty throughTheBody
+                $"a wire to the SEL port was drawn through the multiplexer at %A{throughTheBody}"
+        }
+
+        test "the nub into a mux SEL keeps its length clear of the box, wherever the driver is" {
+            // The invariant the mux SEL cases come down to. A wire's end nub runs from the port,
+            // through the symbol's bounding box, to its first turn: `inset` of it is inside the
+            // box and the rest - call it nub' - is the part outside, which is the part every other
+            // pass is entitled to reason about. nub' must stay positive.
+            //
+            // For a port ON its box the inset is zero, nub' is the whole nub, and nothing can take
+            // it negative because the symbol's own edge is in the way. That is what stops working
+            // when the inset is not zero, and both faults on 3cpu's `next` were nub' reaching zero
+            // or below:
+            //
+            //  - G1 to one side: the route ended with a nub of exactly the inset, putting the turn
+            //    EXACTLY on the box edge. Separation, which decides which side of an edge a
+            //    segment is on with half-unit tolerances, read it as outside and moved it in.
+            //  - G1 to the other side: the approach ran along y inside the box and the wire doubled
+            //    back to reach the edge, a spike autorouting should never draw.
+            //
+            // So G1 is swept all round MUX1 and nub' checked at every placement, on the route and
+            // again after separation - along with the consequence, which is a segment drawn inside
+            // the multiplexer.
+            let next = (TestFixtures.loadProject "3cpu" |> List.find (fun c -> c.Name = "next")).CanvasState
+            let comps, _ = next
+            let labelOfPort pid =
+                comps
+                |> List.find (fun c -> c.InputPorts @ c.OutputPorts |> List.exists (fun p -> p.Id = pid))
+                |> fun c -> c.Label
+            let selWireOf (m: Model) =
+                m.Wires
+                |> Map.toList
+                |> List.find (fun (_, w) ->
+                    labelOfPort (portIdOfOutput w.OutputPort) = "G1"
+                    && labelOfPort (portIdOfInput w.InputPort) = "MUX1")
+                |> snd
+            let muxSym (m: Model) =
+                m.Symbol.Symbols |> Map.toList |> List.map snd
+                |> List.find (fun s -> s.Component.Label = "MUX1")
+            /// nub' - how far the wire's last turn stands OUTSIDE the box it is arriving at.
+            let nubOutsideBox (m: Model) =
+                let w = selWireOf m
+                let inset = BusWireUpdateHelpers.portInset m.Symbol (portIdOfInput w.InputPort)
+                abs (List.last w.Segments).Length - inset
+            /// segments drawn in the part of MUX1's box above the SEL port - the multiplexer itself
+            let insideTheMux (m: Model) =
+                let sym = muxSym m
+                let box = Symbol.getSymbolBoundingBox sym
+                let selY = (Symbol.getPortLocation None m.Symbol (sym.Component.InputPorts |> List.last).Id).Y
+                let body =
+                    { TopLeft = { X = box.TopLeft.X + 0.5; Y = box.TopLeft.Y + 0.5 }
+                      W = box.W - 1.
+                      H = selY - box.TopLeft.Y - 1. }
+                getAbsSegments (selWireOf m)
+                |> List.filter (fun sg ->
+                    not sg.IsZero && (segmentIntersectsBoundingBox body sg.Start sg.End).IsSome)
+                |> List.length
+            // all round the multiplexer: left of it, under it, right of it, and level with its
+            // bottom edge, which is where both faults were found
+            let bad =
+                [ for gx in 1570. .. 25. .. 1795. do
+                    for gy in [ 1579.6; 1600.; 1620. ] do
+                        let placed = next |> movedTo [ "G1", { X = gx; Y = gy } ]
+                        let routed = routedModel placed
+                        let settled = separate routed
+                        for stage, m in [ "routed", routed; "separated", settled ] do
+                            if nubOutsideBox m <= 0.5 || insideTheMux m > 0 then
+                                yield
+                                    sprintf "G1 (%.0f,%.0f) %s: nub' %.2f, %d segment(s) in the mux"
+                                        gx gy stage (nubOutsideBox m) (insideTheMux m) ]
+            Expect.isEmpty bad $"%A{List.truncate 8 bad}"
+        }
+
+        test "branching off its own net never costs a wire's net more than not branching" {
+            // A route which branches off a wire of its own net shares that wire's trunk for free.
+            // Which branch is taken used to be decided by how near its branch point was to the
+            // destination, on the reading that the nearest branch shares the most - and that fails
+            // where the ordinary route ALREADY runs along the trunk, since a branch further along
+            // it shares no more and can cost a great deal.
+            //
+            // 3cpu's `next` is the case. JMP drives G1 and G2, both to its right, and the two
+            // wires run along one trunk. The route to G1 branched off the wire to G2 at a point 39
+            // units PAST G1's own port and doubled back to reach it, because that branch point was
+            // nearer G1 than JMP's port was. 432 units drawn where the ordinary route - along the
+            // very same trunk - draws 334, and 59 units of ink added to the net.
+            //
+            // What is asserted is the property rather than the shape: net snapping exists to save
+            // the net wire, so a snapped route must never leave the net drawing MORE than it would
+            // with snapping off. Asserting the shape instead does not work - every route to a
+            // destination behind its source starts with a nub the wrong way and so doubles back,
+            // which is not this and never can be.
+            //
+            // It shows on a re-route, not on a sheet routed from nothing: from nothing the wires
+            // go shortest first, so G1's is routed before there is anything to branch off. A drag
+            // re-routes one wire against a net that is already drawn, which is where this bites.
+            let next = (TestFixtures.loadProject "3cpu" |> List.find (fun c -> c.Name = "next")).CanvasState
+            let m = separate (routedModel next)
+            let comps, _ = next
+            let labelOfPort pid =
+                comps
+                |> List.find (fun c -> c.InputPorts @ c.OutputPorts |> List.exists (fun p -> p.Id = pid))
+                |> fun c -> c.Label
+            let jmpNet =
+                m.Wires
+                |> Map.toList
+                |> List.find (fun (_, w) ->
+                    labelOfPort (portIdOfOutput w.OutputPort) = "JMP"
+                    && labelOfPort (portIdOfInput w.InputPort) = "G1")
+                |> fun (_, w) -> w.OutputPort
+            let g1 =
+                m.Symbol.Symbols |> Map.toList |> List.find (fun (_, s) -> s.Component.Label = "G1") |> fst
+            /// wire drawn for one net, a length two of its wires share counted once
+            let inkOf (model: Model) =
+                linesOf model
+                |> List.filter (fun l -> l.Net = jmpNet)
+                |> byDrawnLine
+                |> List.sumBy (fun (_, ls) -> unionLength (ls |> List.map (fun l -> l.Lo, l.Hi)))
+            // Routed but NOT separated: the choice under test is routing's, and separation moves
+            // segments by up to maxSegmentSeparation afterwards for reasons that have nothing to
+            // do with which route was chosen. Measuring through it puts that wobble - about 1% on
+            // this net - on top of the thing being measured.
+            let dragged (snap: bool) (dx: int) (dy: int) =
+                let delta = { X = float dx; Y = float dy }
+                { m with SnapToNet = snap; Symbol = SymbolUpdate.moveSymbols m.Symbol [ g1 ] delta }
+                |> fun d -> BusWireRoute.updateWires d [ g1 ] delta
+            let worse =
+                [ for dx in -60 .. 20 .. 60 do
+                    for dy in -40 .. 20 .. 40 do
+                        let snapped, plain = inkOf (dragged true dx dy), inkOf (dragged false dx dy)
+                        if snapped > plain + 0.5 then
+                            yield sprintf "G1 moved (%d,%d): net draws %.0f snapped, %.0f unsnapped" dx dy snapped plain ]
+            Expect.isEmpty worse $"%A{List.truncate 6 worse}"
+        }
+
+        test "same-net risers merge onto the best line, not onto whichever the scan reached first" {
+            // Merging same-net risers onto one line is a hill-climb over the positions the net's
+            // risers already occupy, and longFanout has two tops. Four wires leave SRC along one
+            // trunk and rise to four registers, and every riser can sit at x=840 - the midpoint an
+            // ordinary route picks - or at x=1200, where a branch off another wire of the net puts
+            // it. All four at 1200 draws 2835, all four at 840 draws 3915: the shared trunk carries
+            // them further before they split, so the far line is much the better one.
+            //
+            // A net usually offers several improving merges at once. Taking the first one the scan
+            // reaches walks a path that depends on the order the wires came out of the map, and
+            // different paths end at different tops - so which arrangement this sheet ended on was
+            // decided by where routing happened to leave the majority of risers, and routing
+            // choosing the route that costs the net least leaves them near the WRONG one.
+            //
+            // The threshold is set between the two arrangements rather than on either, so this
+            // says "it merged onto the far line" and not "it drew exactly this much".
+            let canvas = canvasOf (longFanout 4) |> movedTo (longPositions 4)
+            let fresh = separate (routedModel canvas)
+            let srcNet =
+                fresh.Wires |> Map.toList |> List.map (fun (_, w) -> w.OutputPort)
+                |> List.countBy id |> List.maxBy snd |> fst
+            let inkOf (model: Model) =
+                linesOf model
+                |> List.filter (fun l -> l.Net = srcNet)
+                |> byDrawnLine
+                |> List.sumBy (fun (_, ls) -> unionLength (ls |> List.map (fun l -> l.Lo, l.Hi)))
+            let r1 =
+                fresh.Symbol.Symbols |> Map.toList |> List.find (fun (_, s) -> s.Component.Label = "R1") |> fst
+            // From the sheet as routed, and from the several routings a drag of R1 produces: all of
+            // them have to find the far line, which is the whole point of steepest descent here.
+            let measured =
+                ("undragged", inkOf fresh)
+                :: [ for dy in -40 .. 20 .. 40 ->
+                        let dragged =
+                            { fresh with Symbol = SymbolUpdate.moveSymbols fresh.Symbol [ r1 ] { X = 0.; Y = float dy } }
+                            |> fun d -> BusWireSeparate.routeAndSeparateSymbolWires d r1
+                        sprintf "R1 dragged %d" dy, inkOf dragged ]
+            let onTheNearLine = measured |> List.filter (fun (_, ink) -> ink > 3000.)
+            Expect.isEmpty onTheNearLine
+                $"the net merged onto the near line (2835 is the far one, 3915 the near): %A{onTheNearLine}"
         }
 
         test "a hand-routed wire keeps its hand routing when a symbol on it moves" {

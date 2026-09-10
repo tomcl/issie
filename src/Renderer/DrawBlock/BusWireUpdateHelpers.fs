@@ -403,16 +403,27 @@ let rec rotateSegments (target: Edge) (wire: {| edge: Edge; segments: Segment li
         {| edge = rotate90Edge wire.edge; segments = rotatedSegs |}
         |> rotateSegments target 
 
+/// The unit vector a wire takes leaving a port on this edge.
+let outwardOf (edge: CommonTypes.Edge) : XYPos =
+    match edge with
+    | CommonTypes.Edge.Left -> { X = -1.; Y = 0. }
+    | CommonTypes.Edge.Right -> { X = 1.; Y = 0. }
+    | CommonTypes.Edge.Top -> { X = 0.; Y = -1. }
+    | CommonTypes.Edge.Bottom -> { X = 0.; Y = 1. }
+
 /// How far a port lies INSIDE its own symbol's bounding box, measured along the direction a wire
 /// leaves it by. Zero for a port that sits ON the box, which is nearly all of them.
 ///
 /// A Mux2's Sel is what this is for. The symbol is drawn as a trapezium and the port is on the
 /// sloping side, so the bounding box - which is what BOTH routing and separation use as the
-/// obstacle - reaches nine units further out than the port does. A wire reaching that port is
-/// inside the obstacle before it has gone anywhere, and separation, which cannot tell that the
-/// constraint is one no wire could meet, moves it clear by taking it out through the far side of
-/// the symbol. The nub spends this so that the first turn is outside the box; see
-/// BusWire.makeInitialWireVerticesList.
+/// obstacle - reaches nine units further out than the port does.
+///
+/// This is the whole of what the rest of the draw block needs to know about that. Routing and
+/// separation both work in the space OUTSIDE the boxes, so a wire's end is taken to be where its
+/// nub crosses the box and the first `inset` of that nub is treated as part of the symbol rather
+/// than as wire. See `autoroute` below, where the two are converted, and `BusWireRoute` for what
+/// it saves: with the wire's end on the box, a symbol's own edge stops it being pulled inside, and
+/// no pass downstream needs a special case for a multiplexer.
 let portInset (symModel: DrawModelType.SymbolT.Model) (portId: PortId) : float =
     match Map.tryFind portId symModel.Ports with
     | None -> 0.
@@ -429,7 +440,34 @@ let portInset (symModel: DrawModelType.SymbolT.Model) (portId: PortId) : float =
             | CommonTypes.Edge.Bottom -> box.TopLeft.Y + box.H - pos.Y
             |> max 0.
 
-/// Returns a newly autorouted version of a wire for the given model
+/// Give back the part of each end nub that a route worked out in box-edge space left out: the
+/// first segment grows away from its port and the last one grows into its port, so each grows in
+/// the direction it already runs. A nub is never zero length, so its sign is always meaningful.
+let extendNubsToPorts (startInset: float) (endInset: float) (segments: Segment list) : Segment list =
+    let grow (inset: float) (seg: Segment) =
+        if inset <= 0. then seg
+        else { seg with Length = seg.Length + float (sign seg.Length) * inset }
+    let last = segments.Length - 1
+    segments
+    |> List.mapi (fun i seg ->
+        if i = 0 then grow startInset seg
+        elif i = last then grow endInset seg
+        else seg)
+
+/// Returns a newly autorouted version of a wire for the given model.
+///
+/// The route is worked out between the points where the two nubs CROSS their symbols' bounding
+/// boxes, and the end nubs are then lengthened to reach the ports themselves. For nearly every
+/// port those are the same point and this does nothing.
+///
+/// Where they are not - a Mux2's SEL sits nine units inside its box - it is what keeps every pass
+/// downstream honest. The alternative, routing from the port and asking routing and separation to
+/// understand that the first nine units of the wire are inside a symbol they are meant to avoid,
+/// was tried: the intersection test needed a multiplexer exemption, separation needed its own, and
+/// the two disagreed about which side of the box edge a segment sitting exactly ON it was - which
+/// is how a wire arriving at a SEL port came to be drawn through the multiplexer. In this frame
+/// the wire's end is ON the box, the room between the two boxes is what `roomForNub` measures, and
+/// a symbol's edge stops its own wires being pulled inside it like anyone else's.
 let autoroute (model: Model) (wire: Wire) : Wire =
     let destPos, startPos =
         Symbol.getTwoPortLocations (model.Symbol) (wire.InputPort) (wire.OutputPort)
@@ -440,8 +478,11 @@ let autoroute (model: Model) (wire: Wire) : Wire =
     let startEdge =
         getOutputPortOrientation model.Symbol wire.OutputPort
 
-    let startPort = genPortInfo startEdge startPos
-    let destPort = genPortInfo destEdge destPos
+    let startInset = portInset model.Symbol (portIdOfOutput wire.OutputPort)
+    let endInset = portInset model.Symbol (portIdOfInput wire.InputPort)
+
+    let startPort = genPortInfo startEdge (startPos + outwardOf startEdge * startInset)
+    let destPort = genPortInfo destEdge (destPos + outwardOf destEdge * endInset)
     
     // Normalise the routing problem to reduce the number of cases in makeInitialSegmentsList
     let normStart, normEnd = 
@@ -449,14 +490,13 @@ let autoroute (model: Model) (wire: Wire) : Wire =
 
     let initialSegments =
         makeInitialSegmentsList wire.WId normStart.Position normEnd.Position normEnd.Edge
-            (portInset model.Symbol (portIdOfOutput wire.OutputPort))
-            (portInset model.Symbol (portIdOfInput wire.InputPort))
 
     let segments =
         {| edge = CommonTypes.Right
            segments = initialSegments |}
         |> rotateSegments startEdge // Rotate the segments back to original orientation
         |> (fun wire -> wire.segments)
+        |> extendNubsToPorts startInset endInset
 
     { wire with
           Segments = segments

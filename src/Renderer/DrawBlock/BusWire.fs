@@ -139,19 +139,13 @@ let inline getWireOutgoingEdge (wire:Wire) =
 /// to the endpoints of a wire, as well as the final port orientation 
 /// this function returns a list of wire vertices.
 /// The starting segment will always be from a Right Edge (and so in increasing X direction)
-/// `startInset` and `endInset` are how far each port lies INSIDE its own symbol's bounding box,
-/// which is what routing and separation both use as the obstacle. A port normally sits on that
-/// box and the inset is zero, leaving the nubs the length they have always been.
 ///
-/// A Mux2's Sel is the case that needs it. The symbol is drawn as a trapezium, so the port is
-/// nine units inside the rectangle - the wire's first turn then lands INSIDE the symbol as far
-/// as the obstacle model is concerned, and separation, which cannot tell that the constraint is
-/// one no wire could satisfy, moves the segment clear by taking it out through the far side.
-/// Running straight until the box is behind us makes the situation not arise; the outline model
-/// itself is left alone, which is the point - a shape that says WHERE it is thin would have to
-/// be understood by routing, separation and every test that measures them.
-let makeInitialWireVerticesList (wireStartPos : XYPos) (wireEndPos : XYPos) (portOrientation : Edge)
-                                (startInset : float) (endInset : float) = 
+/// The two positions are where the wire LEAVES each symbol's bounding box, which for nearly every
+/// port is the port itself. Where it is not - a Mux2's Sel sits nine units inside the box, because
+/// the symbol is drawn as a trapezium and the port is on the sloping side - the caller hands this
+/// the point on the box and lengthens the two end nubs afterwards, so that everything here works
+/// in the space a wire is actually free to use. See BusWireUpdateHelpers.autoroute.
+let makeInitialWireVerticesList (wireStartPos : XYPos) (wireEndPos : XYPos) (portOrientation : Edge) = 
     let xStart, yStart, xEnd, yEnd = wireStartPos.X, wireStartPos.Y, wireEndPos.X, wireEndPos.Y
 
     /// How much of the ordinary nub the space between the ports leaves room for. Close ports get
@@ -163,20 +157,10 @@ let makeInitialWireVerticesList (wireStartPos : XYPos) (wireEndPos : XYPos) (por
         | CommonTypes.Edge.Top
         | CommonTypes.Edge.Bottom when xDelta > 0 -> min nubLength xDelta
         | _ -> nubLength
-    /// The nub at the driving end, and the one at the port this wire ends on.
-    ///
-    /// The inset is a MINIMUM and not an addition, and that distinction is the whole of it. The
-    /// templates below place their detour vertices a nub`s length from the port, so a nub LONGER
-    /// than the ordinary one puts two vertices in the wrong order and the wire doubles back - a
-    /// spike, which autorouting should never draw. A minimum cannot do that: an inset is smaller
-    /// than the nub (nine against ten for a Mux2 SEL), so all this does is stop the shortening
-    /// above taking the nub below the length that gets it clear of its own symbol.
-    ///
-    /// Capped at the ordinary nub for the same reason, in case a symbol ever has a port inset
-    /// further than that: the templates are built around a nub of this length and no more.
-    let startNub, endNub =
-        let atLeast (inset: float) = max roomForNub (min nubLength inset)
-        atLeast startInset, atLeast endInset
+    /// The nub at the driving end, and the one at the port this wire ends on. The templates below
+    /// place their detour vertices a nub's length from the end, so these are what they are built
+    /// around and nothing may make one longer.
+    let startNub, endNub = roomForNub, roomForNub
     /// This is a fixed-length horizontal stick with a zero-length vertical after it.
     /// It starts nearly all the wires
     let rightNub = [
@@ -324,10 +308,8 @@ let makeInitialSegmentsList
         (startPos : XYPos) 
         (endPos : XYPos) 
         (portOrientation : Edge) 
-        (startInset : float) 
-        (endInset : float) 
             : list<Segment> =
-    makeInitialWireVerticesList startPos endPos portOrientation startInset endInset
+    makeInitialWireVerticesList startPos endPos portOrientation
     |> xyVerticesToSegments hostId 
 
 

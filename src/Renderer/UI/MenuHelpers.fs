@@ -1809,7 +1809,7 @@ let deleteFileConfirmationPopup (sheetName: string) (model: Model) (dispatch: Ms
 
 let getHintPaneElement (model:Model) =
     match model.Sheet.Wire.Symbol.HintPane, model.TopMenuOpenState with
-    | _, Files-> [str "Click -> Open Sheet"; br []; str "Left-click -> Rename or Delete"]
+    | _, Files-> [str "Click -> Open Sheet"; br []; str "Right-click -> Rename or Delete"]
     | Some hintStrL, _ ->
         hintStrL
         |> List.map (fun x -> [str x; br []])

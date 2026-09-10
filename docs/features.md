@@ -166,6 +166,8 @@ ISSIE has its own simulator, every few years we rework this for higher performan
 The **Sheet** menu draws the whole project hierarchy as a tree with connector lines, showing which sheet
 contains which, and the same tree appears in the waveform simulator to guide selection of waveforms.
 
+<img src="img/homePage/Hierarchy.png" alt="Issie with Shhet menu showing deisgn hierarchy" loading="lazy" />
+
 **Sheet parameters.** Declare named integer parameters on a sheet — `WIDTH`, `DEPTH` — and use
 arithmetic expressions in them for bus widths, constants, memory sizes and split points. Each place
 the sheet is used gives its own values, so **two instances of one sheet can legitimately differ**,

@@ -103,7 +103,7 @@ N-bit adders, shifters, registers and counters with optional enable/load ports, 
 multiplexers, bus merge/split of up to 19 branches, bus select and compare, net labels, and
 synchronous and asynchronous ROM and RAM.
 
-<img src="img/homePage/catalogue.png" alt="The ISSIE Catalogue pane, its component types grouped into collapsible sections" width="1918" height="1006" loading="lazy" />
+<img src="img/homePage/catalogue.png" alt="The ISSIE Catalogue pane beside a schematic, its component types grouped into collapsible sections above a search box" width="2560" height="1760" loading="lazy" />
 
 ---
 
@@ -166,7 +166,7 @@ ISSIE has its own simulator, every few years we rework this for higher performan
 The **Sheet** menu draws the whole project hierarchy as a tree with connector lines, showing which sheet
 contains which, and the same tree appears in the waveform simulator to guide selection of waveforms.
 
-<img src="img/homePage/Hierarchy.png" alt="Issie with Shhet menu showing deisgn hierarchy" loading="lazy" />
+<img src="img/homePage/hierarchy.png" alt="The Sheet menu open over a schematic, drawing the project's sheets as a tree with connector lines" width="1872" height="1161" loading="lazy" />
 
 **Sheet parameters.** Declare named integer parameters on a sheet — `WIDTH`, `DEPTH` — and use
 arithmetic expressions in them for bus widths, constants, memory sizes and split points. Each place

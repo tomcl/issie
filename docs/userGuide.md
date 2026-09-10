@@ -107,7 +107,7 @@ This section will exploit the features of ISSIE to create clean and good-looking
 - Add a new 1-bit output `RESULT`   
 - Make all necessary connections by dragging as before to achieve a diagram like the one below:
 
-<img src="img/userGuide/features1.png" alt="The four-input design: A and B into an AND gate, C and the AND output into a multiplexer selected by D, and both into an OR gate driving RESULT" width="3100" height="1280" loading="lazy" />
+<img src="img/userGuide/features1.png" alt="The four-input design: A and B into an AND gate, C and the AND output into a multiplexer selected by D, and both into an OR gate driving RESULT" width="1550" height="694" loading="lazy" />
 
 Again, **simulate the design** and check the output remains correct as you change the values of the 4 inputs
 
@@ -174,7 +174,7 @@ In this section we will create a hierarchical design with multiple design sheets
 4. Using 3 `SplitWire` components (`BUSES` => `SplitWire`) separate the 4-bit ROM output to 4 1-bit wires. (see image below)
 5. Make the appropriate connections to achieve the schematic below
 
-<img src="img/userGuide/custom.png" alt="The main sheet: the ADDR input feeding an asynchronous ROM, whose four output bits are split by three SplitWire components into the decoder custom component" width="3112" height="712" loading="lazy" />
+<img src="img/userGuide/custom.png" alt="The main sheet: the ADDR input feeding an asynchronous ROM, whose four output bits are split off one at a time by three SplitWire components into the decoder custom component" width="1554" height="386" loading="lazy" />
 
 ### Improving the design sheet
 
@@ -226,7 +226,7 @@ Add a `Counter` from the Catalogue (`FLIP FLOPS AND REGISTERS`). Now select the 
 
 Edit the previous design to create a schematic like the one below:
 
-<img src="img/userGuide/waveform.png" alt="The clocked version of the design, with a counter driving the ROM address" width="1920" height="1011" loading="lazy" />
+<img src="img/userGuide/waveform.png" alt="The clocked design: a counter drives the ROM address, and the rest of the sheet is unchanged" width="1554" height="390" loading="lazy" />
 
 ### Simulating your design
 
@@ -239,7 +239,7 @@ As soon as you connect everything correctly, you can simulate your design. Click
 - To choose different signals — anything on any sheet of the design, not just the top one — click
   `Select Waves`
 
-<img src="img/userGuide/select1.png" alt="The Select Waves dialog, showing the design hierarchy tree and the available signals" width="1887" height="1323" loading="lazy" />
+<img src="img/userGuide/select1.png" alt="The Select Waves dialog: the design hierarchy on the left, and on the right the components of each sheet with a checkbox against every port" width="2423" height="1170" loading="lazy" />
 
 - Click the `Main` breadcrumb to filter so only main sheet ports are visible.
 
@@ -264,7 +264,7 @@ As soon as you connect everything correctly, you can simulate your design. Click
 - Drag the grey horizontal divider to make the waveform display wider or narrower (you can do this at any time).
 - You can check how these features work on a much larger design with 100,000 clock cycles using the Eratosthenes sieve demo.
 
-<img src="img/userGuide/waveform1.png" alt="The waveform viewer showing the counter, ROM address and RESULT waveforms with the cursor set" width="2029" height="1485" loading="lazy" />
+<img src="img/userGuide/waveform1.png" alt="The waveform viewer showing ten cycles of the counter, the ROM address, the ROM output and the decoder signals, with the cursor on cycle 3" width="975" height="810" loading="lazy" />
 
 ### Finding your way between the waveforms and the schematic
 
@@ -293,7 +293,7 @@ the two joined up:
 Now, keeping the simulation open,  add an extra register between the counter and the ROM address (or make any other change you want) and check that the simulation has the expected output. You can see the changes in the waveform simulator by clicking the `Refresh` button which will be enabled as soon as there is a change in the schematic. 
 
 
-<img src="img/userGuide/waveform2.png" alt="The waveforms after an extra register is added to the design and Refresh is pressed" width="2035" height="1218" loading="lazy" />
+<img src="img/userGuide/waveform2.png" alt="The same waveforms after a register is added between the counter and the ROM: the ROM address now lags the counter by one cycle" width="975" height="810" loading="lazy" />
 
 ## Truth Table
 

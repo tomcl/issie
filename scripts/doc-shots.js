@@ -30,6 +30,15 @@
     - **Fitting.** `zoomToFit` fits the circuit to the window as it is at that moment, so it has
       to be sent after the viewport is set, not before.
 
+    Not every picture is here. select2 - the Select Waves dialog filtered to one sheet by its
+    breadcrumb - is not: the breadcrumb is neither a button nor anything the harness can name, and
+    clicking it by its text hit something else, which produced a picture identical to select1.
+
+    The truth-table ones are not either, and were tried: the right-hand pane
+    is fixed at 650 CSS px - only its divider changes that - and at that width a truth table's
+    column headers are drawn over their own sort arrows, so the result is worse than the picture
+    it would replace. Widening the pane means dragging the divider, which nothing here can do yet.
+
     No dependencies: Node's global fetch and WebSocket are all the DevTools Protocol needs.
 */
 
@@ -40,6 +49,17 @@ const PORT = process.env.ISSIE_DEBUG_PORT || '9222';
 const REPO = path.resolve(__dirname, '..');
 const PROJECTS = path.join(REPO, 'tmp', 'docShots');
 const OUT = path.join(REPO, 'docs', 'img', 'userGuide');
+const HOME = path.join(REPO, 'docs', 'img', 'homePage');
+
+/// For a dialog, which covers the whole window: a wider window lays it out better. 1.5x rather
+/// than 2x because these are dense text UIs and 2x put a single picture over a third of a
+/// megabyte - the documentation is displayed at about 800px, so 1.5x is still more than enough.
+const WIDE = { width: 1700, height: 1000, scale: 1.5 };
+
+/// For the right-hand pane. Its width is fixed at 650px whatever the window does - it is what is
+/// left after the canvas, and only the divider changes it - so widening the window is pointless
+/// here and only the density is turned down.
+const PANE = { width: 1280, height: 880, scale: 1.5 };
 
 // Issie says of itself that its UI degrades below 1150 CSS px and is best above 1250, so the
 // viewport is not made small enough to fix the legibility problem on its own. What fixes it is
@@ -160,7 +180,8 @@ function app(cdp) {
         /// Capture the window, or just the element `clip` names. A clipped shot is what makes the
         /// UI readable once the picture is scaled to page width: the canvas alone is about two
         /// thirds of the window, so its text arrives about half as reduced.
-        async capture(file, clip) {
+        async capture(file, clip, maxHeight, view) {
+            const scale = (view || VIEW).scale;
             const params = { format: 'png' };
             if (clip) {
                 // Every box is clamped to the canvas pane and to the window: #Canvas is a scroll
@@ -187,27 +208,39 @@ function app(cdp) {
                         if (!el) return null;
                         r = el.getBoundingClientRect();
                     }
-                    const limit = pane ? pane.getBoundingClientRect() : null;
-                    const lo = (v, min) => Math.max(v, min);
-                    const hi = (v, max) => Math.min(v, max);
-                    const x = lo(lo(r.left, 0), limit ? limit.left : 0);
-                    const y = lo(lo(r.top, 0), limit ? limit.top : 0);
-                    const right = hi(hi(r.right, window.innerWidth), limit ? limit.right : Infinity);
-                    const bottom = hi(hi(r.bottom, window.innerHeight), limit ? limit.bottom : Infinity);
+                    // The drawn circuit is clamped to the canvas pane as well as to the window,
+                    // since it scrolls under a pane narrower than both. Anything named by a
+                    // selector is clamped only to the window: a dialog covers the whole of it,
+                    // and intersecting that with the canvas pane leaves nothing.
+                    const limit =
+                        ${JSON.stringify(clip)} === 'drawn' && pane
+                            ? pane.getBoundingClientRect()
+                            : { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
+                    const x = Math.max(r.left, limit.left, 0);
+                    const y = Math.max(r.top, limit.top, 0);
+                    const right = Math.min(r.right, limit.right, window.innerWidth);
+                    const bottom = Math.min(r.bottom, limit.bottom, window.innerHeight);
                     return { x, y, width: right - x, height: bottom - y };
                 })()`);
                 if (!box) throw new Error(`nothing matches ${clip} - cannot clip the shot`);
                 if (box.width < 50 || box.height < 50) {
                     throw new Error(`${clip} is not visible - clipped to ${box.width}x${box.height}`);
                 }
-                params.clip = { ...box, scale: VIEW.scale };
+                // A pane can be much taller than the part of it worth showing - the wave viewer
+                // fills the window height whatever is in it - so a shot may cap its own height.
+                if (maxHeight) box.height = Math.min(box.height, maxHeight);
+                // scale 1, NOT the view's: a clip's scale multiplies on top of the
+                // device scale factor the viewport is already rendering at, so passing
+                // the density here again captured everything at its square - 4x for a
+                // schematic, which is where the oversized files came from.
+                params.clip = { ...box, scale: 1 };
             }
             const { data } = await cdp.send('Page.captureScreenshot', params);
             fs.mkdirSync(path.dirname(file), { recursive: true });
             fs.writeFileSync(file, Buffer.from(data, 'base64'));
             const size = clip
-                ? `${Math.round(params.clip.width * VIEW.scale)}x${Math.round(params.clip.height * VIEW.scale)}`
-                : `${VIEW.width * VIEW.scale}x${VIEW.height * VIEW.scale}`;
+                ? `${Math.round(params.clip.width * scale)}x${Math.round(params.clip.height * scale)}`
+                : `${(view || VIEW).width * scale}x${(view || VIEW).height * scale}`;
             return `${path.relative(REPO, file)}  ${size}`;
         }
     };
@@ -247,6 +280,49 @@ const openMain = (project) => async (a) => {
     await openSheet(a, 'main');
 };
 
+/// Open a project's top sheet and get its waveform simulation running with the three signals the
+/// tutorial asks for showing. Waves are chosen by the label of the component they come from, so
+/// this says what it means rather than indexing into a list whose order falls out of the design.
+const waveSim = async (a, project) => {
+    await openMain(project)(a);
+    await a.send('rightTab', 'Simulation');
+    await a.send('simSubTab', 'WaveSim');
+    await a.send('startWaveSim');
+    // A design that will not simulate leaves the viewer with nothing to draw, and the shot would
+    // silently be of an error popup. Fail here instead, with the reason.
+    await a.wait(`waves.state === 'Success'`, 60).catch(async () => {
+        const w = await a.evaluate('JSON.stringify(window.issieDev.waveState())');
+        throw new Error(`the wave simulation of ${project} did not start: ` + w);
+    });
+    await a.send('waveSelect', 'CNT1,AROM1,DECODER1');
+    // Ten cycles rather than the four that fit by default, so the ROM's contents can be seen
+    // changing, and the cursor a little way in so the value column is showing a real reading.
+    await a.send('waveView', '0 10');
+    await a.send('waveCursor', '3');
+    await a.wait(`waves.missing === 0 && !waves.fetchInProgress`, 90);
+    await a.settle();
+};
+
+/// The truth table of the decoder, which is what both truth-table pictures are of: the tutorial
+/// selects the DECODER1 instance and asks for a table of the selected logic.
+const truthTableOfDecoder = async (a) => {
+    await openMain('tutorial')(a);
+    await a.send('rightTab', 'Simulation');
+    await a.send('simSubTab', 'TruthTable');
+    await a.send('select', 'DECODER1');
+    await a.send('truthTable');
+    await a.wait(`state.truthTableOpen`, 30);
+    await a.settle();
+};
+
+/// The right-hand pane: the wave viewer, the truth table, whichever tab is showing.
+const RIGHT_PANE = '#RightSection';
+
+/// One dialog. Bulma's modal card, scoped to the ACTIVE modal: the wave simulator renders its
+/// three dialogs all the time and shows one, so an unscoped .modal-card finds a hidden one and
+/// the shot clips to nothing.
+const MODAL = '.modal.is-active .modal-card';
+
 /// Clip to what is actually drawn on the sheet rather than to the canvas pane. A circuit is
 /// usually much wider than it is tall, so fitting it to a tall pane leaves most of the picture
 /// empty - and the empty part is what pushes the interesting part down to an unreadable size once
@@ -280,41 +356,50 @@ const SHOTS = [
     },
     {
         name: 'select1',
+        view: WIDE,
+        clipHeight: 780,
         file: 'select1.png',
+        clip: MODAL,
         what: 'the Select Waves dialog, showing the design hierarchy',
         run: async (a) => {
-            await openMain('tutorialClocked')(a);
-            await a.send('rightTab', 'Simulation');
-            await a.send('simSubTab', 'WaveSim');
-            await a.send('startWaveSim');
-            await a.wait(`waves.open_`, 60);
-            await a.clickText('Select Waves');
+            await waveSim(a, 'tutorialClocked');
+            await a.send('waveModal', 'on');
             await a.settle();
         }
     },
     {
         name: 'waveform1',
+        view: PANE,
         file: 'waveform1.png',
-        what: 'the waveform viewer showing the counter, ROM address and RESULT',
+        clip: RIGHT_PANE,
+        clipHeight: 540,
+        what: 'the waveform viewer showing the counter, the ROM address and the decoder output',
         run: async (a) => {
-            await openMain('tutorialClocked')(a);
-            await a.send('rightTab', 'Simulation');
-            await a.send('simSubTab', 'WaveSim');
-            await a.send('startWaveSim');
-            // A design that will not simulate leaves the viewer with nothing to draw and the
-            // shot silently shows an error popup, so fail here instead, with the reason.
-            await a.wait(`waves.state === 'Success'`, 60).catch(async () => {
-                const w = await a.evaluate('JSON.stringify(window.issieDev.waveState())');
-                throw new Error('the wave simulation did not start: ' + w);
-            });
-            // Nothing is shown until waves are chosen. These are the three the tutorial asks
-            // for: the counter, the ROM address and RESULT.
-            for (const n of ['0', '1', '2']) await a.send('waveSelect', n);
-            await a.wait(`waves.missing === 0 && !waves.fetchInProgress`, 90);
-            await a.send('waveCursor', '5');
-            await a.settle();
+            await waveSim(a, 'tutorialClocked');
         }
-    }
+    },
+    {
+        name: 'waveform2',
+        view: PANE,
+        file: 'waveform2.png',
+        clip: RIGHT_PANE,
+        clipHeight: 540,
+        what: 'the same waveforms after a register is added between the counter and the ROM',
+        run: async (a) => {
+            await waveSim(a, 'tutorialClockedReg');
+        }
+    },
+    // ---- pictures on the features page, which live in a different folder ----
+    {
+        name: 'catalogue',
+        file: 'catalogue.png',
+        dir: 'homePage',
+        what: 'the Catalogue pane beside a schematic',
+        run: async (a) => {
+            await openProject(a, 'showcase');
+            await openSheet(a, 'sequencer');
+        }
+    },
 ];
 
 // ---------------------------------------------------------------- main
@@ -344,16 +429,31 @@ const SHOTS = [
             throw new Error('window.issieDev is not published - Issie must be a debug build,'
                             + ' started with: npm run app -- -d');
         }
-        await cdp.send('Emulation.setDeviceMetricsOverride', {
-            width: VIEW.width, height: VIEW.height, deviceScaleFactor: VIEW.scale, mobile: false
-        });
-        await a.settle();
+        const setView = async (view) => {
+            await cdp.send('Emulation.setDeviceMetricsOverride', {
+                width: view.width, height: view.height,
+                deviceScaleFactor: view.scale, mobile: false
+            });
+            await a.settle();
+        };
+        await setView(VIEW);
         // Issie warns about its window size on startup, and the warning sits over everything.
         await a.clickText('Continue').catch(() => {});
         for (const shot of chosen) {
+            // Every shot runs against the same application, so each starts from a known state:
+            // without this, a shot that opens a dialog left it open over the next one's picture.
+            // A shot may ask for a wider window: the right-hand pane is what is left after the
+            // canvas, so at the default 1280 it is 650px - below the 1150 Issie says its own UI
+            // degrades at, and a truth table's column headers collide there.
+            await setView(shot.view || VIEW);
+            await a.send('waveModal', 'off');
+            await a.send('ramModal', 'off');
+            await a.send('select', '');
+            await a.settle();
             await shot.run(a);
             await a.settle();
-            console.log('wrote ' + await a.capture(path.join(OUT, shot.file), shot.clip));
+            const dir = shot.dir === 'homePage' ? HOME : OUT;
+            console.log('wrote ' + await a.capture(path.join(dir, shot.file), shot.clip, shot.clipHeight, shot.view));
         }
     } finally {
         // An override left in place would affect whatever is done in this window next.

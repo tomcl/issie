@@ -133,13 +133,81 @@ let mainClocked =
         "DECODER1/RESULT" ==> "RESULT"
     ] @ splitConns)
 
+/// The clocked sheet with a register between the counter and the ROM - the change the tutorial
+/// asks the reader to make while the waveform simulation is open, so that Refresh has something
+/// to show.
+let mainClockedWithRegister =
+    describeSheet "main" ([
+        comp "CNT1" (CounterNoEnableLoad 4)
+        comp "REG1" (Register 4)
+        comp "AROM1" (AsyncROM1 rom)
+    ] @ splitChain @ [
+        comp "DECODER1" decoderInstance
+        comp "RESULT" (Output 1)
+    ]) ([
+        "CNT1" ==> "REG1"
+        "REG1" ==> "AROM1/ADDR"
+        "DECODER1/RESULT" ==> "RESULT"
+    ] @ splitConns)
+
+// ---------------------------------------------------------------------------------------------
+// The features page: a design with a program memory, which is what its Catalogue and memory
+// editor pictures are of. The memory is initialised from a .ram file so that the editor has
+// comments to show against the locations - which is the point of that picture.
+// ---------------------------------------------------------------------------------------------
+
+let programRam = """0 3a // load the count into the accumulator
+1 1b // add the constant below
+2 07 // constant: 7
+3 4c // store the accumulator
+4 22 // jump if zero
+5 00 // (target, filled in by the assembler)
+6 5f // halt
+7 00
+"""
+
+let program: Memory1 =
+    { Init = FromFile "program"; AddressWidth = 3; WordWidth = 8; Data = Map.empty; Comments = None }
+
+let showcase =
+    describeSheet "sequencer" [
+        comp "PC" (CounterNoEnableLoad 3)
+        comp "PROG" (AsyncROM1 program)
+        comp "SPLIT" (SplitN(2, [ 4; 4 ], [ 0; 4 ]))
+        comp "IR" (Register 4)
+        comp "OPCODE" (Output 4)
+        comp "OPERAND" (Output 4)
+    ] [
+        "PC" ==> "PROG/ADDR"
+        "PROG/DOUT" ==> "SPLIT"
+        "SPLIT/0" ==> "IR"
+        "IR" ==> "OPERAND"
+        "SPLIT/1" ==> "OPCODE"
+    ]
+
 let report name result =
     match result with
     | Ok () -> printfn "wrote %s" name
     | Error (msg: string) -> printfn "FAILED %s: %s" name msg; exit 1
 
-SheetLayout.saveProject (Path.Combine(outRoot, "tutorial")) [ decoder; mainCombinational ]
-|> report "tutorial"
+/// Write a project only if it is not already there, unless --force is given.
+///
+/// These are laid out by hand after they are generated - the bisection layout is good enough for
+/// a test and not for a picture - so regenerating over the top of one would throw that away. The
+/// generator records what the design IS; the file on disk records what it LOOKS like.
+let force = fsi.CommandLineArgs |> Array.contains "--force"
 
-SheetLayout.saveProject (Path.Combine(outRoot, "tutorialClocked")) [ decoder; mainClocked ]
-|> report "tutorialClocked"
+let writeProject name sheets extraFiles =
+    let dir = Path.Combine(outRoot, name)
+    if Directory.Exists dir && not force then
+        printfn "kept   %s (already laid out - pass --force to overwrite)" name
+    else
+        SheetLayout.saveProject dir sheets |> report name
+        for (file: string, contents: string) in extraFiles do
+            File.WriteAllText(Path.Combine(dir, file), contents)
+            printfn "       + %s" file
+
+writeProject "tutorial" [ decoder; mainCombinational ] []
+writeProject "tutorialClocked" [ decoder; mainClocked ] []
+writeProject "tutorialClockedReg" [ decoder; mainClockedWithRegister ] []
+writeProject "showcase" [ showcase ] [ "program.ram", programRam ]

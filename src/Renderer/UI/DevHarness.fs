@@ -562,24 +562,97 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
       // against whichever it is. It used to read the local build's wave index, which a renderer
       // whose simulator is in another process does not have.
       fun arg _ dispatch ->
-          match System.Int32.TryParse arg with
-          | false, _ -> $"waveSelect needs a number, not '{arg}'"
-          | true, n ->
-              let design = (Simulator.getFastSim ()).Design
+          let design = (Simulator.getFastSim ()).Design
 
-              let rec instances (InstancePath ap as inst) sheet =
-                  inst
-                  :: (design.SubSheetsOf sheet
-                      |> List.collect (fun (cid, child) -> instances (InstancePath(cid :: ap)) child))
+          let rec instances (InstancePath ap as inst) sheet =
+              inst
+              :: (design.SubSheetsOf sheet
+                  |> List.collect (fun (cid, child) -> instances (InstancePath(cid :: ap)) child))
 
-              let waves =
-                  instances (InstancePath []) design.DesignTopSheet
-                  |> List.collect (PortView.waveIndicesOfDesign design)
-                  |> List.truncate n
+          let all =
+              instances (InstancePath []) design.DesignTopSheet
+              |> List.collect (PortView.waveIndicesOfDesign design)
 
-              dispatch (UpdateWSModel(fun ws -> { ws with SelectedWaves = waves }))
-              dispatch GenerateCurrentWaveforms
-              $"selected {List.length waves} waves"
+          // The label of the component a wave comes from. Waves are enumerated from the design
+          // rather than from a built simulation, so the resolved Wave record - and its
+          // ViewerDisplayName - does not exist yet; the label is read back out of the design the
+          // same way.
+          let labelOf (wave: WaveIndexT) =
+              let cid, ap = wave.Id
+              let sheet = design.SheetOfInstance(InstancePath ap)
+              design.DesignSheets
+              |> List.tryFind (fun ldc -> ldc.Name = sheet)
+              |> Option.bind (fun ldc -> fst ldc.CanvasState |> List.tryFind (fun c -> c.Id = cid))
+              |> Option.map (fun c -> c.Label)
+              |> Option.defaultValue ""
+
+          // A count picks the first n, which is what this always did. Labels pick every wave of
+          // the components named: an index into a list whose order falls out of the design is not
+          // something a script - or a screenshot - can be written against, and getting it wrong
+          // shows up as a picture of the wrong signals rather than as an error.
+          let chosen, missing =
+              match System.Int32.TryParse arg with
+              | true, n -> List.truncate n all, []
+              | false, _ ->
+                  let wanted =
+                      arg.Split(',') |> Array.map (fun s -> s.Trim().ToUpper()) |> Array.filter ((<>) "")
+                  let hit (name: string) = all |> List.filter (fun w -> (labelOf w).ToUpper() = name)
+                  let found = wanted |> Array.toList |> List.map (fun n -> n, hit n)
+                  found |> List.collect snd,
+                  found |> List.choose (fun (n, ws) -> if ws.IsEmpty then Some n else None)
+
+          dispatch (UpdateWSModel(fun ws -> { ws with SelectedWaves = chosen }))
+          dispatch GenerateCurrentWaveforms
+
+          match missing with
+          | [] -> $"selected {List.length chosen} waves"
+          | _ ->
+              let have = all |> List.map labelOf |> List.distinct |> String.concat ", "
+              $"""selected {List.length chosen}; nothing labelled {String.concat ", " missing}. """
+              + $"This design has: {have}"
+
+      "waveModal",
+      // "on" | "off" - open or close the Select Waves dialog, which has no other way in from
+      // here: it is opened by a button, and a screenshot of it is one of the things the
+      // documentation needs.
+      fun arg _ dispatch ->
+          let opening = arg.Trim().ToLower() <> "off"
+          dispatch (UpdateWSModel(fun ws -> { ws with WaveModalActive = opening }))
+          if opening then "Select Waves dialog opened" else "Select Waves dialog closed"
+
+      "ramModal",
+      // "on" | "off" - the same for the Select RAM dialog.
+      fun arg _ dispatch ->
+          let opening = arg.Trim().ToLower() <> "off"
+          dispatch (UpdateWSModel(fun ws -> { ws with RamModalActive = opening }))
+          if opening then "Select RAM dialog opened" else "Select RAM dialog closed"
+
+      "truthTable",
+      // Generate a truth table from the canvas as it is now - the whole sheet, or, if anything is
+      // selected, just the selected components, which is what the two buttons in the Truth Table
+      // tab do. `select` first for the second of those.
+      fun _ model dispatch ->
+          let ttDispatch (msg: TTMsg) = dispatch (TruthTableMsg msg)
+          // The two buttons the tab offers build their simulation differently: the whole sheet
+          // straight from the canvas, and the selection through makeSimDataSelected, which is
+          // what treats the wires leaving the selection as its inputs and outputs. Using the
+          // whole-sheet path on a selection reports its dangling inputs as an error instead.
+          let scope, result =
+              match model.Sheet.GetSelectedCanvasState with
+              | [], [] ->
+                  let canvasState = model.Sheet.GetCanvasState()
+                  "the whole sheet",
+                  Some(ModelHelpers.simulateModel true false None 2 canvasState model)
+              | _ -> "the selection", TruthTableView.makeSimDataSelected model
+          match result with
+          | None -> "nothing to make a truth table from"
+          | Some(Error simError, _ as res) ->
+              SimulationView.setSimErrorFeedback simError model dispatch
+              ttDispatch (GenerateTruthTable(Some res))
+              $"truth table for {scope} failed: {simError.ErrType}"
+          | Some(Ok _, _ as res) ->
+              ttDispatch (GenerateTruthTable(Some res))
+              $"truth table generated for {scope}"
 
       "waveView",
       // "<startCycle> [shownCycles] [samplingZoom]" - move the window, as scrolling and zooming do.
@@ -676,6 +749,101 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
           dispatch (Sheet(SheetT.KeyPress SheetT.KeyboardMsg.CtrlA))
           dispatch (Sheet(SheetT.KeyPress SheetT.KeyboardMsg.CtrlC))
           "selected all and copied"
+
+      "select",
+      // "<label>[,<label>...]" - select components by the label drawn on them, or by bare
+      // ComponentId integers, or "" for nothing. Labels rather than ids are the useful form: a
+      // label is what the schematic shows and what a script can be written against, while an id
+      // is allocated densely from 1 by the id allocator and means nothing to a reader.
+      //
+      // Selection is what nearly every editing action reads, so this is what makes `action`
+      // useful: select, then rotate.
+      fun arg model dispatch ->
+          let wanted =
+              arg.Split(',') |> Array.map (fun s -> s.Trim()) |> Array.filter (fun s -> s <> "")
+          let symbols = model.Sheet.Wire.Symbol.Symbols
+          let byLabel =
+              symbols
+              |> Map.toList
+              |> List.map (fun (id, sym) -> sym.Component.Label.ToUpper(), id)
+              |> Map.ofList
+          let resolve (name: string) =
+              match Map.tryFind (name.ToUpper()) byLabel with
+              | Some id -> Ok id
+              | None ->
+                  match System.Int32.TryParse name with
+                  | true, n when Map.containsKey (ComponentId n) symbols -> Ok(ComponentId n)
+                  | _ -> Error name
+          let found, missing =
+              wanted |> Array.toList |> List.map resolve |> List.partition Result.isOk
+          let ids = found |> List.choose (function Ok id -> Some id | Error _ -> None)
+          dispatch (Sheet(SheetT.SelectComponents ids))
+          match missing with
+          | [] -> $"selected {List.length ids}: {arg}"
+          | _ ->
+              let names = missing |> List.choose (function Error n -> Some n | Ok _ -> None)
+              let have = byLabel |> Map.toList |> List.map fst |> String.concat ", "
+              $"""no component labelled {String.concat ", " names} - this sheet has: {have}"""
+
+      "action",
+      // "<ShortcutId>" - do what a keyboard shortcut does, by its name in KeyTypes.ShortcutId:
+      // ScRotateClockwise, ScFlipVertical, ScAlign, ScDistribute, ScDelete, ScUndo, ScToggleGrid,
+      // ScWireTypeRadiussed, and the rest. "action" with no argument lists them.
+      //
+      // Routed through KeyBindings.actionOf, which is the table the key dispatcher itself reads
+      // and has no wildcard case - so every shortcut Issie has is drivable from here, and one
+      // added later is drivable without touching this file. That is also why this is one command
+      // rather than a row per action: the set is not ours to keep in step.
+      //
+      // Most of these act on the selection. Use "select" first.
+      fun arg _ dispatch ->
+          let named =
+              KeyTypes.shortcuts
+              |> List.map (fun spec -> $"%A{spec.Id}", spec.Id)
+              |> List.distinctBy fst
+          if arg = "" then
+              named |> List.map fst |> List.sort |> String.concat " "
+          else
+              match named |> List.tryFind (fun (name, _) -> name.ToUpper() = arg.Trim().ToUpper()) with
+              | None ->
+                  let near =
+                      named
+                      |> List.map fst
+                      |> List.filter (fun n -> n.ToUpper().Contains(arg.Trim().ToUpper()))
+                  match near with
+                  | [] -> $"no shortcut called '{arg}' - send 'action' with no argument for the list"
+                  | _ -> $"""no shortcut called '{arg}' - did you mean {String.concat ", " near}?"""
+              | Some(name, id) ->
+                  KeyBindings.actionOf id dispatch
+                  $"did {name}"
+
+      "move",
+      // "<label>[,<label>...] <dx> <dy>" - move components by a displacement in diagram units,
+      // which is what the grid Issie snaps to is measured in. Wires reroute as they do for a drag.
+      fun arg model dispatch ->
+          let parts = arg.Split(' ') |> Array.filter (fun s -> s <> "")
+          if parts.Length < 3 then
+              "move needs '<label>[,<label>...] <dx> <dy>'"
+          else
+              let symbols = model.Sheet.Wire.Symbol.Symbols
+              let byLabel =
+                  symbols
+                  |> Map.toList
+                  |> List.map (fun (id, sym) -> sym.Component.Label.ToUpper(), id)
+                  |> Map.ofList
+              let ids =
+                  parts[0].Split(',')
+                  |> Array.toList
+                  |> List.choose (fun n -> Map.tryFind (n.Trim().ToUpper()) byLabel)
+              match System.Double.TryParse parts[1], System.Double.TryParse parts[2] with
+              | (false, _), _
+              | _, (false, _) -> $"move needs two numbers, not '{parts[1]}' and '{parts[2]}'"
+              | (true, dx), (true, dy) when not ids.IsEmpty ->
+                  dispatch (Sheet(SheetT.Msg.Wire(BusWireT.Msg.Symbol(
+                                SymbolT.MoveSymbols(ids, { X = dx; Y = dy })))))
+                  dispatch (Sheet(SheetT.UpdateBoundingBoxes))
+                  $"moved {List.length ids} by ({dx}, {dy})"
+              | _ -> $"no component labelled {parts[0]}"
 
       "zoomToFit",
       // What Ctrl-0 sends - the most-pressed key in Issie, and the one a screenshot of a sheet

@@ -632,6 +632,10 @@ module SheetT =
         | ResetSelection
         | ToggleNet of CanvasState //This message does nothing in sheet, but will be picked up by the update function
         | SelectWires of ConnectionId list
+        /// Select exactly these components, as clicking them one by one with Shift held would.
+        /// The sheet's own selection, not SymbolT.SelectSymbols, which only paints them: Rotate,
+        /// Flip, Arrangement and the delete key all read SelectedComponents.
+        | SelectComponents of ComponentId list
         | SetSpinner of bool
         | Rotate of Rotation
         | Flip of SymbolT.FlipType

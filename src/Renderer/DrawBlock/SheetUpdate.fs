@@ -235,6 +235,16 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         } , Cmd.batch [ symbolCmd (SymbolT.SelectSymbols symbols)
                         wireCmd (BusWireT.SelectWires wires) ]
 
+    | SelectComponents ids ->
+        // Ignore ids that are not on this sheet rather than carrying them in the selection, where
+        // they would be acted on by the next Rotate or Delete.
+        let known = ids |> List.filter (fun id -> Map.containsKey id model.Wire.Symbol.Symbols)
+        { model with
+            SelectedComponents = known
+            SelectedWires = []
+        }, Cmd.batch [ symbolCmd (SymbolT.SelectSymbols known)
+                       wireCmd (BusWireT.SelectWires []) ]
+
     | KeyPress CtrlW ->
         // The window to fit to is not draw block state - a pinned Sheet menu covers part of the
         // canvas, and only the Issie model knows it is pinned - so it is worked out here, where

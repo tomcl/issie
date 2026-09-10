@@ -819,7 +819,8 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
 
       "move",
       // "<label>[,<label>...] <dx> <dy>" - move components by a displacement in diagram units,
-      // which is what the grid Issie snaps to is measured in. Wires reroute as they do for a drag.
+      // which is what the grid Issie snaps to is measured in. Wires are re-routed and the sheet
+      // separated, as they are when a drag ends.
       fun arg model dispatch ->
           let parts = arg.Split(' ') |> Array.filter (fun s -> s <> "")
           if parts.Length < 3 then
@@ -839,9 +840,21 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
               | (false, _), _
               | _, (false, _) -> $"move needs two numbers, not '{parts[1]}' and '{parts[2]}'"
               | (true, dx), (true, dy) when not ids.IsEmpty ->
-                  dispatch (Sheet(SheetT.Msg.Wire(BusWireT.Msg.Symbol(
-                                SymbolT.MoveSymbols(ids, { X = dx; Y = dy })))))
+                  let delta = { X = dx; Y = dy }
+                  // Everything a drag of these symbols sends, in the order it sends it: while the
+                  // mouse is down the symbols move and their wires follow, and the mouse-up
+                  // re-routes every floating wire and separates the whole sheet
+                  // (SheetUpdateHelpers' MovingSymbols cases). Both halves are needed - the
+                  // mouse-up leaves hand-routed wires alone, so a wire the user pinned follows its
+                  // symbol only because UpdateWires moved it first.
+                  //
+                  // This used to send the move alone, which left the symbols somewhere their wires
+                  // knew nothing about: a state no gesture can produce, and one in which a change
+                  // to routing looks from out here as though it did nothing at all.
+                  dispatch (Sheet(SheetT.Msg.Wire(BusWireT.Msg.Symbol(SymbolT.MoveSymbols(ids, delta)))))
                   dispatch (Sheet(SheetT.UpdateBoundingBoxes))
+                  dispatch (Sheet(SheetT.Msg.Wire(BusWireT.UpdateWires(ids, delta))))
+                  dispatch (Sheet(SheetT.Msg.Wire(BusWireT.RerouteAllFloatingWires)))
                   $"moved {List.length ids} by ({dx}, {dy})"
               | _ -> $"no component labelled {parts[0]}"
 

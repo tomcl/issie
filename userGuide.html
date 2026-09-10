@@ -602,7 +602,7 @@ Delete the output <code>OUT</code>
 <li>Add a new 1-bit output <code>RESULT</code></li>
 <li>Make all necessary connections by dragging as before to achieve a diagram like the one below:</li>
 </ul>
-<img src="img/userGuide/features1.png" alt="The four-input design: A and B into an AND gate, C and the AND output into a multiplexer selected by D, and both into an OR gate driving RESULT" width="3100" height="1280" loading="lazy" />
+<img src="img/userGuide/features1.png" alt="The four-input design: A and B into an AND gate, C and the AND output into a multiplexer selected by D, and both into an OR gate driving RESULT" width="1550" height="694" loading="lazy" />
 <p>Again, <strong>simulate the design</strong> and check the output remains correct as you change the values of the 4 inputs</p>
 <h3><a name="Improving-the-look-of-a-schematic" class="anchor" href="#Improving-the-look-of-a-schematic">Improving the look of a schematic</a></h3>
 <p>The schematic here is not easy to read. <strong>Let's improve it!</strong> The ISSIE canvas is fully customisable to allow the creation of readable and good-looking schematics. Specifically, we can:</p>
@@ -660,7 +660,7 @@ Add to the main sheet:
 <li>Using 3 <code>SplitWire</code> components (<code>BUSES</code> =&gt; <code>SplitWire</code>) separate the 4-bit ROM output to 4 1-bit wires. (see image below)</li>
 <li>Make the appropriate connections to achieve the schematic below</li>
 </ol>
-<img src="img/userGuide/custom.png" alt="The main sheet: the ADDR input feeding an asynchronous ROM, whose four output bits are split by three SplitWire components into the decoder custom component" width="3112" height="712" loading="lazy" />
+<img src="img/userGuide/custom.png" alt="The main sheet: the ADDR input feeding an asynchronous ROM, whose four output bits are split off one at a time by three SplitWire components into the decoder custom component" width="1554" height="386" loading="lazy" />
 <h3><a name="Improving-the-design-sheet" class="anchor" href="#Improving-the-design-sheet">Improving the design sheet</a></h3>
 <p>It's time to <strong>move ports on custom symbols</strong>. ISSIE allows you to re-order and change the side of
 input and output ports of custom symbols by <code>CTRL</code> + <code>CLICKING ON THE PORT</code> you want to move — hold
@@ -693,7 +693,7 @@ name, and it works for wires inside subsheets too.</p>
 <p>Let's now modify our previous design to make it <strong>clocked</strong> (sequential). We replace the <code>ADDR</code> input with a counter, so that the address increments every clock cycle. Using the waveform simulator we will be able to view the output of our circuit for all memory locations. In order to create such designs easily, ISSIE offers a <code>Counter</code> component which, starting from 0, increments by one every clock cycle. Note that counters also have options, under properties, to add <code>Load</code> or <code>Enable</code> inputs.</p>
 <p>Add a <code>Counter</code> from the Catalogue (<code>FLIP FLOPS AND REGISTERS</code>). Now select the component and click on <code>Properties</code>. In properties remove the <code>load</code> and <code>enable</code> ports and give them the default functionality (which is what we want in this case): enable=1; load=0;</p>
 <p>Edit the previous design to create a schematic like the one below:</p>
-<img src="img/userGuide/waveform.png" alt="The clocked version of the design, with a counter driving the ROM address" width="1920" height="1011" loading="lazy" />
+<img src="img/userGuide/waveform.png" alt="The clocked design: a counter drives the ROM address, and the rest of the sheet is unchanged" width="1554" height="390" loading="lazy" />
 <h3><a name="Simulating-your-design" class="anchor" href="#Simulating-your-design">Simulating your design</a></h3>
 <p>As soon as you connect everything correctly, you can simulate your design. Click on <code>Simulations</code> and then <code>Wave Simulation</code>.</p>
 <ul>
@@ -706,7 +706,7 @@ To choose different signals — anything on any sheet of the design, not just th
 <code>Select Waves</code>
 </li>
 </ul>
-<img src="img/userGuide/select1.png" alt="The Select Waves dialog, showing the design hierarchy tree and the available signals" width="1887" height="1323" loading="lazy" />
+<img src="img/userGuide/select1.png" alt="The Select Waves dialog: the design hierarchy on the left, and on the right the components of each sheet with a checkbox against every port" width="2423" height="1170" loading="lazy" />
 <ul>
 <li>Click the <code>Main</code> breadcrumb to filter so only main sheet ports are visible.</li>
 </ul>
@@ -741,7 +741,7 @@ the simulation extends itself further in time.
 <li>Drag the grey horizontal divider to make the waveform display wider or narrower (you can do this at any time).</li>
 <li>You can check how these features work on a much larger design with 100,000 clock cycles using the Eratosthenes sieve demo.</li>
 </ul>
-<img src="img/userGuide/waveform1.png" alt="The waveform viewer showing the counter, ROM address and RESULT waveforms with the cursor set" width="2029" height="1485" loading="lazy" />
+<img src="img/userGuide/waveform1.png" alt="The waveform viewer showing ten cycles of the counter, the ROM address, the ROM output and the decoder signals, with the cursor on cycle 3" width="975" height="810" loading="lazy" />
 <h3><a name="Finding-your-way-between-the-waveforms-and-the-schematic" class="anchor" href="#Finding-your-way-between-the-waveforms-and-the-schematic">Finding your way between the waveforms and the schematic</a></h3>
 <p>A waveform is not much use if you cannot tell which part of the design it came from. ISSIE keeps
 the two joined up:</p>
@@ -773,7 +773,7 @@ the simulation may run to, with a live estimate of the memory that will need to 
 </ul>
 <h3><a name="Changing-your-design" class="anchor" href="#Changing-your-design">Changing your design</a></h3>
 <p>Now, keeping the simulation open,  add an extra register between the counter and the ROM address (or make any other change you want) and check that the simulation has the expected output. You can see the changes in the waveform simulator by clicking the <code>Refresh</code> button which will be enabled as soon as there is a change in the schematic.</p>
-<img src="img/userGuide/waveform2.png" alt="The waveforms after an extra register is added to the design and Refresh is pressed" width="2035" height="1218" loading="lazy" />
+<img src="img/userGuide/waveform2.png" alt="The same waveforms after a register is added between the counter and the ROM: the ROM address now lags the counter by one cycle" width="975" height="810" loading="lazy" />
 <h2><a name="Truth-Table" class="anchor" href="#Truth-Table">Truth Table</a></h2>
 <p>One of ISSIE's features is the ability to view the truth table for a small combinational circuit.</p>
 <ul>

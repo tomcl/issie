@@ -209,8 +209,8 @@ Electron bundles Chromium (View) and node.js (Engine), therefore as in every nod
 
 Its `"scripts"` section defines the in-project shortcuts, so `npm run <key>` runs the command
 against that key. The ones worth knowing are listed under
-[Day-to-day development](#day-to-day-development) above; `npm run` with no arguments prints them
-all.
+[Day-to-day development](#day-to-day-development) above; `npm run help` describes every one of
+them, grouped by when you would use it.
 
 Some of those names are npm's own hooks rather than things you invoke: `predist` runs
 automatically before `dist`, and `preversion`, `version` and `postversion` are the three hooks npm

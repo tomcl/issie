@@ -14,6 +14,7 @@
     "url": "https://github.com/tomcl/issie.git"
   },
   "scripts": {
+    "help": "node scripts/help.js",
     "clean-dev": "node scripts/clean-dev.js",
     "clean-dev-mac": "node scripts/clean-dev.js",
     "clean-dev-win": "node scripts/clean-dev.js",

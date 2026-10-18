@@ -19,6 +19,7 @@ const path = require('path');
 const { reportRefreshStaleOutput } = require('./refresh-stale-output');
 const { outDirOf, outPathOf } = require('./fable-output');
 const { ensureRestored } = require('./fable-restore');
+const { dropStaleCrackCaches } = require('./fable-cache');
 const { freeOrphanedWatchers, recordWatchers, forgetWatchers } = require('./free-watchers');
 
 const root = path.join(__dirname, '..');
@@ -98,6 +99,9 @@ freeOrphanedWatchers();
 // effect of cracking their project: started together they race to write src/Shared's
 // project.assets.json and one of them aborts. See scripts/fable-restore.js.
 ensureRestored();
+
+// A cached crack naming assemblies an SDK update removed hangs Fable silently. See fable-cache.js.
+dropStaleCrackCaches();
 
 for (const p of projects) {
   const args = ['fable'];

@@ -164,7 +164,13 @@ let rec refreshWaveSim (newSimulation: bool) (model: Model): Model * Elmish.Cmd<
                 model
             { model with RunAfterRenderWithSpinner = Some <| Option.defaultValue {FnToRun=focusCurrClk1;ButtonSpinnerOn=false} model.RunAfterRenderWithSpinner }
 
-           
+    // A viewer that is not running has nothing to refresh. Refreshes reach here regardless - the
+    // end of a divider drag sends one whatever the right pane shows - and the simulation slot may
+    // meanwhile hold nothing, or a step simulation's build, which is not this viewer's to read.
+    // Proceeding reported "no simulation to draw from" as an error while the viewer was correctly
+    // showing its Start button.
+    if not (waveSimIsActive model (getWSModel model)) then model, Elmish.Cmd.none else
+
     // The refresh works on the wave sim state as it IS. Taking it as a parameter is what let a
     // dispatch made from a render inject a snapshot here, which the end of this function then
     // wrote back over everything dispatched since - the viewer oscillated between two pasts.

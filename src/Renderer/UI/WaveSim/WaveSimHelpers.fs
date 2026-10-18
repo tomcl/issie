@@ -222,6 +222,12 @@ type WaveSimButtonOptions = {
 let endButtonAction canvasState model dispatch ev =
     dispatch <| EndWaveSim
 
+/// Whether the waveform viewer has a simulation, running or being started: what the Start button
+/// turns on and the End button turns off. Starting sets Loading before its first refresh.
+let waveSimIsActive (model: Model) (ws: WaveSimModel) =
+    let simExists = model.WaveSimSheet <> Some "" && model.WaveSimSheet <> None
+    simExists && (ws.State = Success || ws.State = Loading)
+
 /// Return info about current state of waveform simulator
 /// which is used to switch buttons on/off etc.
 ///

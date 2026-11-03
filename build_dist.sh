@@ -97,6 +97,11 @@ for target in $build_targets; do
   os=$(echo -n "${target}" | cut -d':' -f1)
   arch=$(echo -n "${target}" | cut -d':' -f2)
   filetype=$(echo -n "${target}" | cut -d':' -f3)
+
+  # npm ci installs native USB bindings for the build host, which may not match this target.
+  if [[ "$os" == linux || "$os" == win ]]; then
+    node scripts/prepare-usb-binding.js "$os" "$arch"
+  fi
   
   # TODO: This is a hack, this relies on `electron-builder` being the last
   # command in the package.json `dist` script

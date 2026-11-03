@@ -79,6 +79,14 @@ foreach ($Target in $BuildTargets) {
     $Arch = $TargetArray[1]
     $Filetype = $TargetArray[2]
 
+    # npm ci installs native USB bindings for the build host, which may not match this target.
+    if ($Os -eq "win" -or $Os -eq "linux") {
+        node scripts/prepare-usb-binding.js $Os $Arch
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to prepare USB binding for $Os/$Arch"
+        }
+    }
+
     # TODO: This is a hack, this relies on `electron-builder` being the last 
     # command in the package.json `dist` script
     npm run dist -- "--$Os" "--$Arch" "-p" "never"

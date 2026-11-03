@@ -24,6 +24,8 @@ jobs:
     steps:
     - name: Checkout the repo
       uses: actions/checkout@v5
+    - name: Test preload memory fallback
+      run: node --test Tests/preload-memory.test.js
     - name: Set up .NET Core
       uses: actions/setup-dotnet@v5
       with:

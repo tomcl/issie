@@ -100,8 +100,15 @@ const api = {
     processMemory: () => process.getProcessMemoryInfo(),
     // {total, free, swapTotal, swapFree} in kilobytes, for the whole machine rather than this
     // process. Synchronous, unlike processMemory, which is what lets the simulator size its memory
-    // budget at startup rather than guessing a number that suits no particular machine.
-    systemMemory: () => process.getSystemMemoryInfo(),
+    // budget at startup rather than guessing a number that suits no particular machine. If
+    // Electron cannot read it, zero keeps the simulator's existing fallback budget.
+    systemMemory: () => {
+      try {
+        return process.getSystemMemoryInfo();
+      } catch {
+        return { total: 0 };
+      }
+    },
     // How many listeners are attached per channel. The renderer has no ipcRenderer of its own now,
     // so what this counts is what the preload holds on its behalf - which is what leaks if anything
     // does, and is what this tool was always looking for.
